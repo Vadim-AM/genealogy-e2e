@@ -57,7 +57,8 @@ def test_owner_settings_save_persists(owner_page: Page, owner_user, base_url: st
 
 
 def test_owner_export_gedcom_returns_valid_dump(owner_user, base_url: str):
-    """F-OU-4: GEDCOM export returns a 5.5.1-shaped text dump."""
+    """F-OU-4 / TC-EXPORT-1: GEDCOM export returns a 5.5.1-shaped text dump
+    with attachment Content-Disposition and the canonical SOUR identifier."""
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.get(
         f"{base_url}/api/tenant/export?format=gedcom",
@@ -66,12 +67,27 @@ def test_owner_export_gedcom_returns_valid_dump(owner_user, base_url: str):
         timeout=TIMEOUTS.api_long,
     )
     r.raise_for_status()
-    assert r.text.lstrip().startswith(TestData.GEDCOM_HEAD), \
-        f"GEDCOM export missing prologue: {r.text[:200]!r}"
+
+    # Header contract per docs/test-plan.md TC-EXPORT-1.
+    ct = r.headers.get("content-type", "")
+    assert ct.startswith("text/plain"), f"GEDCOM content-type: {ct!r}"
+    assert "charset=utf-8" in ct.lower(), f"GEDCOM charset must be utf-8: {ct!r}"
+    cd = r.headers.get("content-disposition", "")
+    assert "attachment" in cd.lower(), \
+        f"GEDCOM must download as attachment, got: {cd!r}"
+    assert ".ged" in cd.lower(), f"GEDCOM filename must end in .ged, got: {cd!r}"
+
+    # Body: GEDCOM 5.5.1 prologue with the project SOUR identifier.
+    head = r.text.lstrip().splitlines()[:2]
+    assert head[0] == TestData.GEDCOM_HEAD, \
+        f"GEDCOM line 0 must be {TestData.GEDCOM_HEAD!r}, got {head[0]!r}"
+    assert head[1].startswith("1 SOUR NashaRodoslovnaya"), \
+        f"GEDCOM line 1 must identify the source app: {head[1]!r}"
 
 
 def test_owner_export_zip_contains_manifest_and_people(owner_user, base_url: str):
-    """F-OU-4: ZIP export contains people.json + MANIFEST.txt."""
+    """F-OU-4 / TC-EXPORT-1: ZIP export carries application/zip with magic-bytes
+    `50 4b 03 04` and includes people.json + MANIFEST.txt."""
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.get(
         f"{base_url}/api/tenant/export?format=zip",
@@ -81,6 +97,9 @@ def test_owner_export_zip_contains_manifest_and_people(owner_user, base_url: str
     )
     r.raise_for_status()
     assert r.headers["content-type"] == "application/zip"
+    # ZIP magic-bytes — first four bytes are PK\x03\x04 (50 4b 03 04).
+    assert r.content[:4] == b"PK\x03\x04", \
+        f"ZIP magic bytes mismatch: {r.content[:4]!r}"
     with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
         names = zf.namelist()
         assert "people.json" in names, f"people.json missing: {names}"
