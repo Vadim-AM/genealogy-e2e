@@ -1,11 +1,6 @@
 """First visit after login (этап 5-6 funnel).
 
 Covers: F-FV-1..6 при первом заходе owner'а в свой tenant.
-
-`test_first_visit_renders_tree_with_demo_seed` removed — its assertion
-(`expect_tree_rendered`) only verified the loading-indicator hid, not that
-demo cards rendered. Reinstate in Wave 2 once `tree_page.expect_tree_rendered`
-is rewritten with a concrete card-count assertion against the demo seed.
 """
 
 from __future__ import annotations
@@ -14,6 +9,24 @@ import httpx
 from playwright.sync_api import Page, expect
 
 from tests.pages.tree_page import TreePage
+
+
+# Demo seed has demo-self + 2 parents around the centred subject =
+# 2 orbit cards rendered in the ring view (the centred subject card
+# is rendered in a different DOM slot — `#tab-tree .section-title`).
+DEMO_SEED_RING_CARDS = 2
+
+
+def test_first_visit_renders_tree_with_demo_seed(owner_page: Page):
+    """F-FV-1, F-FV-2: owner visits / and orbit-view renders the demo ring.
+
+    Concrete count assertion via `.orbit-card` selector — beats the prior
+    "loading indicator hid" smoke. Backend seeds 5 persons; orbit shows
+    the centered subject plus immediate ring (parents) = 2 cards visible.
+    """
+    tree = TreePage(owner_page).goto()
+    owner_page.wait_for_load_state("networkidle")
+    tree.expect_tree_rendered(min_cards=DEMO_SEED_RING_CARDS)
 
 
 def test_first_visit_shows_authed_tabs(owner_page: Page):

@@ -161,6 +161,7 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
     def _do(
         email: str = "owner@e2e.example.com",
         password: str = DEFAULT_PASSWORD,
+        full_name: str = "Тестовый Пользователь",
         **profile: Any,
     ) -> AuthUser:
         with httpx.Client(base_url=uvicorn_server, timeout=10) as c:
@@ -169,10 +170,18 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
             # hit the 1/minute cap mid-suite.
             c.post("/api/_test/reset-signup-rate", timeout=3).raise_for_status()
 
-            # 1. Signup
+            # 1. Signup. `full_name` is required by the form (see /signup) and
+            # propagates into the demo-self person's `name` field — search and
+            # tree-rendering tests rely on it. Default keeps every owner_user
+            # comparable in the demo data.
             r = c.post(
                 "/api/account/signup",
-                json={"email": email, "password": password, **profile},
+                json={
+                    "email": email,
+                    "password": password,
+                    "full_name": full_name,
+                    **profile,
+                },
             )
             r.raise_for_status()
             assert r.json().get("status") == "verification_sent", \

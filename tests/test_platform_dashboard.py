@@ -50,10 +50,12 @@ def test_platform_metrics_endpoint_403_for_non_super(owner_user, base_url: str):
 
 
 def test_platform_metrics_endpoint_200_for_super(superadmin_user, base_url: str):
-    """TC-PA-4: superadmin gets 200 on /api/platform/metrics with counters.
+    """TC-PA-4: superadmin gets 200 on /api/platform/metrics with the canonical
+    field names.
 
-    DEFERRED (Wave 2): pin the exact field names once `platform_admin.py`
-    is read. For now we assert non-empty JSON to detect endpoint regressions.
+    Field names verified against `platform_admin.py:136-137`: `tenants_active`,
+    `signups_total`. Strict-equality on schema (the keys must exist) — if
+    backend renames, the test fails loud.
     """
     r = httpx.get(
         f"{base_url}/api/platform/metrics",
@@ -62,5 +64,6 @@ def test_platform_metrics_endpoint_200_for_super(superadmin_user, base_url: str)
     )
     r.raise_for_status()
     data = r.json()
-    assert isinstance(data, dict) and data, \
-        f"metrics response must be a non-empty object: {data!r}"
+    for key in ("tenants_active", "signups_total"):
+        assert key in data, f"metric {key!r} missing from response: {list(data)}"
+        assert isinstance(data[key], int), f"{key} must be int, got {type(data[key])}"

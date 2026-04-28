@@ -1,35 +1,34 @@
-"""POM for the in-tree person profile panel (slide-out / overlay).
+"""POM for the in-tree person profile page.
 
-DEFERRED (Wave 2): container selector is a three-way OR until
-`js/components/profile.js` is read. Action buttons are scoped *globally*
-on the page, not within the panel — once the container is verified,
-re-scope buttons to `self.container.get_by_role(...)`.
+Profile is NOT a slide-out panel — it replaces the contents of
+`#treeContainer` with a `.profile-page` block (see js/components/profile.js).
+The visible name is rendered in `#tab-tree .section-title` (the tab's main
+heading), not inside `.profile-page`.
+
+Selectors verified against js/components/profile.js (28.04 review).
 """
 
 from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
-from tests.messages import Buttons, t
-
 
 class ProfilePanel:
-    """Wraps interactions with the open profile of a person inside TreePage."""
+    """Wraps interactions with the open profile of a person."""
 
     def __init__(self, page: Page):
         self.page = page
-        # TODO Wave 2: verify against js/components/profile.js, replace OR
-        # chain with single concrete selector + scope buttons within it.
-        self.container = page.locator(
-            "#profileContainer, .profile-panel, .profile"
-        ).first
-        self.title = self.container.locator(".section-title").first
-        self.btn_enrich = page.get_by_role("button", name=t(Buttons.ENRICH), exact=True)
-        self.btn_edit = page.get_by_role("button", name=t(Buttons.EDIT), exact=True)
-        self.btn_delete = page.get_by_role("button", name=t(Buttons.DELETE), exact=True)
-        self.history_block = page.locator("[data-block='history']")
-        self.accepted_facts_block = page.locator("[data-block='accepted']")
-        self.past_research_block = page.locator("[data-block='past-research']")
+        # The profile body lives inside #treeContainer.
+        self.container = page.locator(".profile-page")
+        # Title is hoisted into the tab heading.
+        self.title = page.locator("#tab-tree .section-title")
+        # Action buttons (data-action verified in profile.js lines 189, 194, 213).
+        self.btn_back = page.locator('[data-action="close-profile"]')
+        self.btn_edit = page.locator('[data-action="profile-edit"]')
+        self.btn_enrich = page.locator('[data-action="enrich"]')
+        # Optional sections (rendered only for editor+ with relevant data).
+        self.history_block = page.locator("#profileAiHistory")
+        self.accepted_facts_block = page.locator("#profileAiAccepted")
 
     def expect_visible(self) -> None:
         expect(self.container).to_be_visible()
@@ -39,3 +38,6 @@ class ProfilePanel:
 
     def trigger_enrichment(self) -> None:
         self.btn_enrich.click()
+
+    def close(self) -> None:
+        self.btn_back.click()

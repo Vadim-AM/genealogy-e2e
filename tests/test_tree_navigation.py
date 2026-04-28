@@ -24,17 +24,17 @@ def test_switch_between_tabs(owner_page: Page):
         expect(owner_page.locator(f"#tab-{tab_name}.active")).to_be_visible()
 
 
-def test_search_input_accepts_query(owner_page: Page):
-    """F-FV-5: typing into search reflects in the input value.
+def test_search_returns_results_for_seeded_person(owner_page: Page):
+    """F-FV-5: typing a seeded person's name surfaces matching results.
 
-    DEFERRED (Wave 2): assert on rendered results (count > 0) once we know
-    the per-result selector. For now we assert the input is responsive —
-    the search UI itself is a Wave 3 expansion.
+    `signup_via_api` defaults `full_name="Тестовый Пользователь"` which is
+    persisted as the demo-self person's `name`. Searching "Тест" must
+    hydrate `#personSearchResults` with `.nav-search-result` items.
     """
     tree = TreePage(owner_page).goto()
     owner_page.wait_for_load_state("networkidle")
     tree.search_person("Тест")
-    expect(tree.search_input).to_have_value("Тест")
+    expect(tree.search_results.first).to_be_visible()
 
 
 def test_f5_keeps_profile_open(owner_page: Page):
