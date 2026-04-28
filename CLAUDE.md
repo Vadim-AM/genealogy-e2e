@@ -224,6 +224,37 @@ gated by `IS_TESTING`:
 
 If a contract changes upstream, update both repos in lockstep.
 
+## Run summary (28.04.2026 late night, post-Wave 9)
+
+`E2E_BACKEND_URL=http://127.0.0.1:8645 pytest tests/` against fresh
+upstream dev (`106a1c4`) → **102 passed, 21 xfailed in 80s**.
+
+Wave 9 added 8 domain-invariant + auth-security regressions:
+
+- `test_domain_invariants.py` — 6 tests covering INV-DOMAIN-001..005
+  + INV-DATE-001:
+  - death year before birth year (PATCH)
+  - parent.birth after child.birth (PATCH)
+  - garbage birth='foobar' accepted as date (PATCH)
+  - 3rd parent relationship accepted (POST)
+  - parent-cycle (A↔B) accepted (POST)
+  - branch=demo on root subject accepted (PATCH)
+- `test_session_invalidation.py` — INV-AUTH-001 stolen session NOT
+  invalidated after password reset (P0 — defeats security purpose
+  of reset).
+- `test_concurrency.py` — INV-EDIT-001 GET /api/people/{id} returns
+  ETag for optimistic concurrency (otherwise lost-update silent).
+
+Out of e2e scope (delegated to backend pytest):
+- INV-TEST-001/002/003 (`/api/_test/*` open anonymously) — the suite
+  itself depends on anonymous access to those endpoints. Fix needs
+  coordinated change in both repos; backend can validate via
+  IS_TESTING-disabled run.
+- INV-AI-003 (failed jobs don't decrement quota) — needs controllable
+  AI-failure mock; marginal value for e2e.
+- INV-PERM-002 (auth_v2 vs admin gate) — unclear expected contract,
+  product decision pending.
+
 ## Run summary (28.04.2026 night, post-Wave 8)
 
 `E2E_BACKEND_URL=http://127.0.0.1:8645 pytest tests/` against fresh
