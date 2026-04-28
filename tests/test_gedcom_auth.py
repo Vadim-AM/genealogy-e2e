@@ -25,15 +25,6 @@ import pytest
 from tests.timeouts import TIMEOUTS
 
 
-@pytest.mark.xfail(
-    reason="INV-GEDCOM-001: /api/admin/export-gedcom гейтирован "
-           "require_admin (legacy admin password). Owner с auth_v2 "
-           "cookie → 401 (Run security 28.04 night). Repatriation "
-           "use-case недоступен для всех multi-tenant клиентов. Fix: "
-           "перенести handler на auth_v2 require_owner или сделать "
-           "новый /api/account/tenant/export-gedcom endpoint.",
-    strict=False,
-)
 def test_owner_can_export_gedcom_via_auth_v2(owner_user, base_url: str):
     """INV-GEDCOM-001 (export side): auth_v2 owner получает 200 +
     GEDCOM body, не 401."""
@@ -53,12 +44,6 @@ def test_owner_can_export_gedcom_via_auth_v2(owner_user, base_url: str):
     )
 
 
-@pytest.mark.xfail(
-    reason="INV-GEDCOM-001 (import side): /api/admin/import-gedcom "
-           "тот же legacy admin gate. Multi-tenant owner не может "
-           "импортировать. См. export side выше.",
-    strict=False,
-)
 def test_owner_can_import_gedcom_via_auth_v2(owner_user, base_url: str):
     """INV-GEDCOM-001 (import side): auth_v2 owner может POST GEDCOM
     (response 200/202), не 401."""

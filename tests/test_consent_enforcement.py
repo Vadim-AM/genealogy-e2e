@@ -30,22 +30,16 @@ from tests.timeouts import TIMEOUTS
 DEFAULT_PASSWORD = "test_password_8plus"
 
 
-@pytest.mark.xfail(
-    reason="INV-AI-005: POST /api/enrich/{pid} без ai_consent_at → 200. "
-           "Compliance 152-ФЗ ст.9 ч.1 / GDPR ст.7 обходится "
-           "(Run security 28.04 night). Frontend ставит consent в "
-           "localStorage + best-effort POST /api/account/me/ai-consent "
-           "— но если консент не записан в БД (best-effort fail или "
-           "attacker bypass), backend всё равно accepts enrich. Fix: "
-           "в /api/enrich/{pid} POST handler — require_consent_for_ai "
-           "(check PlatformUser.ai_consent_at IS NOT NULL).",
-    strict=False,
-)
 def test_post_enrich_without_consent_is_forbidden(
     signup_via_api, base_url: str
 ):
     """INV-AI-005: backend должен отбивать enrich-вызов до того, как
-    пользователь записал явное согласие на AI processing."""
+    пользователь записал явное согласие на AI processing.
+
+    Was xfail until upstream commit `19fdd41` ("fix(enrichment):
+    enforce ai_consent_at gate on POST + history"). Now regular
+    regression — keeps the consent gate strict.
+    """
     email = f"consent-{uuid.uuid4().hex[:8]}@e2e.example.com"
     user = signup_via_api(email=email)
     headers = {"X-Tenant-Slug": user.slug}

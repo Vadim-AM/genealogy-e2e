@@ -268,21 +268,15 @@ def test_delete_non_root_person_with_relationship_does_not_500(
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.xfail(
-    reason="INV-TXN-001: POST /api/relationships {person2_id: 'NONEXIST'} "
-           "→ 500 (Run security 28.04 night). Backend не оборачивает "
-           "referential-integrity error на FK. Должен быть 404 (или "
-           "422). Тот же паттерн что INV-CASCADE-001 (DELETE non-root) "
-           "и cross-tenant photo — общая корневая причина: unhandled "
-           "FK violation. Fix: обернуть DB calls с FK в try/except + "
-           "вернуть 404/422 с сообщением «связанная запись не найдена».",
-    strict=False,
-)
 def test_relationship_with_orphan_person_id_returns_404_not_500(
     signup_via_api, base_url: str,
 ):
     """INV-TXN-001: POST relationship referencing non-existent person
-    must return 404 (or 422), never 500."""
+    must return 404 (or 422), never 500.
+
+    Was xfail until upstream commit `4007a3a` ("fix(api): cascade
+    enrichment+photo on delete + 404 на orphan rel ref"). Now regular.
+    """
     user = signup_via_api(email="txn001@e2e.example.com")
 
     # Создаём ОДНОГО real person — второй person_id будет orphan.
@@ -311,18 +305,12 @@ def test_relationship_with_orphan_person_id_returns_404_not_500(
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.xfail(
-    reason="INV-DATA-001: backend не лимитирует размер surname/notes "
-           "(Run security 28.04 night). PATCH с surname=10K chars "
-           "+ notes=1MB → 200, payload летит в БД, /api/tree response "
-           "потом надувается до десятков MB. DoS-vector + хранилище. "
-           "Fix: max_length на Pydantic Person schema (e.g. surname=100, "
-           "given_name=100, patronymic=100, badge=200, notes=10000 — "
-           "разумный bound). + content-length cap на multipart upload.",
-    strict=False,
-)
 def test_patch_person_huge_notes_is_rejected(owner_user, base_url: str):
-    """INV-DATA-001: notes > reasonable bound (e.g. 10K) must be rejected."""
+    """INV-DATA-001: notes > reasonable bound (e.g. 10K) must be rejected.
+
+    Was xfail until upstream commit `187bedb` ("fix(schemas): max_length
+    на text-полях Person"). Now regular regression.
+    """
     huge_notes = "X" * (50 * 1024)  # 50 KB — clearly above any reasonable bound
 
     r = _patch_person(
@@ -334,13 +322,11 @@ def test_patch_person_huge_notes_is_rejected(owner_user, base_url: str):
     )
 
 
-@pytest.mark.xfail(
-    reason="INV-DATA-001: surname без max_length — same story. "
-           "См. test_patch_person_huge_notes_is_rejected.",
-    strict=False,
-)
 def test_patch_person_huge_surname_is_rejected(owner_user, base_url: str):
-    """INV-DATA-001: surname > reasonable bound (e.g. 100) must be rejected."""
+    """INV-DATA-001: surname > reasonable bound (e.g. 100) must be rejected.
+
+    Was xfail until upstream commit `187bedb`. Now regular regression.
+    """
     r = _patch_person(
         base_url, owner_user, TestData.DEMO_PERSON_ID,
         {"surname": "А" * 5_000},

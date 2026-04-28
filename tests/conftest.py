@@ -260,6 +260,32 @@ def owner_user(signup_via_api) -> AuthUser:
 
 
 @pytest.fixture
+def grant_ai_consent(uvicorn_server: str):
+    """Helper: stamp ai_consent_at для user → unblocks /api/enrich/* gate.
+
+    Backend (commit 19fdd41) гейтирует все /api/enrich/* endpoints на
+    PlatformUser.ai_consent_at IS NOT NULL. Тесты, которые драйвят
+    enrichment flow через API, должны явно поставить consent — иначе
+    POST/GET enrich → 403 ai_consent_required.
+
+    Использование:
+        def test_x(owner_user, grant_ai_consent, base_url):
+            grant_ai_consent(owner_user)
+            httpx.post(f"{base_url}/api/enrich/{pid}", ...)
+    """
+
+    def _grant(user: AuthUser) -> None:
+        httpx.post(
+            f"{uvicorn_server}/api/account/me/ai-consent",
+            cookies=user.cookies,
+            headers={"X-Tenant-Slug": user.slug},
+            timeout=TIMEOUTS.api_request,
+        ).raise_for_status()
+
+    return _grant
+
+
+@pytest.fixture
 def superadmin_user(signup_via_api) -> AuthUser:
     return signup_via_api(email="super@e2e.example.com")
 

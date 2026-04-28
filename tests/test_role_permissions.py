@@ -64,10 +64,9 @@ def _create_invite_and_accept_as_viewer(
         login.raise_for_status()
         viewer_cookies = dict(login.cookies)
 
-        # 3. Accept invite (через owner's tenant_slug в payload).
+        # 3. Accept invite. Endpoint: POST /api/account/tenant/invites/{token}/accept
         accept = c.post(
-            "/api/invites/accept",
-            json={"token": invite_token},
+            f"/api/account/tenant/invites/{invite_token}/accept",
             cookies=viewer_cookies,
         )
         accept.raise_for_status()
@@ -78,17 +77,6 @@ def _create_invite_and_accept_as_viewer(
     }
 
 
-@pytest.mark.xfail(
-    reason="INV-PERM-003a: viewer (через accept invite role=viewer) "
-           "получает 403 на GET /api/tree и /api/people/* (Run security "
-           "28.04 night). Endpoint'ы require_editor где должно быть "
-           "require_viewer. Семья кликает invite — попадает в пустоту. "
-           "Fix: разделить read vs write в auth_v2 dependencies. GET — "
-           "require_viewer (включает viewer/editor/owner), POST/PATCH/"
-           "DELETE — require_editor. См. backend/app/auth_v2/* + "
-           "endpoint handlers.",
-    strict=False,
-)
 def test_viewer_can_read_tree(signup_via_api, base_url: str):
     """INV-PERM-003a: viewer's GET /api/tree returns 200 with data."""
     owner = signup_via_api(email=f"perm-owner-{uuid.uuid4().hex[:8]}@e2e.example.com")
@@ -107,11 +95,6 @@ def test_viewer_can_read_tree(signup_via_api, base_url: str):
     )
 
 
-@pytest.mark.xfail(
-    reason="INV-PERM-003a (same): viewer не может читать профили "
-           "конкретных person'ов. См. test_viewer_can_read_tree.",
-    strict=False,
-)
 def test_viewer_can_read_person(signup_via_api, base_url: str):
     """INV-PERM-003a: viewer GET /api/people/{id} returns 200."""
     owner = signup_via_api(email=f"perm-o2-{uuid.uuid4().hex[:8]}@e2e.example.com")

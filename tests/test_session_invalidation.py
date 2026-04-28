@@ -27,7 +27,7 @@ import uuid
 import httpx
 import pytest
 
-from tests.timeouts import TIMEOUTS
+from tests.timeouts import TIMEOUTS  # noqa: F401  (used in extended test)
 
 DEFAULT_PASSWORD = "test_password_8plus"
 NEW_PASSWORD = "NewPassword_After_Reset_2026"
@@ -91,4 +91,70 @@ def test_password_reset_invalidates_active_sessions(uvicorn_server: str):
         f"Old cookie still returns {me_after.status_code} {me_after.text[:200]}. "
         f"Attacker with stolen cookie keeps access — defeats the purpose "
         f"of password reset."
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# INV-MULTIDEVICE-001a — reset должен валить ВСЕ active sessions
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_password_reset_invalidates_all_devices_sessions(uvicorn_server: str):
+    """INV-MULTIDEVICE-001a: после reset-password все sessions user'а
+    (на разных устройствах) должны быть отозваны, не только current.
+
+    Was xfail at Run security 28.04 night (фикс 5b4c674 закрыл только
+    current-session). Сейчас на dev tip — все девайсы revoked. Тест
+    держит контракт revoke_all_user_sessions.
+    """
+    email = f"mdev-{uuid.uuid4().hex[:8]}@e2e.example.com"
+
+    with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+        c.post("/api/_test/reset-signup-rate", timeout=TIMEOUTS.api_short).raise_for_status()
+
+        # signup + verify
+        c.post(
+            "/api/account/signup",
+            json={"email": email, "password": DEFAULT_PASSWORD, "full_name": "Тест"},
+        ).raise_for_status()
+        mail = c.get("/api/_test/last-email", params={"to": email}).json()
+        token = re.search(r"token=([\w\-]+)", mail["text_body"]).group(1)
+        c.post("/api/account/verify-email", params={"token": token}).raise_for_status()
+
+        # 1. Login на «device A» — атакующий захватил эту cookie.
+        login_a = c.post(
+            "/api/account/login",
+            json={"email": email, "password": DEFAULT_PASSWORD},
+        )
+        login_a.raise_for_status()
+        device_a_cookies = dict(login_a.cookies)
+
+        # 2. Login на «device B» — жертва на своём устройстве.
+        login_b = c.post(
+            "/api/account/login",
+            json={"email": email, "password": DEFAULT_PASSWORD},
+        )
+        login_b.raise_for_status()
+        device_b_cookies = dict(login_b.cookies)
+
+        # Sanity: обе сессии активны.
+        assert c.get("/api/account/me", cookies=device_a_cookies).status_code == 200
+        assert c.get("/api/account/me", cookies=device_b_cookies).status_code == 200
+
+        # 3. Жертва с device B: forgot-password → reset.
+        c.post("/api/account/forgot-password", json={"email": email}).raise_for_status()
+        reset_mail = c.get("/api/_test/last-email", params={"to": email}).json()
+        reset_token = re.search(r"token=([\w\-]+)", reset_mail["text_body"]).group(1)
+        c.post(
+            "/api/account/reset-password",
+            json={"token": reset_token, "new_password": NEW_PASSWORD},
+        ).raise_for_status()
+
+        # 4. Cookie атакующего с device A должна быть отозвана.
+        me_a = c.get("/api/account/me", cookies=device_a_cookies)
+
+    assert me_a.status_code in (401, 403), (
+        f"INV-MULTIDEVICE-001a: device A session NOT invalidated after "
+        f"reset-password initiated from device B. Attacker keeps access. "
+        f"Cookie returns {me_a.status_code} {me_a.text[:200]}."
     )
