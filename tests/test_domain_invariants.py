@@ -222,3 +222,129 @@ def test_subject_cannot_be_demoted_to_demo_branch(owner_user, base_url: str):
     assert r.status_code in (400, 409, 422), (
         f"subject root demoted to branch=demo: {r.status_code} {r.text[:200]}"
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# INV-CASCADE-001 / INV-PERM-003b — DELETE non-root → 500 unhandled
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_delete_non_root_person_with_relationship_does_not_500(
+    signup_via_api, base_url: str,
+):
+    """INV-CASCADE-001: DELETE non-root person *с relationships* must
+    not crash with 500. Изолированный person удаляется и без cascade-
+    кода — реальный баг проявлялся когда есть FK на этот person.
+
+    Was xfail на момент Run security 28.04 night (DELETE crashed 500
+    из-за unhandled FK violation). Прошёл на dev tip 63edf35 — оставляю
+    как regression-trail.
+    """
+    user = signup_via_api(email="cascade@e2e.example.com")
+
+    # Создаём пару child + parent + relationship — DELETE parent должен
+    # cascade-снять relationship. Это и есть путь к 500.
+    child_id = "cascade-child"
+    parent_id = "cascade-parent"
+    _post_person(base_url, user, {"id": child_id, "name": "Ребёнок", "branch": "subject", "gender": "m"}).raise_for_status()
+    _post_person(base_url, user, {"id": parent_id, "name": "Родитель", "branch": "paternal", "gender": "m"}).raise_for_status()
+    _post_relationship(base_url, user, _parent_rel(parent_id, child_id)).raise_for_status()
+
+    r = httpx.delete(
+        f"{base_url}/api/people/{parent_id}",
+        cookies=user.cookies,
+        headers={"X-Tenant-Slug": user.slug},
+        timeout=TIMEOUTS.api_request,
+    )
+    assert r.status_code != 500, (
+        f"DELETE /api/people/{parent_id} crashed 500 — cascade not "
+        f"handled. Body: {r.text[:300]}"
+    )
+    assert r.status_code < 500, f"unexpected 5xx: {r.status_code}"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# INV-TXN-001 — orphan FK → 500 unhandled
+# ─────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.xfail(
+    reason="INV-TXN-001: POST /api/relationships {person2_id: 'NONEXIST'} "
+           "→ 500 (Run security 28.04 night). Backend не оборачивает "
+           "referential-integrity error на FK. Должен быть 404 (или "
+           "422). Тот же паттерн что INV-CASCADE-001 (DELETE non-root) "
+           "и cross-tenant photo — общая корневая причина: unhandled "
+           "FK violation. Fix: обернуть DB calls с FK в try/except + "
+           "вернуть 404/422 с сообщением «связанная запись не найдена».",
+    strict=False,
+)
+def test_relationship_with_orphan_person_id_returns_404_not_500(
+    signup_via_api, base_url: str,
+):
+    """INV-TXN-001: POST relationship referencing non-existent person
+    must return 404 (or 422), never 500."""
+    user = signup_via_api(email="txn001@e2e.example.com")
+
+    # Создаём ОДНОГО real person — второй person_id будет orphan.
+    real_id = "txn001-real"
+    _post_person(
+        base_url, user,
+        {"id": real_id, "name": "Реальный", "branch": "paternal", "gender": "m"},
+    ).raise_for_status()
+
+    r = _post_relationship(
+        base_url, user,
+        {"type": "parent", "person1_id": real_id, "person2_id": "NONEXIST-ORPHAN-ID"},
+    )
+    assert r.status_code != 500, (
+        f"POST /api/relationships with orphan FK crashed with 500 — "
+        f"unhandled FK violation. Body: {r.text[:300]}"
+    )
+    assert r.status_code in (400, 404, 422), (
+        f"orphan FK should return 4xx with proper detail, got "
+        f"{r.status_code} {r.text[:200]}"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# INV-DATA-001 — нет upper bound на размер surname/notes
+# ─────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.xfail(
+    reason="INV-DATA-001: backend не лимитирует размер surname/notes "
+           "(Run security 28.04 night). PATCH с surname=10K chars "
+           "+ notes=1MB → 200, payload летит в БД, /api/tree response "
+           "потом надувается до десятков MB. DoS-vector + хранилище. "
+           "Fix: max_length на Pydantic Person schema (e.g. surname=100, "
+           "given_name=100, patronymic=100, badge=200, notes=10000 — "
+           "разумный bound). + content-length cap на multipart upload.",
+    strict=False,
+)
+def test_patch_person_huge_notes_is_rejected(owner_user, base_url: str):
+    """INV-DATA-001: notes > reasonable bound (e.g. 10K) must be rejected."""
+    huge_notes = "X" * (50 * 1024)  # 50 KB — clearly above any reasonable bound
+
+    r = _patch_person(
+        base_url, owner_user, TestData.DEMO_PERSON_ID, {"notes": huge_notes}
+    )
+    assert r.status_code in (400, 413, 422), (
+        f"PATCH with 50KB notes accepted (status={r.status_code}) — "
+        f"no upper-bound on text fields, DB inflation vector."
+    )
+
+
+@pytest.mark.xfail(
+    reason="INV-DATA-001: surname без max_length — same story. "
+           "См. test_patch_person_huge_notes_is_rejected.",
+    strict=False,
+)
+def test_patch_person_huge_surname_is_rejected(owner_user, base_url: str):
+    """INV-DATA-001: surname > reasonable bound (e.g. 100) must be rejected."""
+    r = _patch_person(
+        base_url, owner_user, TestData.DEMO_PERSON_ID,
+        {"surname": "А" * 5_000},
+    )
+    assert r.status_code in (400, 413, 422), (
+        f"PATCH with 5K-char surname accepted (status={r.status_code})."
+    )
