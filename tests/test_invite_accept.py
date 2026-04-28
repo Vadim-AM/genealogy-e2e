@@ -6,6 +6,8 @@ Owner creates invite → second user accepts via /invite-accept → membership g
 from __future__ import annotations
 
 import httpx
+
+from tests.timeouts import TIMEOUTS
 from playwright.sync_api import Page, expect
 
 from tests.messages import Invite, t
@@ -27,7 +29,7 @@ def test_invite_accept_grants_membership(
         json={"email": "viewer@e2e.example.com", "role": "editor"},
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     )
     r.raise_for_status()
     invite_token = r.json()["token"]
@@ -66,7 +68,7 @@ def test_owner_accepting_own_invite_shows_warning(
         json={"email": "self@e2e.example.com", "role": "viewer"},
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     )
     r.raise_for_status()
     invite_token = r.json()["token"]

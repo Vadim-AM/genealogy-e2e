@@ -41,9 +41,14 @@ from typing import Any
 import httpx
 import pytest
 
+from tests.timeouts import TIMEOUTS, set_playwright_default_expect_timeout
+
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
 DEFAULT_PASSWORD = "test_password_8plus"
+
+# Apply the timeout multiplier to Playwright's `expect()` once per session.
+set_playwright_default_expect_timeout()
 
 
 def _resolve_backend_url() -> str:
@@ -67,20 +72,20 @@ def _resolve_backend_url() -> str:
 def base_url() -> str:
     """Test-instrumented backend URL. Overrides pytest-playwright's `base_url`."""
     url = _resolve_backend_url()
-    _wait_for_health(url, timeout=30)
+    _wait_for_health(url, timeout=TIMEOUTS.health_gate)
     return url
 
 
 def _wait_for_health(base_url: str, *, timeout: float) -> None:
     """Block until /api/health responds 200, or raise.
 
-    Single retry loop — `time.sleep` between attempts. We do not swallow
-    exceptions: the last exception (if any) is re-raised inside the timeout
-    error so failure mode is observable.
+    Single retry loop. We do not swallow exceptions in the inner request —
+    httpx's own connect/read timeout is short (`api_short`), which is what
+    we want during startup polling: many fast attempts, fail loud overall.
     """
     deadline = time.time() + timeout
     while time.time() < deadline:
-        response = httpx.get(f"{base_url}/api/health", timeout=2)
+        response = httpx.get(f"{base_url}/api/health", timeout=TIMEOUTS.api_short)
         if response.status_code == 200:
             return
         time.sleep(0.5)
@@ -101,7 +106,9 @@ def uvicorn_server(base_url: str) -> str:
 @pytest.fixture(autouse=True)
 def reset_state(uvicorn_server: str) -> None:
     """Wipe DB rows + tenants/ + rate limits + MockSender + site_config between tests."""
-    httpx.post(f"{uvicorn_server}/api/_test/reset", timeout=10).raise_for_status()
+    httpx.post(
+        f"{uvicorn_server}/api/_test/reset", timeout=TIMEOUTS.api_request
+    ).raise_for_status()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -111,7 +118,7 @@ def install_mock_ai(uvicorn_server: str) -> None:
     httpx.post(
         f"{uvicorn_server}/api/_test/install-mock-ai",
         json=fixture,
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     ).raise_for_status()
 
 
@@ -164,11 +171,13 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
         full_name: str = "Тестовый Пользователь",
         **profile: Any,
     ) -> AuthUser:
-        with httpx.Client(base_url=uvicorn_server, timeout=10) as c:
+        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
             # Reset slowapi signup throttle before each signup. Not optional —
             # if the endpoint is missing we want tests to ERROR, not silently
             # hit the 1/minute cap mid-suite.
-            c.post("/api/_test/reset-signup-rate", timeout=3).raise_for_status()
+            c.post(
+                "/api/_test/reset-signup-rate", timeout=TIMEOUTS.api_short
+            ).raise_for_status()
 
             # 1. Signup. `full_name` is required by the form (see /signup) and
             # propagates into the demo-self person's `name` field — search and
@@ -210,7 +219,7 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
                 "/api/account/onboarding-complete",
                 cookies=cookies,
                 headers={"X-Tenant-Slug": slug},
-                timeout=5,
+                timeout=TIMEOUTS.api_short,
             ).raise_for_status()
 
             return AuthUser(
@@ -283,7 +292,7 @@ def admin_login_via_api(uvicorn_server: str) -> Callable[[], dict[str, str]]:
     """Login as legacy admin (password). Returns admin_token cookie dict."""
 
     def _login() -> dict[str, str]:
-        with httpx.Client(base_url=uvicorn_server, timeout=10) as c:
+        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
             r = c.post("/api/admin/login", json={"password": "test_admin_password"})
             r.raise_for_status()
             return dict(r.cookies)

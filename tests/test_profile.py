@@ -12,6 +12,8 @@ is rewritten with concrete selectors (Wave 2).
 from __future__ import annotations
 
 import httpx
+
+from tests.timeouts import TIMEOUTS
 import pytest
 
 
@@ -23,7 +25,7 @@ def test_canonical_name_assembled_from_split_fields(
     headers = {"X-Tenant-Slug": owner_user.slug}
 
     r = httpx.get(
-        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=10
+        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=TIMEOUTS.api_request
     )
     assert r.status_code == 200, r.text
     tree = r.json()
@@ -38,7 +40,7 @@ def test_canonical_name_assembled_from_split_fields(
         json=payload,
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     )
     assert r.status_code == 200, \
         f"PATCH /api/people/{pid} failed (status={r.status_code}): {r.text[:300]}"
@@ -47,7 +49,7 @@ def test_canonical_name_assembled_from_split_fields(
         f"{base_url}/api/people/{pid}",
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     )
     assert r.status_code == 200, r.text
     person = r.json()

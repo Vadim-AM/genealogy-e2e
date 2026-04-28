@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import httpx
 
+from tests.timeouts import TIMEOUTS
+
 from tests.pages.platform_dashboard_page import PlatformDashboardPage
 
 
@@ -43,7 +45,7 @@ def test_platform_metrics_endpoint_403_for_non_super(owner_user, base_url: str):
     r = httpx.get(
         f"{base_url}/api/platform/metrics",
         cookies=owner_user.cookies,
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     )
     assert r.status_code in (401, 403), \
         f"non-superadmin reached platform metrics: {r.status_code} {r.text[:200]}"
@@ -60,7 +62,7 @@ def test_platform_metrics_endpoint_200_for_super(superadmin_user, base_url: str)
     r = httpx.get(
         f"{base_url}/api/platform/metrics",
         cookies=superadmin_user.cookies,
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     )
     r.raise_for_status()
     data = r.json()

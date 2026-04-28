@@ -19,6 +19,8 @@ import time
 import httpx
 import pytest
 
+from tests.timeouts import TIMEOUTS
+
 
 @pytest.mark.xfail(
     reason="Tenant DB schema bootstrap missing `enrichmentjob.actor_kind` "
@@ -30,7 +32,7 @@ def test_enrichment_endpoint_returns_mocked_output(owner_user, base_url: str):
     """F-AI-3: POST /api/enrich/{id} → job_id → poll → output uses mock fixture."""
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.get(
-        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=10
+        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=TIMEOUTS.api_request
     )
     r.raise_for_status()
     people = r.json()["people"]
@@ -42,20 +44,20 @@ def test_enrichment_endpoint_returns_mocked_output(owner_user, base_url: str):
         json={"streaming": False, "force_refresh": True},
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=15,
+        timeout=TIMEOUTS.api_long,
     )
     r.raise_for_status()
     body = r.json()
     job_id = body["job_id"]
 
-    deadline = time.time() + 30
+    deadline = time.time() + TIMEOUTS.enrichment_poll
     final = None
     while time.time() < deadline:
         r = httpx.get(
             f"{base_url}/api/enrich/jobs/{job_id}",
             cookies=owner_user.cookies,
             headers=headers,
-            timeout=5,
+            timeout=TIMEOUTS.api_short,
         )
         r.raise_for_status()
         data = r.json()
@@ -80,7 +82,7 @@ def test_enrichment_history_endpoint_after_run(owner_user, base_url: str):
     """TC-E2E-010: history endpoint returns the prior enrichment for replay."""
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.get(
-        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=10
+        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=TIMEOUTS.api_request
     )
     r.raise_for_status()
     people = r.json()["people"]
@@ -92,14 +94,14 @@ def test_enrichment_history_endpoint_after_run(owner_user, base_url: str):
         json={"streaming": False, "force_refresh": True},
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=30,
+        timeout=TIMEOUTS.api_long,
     ).raise_for_status()
 
     r = httpx.get(
         f"{base_url}/api/enrich/{pid}/history",
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     )
     r.raise_for_status()
     items = r.json()
@@ -110,7 +112,7 @@ def test_enrichment_first_run_does_not_hit_quota(owner_user, base_url: str):
     """F-AI-9 surrogate: a single mocked enrichment doesn't 429."""
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.get(
-        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=10
+        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=TIMEOUTS.api_request
     )
     r.raise_for_status()
     people = r.json()["people"]
@@ -122,6 +124,6 @@ def test_enrichment_first_run_does_not_hit_quota(owner_user, base_url: str):
         json={"streaming": False, "force_refresh": True},
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=30,
+        timeout=TIMEOUTS.api_long,
     )
     assert r.status_code != 429, f"first enrichment hit quota: {r.text[:200]}"
