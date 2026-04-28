@@ -58,19 +58,13 @@ def _ratio(slow_samples: list[float], fast_samples: list[float]) -> float:
     return p50_slow / p50_fast if p50_fast > 0 else float("inf")
 
 
-_SIGNUP_TIMING_XFAIL = pytest.mark.xfail(
-    reason="BUG-SEC-003: /api/account/signup latency differs ≈9× between "
-           "existing and new email (Run 2 28.04). Path for new does full "
-           "hash+insert+mail; for existing does short raise. Equal-work "
-           "fix: always run password hash + dummy delay regardless of "
-           "user presence. See app/auth.py signup handler.",
-    strict=False,
-)
-
-
-@_SIGNUP_TIMING_XFAIL
 def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_api):
     """TC-SEC-3: signup p50 latency for existing ≈ new email (ratio < 3×).
+
+    Was xfail under BUG-SEC-003 (≈9× ratio in Run 2) until upstream
+    commit `c39863b` ("fix(auth-v2): equal-work для anti-enumeration"
+    — added always-run password hash + dummy delay). Now plain
+    regression.
 
     Pre-seeds one verified user, then alternates batches of POSTs for
     that email vs throw-away new emails. Reset slowapi between calls

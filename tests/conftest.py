@@ -47,6 +47,28 @@ FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
 DEFAULT_PASSWORD = "test_password_8plus"
 
+# Shared secret для `/api/_test/*` endpoints (upstream commit 4a3f326). Backend
+# при `GENEALOGY_TEST_TOKEN=<value>` гейтит каждый _test/* через
+# `X-Test-Token` header через `hmac.compare_digest`. На production env не
+# задан — endpoints возвращают 503. Ниже мы автоматически инжектим header
+# во все httpx-запросы к `/api/_test/*` через monkey-patch — никакой
+# дополнительной правки в тестах не нужно.
+_E2E_TEST_TOKEN = os.environ.get("E2E_TEST_TOKEN", "e2e-test-token-default-2026")
+
+_orig_httpx_request = httpx.Client.request
+
+
+def _request_with_test_token(self, method, url, **kwargs):
+    url_str = str(url) if url is not None else ""
+    if "/api/_test/" in url_str:
+        headers = dict(kwargs.get("headers") or {})
+        headers.setdefault("X-Test-Token", _E2E_TEST_TOKEN)
+        kwargs["headers"] = headers
+    return _orig_httpx_request(self, method, url, **kwargs)
+
+
+httpx.Client.request = _request_with_test_token
+
 # Apply the timeout multiplier to Playwright's `expect()` once per session.
 set_playwright_default_expect_timeout()
 

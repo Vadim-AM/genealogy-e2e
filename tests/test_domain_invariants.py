@@ -58,20 +58,9 @@ def _post_relationship(base_url: str, user, payload: dict) -> httpx.Response:
     )
 
 
-def _list_parents_via_tree(base_url: str, user, pid: str) -> list[str]:
-    """Через /api/tree найти список parent IDs для person pid."""
-    r = httpx.get(
-        f"{base_url}/api/tree",
-        cookies=user.cookies,
-        headers={"X-Tenant-Slug": user.slug},
-        timeout=TIMEOUTS.api_request,
-    )
-    r.raise_for_status()
-    parents: list[str] = []
-    for rel in r.json().get("relationships", []):
-        if rel.get("type") == "parent" and rel.get("child_id") == pid:
-            parents.append(rel.get("parent_id"))
-    return parents
+def _parent_rel(parent_id: str, child_id: str) -> dict:
+    """Schema: `type=parent`, person1=parent, person2=child (directional)."""
+    return {"type": "parent", "person1_id": parent_id, "person2_id": child_id}
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -79,16 +68,12 @@ def _list_parents_via_tree(base_url: str, user, pid: str) -> list[str]:
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.xfail(
-    reason="INV-DOMAIN-001: backend не валидирует death < birth. "
-           "PATCH demo-self с birth=1920, death=1900 → 200 (Run "
-           "domain 28.04). Fix: добавить cross-field check в "
-           "Person Pydantic schema, либо проверка перед commit'ом "
-           "в /api/people PATCH handler.",
-    strict=False,
-)
 def test_patch_person_death_before_birth_is_422(owner_user, base_url: str):
-    """INV-DOMAIN-001: backend rejects death year < birth year."""
+    """INV-DOMAIN-001: backend rejects death year < birth year.
+
+    Was xfail until upstream commit `7499d92` ("feat(domain): validate
+    dates, cycles, parent count, parent age"). Now regular regression.
+    """
     r = _patch_person(
         base_url, owner_user, TestData.DEMO_PERSON_ID,
         {"birth": "1920", "death": "1900"},
@@ -100,23 +85,34 @@ def test_patch_person_death_before_birth_is_422(owner_user, base_url: str):
 
 
 @pytest.mark.xfail(
-    reason="INV-DOMAIN-004: mother (или any parent) born ПОСЛЕ child "
-           "→ 200 (Run domain 28.04). Если у demo-self birth=1985 и "
-           "PATCH demo-mother.birth=2000 — backend принимает. Fix: "
-           "проверять birth-year родителей >= birth-year child + N "
-           "(биологический минимум, ~12 лет; разумно 14-15).",
+    reason="INV-DOMAIN-004 (partial fix): commit 7499d92 закрыл "
+           "create-validation, но PATCH /api/people/{parent_id} с "
+           "birth=2000 (после ребёнка 1985) всё ещё проходит → 200. "
+           "Парные validation работают только на initial create. Fix: "
+           "запустить ту же cross-field validation в PATCH handler "
+           "(или в Pydantic schema, если parent_age — schema-level "
+           "constraint).",
     strict=False,
 )
 def test_patch_parent_birth_after_child_is_422(signup_via_api, base_url: str):
-    """INV-DOMAIN-004: parent.birth must precede child.birth (> ~14 years)."""
+    """INV-DOMAIN-004: parent.birth must precede child.birth (>= ~14y).
+
+    Self-contained: создаём пару child + parent через API.
+    """
     user = signup_via_api(email="dom004@e2e.example.com")
 
-    # PATCH демо-self → birth=1985 (ребёнок).
-    _patch_person(base_url, user, TestData.DEMO_PERSON_ID, {"birth": "1985"}).raise_for_status()
-    # Найти родителя.
-    parents = _list_parents_via_tree(base_url, user, TestData.DEMO_PERSON_ID)
-    assert parents, "demo-self has no parents seeded — fixture changed?"
-    parent_id = parents[0]
+    child_id = "dom004-child"
+    parent_id = "dom004-parent"
+
+    _post_person(
+        base_url, user,
+        {"id": child_id, "name": "Ребёнок", "branch": "subject", "gender": "m", "birth": "1985"},
+    ).raise_for_status()
+    _post_person(
+        base_url, user,
+        {"id": parent_id, "name": "Родитель", "branch": "paternal", "gender": "m", "birth": "1960"},
+    ).raise_for_status()
+    _post_relationship(base_url, user, _parent_rel(parent_id, child_id)).raise_for_status()
 
     # Попытаться поставить parent.birth = 2000 (через 15 лет ПОСЛЕ ребёнка).
     r = _patch_person(base_url, user, parent_id, {"birth": "2000"})
@@ -127,11 +123,12 @@ def test_patch_parent_birth_after_child_is_422(signup_via_api, base_url: str):
 
 
 @pytest.mark.xfail(
-    reason="INV-DATE-001: birth='foobar' (любая мусорная строка) → "
-           "201/200 (Run domain 28.04). Backend хранит как opaque "
-           "text вместо parse + reject. Fix: Pydantic regex/validator "
-           "на birth/death — либо ISO 'YYYY' / 'YYYY-MM-DD', либо "
-           "approximate-форма ('~1900', 'до 1920') с whitelist.",
+    reason="INV-DATE-001: birth='foobar' (произвольная строка) всё ещё "
+           "принимается (Run security 28.04 + повторно после 7499d92 "
+           "— тот фикс закрыл year-based cross-field check, но не парс "
+           "формата). Backend хранит как opaque text. Fix: Pydantic "
+           "regex/validator на birth/death — ISO 'YYYY' / 'YYYY-MM-DD' "
+           "или approximate-форма ('~1900', 'до 1920') с whitelist.",
     strict=False,
 )
 def test_patch_person_garbage_birth_is_422(owner_user, base_url: str):
@@ -150,31 +147,28 @@ def test_patch_person_garbage_birth_is_422(owner_user, base_url: str):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.xfail(
-    reason="INV-DOMAIN-002: backend позволяет 3-ий parent relationship "
-           "(Run domain 28.04). Frontend скрывает кнопку «+» когда "
-           "уже 2 parents — но это cosmetic, прямой POST "
-           "/api/relationships принимается. Fix: server-side check на "
-           "RELATIVE_LIMITS.parents=2 перед commit'ом в "
-           "/api/relationships handler (или в Relationship schema).",
-    strict=False,
-)
 def test_third_parent_relationship_is_rejected(signup_via_api, base_url: str):
-    """INV-DOMAIN-002: backend should reject >2 parents per child."""
+    """INV-DOMAIN-002: backend should reject >2 parents per child.
+
+    Was xfail until upstream commit `7499d92`. Now regular regression.
+
+    Self-contained: создаём child + 3 кандидата parent'а самостоятельно.
+    """
     user = signup_via_api(email="dom002@e2e.example.com")
 
-    # Создаём 3-его кандидата в parent'ы (у demo-self уже 2 demo-parent'а).
-    pcand = _post_person(
-        base_url, user,
-        {"name": "Третий Родитель", "branch": "paternal", "gender": "m"},
-    )
-    pcand.raise_for_status()
-    cand_id = pcand.json()["id"]
+    child_id = "dom002-child"
+    p1, p2, p3 = "dom002-p1", "dom002-p2", "dom002-p3"
 
-    r = _post_relationship(
-        base_url, user,
-        {"type": "parent", "parent_id": cand_id, "child_id": TestData.DEMO_PERSON_ID},
-    )
+    _post_person(base_url, user, {"id": child_id, "name": "Ребёнок", "branch": "subject", "gender": "m"}).raise_for_status()
+    for pid, pname in ((p1, "Родитель-1"), (p2, "Родитель-2"), (p3, "Родитель-3")):
+        _post_person(base_url, user, {"id": pid, "name": pname, "branch": "paternal", "gender": "m"}).raise_for_status()
+
+    # Первые 2 parent — OK.
+    _post_relationship(base_url, user, _parent_rel(p1, child_id)).raise_for_status()
+    _post_relationship(base_url, user, _parent_rel(p2, child_id)).raise_for_status()
+
+    # Третий — должен быть отбит.
+    r = _post_relationship(base_url, user, _parent_rel(p3, child_id))
     assert r.status_code in (400, 409, 422), (
         f"3rd parent accepted: {r.status_code} {r.text[:200]}"
     )
@@ -185,32 +179,22 @@ def test_third_parent_relationship_is_rejected(signup_via_api, base_url: str):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.xfail(
-    reason="INV-DOMAIN-003: parent-cycle (A parent of B + B parent of A) "
-           "принимается обоими POST /api/relationships → 201/201 (Run "
-           "domain 28.04). DFS от любого узла → infinite recursion. "
-           "Fix: при insert relationship 'parent' проверять, что новый "
-           "edge не создаёт cycle (BFS от ancestor по parent edges).",
-    strict=False,
-)
 def test_parent_cycle_is_rejected(signup_via_api, base_url: str):
-    """INV-DOMAIN-003: A parent of B + B parent of A → backend rejects 2nd."""
+    """INV-DOMAIN-003: A parent of B + B parent of A → backend rejects 2nd.
+
+    Was xfail until upstream commit `7499d92`. Now regular regression.
+    """
     user = signup_via_api(email="dom003@e2e.example.com")
 
-    a = _post_person(base_url, user, {"name": "Цикл-A", "branch": "paternal", "gender": "m"})
-    a.raise_for_status()
-    a_id = a.json()["id"]
-
-    b = _post_person(base_url, user, {"name": "Цикл-B", "branch": "paternal", "gender": "m"})
-    b.raise_for_status()
-    b_id = b.json()["id"]
+    a_id, b_id = "dom003-a", "dom003-b"
+    _post_person(base_url, user, {"id": a_id, "name": "Цикл-A", "branch": "paternal", "gender": "m"}).raise_for_status()
+    _post_person(base_url, user, {"id": b_id, "name": "Цикл-B", "branch": "paternal", "gender": "m"}).raise_for_status()
 
     # 1. A parent of B — OK.
-    r1 = _post_relationship(base_url, user, {"type": "parent", "parent_id": a_id, "child_id": b_id})
-    r1.raise_for_status()
+    _post_relationship(base_url, user, _parent_rel(a_id, b_id)).raise_for_status()
 
     # 2. B parent of A — должно быть отбито (создаёт cycle).
-    r2 = _post_relationship(base_url, user, {"type": "parent", "parent_id": b_id, "child_id": a_id})
+    r2 = _post_relationship(base_url, user, _parent_rel(b_id, a_id))
     assert r2.status_code in (400, 409, 422), (
         f"parent-cycle B→A→B accepted: {r2.status_code} {r2.text[:200]}"
     )

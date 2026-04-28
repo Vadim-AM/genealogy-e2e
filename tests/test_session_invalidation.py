@@ -33,18 +33,13 @@ DEFAULT_PASSWORD = "test_password_8plus"
 NEW_PASSWORD = "NewPassword_After_Reset_2026"
 
 
-@pytest.mark.xfail(
-    reason="INV-AUTH-001: после reset-password старая cookie остаётся "
-           "валидной (Run security 28.04). Атакующий с украденной "
-           "сессией не выкинут. Fix: в /api/account/reset-password "
-           "handler — удалить все PlatformSession где user_id = "
-           "target. См. backend/app/auth_v2/router.py reset-password "
-           "branch.",
-    strict=False,
-)
 def test_password_reset_invalidates_active_sessions(uvicorn_server: str):
     """INV-AUTH-001: после reset-password старая session cookie должна
     быть отозвана — последующий /api/account/me с ней → 401.
+
+    Was xfail under INV-AUTH-001 until upstream commit `5b4c674`
+    ("fix(auth): invalidate active sessions on password reset").
+    Now regular regression.
     """
     email = f"sess-{uuid.uuid4().hex[:8]}@e2e.example.com"
 
