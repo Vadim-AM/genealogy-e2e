@@ -42,6 +42,48 @@ def test_signup_happy_path_sends_verification_email(page: Page, base_url: str):
         f"no verification token in email: {r.json()!r}"
 
 
+def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str):
+    """TC-FLOW-1.1: POST /api/account/verify-email sets a session cookie in
+    the response so the user is logged in immediately — no extra login step.
+
+    Regression for UX-FLOW-002 (closed in commit 264db9e).
+    """
+    signup = SignupPage(page).goto()
+    signup.fill_required(
+        email="autologin@e2e.example.com",
+        password="strong_password_2026",
+        full_name="Автологин Тестов",
+    ).submit()
+    signup.expect_verification_message()
+
+    mail = httpx.get(
+        f"{base_url}/api/_test/last-email", params={"to": "autologin@e2e.example.com"}
+    )
+    mail.raise_for_status()
+    token = re.search(r"token=([\w\-]+)", mail.json()["text_body"]).group(1)
+
+    # POST /verify-email directly — checking that the response carries a
+    # session cookie + the auto_login=true contract.
+    verify = httpx.post(
+        f"{base_url}/api/account/verify-email", params={"token": token}
+    )
+    verify.raise_for_status()
+    body = verify.json()
+    assert body.get("auto_login") is True, \
+        f"verify response must include auto_login=true: {body!r}"
+    assert body.get("tenant_slug"), f"verify response missing tenant_slug: {body!r}"
+
+    cookies = dict(verify.cookies)
+    session_cookie = cookies.get("platform_session") or cookies.get("session_id")
+    assert session_cookie, \
+        f"verify-email response must Set-Cookie a session: got {list(cookies)}"
+
+    # The cookie alone (no separate login call) should authenticate /me.
+    me = httpx.get(f"{base_url}/api/account/me", cookies=cookies)
+    me.raise_for_status()
+    assert me.json()["tenant"]["slug"] == body["tenant_slug"]
+
+
 def test_signup_then_verify_creates_tenant(page: Page, base_url: str):
     """F-EV-4: after verify, login succeeds and tenant_slug is returned."""
     signup = SignupPage(page).goto()

@@ -85,12 +85,24 @@ class PII(_Catalogue):
     OWNER_FAMILY_NAMES = ("Данилюк", "Макаров")
 
 
+class FamilyGroups(_Catalogue):
+    """Profile family-group labels — used to scope `+`-buttons to a relation."""
+
+    PARENTS = {"ru": "Родители", "en": "Parents"}
+    SPOUSE = {"ru": "Супруг", "en": "Spouse"}  # Substring; matches «Супруг(а)»
+    CHILDREN = {"ru": "Дети", "en": "Children"}
+    SIBLINGS = {"ru": "Братья/сёстры", "en": "Siblings"}
+
+
 class TestData(_Catalogue):
     """Fixed values supplied BY the test (not from product)."""
 
     SAMPLE_SITE_NAME = "Тестовая семья"
     GEDCOM_HEAD = "0 HEAD"
     DEMO_PERSON_ID = "demo-self"
+    # Default `full_name` used by `signup_via_api` — also becomes the
+    # tenant's display_name and the demo-self person's name.
+    DEFAULT_FULL_NAME = "Тестовый Пользователь"
 
 
 # ─────────────────────────────────────────────────────────────────────────
