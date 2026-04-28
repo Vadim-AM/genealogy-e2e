@@ -23,8 +23,10 @@ class WaitPage(BasePage):
         return self
 
     def expect_success(self) -> None:
-        expect(self.result).to_be_visible(timeout=10_000)
-        expect(self.result).not_to_have_text("", timeout=5_000)
+        """`#result` becomes visible with non-empty content. Auto-wait via
+        Playwright default — no explicit timeout needed."""
+        expect(self.result).to_be_visible()
+        expect(self.result).not_to_have_text("")
 
     def expect_visible_form(self) -> None:
         expect(self.form).to_be_visible()

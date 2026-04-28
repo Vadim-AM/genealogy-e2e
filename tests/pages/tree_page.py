@@ -35,16 +35,17 @@ class TreePage(BasePage):
         return self
 
     def expect_tree_rendered(self) -> None:
+        """DEFERRED (Wave 2): currently only verifies the loading-indicator
+        disappeared. That passes on an empty tree or a fallback "no data" UI.
+        Replace with a concrete card-count assertion against the demo seed
+        once the orbit-card selector is confirmed.
+        """
         expect(self.tree_container).to_be_visible()
-        # Loading indicator should disappear, real cards render — orbit attaches SVG/divs
-        expect(self.tree_container.locator(".loading-indicator")).not_to_be_visible(timeout=10_000)
+        expect(self.tree_container.locator(".loading-indicator")).not_to_be_visible()
 
     def search_person(self, query: str) -> "TreePage":
         self.search_input.fill(query)
         return self
-
-    def expect_search_results_visible(self) -> None:
-        expect(self.search_results).to_be_visible(timeout=5_000)
 
     def soft_check_guest_tabs(self, soft) -> None:
         """Tabs visible to anonymous visitors (tree + about)."""
