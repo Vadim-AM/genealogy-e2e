@@ -43,9 +43,10 @@ import pytest
 
 from tests.timeouts import TIMEOUTS, set_playwright_default_expect_timeout
 
-FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
+from tests.api_paths import API
+from tests.constants import TestConfig
 
-DEFAULT_PASSWORD = "test_password_8plus"
+FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
 # Shared secret для `/api/_test/*` endpoints (upstream commit 4a3f326). Backend
 # при `GENEALOGY_TEST_TOKEN=<value>` гейтит каждый _test/* через
@@ -53,21 +54,47 @@ DEFAULT_PASSWORD = "test_password_8plus"
 # задан — endpoints возвращают 503. Ниже мы автоматически инжектим header
 # во все httpx-запросы к `/api/_test/*` через monkey-patch — никакой
 # дополнительной правки в тестах не нужно.
-_E2E_TEST_TOKEN = os.environ.get("E2E_TEST_TOKEN", "e2e-test-token-default-2026")
+_E2E_TEST_TOKEN = os.environ.get("E2E_TEST_TOKEN", TestConfig.TEST_TOKEN_DEFAULT)
 
 _orig_httpx_request = httpx.Client.request
 
 
-def _request_with_test_token(self, method, url, **kwargs):
+def _origin_for(client_base_url: str, request_url: str) -> str:
+    """Derive same-origin header value: scheme://host[:port]."""
+    src = client_base_url or request_url
+    src = str(src)
+    if "://" not in src:
+        return src
+    scheme, rest = src.split("://", 1)
+    host = rest.split("/", 1)[0]
+    return f"{scheme}://{host}"
+
+
+def _patched_request(self, method, url, **kwargs):
+    """Inject suite-required headers into every httpx-request:
+
+    1. `X-Test-Token` for `/api/_test/*` (commit 4a3f326).
+    2. `Origin` for mutating methods — backend's CSRF middleware
+       checks Origin/Referer on every POST/PATCH/PUT/DELETE
+       independently of IS_TESTING (commit 1c6cec0).
+
+    Suite tests don't need to know about either header.
+    """
     url_str = str(url) if url is not None else ""
+    headers = dict(kwargs.get("headers") or {})
+
     if "/api/_test/" in url_str:
-        headers = dict(kwargs.get("headers") or {})
         headers.setdefault("X-Test-Token", _E2E_TEST_TOKEN)
-        kwargs["headers"] = headers
+
+    if str(method).upper() in ("POST", "PATCH", "PUT", "DELETE"):
+        client_base = str(getattr(self, "base_url", "") or "")
+        headers.setdefault("Origin", _origin_for(client_base, url_str))
+
+    kwargs["headers"] = headers
     return _orig_httpx_request(self, method, url, **kwargs)
 
 
-httpx.Client.request = _request_with_test_token
+httpx.Client.request = _patched_request
 
 # Apply the timeout multiplier to Playwright's `expect()` once per session.
 set_playwright_default_expect_timeout()
@@ -129,7 +156,7 @@ def uvicorn_server(base_url: str) -> str:
 def reset_state(uvicorn_server: str) -> None:
     """Wipe DB rows + tenants/ + rate limits + MockSender + site_config between tests."""
     httpx.post(
-        f"{uvicorn_server}/api/_test/reset", timeout=TIMEOUTS.api_request
+        f"{uvicorn_server}{API.TEST_RESET}", timeout=TIMEOUTS.api_request
     ).raise_for_status()
 
 
@@ -138,7 +165,7 @@ def install_mock_ai(uvicorn_server: str) -> None:
     """Install AI fixture once per session (survives `/reset` — not touched by it)."""
     fixture = json.loads((FIXTURES_DIR / "ai_responses.json").read_text())
     httpx.post(
-        f"{uvicorn_server}/api/_test/install-mock-ai",
+        f"{uvicorn_server}{API.TEST_INSTALL_MOCK_AI}",
         json=fixture,
         timeout=TIMEOUTS.api_request,
     ).raise_for_status()
@@ -180,6 +207,144 @@ def _extract_token_from_email(body: str) -> str:
 
 
 @pytest.fixture
+def signup_unverified(uvicorn_server: str) -> Callable[..., str]:
+    """Factory: signup без verify-email — для тестов которые покрывают
+    pre-verification path (login до verify, change-email-flow, etc.).
+
+    Возвращает email (verification token остаётся в MockSender).
+    """
+
+    def _do(
+        email: str = "unverified@e2e.example.com",
+        password: str = TestConfig.DEFAULT_PASSWORD,
+        full_name: str = "Тестовый Пользователь",
+    ) -> str:
+        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+            c.post(
+                API.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short
+            ).raise_for_status()
+            r = c.post(
+                API.SIGNUP,
+                json={"email": email, "password": password, "full_name": full_name},
+            )
+            r.raise_for_status()
+        return email
+
+    return _do
+
+
+@pytest.fixture
+def login_existing(uvicorn_server: str) -> Callable[..., dict[str, str]]:
+    """Factory: login существующего user'а, возвращает cookies.
+
+    Используется для multi-device сценариев (один user, несколько
+    параллельных sessions) — `signup_via_api` уже включает один login.
+    """
+
+    def _do(email: str, password: str = TestConfig.DEFAULT_PASSWORD) -> dict[str, str]:
+        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+            r = c.post(
+                API.LOGIN,
+                json={"email": email, "password": password},
+            )
+            r.raise_for_status()
+            return dict(r.cookies)
+
+    return _do
+
+
+@pytest.fixture
+def read_email_token(uvicorn_server: str) -> Callable[[str], str]:
+    """Factory: read latest token из MockSender для address.
+
+    Используется в session-invalidation, password-reset, change-email
+    flows — где нужно подобрать новый token после reset/forgot/etc.
+    """
+
+    def _read(email: str) -> str:
+        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+            r = c.get(API.TEST_LAST_EMAIL, params={"to": email})
+            r.raise_for_status()
+            return _extract_token_from_email(r.json().get("text_body") or "")
+
+    return _read
+
+
+@pytest.fixture
+def create_invite(uvicorn_server: str) -> Callable[..., str]:
+    """Factory: owner создаёт invite, возвращает invite token.
+
+    Используется в role-permission тестах для setup viewer/editor.
+    """
+
+    def _do(owner: "AuthUser", *, role: str = "viewer", name: str = "Гость") -> str:
+        r = httpx.post(
+            f"{uvicorn_server}{API.TENANT_INVITES}",
+            json={"name": name, "role": role},
+            cookies=owner.cookies,
+            headers={"X-Tenant-Slug": owner.slug},
+            timeout=TIMEOUTS.api_request,
+        )
+        r.raise_for_status()
+        return r.json()["token"]
+
+    return _do
+
+
+@pytest.fixture
+def tenant_client(uvicorn_server: str):
+    """Factory: httpx.Client pre-wired для tenant'а (cookies + slug header).
+
+    Используй когда тест делает много API-вызовов от имени одного user'а:
+    исключает повторение `cookies=user.cookies`, `headers={"X-Tenant-
+    Slug": user.slug}`, `timeout=...` на каждом httpx-вызове.
+
+        def test_x(owner_user, tenant_client, base_url):
+            api = tenant_client(owner_user)
+            r = api.get("/api/people/demo-self")
+            r.raise_for_status()
+            api.patch("/api/people/demo-self", json={"summary": "..."})
+
+    Несколько user'ов в одном тесте — несколько вызовов factory.
+    Все клиенты автоматически закрываются на teardown.
+    """
+
+    clients: list[httpx.Client] = []
+
+    def _make(user: "AuthUser") -> httpx.Client:
+        c = httpx.Client(
+            base_url=uvicorn_server,
+            cookies=user.cookies,
+            headers={"X-Tenant-Slug": user.slug},
+            timeout=TIMEOUTS.api_request,
+        )
+        clients.append(c)
+        return c
+
+    yield _make
+    for c in clients:
+        c.close()
+
+
+@pytest.fixture
+def accept_invite(uvicorn_server: str) -> Callable[..., None]:
+    """Factory: accept invite by token, using user's session cookies.
+
+    Endpoint: POST /api/account/tenant/invites/{token}/accept.
+    """
+
+    def _do(invite_token: str, *, cookies: dict[str, str]) -> None:
+        r = httpx.post(
+            f"{uvicorn_server}{API.tenant_invite_accept(invite_token)}",
+            cookies=cookies,
+            timeout=TIMEOUTS.api_request,
+        )
+        r.raise_for_status()
+
+    return _do
+
+
+@pytest.fixture
 def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
     """Factory: full signup → verify → login → onboarding-complete via API.
 
@@ -188,8 +353,8 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
     """
 
     def _do(
-        email: str = "owner@e2e.example.com",
-        password: str = DEFAULT_PASSWORD,
+        email: str = TestConfig.DEFAULT_OWNER_EMAIL,
+        password: str = TestConfig.DEFAULT_PASSWORD,
         full_name: str = "Тестовый Пользователь",
         **profile: Any,
     ) -> AuthUser:
@@ -197,16 +362,13 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
             # Reset slowapi signup throttle before each signup. Not optional —
             # if the endpoint is missing we want tests to ERROR, not silently
             # hit the 1/minute cap mid-suite.
-            c.post(
-                "/api/_test/reset-signup-rate", timeout=TIMEOUTS.api_short
-            ).raise_for_status()
+            c.post(API.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short).raise_for_status()
 
             # 1. Signup. `full_name` is required by the form (see /signup) and
             # propagates into the demo-self person's `name` field — search and
-            # tree-rendering tests rely on it. Default keeps every owner_user
-            # comparable in the demo data.
+            # tree-rendering tests rely on it.
             r = c.post(
-                "/api/account/signup",
+                API.SIGNUP,
                 json={
                     "email": email,
                     "password": password,
@@ -219,18 +381,16 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
                 f"signup did not enter verification flow: {r.json()}"
 
             # 2. Read verification token from MockSender
-            mail = c.get("/api/_test/last-email", params={"to": email})
+            mail = c.get(API.TEST_LAST_EMAIL, params={"to": email})
             mail.raise_for_status()
             token = _extract_token_from_email(mail.json()["text_body"] or "")
 
-            # 3. Verify
-            c.post("/api/account/verify-email", params={"token": token}).raise_for_status()
+            # 3. Verify (token в body — commit d860de8 убрал из query
+            # чтобы не утекало в access logs).
+            c.post(API.VERIFY_EMAIL, json={"token": token}).raise_for_status()
 
             # 4. Login → tenant_slug + cookies
-            r = c.post(
-                "/api/account/login",
-                json={"email": email, "password": password},
-            )
+            r = c.post(API.LOGIN, json={"email": email, "password": password})
             r.raise_for_status()
             data = r.json()
             slug = data["tenant_slug"]
@@ -238,7 +398,7 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
 
             # 5. Onboarding-complete (suppresses the auto-tour overlay)
             c.post(
-                "/api/account/onboarding-complete",
+                API.ONBOARDING_COMPLETE,
                 cookies=cookies,
                 headers={"X-Tenant-Slug": slug},
                 timeout=TIMEOUTS.api_short,
@@ -260,7 +420,7 @@ def owner_user(signup_via_api) -> AuthUser:
 
 
 @pytest.fixture
-def grant_ai_consent(uvicorn_server: str):
+def grant_ai_consent(tenant_client):
     """Helper: stamp ai_consent_at для user → unblocks /api/enrich/* gate.
 
     Backend (commit 19fdd41) гейтирует все /api/enrich/* endpoints на
@@ -269,25 +429,21 @@ def grant_ai_consent(uvicorn_server: str):
     POST/GET enrich → 403 ai_consent_required.
 
     Использование:
-        def test_x(owner_user, grant_ai_consent, base_url):
+        def test_x(owner_user, grant_ai_consent, tenant_client):
             grant_ai_consent(owner_user)
-            httpx.post(f"{base_url}/api/enrich/{pid}", ...)
+            api = tenant_client(owner_user)
+            api.post(API.enrich(pid), json={...})
     """
 
     def _grant(user: AuthUser) -> None:
-        httpx.post(
-            f"{uvicorn_server}/api/account/me/ai-consent",
-            cookies=user.cookies,
-            headers={"X-Tenant-Slug": user.slug},
-            timeout=TIMEOUTS.api_request,
-        ).raise_for_status()
+        tenant_client(user).post(API.ACCOUNT_AI_CONSENT).raise_for_status()
 
     return _grant
 
 
 @pytest.fixture
 def superadmin_user(signup_via_api) -> AuthUser:
-    return signup_via_api(email="super@e2e.example.com")
+    return signup_via_api(email=TestConfig.SUPERADMIN_EMAIL)
 
 
 @pytest.fixture

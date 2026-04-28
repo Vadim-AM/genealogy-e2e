@@ -6,18 +6,15 @@ form sets a new password → login works with the new password.
 
 from __future__ import annotations
 
-import re
-
 import httpx
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 
 from tests.pages.forgot_password_page import ForgotPasswordPage, ResetPasswordPage
-from tests.pages.login_page import LoginPage
 from tests.timeouts import TIMEOUTS
 
 
 def test_forgot_password_full_flow_changes_password(
-    page: Page, base_url: str, owner_user
+    page: Page, base_url: str, owner_user, read_email_token
 ):
     """TC-FP-1, F-FP-1..6: forgot → reset email → new password → login OK."""
     fp = ForgotPasswordPage(page).goto()
@@ -27,17 +24,7 @@ def test_forgot_password_full_flow_changes_password(
     assert resp_info.value.ok, f"forgot-password returned {resp_info.value.status}"
     fp.expect_success_message()
 
-    # MockSender now has a reset email with a `?token=...` link.
-    mail = httpx.get(
-        f"{base_url}/api/_test/last-email",
-        params={"to": owner_user.email},
-        timeout=TIMEOUTS.api_short,
-    )
-    mail.raise_for_status()
-    body = mail.json()["text_body"] or ""
-    token_match = re.search(r"token=([\w\-]+)", body)
-    assert token_match, f"no reset token in email: {body[:200]}"
-    token = token_match.group(1)
+    token = read_email_token(owner_user.email)
 
     new_password = "Brand_New_Password_2026"
     rp = ResetPasswordPage(page).open_with_token(token)
@@ -89,7 +76,7 @@ def test_forgot_password_unknown_email_silent_200(page: Page, base_url: str):
 
 
 def test_reset_password_token_is_single_use(
-    page: Page, base_url: str, owner_user
+    page: Page, base_url: str, owner_user, read_email_token
 ):
     """F-FP-4 / TC-FP-4: re-using a reset token after success returns 4xx,
     not another success."""
@@ -100,12 +87,7 @@ def test_reset_password_token_is_single_use(
         timeout=TIMEOUTS.api_request,
     ).raise_for_status()
 
-    mail = httpx.get(
-        f"{base_url}/api/_test/last-email",
-        params={"to": owner_user.email},
-        timeout=TIMEOUTS.api_short,
-    ).json()
-    token = re.search(r"token=([\w\-]+)", mail["text_body"]).group(1)
+    token = read_email_token(owner_user.email)
 
     new_password = "First_Reset_Password_2026"
     r = httpx.post(

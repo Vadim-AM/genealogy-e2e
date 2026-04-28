@@ -48,7 +48,7 @@ def _signup_and_verify(client: httpx.Client, email: str) -> str:
     m = re.search(r"token=([A-Za-z0-9_\-]+)", body)
     assert m, f"no verification token in email: {body[:200]}"
 
-    client.post("/api/account/verify-email", params={"token": m.group(1)}).raise_for_status()
+    client.post("/api/account/verify-email", json={"token": m.group(1)}).raise_for_status()
 
     login = client.post(
         "/api/account/login",
@@ -90,10 +90,19 @@ def test_welcome_email_uses_public_url_env_not_hardcoded_prod(
         html_body = body.get("html_body") or ""
         full_body = text_body + html_body
 
-    # Hardcoded prod не должно появиться когда среда не prod.
+    # Pin-positive: welcome URL должен совпадать с тем, как backend
+    # сейчас знает себя (GENEALOGY_PUBLIC_URL). Тест запускается с
+    # E2E_PUBLIC_URL_HOST = host из uvicorn_server (e.g. 127.0.0.1).
+    # Если в письме hardcoded `nasharodoslovnaya.ru` или другой
+    # production-домен — fail.
+    public_host = uvicorn_server.split("://", 1)[-1].split(":", 1)[0]
+    assert public_host in full_body, (
+        f"welcome-email URL не содержит host из GENEALOGY_PUBLIC_URL "
+        f"({public_host!r}). Backend hardcodes prod domain in template "
+        f"вместо env-driven derivation. Body excerpt: {full_body[:300]!r}"
+    )
     assert "nasharodoslovnaya.ru" not in full_body, (
-        f"welcome-email содержит hardcoded prod-домен 'nasharodoslovnaya.ru'. "
-        f"Тест-окружение работает на {uvicorn_server}. Welcome URL должен "
-        f"derive из GENEALOGY_PUBLIC_URL/settings, не быть статической "
-        f"строкой в template."
+        f"welcome-email содержит hardcoded prod-домен 'nasharodoslovnaya.ru' "
+        f"при запуске на {uvicorn_server}. URL должен derive из "
+        f"GENEALOGY_PUBLIC_URL, не быть статической строкой в template."
     )

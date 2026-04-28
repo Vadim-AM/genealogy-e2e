@@ -1,66 +1,60 @@
 """INV-EMAIL-002: endpoint для смены email отсутствует.
 
-**Сценарий:** пользователь компрометирован (известен email + ущербные
-пароль), хочет сменить email на свой текущий безопасный. Без endpoint'а
-смены email единственный путь — `/delete-tenant` + re-signup, что
-**теряет всё пространство** (древо, photos, invites, history).
+Compromised account нельзя восстановить кроме как через delete +
+re-signup (потеря данных). Run security 28.04 night confirmed:
+POST /me/email, PATCH /me, POST change-email — все 404/405.
 
-Run security 28.04 night confirmed: `POST /api/account/me/email`,
-`PATCH /api/account/me`, `POST /api/account/change-email` — все 404
-или 405. Endpoint просто отсутствует.
+Этот тест **pin'ит конкретный канонический контракт**: после
+`POST /api/account/me/email` с правильным payload — backend должен
+вернуть 200 + отправить confirmation mail на новый адрес. Это
+двух-шаговый flow (новый адрес подтверждается ссылкой); тест
+проверяет первый шаг — initiation.
 
-Этот тест **не пытается** угадать точный API path — пробует все
-правдоподобные. Если ни один не существует, тест помечает gap.
+Если backend выберет другой path/method — тест fail с понятным
+сообщением; обновить на canonical contract когда product решит.
 """
 
 from __future__ import annotations
 
-import httpx
 import pytest
 
-from tests.timeouts import TIMEOUTS
-
-
-# Кандидаты по REST-conventions. Хотя бы один из них должен
-# существовать (не возвращать 404/405).
-_PROBE_PATHS_AND_METHODS = [
-    ("POST", "/api/account/me/email"),
-    ("PATCH", "/api/account/me"),
-    ("POST", "/api/account/change-email"),
-]
+from tests.api_paths import API
+from tests.constants import make_email, unique_email
 
 
 @pytest.mark.xfail(
-    reason="INV-EMAIL-002: endpoint смены email полностью отсутствует. "
-           "Run security 28.04 night: POST /me/email, PATCH /me, POST "
-           "change-email — все 404/405. Compromised account нельзя "
-           "восстановить без потери данных. Fix: добавить POST "
-           "/api/account/me/email с двух-шаговым flow (новый email "
+    reason="INV-EMAIL-002: endpoint смены email отсутствует. POST "
+           "/me/email возвращает 404 на dev tip. Compromised account "
+           "нельзя восстановить без потери данных. Fix: добавить "
+           "POST /api/account/me/email двух-шаговый flow (новый email "
            "получает confirmation link, старый — notification).",
     strict=False,
 )
-def test_change_email_endpoint_exists(owner_user, base_url: str):
-    """Хоть один из стандартных REST-paths смены email должен
-    отвечать чем-то, кроме 404/405."""
-    seen_404_405 = []
-    for method, path in _PROBE_PATHS_AND_METHODS:
-        r = httpx.request(
-            method,
-            f"{base_url}{path}",
-            json={"new_email": "newaddr@e2e.example.com", "password": "test_password_8plus"},
-            cookies=owner_user.cookies,
-            headers={"X-Tenant-Slug": owner_user.slug},
-            timeout=TIMEOUTS.api_request,
-        )
-        if r.status_code in (404, 405):
-            seen_404_405.append((method, path, r.status_code))
-            continue
-        # Любой другой response — endpoint существует (пусть 401/422/500
-        # — это уже forward progress, не «отсутствие endpoint'а»).
-        return
+def test_change_email_endpoint_initiates_confirmation(
+    signup_via_api, tenant_client, read_email_token, base_url: str,
+):
+    """INV-EMAIL-002 (canonical contract): POST /me/email с
+    `{new_email, password}` → 200/202 + confirmation mail на new_email.
 
-    pytest.fail(
-        f"INV-EMAIL-002: change-email endpoint missing on all probed "
-        f"paths: {seen_404_405}. Compromised users can't recover their "
-        f"account without /delete-tenant (data loss)."
+    Pin'нутый contract — не probe-of-existence. Если backend вернёт
+    другой shape, тест fail с понятным сообщением, и нужно будет
+    обновить под canonical decision.
+    """
+    user = signup_via_api(email=make_email("orig"))
+    api = tenant_client(user)
+
+    new_email = unique_email("changed")
+    r = api.post(
+        "/api/account/me/email",  # canonical path; см. API namespace
+        json={"new_email": new_email, "password": user.password},
     )
+
+    assert r.status_code in (200, 202), (
+        f"change-email should return 200/202 to initiate confirmation, "
+        f"got {r.status_code} {r.text[:200]}"
+    )
+
+    # Confirmation mail должна прийти на NEW адрес (с токеном).
+    # `read_email_token` raises если ничего не пришло — что и нужно.
+    token = read_email_token(new_email)
+    assert token, f"no confirmation token sent to new email {new_email}"

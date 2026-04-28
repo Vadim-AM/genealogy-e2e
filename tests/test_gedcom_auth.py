@@ -1,39 +1,20 @@
 """INV-GEDCOM-001: GEDCOM endpoints not migrated to auth_v2.
 
-Repatriation use-case (Roman Mnev и др.) — основной flow:
-1. Owner экспортирует GEDCOM из своего tenant (Pro tier feature).
-2. Импортирует в архивную систему.
-
-Run security 28.04 night выявил: `/api/admin/export-gedcom` и
-`/api/admin/import-gedcom` всё ещё гейтированы через `require_admin`
-(legacy admin password gate), не через `require_owner` / auth_v2
-session. Owner с auth_v2 cookie получает 401.
-
-Симптом для пользователя: купил Researcher/Pro, идёт в
-Кабинет → Экспорт → клик «Скачать GEDCOM» → 401 в console, файл
-не скачивается. Pro tier обещание «expert export» не выполняется.
-
-Same architectural fix как INV-PHOTO-001a — два legacy endpoint
-кластера осталось мигрировать (admin upload-photo и admin gedcom).
+Was xfail until upstream commit `17d11b1` ("fix(auth): bridge auth_v2
+owner для photos и GEDCOM"). Now plain regression — auth_v2 owner
+может export/import без legacy admin password.
 """
 
 from __future__ import annotations
 
-import httpx
-import pytest
-
+from tests.api_paths import API
 from tests.timeouts import TIMEOUTS
 
 
-def test_owner_can_export_gedcom_via_auth_v2(owner_user, base_url: str):
-    """INV-GEDCOM-001 (export side): auth_v2 owner получает 200 +
-    GEDCOM body, не 401."""
-    r = httpx.get(
-        f"{base_url}/api/admin/export-gedcom",
-        cookies=owner_user.cookies,
-        headers={"X-Tenant-Slug": owner_user.slug},
-        timeout=TIMEOUTS.api_long,
-    )
+def test_owner_can_export_gedcom_via_auth_v2(owner_user, tenant_client):
+    """INV-GEDCOM-001 (export): auth_v2 owner получает 200 + GEDCOM body."""
+    api = tenant_client(owner_user)
+    r = api.get(API.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long)
     assert r.status_code == 200, (
         f"GEDCOM export not accessible to auth_v2 owner: "
         f"{r.status_code} {r.text[:200]}"
@@ -44,9 +25,9 @@ def test_owner_can_export_gedcom_via_auth_v2(owner_user, base_url: str):
     )
 
 
-def test_owner_can_import_gedcom_via_auth_v2(owner_user, base_url: str):
-    """INV-GEDCOM-001 (import side): auth_v2 owner может POST GEDCOM
-    (response 200/202), не 401."""
+def test_owner_can_import_gedcom_via_auth_v2(owner_user, tenant_client):
+    """INV-GEDCOM-001 (import): auth_v2 owner может POST GEDCOM."""
+    api = tenant_client(owner_user)
     minimal_gedcom = (
         "0 HEAD\n"
         "1 SOUR Genealogy-e2e\n"
@@ -54,11 +35,9 @@ def test_owner_can_import_gedcom_via_auth_v2(owner_user, base_url: str):
         "1 NAME Тестовый /Импорт/\n"
         "0 TRLR\n"
     )
-    r = httpx.post(
-        f"{base_url}/api/admin/import-gedcom",
+    r = api.post(
+        API.ADMIN_IMPORT_GEDCOM,
         files={"file": ("import.ged", minimal_gedcom.encode("utf-8"), "application/octet-stream")},
-        cookies=owner_user.cookies,
-        headers={"X-Tenant-Slug": owner_user.slug},
         timeout=TIMEOUTS.api_long,
     )
     assert r.status_code in (200, 201, 202), (

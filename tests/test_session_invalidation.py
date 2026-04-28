@@ -1,160 +1,112 @@
-"""INV-AUTH-001: reset password should invalidate active sessions.
+"""INV-AUTH-001 + INV-MULTIDEVICE-001a: reset password invalidates sessions.
 
-**Атак-сценарий:** злоумышленник получил session cookie жертвы (XSS,
-malware, leaked logs, replay из network capture). Жертва замечает
-подозрительную активность, идёт на forgot-password, сбрасывает пароль.
-**Ожидание:** старая cookie перестаёт работать, атакующий выкинут.
-**Реальность (Run security 28.04):** старая cookie работает после
-reset — атакующий сохраняет access.
+**Атак-сценарий (INV-AUTH-001):** атакующий получил session cookie
+жертвы. Жертва замечает подозрительную активность, меняет пароль.
+**Ожидание:** старая cookie перестаёт работать.
 
-Это **P0 security** баг — reset password выглядит как защитная мера
-для пользователя («я меняю пароль чтобы выгнать злоумышленника»),
-но на деле не делает того, что обещает.
+**Multi-device амплификация (INV-MULTIDEVICE-001a):** жертва
+залогинена параллельно на двух устройствах (телефон + ноут). Меняет
+пароль с ноута. Сессия на телефоне (которую мог украсть атакующий)
+тоже должна быть отозвана — `revoke_all_user_sessions(user_id)`.
 
-**Fix:** при успешном reset password backend должен:
-- Удалить все `PlatformSession` rows для этого user_id (или
-  сменить session-key derivation чтобы старые tokens становились
-  невалидными).
-- Опционально: отправить email «ваш пароль был сменён, все
-  сессии завершены» — defence-in-depth notification.
+Оба теста были xfail на предыдущих QA Run'ах; закрыты upstream
+коммитами `5b4c674` (INV-AUTH-001) и батч-2 (INV-MULTIDEVICE-001a).
+Сейчас держат контракт против будущих регрессий.
 """
 
 from __future__ import annotations
 
-import re
-import uuid
-
 import httpx
-import pytest
 
-from tests.timeouts import TIMEOUTS  # noqa: F401  (used in extended test)
+from tests.api_paths import API
+from tests.constants import unique_email
+from tests.timeouts import TIMEOUTS
 
-DEFAULT_PASSWORD = "test_password_8plus"
 NEW_PASSWORD = "NewPassword_After_Reset_2026"
 
 
-def test_password_reset_invalidates_active_sessions(uvicorn_server: str):
+def _me_status(base_url: str, cookies: dict[str, str]) -> int:
+    return httpx.get(
+        f"{base_url}{API.ACCOUNT_ME}",
+        cookies=cookies,
+        timeout=TIMEOUTS.api_request,
+    ).status_code
+
+
+def _trigger_password_reset(
+    base_url: str, *, email: str, new_password: str, read_email_token,
+) -> None:
+    """forgot-password → read token from mail → reset-password."""
+    httpx.post(
+        f"{base_url}{API.FORGOT_PASSWORD}",
+        json={"email": email},
+        timeout=TIMEOUTS.api_request,
+    ).raise_for_status()
+    token = read_email_token(email)
+    httpx.post(
+        f"{base_url}{API.RESET_PASSWORD}",
+        json={"token": token, "new_password": new_password},
+        timeout=TIMEOUTS.api_request,
+    ).raise_for_status()
+
+
+def test_password_reset_invalidates_active_session(
+    signup_via_api, read_email_token, base_url: str,
+):
     """INV-AUTH-001: после reset-password старая session cookie должна
-    быть отозвана — последующий /api/account/me с ней → 401.
+    быть отозвана — `/api/account/me` возвращает 401.
 
-    Was xfail under INV-AUTH-001 until upstream commit `5b4c674`
-    ("fix(auth): invalidate active sessions on password reset").
-    Now regular regression.
+    Was xfail until upstream commit `5b4c674`. Regression-trail.
     """
-    email = f"sess-{uuid.uuid4().hex[:8]}@e2e.example.com"
+    email = unique_email("sess")
+    user = signup_via_api(email=email)
 
-    with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
-        c.post("/api/_test/reset-signup-rate", timeout=TIMEOUTS.api_short).raise_for_status()
+    # Sanity: сессия активна сразу после signup.
+    assert _me_status(base_url, user.cookies) == 200
 
-        # 1. Signup + verify + login → активная сессия.
-        c.post(
-            "/api/account/signup",
-            json={"email": email, "password": DEFAULT_PASSWORD, "full_name": "Тест"},
-        ).raise_for_status()
+    _trigger_password_reset(
+        base_url, email=email, new_password=NEW_PASSWORD,
+        read_email_token=read_email_token,
+    )
 
-        mail = c.get("/api/_test/last-email", params={"to": email}).json()
-        token = re.search(r"token=([\w\-]+)", mail["text_body"]).group(1)
-        c.post("/api/account/verify-email", params={"token": token}).raise_for_status()
-
-        login = c.post(
-            "/api/account/login",
-            json={"email": email, "password": DEFAULT_PASSWORD},
-        )
-        login.raise_for_status()
-        old_cookies = dict(login.cookies)
-
-        # 2. Sanity: старая сессия валидна сейчас.
-        me_before = c.get("/api/account/me", cookies=old_cookies)
-        assert me_before.status_code == 200, (
-            f"baseline: session must work right after login; got {me_before.status_code}"
-        )
-
-        # 3. Forgot-password → reset-password.
-        c.post(
-            "/api/account/forgot-password", json={"email": email}
-        ).raise_for_status()
-
-        reset_mail = c.get("/api/_test/last-email", params={"to": email}).json()
-        reset_token = re.search(r"token=([\w\-]+)", reset_mail["text_body"]).group(1)
-
-        c.post(
-            "/api/account/reset-password",
-            json={"token": reset_token, "new_password": NEW_PASSWORD},
-        ).raise_for_status()
-
-        # 4. Старая cookie (захваченная атакующим до reset'а) должна
-        #    быть невалидна.
-        me_after = c.get("/api/account/me", cookies=old_cookies)
-
-    assert me_after.status_code in (401, 403), (
-        f"INV-AUTH-001: stolen session NOT invalidated after password reset. "
-        f"Old cookie still returns {me_after.status_code} {me_after.text[:200]}. "
-        f"Attacker with stolen cookie keeps access — defeats the purpose "
-        f"of password reset."
+    after = _me_status(base_url, user.cookies)
+    assert after in (401, 403), (
+        f"INV-AUTH-001 regression: stolen session NOT invalidated after "
+        f"password reset. Cookie still returns {after}. Defeats the "
+        f"security purpose of reset."
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# INV-MULTIDEVICE-001a — reset должен валить ВСЕ active sessions
-# ─────────────────────────────────────────────────────────────────────────
+def test_password_reset_invalidates_all_devices_sessions(
+    signup_via_api, login_existing, read_email_token, base_url: str,
+):
+    """INV-MULTIDEVICE-001a: все sessions user'а должны быть отозваны
+    при reset-password, не только current.
 
-
-def test_password_reset_invalidates_all_devices_sessions(uvicorn_server: str):
-    """INV-MULTIDEVICE-001a: после reset-password все sessions user'а
-    (на разных устройствах) должны быть отозваны, не только current.
-
-    Was xfail at Run security 28.04 night (фикс 5b4c674 закрыл только
-    current-session). Сейчас на dev tip — все девайсы revoked. Тест
-    держит контракт revoke_all_user_sessions.
+    Was xfail at Run security 28.04 night. Closed by upstream batch-2.
+    Regression-trail для `revoke_all_user_sessions(user_id)` контракта.
     """
-    email = f"mdev-{uuid.uuid4().hex[:8]}@e2e.example.com"
+    email = unique_email("mdev")
+    user = signup_via_api(email=email)
 
-    with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
-        c.post("/api/_test/reset-signup-rate", timeout=TIMEOUTS.api_short).raise_for_status()
+    # «Device A»: первая сессия (атакующий мог украсть эту cookie).
+    device_a_cookies = user.cookies
 
-        # signup + verify
-        c.post(
-            "/api/account/signup",
-            json={"email": email, "password": DEFAULT_PASSWORD, "full_name": "Тест"},
-        ).raise_for_status()
-        mail = c.get("/api/_test/last-email", params={"to": email}).json()
-        token = re.search(r"token=([\w\-]+)", mail["text_body"]).group(1)
-        c.post("/api/account/verify-email", params={"token": token}).raise_for_status()
+    # «Device B»: жертва залогинена параллельно с того же email.
+    device_b_cookies = login_existing(email)
 
-        # 1. Login на «device A» — атакующий захватил эту cookie.
-        login_a = c.post(
-            "/api/account/login",
-            json={"email": email, "password": DEFAULT_PASSWORD},
-        )
-        login_a.raise_for_status()
-        device_a_cookies = dict(login_a.cookies)
+    # Sanity: обе валидны.
+    assert _me_status(base_url, device_a_cookies) == 200
+    assert _me_status(base_url, device_b_cookies) == 200
 
-        # 2. Login на «device B» — жертва на своём устройстве.
-        login_b = c.post(
-            "/api/account/login",
-            json={"email": email, "password": DEFAULT_PASSWORD},
-        )
-        login_b.raise_for_status()
-        device_b_cookies = dict(login_b.cookies)
+    _trigger_password_reset(
+        base_url, email=email, new_password=NEW_PASSWORD,
+        read_email_token=read_email_token,
+    )
 
-        # Sanity: обе сессии активны.
-        assert c.get("/api/account/me", cookies=device_a_cookies).status_code == 200
-        assert c.get("/api/account/me", cookies=device_b_cookies).status_code == 200
-
-        # 3. Жертва с device B: forgot-password → reset.
-        c.post("/api/account/forgot-password", json={"email": email}).raise_for_status()
-        reset_mail = c.get("/api/_test/last-email", params={"to": email}).json()
-        reset_token = re.search(r"token=([\w\-]+)", reset_mail["text_body"]).group(1)
-        c.post(
-            "/api/account/reset-password",
-            json={"token": reset_token, "new_password": NEW_PASSWORD},
-        ).raise_for_status()
-
-        # 4. Cookie атакующего с device A должна быть отозвана.
-        me_a = c.get("/api/account/me", cookies=device_a_cookies)
-
-    assert me_a.status_code in (401, 403), (
-        f"INV-MULTIDEVICE-001a: device A session NOT invalidated after "
-        f"reset-password initiated from device B. Attacker keeps access. "
-        f"Cookie returns {me_a.status_code} {me_a.text[:200]}."
+    a_after = _me_status(base_url, device_a_cookies)
+    assert a_after in (401, 403), (
+        f"INV-MULTIDEVICE-001a regression: device A session NOT "
+        f"invalidated after reset initiated elsewhere. Cookie "
+        f"returns {a_after}."
     )
