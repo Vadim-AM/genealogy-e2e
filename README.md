@@ -91,7 +91,7 @@ genealogy-e2e/
 ├── pytest.ini
 ├── requirements.txt
 └── .github/workflows/
-    └── release-gate.yml        # status check for genealogy/release/* PRs
+    └── pr-check.yml            # boots upstream uvicorn locally, runs full suite
 ```
 
 ## Cross-repo contract
