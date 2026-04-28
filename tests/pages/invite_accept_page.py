@@ -21,4 +21,4 @@ class InviteAcceptPage(BasePage):
         return self
 
     def expect_message_loaded(self) -> None:
-        expect(self.message).to_be_visible(timeout=10_000)
+        expect(self.message).to_be_visible()

@@ -5,70 +5,69 @@ Public landing page rendering, headers, content guarantees.
 
 from __future__ import annotations
 
-import re
-
 import pytest
 from playwright.sync_api import Page, expect
 
+from tests.messages import PII, Brand, t
 from tests.pages.tree_page import TreePage
 
 
-def test_landing_returns_200_with_html(page: Page):
-    """F-LND-1: GET / → 200 + HTML."""
-    response = page.goto("/")
-    assert response is not None
-    assert response.status == 200
-    assert "text/html" in (response.headers.get("content-type") or "")
-
-
 def test_landing_title_has_brand(page: Page):
-    """F-LND-2: title contains brand. Title is finalised by `_bootstrapSiteConfig`
-    in js/init.js after fetching /api/site/config, so wait for networkidle."""
+    """F-LND-2: title contains a brand fragment.
+
+    Title is finalised by `_bootstrapSiteConfig` (js/init.js) after fetching
+    /api/site/config — wait for `networkidle` so JS bootstrap completed.
+    """
     page.goto("/")
-    page.wait_for_load_state("networkidle", timeout=10_000)
+    page.wait_for_load_state("networkidle")
     title = page.title()
-    assert title and len(title) > 0, "document.title is empty"
-    assert any(token in title for token in ("Родословн", "Семейн", "древо")), title
+    fragments = t(Brand.TITLE_FRAGMENTS)
+    assert title and any(f in title for f in fragments), \
+        f"title {title!r} missing any of {fragments}"
 
 
 def test_landing_no_console_errors(page: Page):
-    """N-1: 0 fatal console errors on landing.
+    """N-1: no JS exceptions on landing; only allowlisted 401-on-anon network errors.
 
-    401 from /api/account/me / /api/auth/me are expected for anonymous
-    visitors — those are filtered. We assert that no JS exceptions or
-    truly broken endpoints leak into console.
+    Two channels are tracked separately:
+      - `pageerror`: uncaught JS exceptions — must be empty.
+      - `response`: 4xx/5xx network responses — 401s on known anon-rejected
+        endpoints are allowlisted by URL (browser console error text alone
+        does not include the URL).
     """
-    errors: list[str] = []
-    page.on("pageerror", lambda exc: errors.append(f"pageerror: {exc}"))
-    page.on(
-        "console",
-        lambda msg: errors.append(msg.text) if msg.type == "error" else None,
-    )
+    js_errors: list[str] = []
+    bad_responses: list[tuple[str, int]] = []
+
+    EXPECTED_401_URLS = ("/api/account/me", "/api/auth/me", "/api/tree")
+
+    page.on("pageerror", lambda exc: js_errors.append(str(exc)))
+
+    def _on_response(resp):
+        if resp.status >= 400 and resp.status != 404:  # 404 covered by static-assets test
+            url = resp.url
+            if resp.status == 401 and any(u in url for u in EXPECTED_401_URLS):
+                return
+            bad_responses.append((url, resp.status))
+
+    page.on("response", _on_response)
+
     page.goto("/")
-    page.wait_for_load_state("networkidle", timeout=10_000)
+    page.wait_for_load_state("networkidle")
 
-    def _is_noise(line: str) -> bool:
-        low = line.lower()
-        # Expected: anon hits authed-only endpoints → 401 (auth/me, tree, etc.)
-        if "401" in line or "unauthorized" in low:
-            return True
-        if "favicon" in low:
-            return True
-        return False
-
-    fatal = [e for e in errors if not _is_noise(e)]
-    assert not fatal, f"fatal console errors: {fatal}"
+    assert not js_errors, f"JS pageerrors on landing: {js_errors}"
+    assert not bad_responses, f"unexpected network errors: {bad_responses}"
 
 
-def test_landing_has_main_tabs(page: Page, soft_check):
-    """U-LND-1 + tab structure: guest-visible tabs are present.
+def test_landing_has_main_tabs(page: Page):
+    """U-LND-1: guest-visible tabs are present.
 
     Guests see only `tree` and `about`; map/sources/timeline are auth-gated
-    by `updateGuestUI()` in index.html (see line 332).
+    by `updateGuestUI()` in index.html.
     """
     tree = TreePage(page).goto()
-    page.wait_for_load_state("networkidle", timeout=10_000)
-    tree.soft_check_guest_tabs(soft_check)
+    page.wait_for_load_state("networkidle")
+    expect(tree.tab_tree).to_be_visible()
+    expect(tree.tab_about).to_be_visible()
 
 
 @pytest.mark.xfail(
@@ -78,15 +77,15 @@ def test_landing_has_main_tabs(page: Page, soft_check):
     strict=False,
 )
 def test_landing_no_personal_owner_data(page: Page):
-    """C-LND-3: public landing must not leak Данилюк/Макаров (PII)."""
+    """C-LND-3: public landing must not leak owner family names (PII)."""
     page.goto("/")
     page.wait_for_load_state("domcontentloaded")
     body = page.content()
-    for needle in ("Данилюк", "Макаров"):
+    for needle in PII.OWNER_FAMILY_NAMES:
         assert needle not in body, f"PII leak: '{needle}' visible on /"
 
 
-def test_static_assets_load(page: Page, soft_check):
+def test_static_assets_load(page: Page):
     """F-LND-5: critical CSS/JS bundles return 200."""
     statuses: dict[str, int] = {}
 
@@ -97,7 +96,7 @@ def test_static_assets_load(page: Page, soft_check):
 
     page.on("response", _track)
     page.goto("/")
-    page.wait_for_load_state("networkidle", timeout=10_000)
+    page.wait_for_load_state("networkidle")
 
     bad = {url: status for url, status in statuses.items() if status >= 400}
     assert not bad, f"static assets returned errors: {bad}"

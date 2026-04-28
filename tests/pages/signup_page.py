@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from playwright.sync_api import Page, expect
 
 from .base import BasePage
@@ -16,12 +18,12 @@ class SignupPage(BasePage):
         self.password = page.locator("#password")
         self.full_name = page.locator("#full_name")
         self.birth_year = page.locator("#birth_year")
-        self.region = page.locator("#region") if page.locator("#region").count() else None
         self.honeypot = page.locator("#website")
         self.agree = page.locator("#agree")
         self.submit_btn = page.locator("#signupBtn")
         self.password_toggle = page.locator("#pwToggle")
-        self.password_strength = page.locator("[data-score], #pwStrength")
+        self.password_strength = page.locator(".pw-meter")
+        self.signup_msg = page.locator("#signupMsg")
 
     def fill_required(
         self,
@@ -46,12 +48,9 @@ class SignupPage(BasePage):
         return self
 
     def expect_verification_message(self) -> None:
-        """After successful submit user sees confirmation that email was sent.
-        We target the dedicated `#signupMsg` container with a `.success` class
-        applied — narrowest selector that still survives copy changes.
-        Avoids matching the field-hint text 'придёт письмо подтверждения'."""
-        msg_el = self.page.locator("#signupMsg")
-        expect(msg_el).to_have_class("signup-msg success", timeout=10_000)
+        """After successful submit `#signupMsg` gets the `success` class added.
+        Regex match — survives copy / class additions."""
+        expect(self.signup_msg).to_have_class(re.compile(r"\bsuccess\b"))
 
     def expect_visible_form(self) -> None:
         expect(self.email).to_be_visible()

@@ -1,14 +1,14 @@
 """Pytest fixtures for the genealogy-e2e browser suite.
 
 Operates against an externally running backend instance (test-instrumented:
-must expose `/api/_test/*` endpoints — see `genealogy/backend/app/_test_endpoints.py`,
-gated by `IS_TESTING=1`).
+must expose `/api/_test/*` endpoints under `IS_TESTING=1` — see
+`genealogy/backend/app/_test_endpoints.py`).
 
 Backend resolution:
   - `E2E_BACKEND_URL` — required; points at the running uvicorn (e.g.
     `http://127.0.0.1:8642` for local dev, `http://backend:8642` in Docker).
 
-Two run modes:
+Run modes:
   1. Local dev:
        cd genealogy/backend
        GENEALOGY_TESTING=1 uvicorn app.main:app --port 8642 &
@@ -17,7 +17,14 @@ Two run modes:
 
   2. Docker compose:
        docker compose up --abort-on-container-exit e2e
-       (compose file points e2e to the `backend` service)
+
+Design rules (28.04 review):
+- No branching in fixture body. Each step has one happy path; failure is
+  surfaced via assert/raise_for_status — fixture aborts, dependent tests ERROR.
+- No `try/except` around backend calls. Test infrastructure must fail loudly.
+- All slug/cookie/status fields read with single canonical name (after Wave 2
+  contract fix). Until then, single name only — if backend renames a field,
+  fixture fails and contract issue surfaces immediately.
 """
 
 from __future__ import annotations
@@ -58,27 +65,26 @@ def _resolve_backend_url() -> str:
 
 @pytest.fixture(scope="session")
 def base_url() -> str:
-    """The base URL for the test-instrumented backend. Overrides pytest-playwright's
-    `base_url` fixture so playwright's `page.goto('/path')` hits the live app."""
+    """Test-instrumented backend URL. Overrides pytest-playwright's `base_url`."""
     url = _resolve_backend_url()
     _wait_for_health(url, timeout=30)
     return url
 
 
 def _wait_for_health(base_url: str, *, timeout: float) -> None:
+    """Block until /api/health responds 200, or raise.
+
+    Single retry loop — `time.sleep` between attempts. We do not swallow
+    exceptions: the last exception (if any) is re-raised inside the timeout
+    error so failure mode is observable.
+    """
     deadline = time.time() + timeout
-    last_err: Exception | None = None
     while time.time() < deadline:
-        try:
-            r = httpx.get(f"{base_url}/api/health", timeout=2)
-            if r.status_code == 200:
-                return
-        except Exception as exc:
-            last_err = exc
+        response = httpx.get(f"{base_url}/api/health", timeout=2)
+        if response.status_code == 200:
+            return
         time.sleep(0.5)
-    raise TimeoutError(
-        f"backend at {base_url} did not respond on /api/health within {timeout}s; last_err={last_err}"
-    )
+    raise TimeoutError(f"backend at {base_url} did not respond on /api/health within {timeout}s")
 
 
 @pytest.fixture(scope="session")
@@ -100,7 +106,7 @@ def reset_state(uvicorn_server: str) -> None:
 
 @pytest.fixture(scope="session", autouse=True)
 def install_mock_ai(uvicorn_server: str) -> None:
-    """Install AI fixture once per session; survives `/reset` (reset doesn't touch ai_client)."""
+    """Install AI fixture once per session (survives `/reset` — not touched by it)."""
     fixture = json.loads((FIXTURES_DIR / "ai_responses.json").read_text())
     httpx.post(
         f"{uvicorn_server}/api/_test/install-mock-ai",
@@ -135,7 +141,6 @@ class AuthUser:
     password: str
     slug: str
     cookies: dict[str, str]
-    user_id: int | None = None
 
 
 def _extract_token_from_email(body: str) -> str:
@@ -147,75 +152,63 @@ def _extract_token_from_email(body: str) -> str:
 
 @pytest.fixture
 def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
-    """Factory: full signup → verify → login → onboarding-complete via API."""
+    """Factory: full signup → verify → login → onboarding-complete via API.
+
+    Linear flow. Any deviation from the canonical path raises AssertionError
+    via `raise_for_status()` or explicit assert — never silently degrades.
+    """
 
     def _do(
         email: str = "owner@e2e.example.com",
         password: str = DEFAULT_PASSWORD,
-        complete_onboarding: bool = True,
         **profile: Any,
     ) -> AuthUser:
         with httpx.Client(base_url=uvicorn_server, timeout=10) as c:
-            try:
-                c.post("/api/_test/reset-signup-rate", timeout=3)
-            except Exception:
-                pass
+            # Reset slowapi signup throttle before each signup. Not optional —
+            # if the endpoint is missing we want tests to ERROR, not silently
+            # hit the 1/minute cap mid-suite.
+            c.post("/api/_test/reset-signup-rate", timeout=3).raise_for_status()
 
-            body = {"email": email, "password": password, **profile}
-            r = c.post("/api/account/signup", json=body)
-            if r.status_code != 200:
-                raise AssertionError(
-                    f"signup failed: status={r.status_code} body={r.text[:500]}"
-                )
-            if r.json().get("status") == "waitlist_required":
-                raise AssertionError(f"Signup hit waitlist for {email}; bump FREE_SIGNUP_LIMIT")
+            # 1. Signup
+            r = c.post(
+                "/api/account/signup",
+                json={"email": email, "password": password, **profile},
+            )
+            r.raise_for_status()
+            assert r.json().get("status") == "verification_sent", \
+                f"signup did not enter verification flow: {r.json()}"
 
+            # 2. Read verification token from MockSender
             mail = c.get("/api/_test/last-email", params={"to": email})
             mail.raise_for_status()
             token = _extract_token_from_email(mail.json()["text_body"] or "")
 
-            r = c.post("/api/account/verify-email", params={"token": token})
-            r.raise_for_status()
+            # 3. Verify
+            c.post("/api/account/verify-email", params={"token": token}).raise_for_status()
 
+            # 4. Login → tenant_slug + cookies
             r = c.post(
                 "/api/account/login",
                 json={"email": email, "password": password},
             )
             r.raise_for_status()
-            data = r.json() if isinstance(r.json(), dict) else {}
+            data = r.json()
+            slug = data["tenant_slug"]
             cookies = dict(r.cookies)
-            slug = (
-                data.get("tenant_slug")
-                or (data.get("tenant") or {}).get("slug")
-            )
-            if not slug:
-                me = c.get("/api/account/me", cookies=cookies)
-                me.raise_for_status()
-                me_data = me.json()
-                slug = (
-                    me_data.get("tenant_slug")
-                    or (me_data.get("tenant") or {}).get("slug")
-                )
 
-            if complete_onboarding and slug:
-                ob_resp = c.post(
-                    "/api/account/onboarding-complete",
-                    cookies=cookies,
-                    headers={"X-Tenant-Slug": slug},
-                    timeout=5,
-                )
-                if ob_resp.status_code not in (200, 204):
-                    raise AssertionError(
-                        f"onboarding-complete failed: {ob_resp.status_code} "
-                        f"body={ob_resp.text[:200]}"
-                    )
+            # 5. Onboarding-complete (suppresses the auto-tour overlay)
+            c.post(
+                "/api/account/onboarding-complete",
+                cookies=cookies,
+                headers={"X-Tenant-Slug": slug},
+                timeout=5,
+            ).raise_for_status()
 
             return AuthUser(
                 email=email,
                 password=password,
                 slug=slug,
                 cookies=cookies,
-                user_id=data.get("user_id") if isinstance(data, dict) else None,
             )
 
     return _do
@@ -233,8 +226,14 @@ def superadmin_user(signup_via_api) -> AuthUser:
 
 @pytest.fixture
 def auth_context_factory(browser, uvicorn_server: str):
-    """Factory to build a Playwright BrowserContext with cookies + tenant header
-    + tour-disabling localStorage flag."""
+    """Factory to build a Playwright BrowserContext with cookies + tenant header.
+
+    `localStorage` flags pre-seeded to silence the optional editor tour
+    (init.js:544 → maybeAutoStart). The full ONBOARDING tour is suppressed
+    via `onboarding-complete` in `signup_via_api` — there is no defensive
+    DOM removal anymore. If the tour appears, the test fails loud — that
+    means `onboarding-complete` is broken upstream.
+    """
 
     created_contexts = []
 
@@ -258,30 +257,14 @@ def auth_context_factory(browser, uvicorn_server: str):
 
     yield _make
     for ctx in created_contexts:
-        try:
-            ctx.close()
-        except Exception:
-            pass
+        ctx.close()
 
 
 @pytest.fixture
 def owner_page(auth_context_factory, owner_user: AuthUser):
-    """Authenticated browser page in owner_user's tenant. Defensively dismisses
-    any leftover tour overlay on each navigation."""
+    """Authenticated browser page in owner_user's tenant."""
     ctx = auth_context_factory(owner_user)
     page = ctx.new_page()
-
-    def _dismiss_tour():
-        try:
-            page.evaluate(
-                "document.querySelectorAll('#tourBackdrop, #tourTooltip').forEach(e => e.remove())"
-            )
-        except Exception:
-            pass
-
-    page.on("framenavigated", lambda _frame: _dismiss_tour())
-    page.on("load", lambda: _dismiss_tour())
-
     yield page
     page.close()
 
@@ -300,13 +283,17 @@ def admin_login_via_api(uvicorn_server: str) -> Callable[[], dict[str, str]]:
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# Soft-assert helper
+# Soft-assert helper (for genuine "report multiple independent facts" cases)
 # ─────────────────────────────────────────────────────────────────────────
 
 
 @pytest.fixture
 def soft_check():
-    """Yields Playwright `expect` for `expect.soft(...)` usage."""
+    """Yields Playwright `expect` for `expect.soft(...)` usage.
+
+    Use ONLY for smoke blocks asserting >=3 independent facts at once
+    (e.g. "all 5 nav tabs visible"). For functional flow — hard `expect`.
+    """
     from playwright.sync_api import expect
 
     yield expect

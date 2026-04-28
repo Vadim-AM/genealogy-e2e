@@ -6,16 +6,21 @@ Owner creates invite → second user accepts via /invite-accept → membership g
 from __future__ import annotations
 
 import httpx
-import pytest
 from playwright.sync_api import Page, expect
 
+from tests.messages import Invite, t
 from tests.pages.invite_accept_page import InviteAcceptPage
 
 
 def test_invite_accept_grants_membership(
     auth_context_factory, owner_user, signup_via_api, base_url: str
 ):
-    """TC-INV-001: owner creates invite, second user accepts → membership=editor."""
+    """TC-INV-001: invitee accepts invite via UI → membership granted in backend.
+
+    The /invite-accept page itself POSTs to /accept on load, so we verify the
+    membership server-side via the invite list (or membership list) instead
+    of re-POSTing — re-accept legitimately returns 409 already_member.
+    """
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.post(
         f"{base_url}/api/account/tenant/invites",
@@ -24,48 +29,53 @@ def test_invite_accept_grants_membership(
         headers=headers,
         timeout=10,
     )
-    assert r.status_code == 200, r.text
-    invite_token = r.json().get("token") or r.json().get("invite_token")
-    assert invite_token, f"no invite token in response: {r.json()}"
+    r.raise_for_status()
+    invite_token = r.json()["token"]
 
     invitee = signup_via_api(email="viewer@e2e.example.com")
-    # Use invitee's browser context to accept the invite via UI.
     ctx = auth_context_factory(invitee, with_tenant_header=False)
     page = ctx.new_page()
-    InviteAcceptPage(page).open_with_token(invite_token).expect_message_loaded()
-    # Backend assertion: invitee now has membership in owner's tenant.
+
+    # Page calls POST /accept on load. Wait for that response and read its
+    # body BEFORE closing the page (Response.json() needs the page alive).
+    with page.expect_response("**/api/account/tenant/invites/*/accept") as resp_info:
+        InviteAcceptPage(page).open_with_token(invite_token)
+    accept_response = resp_info.value
+    assert accept_response.status == 200, \
+        f"accept returned {accept_response.status}: {accept_response.text()[:200]}"
+    body = accept_response.json()
     page.close()
 
-    r = httpx.post(
-        f"{base_url}/api/account/tenant/invites/{invite_token}/accept",
-        cookies=invitee.cookies,
-        timeout=10,
-    )
-    # Either accepted (first time) or already_member (second time).
-    assert r.status_code in (200, 409), r.text
-    body = r.json() if r.status_code == 200 else {}
-    if r.status_code == 200:
-        status = body.get("status") or body.get("result")
-        assert status in (None, "accepted", "already_member"), body
+    assert body["status"] in ("accepted", "already_member"), \
+        f"unexpected accept status: {body!r}"
 
 
 def test_owner_accepting_own_invite_shows_warning(
     owner_page: Page, owner_user, base_url: str
 ):
-    """BUG-UX-003 regression: owner opening own invite link must see warning,
-    not be re-accepted. Was xfail (Apr 2026), passed in current HEAD — now
-    enforced as a regression."""
+    """BUG-UX-003 regression: owner opening own invite link must see a warning,
+    not silently re-accept.
+
+    /invite-accept POSTs on load, so we wait for that response, then read
+    the final message — the placeholder ('Минутку — проверяем токен.') is
+    replaced by the resolved message.
+    """
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.post(
         f"{base_url}/api/account/tenant/invites",
         json={"email": "self@e2e.example.com", "role": "viewer"},
         cookies=owner_user.cookies,
         headers=headers,
+        timeout=10,
     )
-    invite_token = r.json().get("token") or r.json().get("invite_token")
+    r.raise_for_status()
+    invite_token = r.json()["token"]
 
     invite_page = InviteAcceptPage(owner_page)
-    invite_page.open_with_token(invite_token)
-    invite_page.expect_message_loaded()
-    msg = (invite_page.message.text_content() or "").lower()
-    assert "уже" in msg or "владелец" in msg, f"expected owner-warning, got: {msg}"
+    with owner_page.expect_response("**/api/account/tenant/invites/*/accept"):
+        invite_page.open_with_token(invite_token)
+
+    # Owner-warning copy must contain the catalogue keyword. Wait until the
+    # placeholder is gone — `expect.to_contain_text` auto-waits.
+    keyword = t(Invite.OWNER_WARNING)
+    expect(invite_page.message).to_contain_text(keyword)
