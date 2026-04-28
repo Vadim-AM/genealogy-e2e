@@ -1,6 +1,6 @@
 # genealogy-e2e
 
-Browser end-to-end test suite for [Genealogy Engine](https://github.com/Vadim-AM/Genealogy).
+UI / browser end-to-end test suite for [Genealogy Engine](https://github.com/Vadim-AM/Genealogy).
 
 Drives a real Chromium against the live FastAPI backend. Maps 1:1 to test
 cases in the upstream `docs/test-plan.md` and `docs/qa-first-touch-funnel.md`.
