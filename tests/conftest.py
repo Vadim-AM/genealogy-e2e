@@ -44,7 +44,7 @@ import pytest
 from tests.timeouts import TIMEOUTS, set_playwright_default_expect_timeout
 
 from tests.api_paths import API
-from tests.constants import TestConfig
+from tests.constants import TestConfig, unique_email
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
@@ -353,11 +353,20 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
     """
 
     def _do(
-        email: str = TestConfig.DEFAULT_OWNER_EMAIL,
+        email: str | None = None,
         password: str = TestConfig.DEFAULT_PASSWORD,
         full_name: str = "Тестовый Пользователь",
         **profile: Any,
     ) -> AuthUser:
+        # Default email: unique per call. Backend накапливает per-email
+        # state (slowapi rate-limit, honeypot counters, sessions) даже
+        # после `_test/reset` — фикс waitlist (commit 78f2bc3) добавил
+        # per-email rate-limit, который пережил reset на нескольких
+        # тестах подряд. Unique email избегает spurious 404 на
+        # `/api/_test/last-email` когда `signup` уходит в anti-enum
+        # silent success без отправки письма.
+        if email is None:
+            email = unique_email("owner")
         with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
             # Reset slowapi signup throttle before each signup. Not optional —
             # if the endpoint is missing we want tests to ERROR, not silently

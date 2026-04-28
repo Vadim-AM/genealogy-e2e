@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import pytest
 
+from tests.constants import unique_email
 from tests.messages import TestData
 
 
@@ -59,7 +60,7 @@ def test_patch_person_death_before_birth_is_422(owner_user, tenant_client):
 )
 def test_patch_parent_birth_after_child_is_422(signup_via_api, tenant_client):
     """INV-DOMAIN-004: parent.birth must precede child.birth (>= ~14y)."""
-    user = signup_via_api(email="dom004@e2e.example.com")
+    user = signup_via_api(email=unique_email("dom004"))
     api = tenant_client(user)
 
     api.post("/api/people", json=_person_payload(
@@ -108,7 +109,7 @@ def test_third_parent_relationship_is_rejected(signup_via_api, tenant_client):
 
     Was xfail until upstream commit `7499d92`. Now regression.
     """
-    user = signup_via_api(email="dom002@e2e.example.com")
+    user = signup_via_api(email=unique_email("dom002"))
     api = tenant_client(user)
 
     api.post("/api/people", json=_person_payload("dom002-child", "Ребёнок", branch="subject")).raise_for_status()
@@ -134,7 +135,7 @@ def test_parent_cycle_is_rejected(signup_via_api, tenant_client):
 
     Was xfail until upstream commit `7499d92`. Now regression.
     """
-    user = signup_via_api(email="dom003@e2e.example.com")
+    user = signup_via_api(email=unique_email("dom003"))
     api = tenant_client(user)
 
     api.post("/api/people", json=_person_payload("dom003-a", "Цикл-A")).raise_for_status()
@@ -183,7 +184,7 @@ def test_delete_non_root_person_with_relationship_does_not_500(
 
     Was xfail at Run security 28.04 night. Closed by upstream batch-2.
     """
-    user = signup_via_api(email="cascade@e2e.example.com")
+    user = signup_via_api(email=unique_email("cascade"))
     api = tenant_client(user)
 
     api.post("/api/people", json=_person_payload("cascade-child", "Ребёнок", branch="subject")).raise_for_status()
@@ -211,7 +212,7 @@ def test_relationship_with_orphan_person_id_returns_404_not_500(
 
     Was xfail until upstream commit `4007a3a`. Now regression.
     """
-    user = signup_via_api(email="txn001@e2e.example.com")
+    user = signup_via_api(email=unique_email("txn001"))
     api = tenant_client(user)
 
     api.post("/api/people", json=_person_payload("txn001-real", "Реальный")).raise_for_status()
