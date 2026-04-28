@@ -85,6 +85,21 @@ class PII(_Catalogue):
     OWNER_FAMILY_NAMES = ("Данилюк", "Макаров")
 
 
+class AiConsent(_Catalogue):
+    """Fragments expected in the GDPR/152-FZ consent confirm() dialog
+    rendered by `js/components/enrichment-modal.js` before the first AI
+    enrichment request. Substring match — survives copy edits as long as
+    the legal core stays."""
+
+    # Brand of the upstream LLM. Locale-independent (proper noun).
+    PROVIDER = "Anthropic"
+    # Privacy-policy link mention — required by 152-FZ Art. 9 §1 / GDPR Art. 7
+    # (active consent must reference the basis of processing).
+    POLICY_KEYWORD = {"ru": "конфиденциальности", "en": "privacy"}
+    # Localised summary of what is sent (positive list).
+    SHARED_DATA_KEYWORD = {"ru": "Передаётся", "en": "Sent:"}
+
+
 class FamilyGroups(_Catalogue):
     """Profile family-group labels — used to scope `+`-buttons to a relation."""
 

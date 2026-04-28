@@ -27,6 +27,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Vadim-AM/Genealogy
+          # Backend test endpoints (`/api/_test/*`) live on dev — origin/main
+          # is 150+ commits behind and missing `backend/app/_test_endpoints.py`
+          # (added in commit 26136bb on dev). Without explicit ref the default
+          # branch = main → 404 on every test endpoint. Switch to `main` once
+          # the next release-PR lands on main.
+          ref: dev
           token: ${{ secrets.UPSTREAM_PAT }}
           path: _genealogy
 

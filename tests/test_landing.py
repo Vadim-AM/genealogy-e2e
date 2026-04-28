@@ -70,14 +70,14 @@ def test_landing_has_main_tabs(page: Page):
     expect(tree.tab_about).to_be_visible()
 
 
-@pytest.mark.xfail(
-    reason="BUG-MT-001 / BUG-COPY-001: js/constants.js + global site_config "
-           "содержат 'Данилюк/Макаров' (см. docs/test-plan.md). Фикс готов "
-           "локально, не влит. Снять xfail после merge.",
-    strict=False,
-)
 def test_landing_no_personal_owner_data(page: Page):
-    """C-LND-3: public landing must not leak owner family names (PII)."""
+    """C-LND-3: public landing must not leak owner family names (PII).
+
+    Was xfailed under BUG-COPY-001 until upstream commit `fc2849e`
+    ("fix(landing): clear inline owner PII from index.html") landed in
+    dev on 28.04. Now a regular regression — the page MUST stay clean
+    of any owner family names (`PII.OWNER_FAMILY_NAMES`).
+    """
     page.goto("/")
     page.wait_for_load_state("domcontentloaded")
     body = page.content()

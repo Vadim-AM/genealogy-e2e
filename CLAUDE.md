@@ -224,18 +224,73 @@ gated by `IS_TESTING`:
 
 If a contract changes upstream, update both repos in lockstep.
 
-## Open xfails (as of 28.04.2026, post-dev-merge)
+## Run summary (28.04.2026 evening, after upstream xfail-cleanup wave)
 
-| Test | Reason | Where to fix |
-|---|---|---|
-| `test_deep_link.py::test_deep_link_to_demo_self_preserves_auth` | AUTH propagation: `/#/p/<id>` deep-link does not settle `window.AUTH.authenticated=true` within 5s of networkidle. Likely reopen of BUG-AUTH-001 (commit 5698d06) or HEAD regression in `init.js` / `loadData()`. | `js/init.js`, `js/api/auth.js` — ensure `loadData` does not reset AUTH before `/api/auth/me` resolves on deep-link. |
-| `test_deep_link.py::test_deep_link_to_unknown_id_keeps_auth` | Same as above. |  |
-| `test_landing.py::test_landing_no_personal_owner_data` | BUG-COPY-001: `js/constants.js` + global `site_config` still ship "Данилюк/Макаров" defaults. | Move per-tenant; clear js constants. |
-| `test_profile_edit.py::test_owner_edits_demo_self_summary_through_ui` | BUG-EDITOR-002: `bindPersonEditor` sends `branch=""` on save → 422 (validation_error on `branch` enum). With the new `customSelect` (js/components/select.js) the native `<select>` is hidden and the bound value reads `""` for seeded persons. | Either pre-select existing branch in renderPersonEditorHtml or have `bindPersonEditor` read native select.value AFTER customSelect init. |
-| `test_enrichment_flow.py::test_enrichment_endpoint_returns_mocked_output` | Tenant DB schema bootstrap missing `enrichmentjob.actor_kind` despite the `_ensure_columns_match_model` safety-net. | `engine_pool._init_tenant_schema` interaction with `db_safety`. |
-| `test_enrichment_flow.py::test_enrichment_history_endpoint_after_run` | Same as above. |  |
+`E2E_BACKEND_URL=http://127.0.0.1:8643 pytest tests/` against fresh
+upstream dev (`d0e878b`) → **99 passed, 0 xfailed in 42s**.
 
-When a fix lands → XPASS → drop the marker.
+All 5 xfails closed by 4 upstream commits on dev:
+- `731fbc9` BUG-AUTH-001 reopen → `test_deep_link.*` ×2 → regular tests.
+- `fc2849e` BUG-COPY-001 → `test_landing_no_personal_owner_data` → regular.
+- `7e39c57` BUG-EDITOR-002 → `test_owner_edits_demo_self_summary_through_ui` → regular.
+- `8146ed5` BUG-DB-002 ep.4 → `test_enrichment_endpoint_returns_mocked_output` → regular.
+
+xfail markers stripped from all four files. Suite now has zero xfails;
+the next product bug we catch will get a fresh marker per Rule 6.
+
+## Run summary (28.04.2026 afternoon, post-Wave 7 + harden pass)
+
+`E2E_BACKEND_URL=http://127.0.0.1:8642 pytest tests/` → **94 passed, 5 xfailed in 82s**.
+
+Wave 7 added (no overlap with prior waves):
+- `test_site_config.py` — TC-MT-1 read/write/anon isolation (extends the
+  one-line `test_bug_mt_001_*` regression with the full 8-step scenario).
+- `test_enrichment_consent.py` — TC-AI-1 GDPR/152-FZ consent confirm:
+  positive (text contains Anthropic + privacy reference) + negative
+  (decline blocks POST `/api/enrich/`).
+- `test_responsive.py` — TC-RESPONSIVE-1 viewport tests: 375×812 signup
+  (no h-scroll, eye-toggle visible, agree-row fits) + 768×1024 owner
+  (5 tabs visible).
+
+Per-viewport tests use their own browser context (default conftest is
+1440×900). Don't try to reuse `owner_page` — viewport is fixed there.
+
+### Harden pass (28.04, evening)
+
+Audit existing tests for smoke / antipatterns from Rule 1:
+- **`test_enrichment_history_endpoint_after_run`** — was xfailed under the
+  same reason as the `actor_kind` bug, but history endpoint reads
+  `EnrichmentCache` not `EnrichmentJob` and never depended on that
+  column. The actual failure was an outdated assertion: backend returns
+  `{items: [...]}`, test asserted `isinstance(_, list)`. Fixed shape +
+  dropped xfail → renamed `test_enrichment_history_endpoint_returns_items_dict`.
+- **`test_logout::test_logout_clears_session`** — had a `pytest.skip`
+  fallback when logout endpoint returned 404. Rule 1: a missing core
+  endpoint is a regression, not «scenario doesn't apply». Removed
+  fallback; assert is now hard-pinned to 200/204.
+- **`test_waitlist::test_wait_duplicate_email_does_not_5xx`** — was a
+  `status < 500` smoke. Backend contract is precise: 200 + JSON
+  `{status: "ok"}` first, `{status: "already_subscribed"}` after.
+  Pinned both. Renamed to `test_wait_duplicate_email_idempotent_status_field`.
+  Side-finding: `_test/reset` does NOT wipe waitlist (it lives in legacy
+  `genealogy.db`, not platform.db). Tests now use `_unique_email(label)`
+  to avoid stale-row poisoning between runs.
+- **`test_profile_edit::test_delete_button_invokes_confirm_dialog`** —
+  had `"необратим" in msg or "необратимо" in msg`. Substring overlap
+  (необратим ⊂ необратимо), the `or` was decorative. Simplified.
+- **`test_enrichment_consent::test_first_enrich_click_*`** — same
+  decorative `or` between `msg.lower()` and `msg`. Simplified to
+  `in msg.lower()` only.
+
+## Open xfails
+
+None as of 28.04.2026 evening. Suite is fully green against
+upstream `dev` at `d0e878b`.
+
+When the suite catches a new product bug, mark it per Rule 6
+(`@pytest.mark.xfail(strict=False, reason="BUG-XXX-N: ...")`)
+so CI stays clean while the fix is open. When the fix lands →
+XPASS → drop the marker.
 
 ### Notable fix landed in dev (28.04 merge)
 
