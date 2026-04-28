@@ -224,6 +224,23 @@ gated by `IS_TESTING`:
 
 If a contract changes upstream, update both repos in lockstep.
 
+## Run summary (28.04.2026, post-Wave 7)
+
+`E2E_BACKEND_URL=http://127.0.0.1:8642 pytest tests/` → **93 passed, 6 xfailed in 82s**.
+
+Wave 7 added (no overlap with prior waves):
+- `test_site_config.py` — TC-MT-1 read/write/anon isolation (extends the
+  one-line `test_bug_mt_001_*` regression with the full 8-step scenario).
+- `test_enrichment_consent.py` — TC-AI-1 GDPR/152-FZ consent confirm:
+  positive (text contains Anthropic + privacy reference) + negative
+  (decline blocks POST `/api/enrich/`).
+- `test_responsive.py` — TC-RESPONSIVE-1 viewport tests: 375×812 signup
+  (no h-scroll, eye-toggle visible, agree-row fits) + 768×1024 owner
+  (5 tabs visible).
+
+Per-viewport tests use their own browser context (default conftest is
+1440×900). Don't try to reuse `owner_page` — viewport is fixed there.
+
 ## Open xfails (as of 28.04.2026, post-dev-merge)
 
 | Test | Reason | Where to fix |
