@@ -1,0 +1,95 @@
+name: PR check (browser e2e)
+
+# Runs the full Playwright suite against a fresh test-instrumented backend
+# on every PR to main. Boots uvicorn from the upstream `genealogy` repo
+# directly — no Docker image required, no cross-repo dispatch.
+#
+# Required secret:
+#   UPSTREAM_PAT — fine-grained PAT with `Contents: read` on Vadim-AM/Genealogy.
+#                  Used by actions/checkout to clone the (private) upstream repo.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout genealogy-e2e
+        uses: actions/checkout@v4
+
+      - name: Checkout genealogy (upstream — for backend + test endpoints)
+        uses: actions/checkout@v4
+        with:
+          repository: Vadim-AM/Genealogy
+          token: ${{ secrets.UPSTREAM_PAT }}
+          path: _genealogy
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install backend deps
+        run: |
+          pip install -r _genealogy/backend/requirements.txt
+          # python-dotenv is imported by app.config; install if not pinned upstream.
+          pip install python-dotenv
+
+      - name: Install e2e deps + Chromium
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Start test-instrumented backend
+        run: |
+          cd _genealogy/backend
+          GENEALOGY_TESTING=1 \
+          GENEALOGY_ADMIN_PASSWORD=test_admin_password \
+          EMAIL_PROVIDER=mock \
+          FREE_SIGNUP_LIMIT=1000 \
+          PLATFORM_SUPERADMIN_EMAILS=super@e2e.example.com \
+          ANTHROPIC_API_KEY=sk-test-stub \
+          GENEALOGY_TENANTS_ROOT="$RUNNER_TEMP/tenants" \
+          PLATFORM_DB_PATH="$RUNNER_TEMP/platform.db" \
+          GENEALOGY_DB_PATH="$RUNNER_TEMP/genealogy.db" \
+          nohup uvicorn app.main:app --host 127.0.0.1 --port 8642 \
+            --log-level warning > "$GITHUB_WORKSPACE/uvicorn.log" 2>&1 &
+          echo "uvicorn PID=$!"
+
+      - name: Wait for backend /api/health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -s -f http://127.0.0.1:8642/api/health > /dev/null; then
+              echo "backend up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::backend did not respond on /api/health within 60s"
+          echo "--- uvicorn.log ---"
+          cat uvicorn.log
+          exit 1
+
+      - name: Run e2e suite
+        env:
+          E2E_BACKEND_URL: http://127.0.0.1:8642
+          # CI-class hardware is variable — give every timeout 1.5× margin.
+          E2E_TIMEOUT_MULTIPLIER: "1.5"
+        run: pytest tests/ -v --tb=short
+
+      - name: Upload uvicorn log + Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-${{ github.run_id }}
+          path: |
+            uvicorn.log
+            test-results/
+          retention-days: 7
