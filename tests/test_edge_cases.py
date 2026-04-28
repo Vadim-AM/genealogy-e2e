@@ -9,6 +9,8 @@ is confirmed open.
 from __future__ import annotations
 
 import httpx
+
+from tests.timeouts import TIMEOUTS
 from playwright.sync_api import Page, expect
 
 
@@ -38,7 +40,7 @@ def test_old_person_with_only_name_field_renders(owner_user, base_url: str):
         json=payload,
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     )
     assert r.status_code in (200, 201), \
         f"POST /api/people legacy payload rejected: {r.status_code} {r.text[:200]}"
@@ -47,7 +49,7 @@ def test_old_person_with_only_name_field_renders(owner_user, base_url: str):
         f"{base_url}/api/people/edge-old-name",
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     )
     r.raise_for_status()
     person = r.json()
@@ -57,7 +59,7 @@ def test_old_person_with_only_name_field_renders(owner_user, base_url: str):
 
 def test_health_endpoint_does_not_require_auth(base_url: str):
     """Smoke: /api/health is public, used by Caddy / monitoring."""
-    r = httpx.get(f"{base_url}/api/health", timeout=10)
+    r = httpx.get(f"{base_url}/api/health", timeout=TIMEOUTS.api_request)
     r.raise_for_status()
     assert r.json() == {"status": "ok"}, \
         f"unexpected /api/health body: {r.json()!r}"

@@ -14,6 +14,8 @@ import io
 import zipfile
 
 import httpx
+
+from tests.timeouts import TIMEOUTS
 from playwright.sync_api import Page, expect
 
 from tests.messages import TestData
@@ -47,7 +49,7 @@ def test_owner_settings_save_persists(owner_page: Page, owner_user, base_url: st
         f"{base_url}/api/site/config",
         cookies=owner_user.cookies,
         headers={"X-Tenant-Slug": owner_user.slug},
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     )
     r.raise_for_status()
     assert r.json()["site_name"] == new_name, \
@@ -61,7 +63,7 @@ def test_owner_export_gedcom_returns_valid_dump(owner_user, base_url: str):
         f"{base_url}/api/tenant/export?format=gedcom",
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=15,
+        timeout=TIMEOUTS.api_long,
     )
     r.raise_for_status()
     assert r.text.lstrip().startswith(TestData.GEDCOM_HEAD), \
@@ -75,7 +77,7 @@ def test_owner_export_zip_contains_manifest_and_people(owner_user, base_url: str
         f"{base_url}/api/tenant/export?format=zip",
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=15,
+        timeout=TIMEOUTS.api_long,
     )
     r.raise_for_status()
     assert r.headers["content-type"] == "application/zip"

@@ -8,6 +8,8 @@ from __future__ import annotations
 import re
 
 import httpx
+
+from tests.timeouts import TIMEOUTS
 from playwright.sync_api import Page, expect
 
 from tests.messages import Links, t
@@ -34,7 +36,7 @@ def test_login_with_correct_credentials_succeeds(
     session_cookie = cookies.get("platform_session") or cookies.get("session_id")
     assert session_cookie, f"no platform_session/session_id cookie set after login: {cookies}"
 
-    me = httpx.get(f"{base_url}/api/account/me", cookies=cookies, timeout=10)
+    me = httpx.get(f"{base_url}/api/account/me", cookies=cookies, timeout=TIMEOUTS.api_request)
     me.raise_for_status()
     assert me.json()["tenant"]["slug"] == owner_user.slug
 

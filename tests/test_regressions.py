@@ -16,6 +16,8 @@ Removed (28.04 sanitize):
 from __future__ import annotations
 
 import httpx
+
+from tests.timeouts import TIMEOUTS
 from playwright.sync_api import Page
 
 
@@ -23,7 +25,7 @@ def test_bug_auth_001_authv2_owner_reads_enrichment(owner_user, base_url: str):
     """TC-BUG-AUTH-001: auth_v2 owner can hit GET /api/enrich/{id}/history without 401."""
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.get(
-        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=10
+        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=TIMEOUTS.api_request
     )
     r.raise_for_status()
     people = r.json()["people"]
@@ -35,7 +37,7 @@ def test_bug_auth_001_authv2_owner_reads_enrichment(owner_user, base_url: str):
             f"{base_url}/api/enrich/{pid}{sub}",
             cookies=owner_user.cookies,
             headers=headers,
-            timeout=10,
+            timeout=TIMEOUTS.api_request,
         )
         assert r.status_code != 401, \
             f"BUG-AUTH-001 regression: GET /api/enrich/{pid}{sub} → 401"
@@ -53,7 +55,7 @@ def test_bug_auth_002_pageview_platform_session_no_500(owner_user, base_url: str
         json={"event": "page_view", "path": "/", "context": {"section": "tree"}},
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     )
     assert r.status_code < 500, \
         f"BUG-AUTH-002 regression: 5xx with body {r.text[:300]}"
@@ -86,7 +88,7 @@ def test_bug_mt_001_site_config_is_per_tenant(signup_via_api, base_url: str):
         json={"site_name": "Tenant A Brand"},
         cookies=user_a.cookies,
         headers={"X-Tenant-Slug": user_a.slug},
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     )
     r.raise_for_status()
 
@@ -94,7 +96,7 @@ def test_bug_mt_001_site_config_is_per_tenant(signup_via_api, base_url: str):
         f"{base_url}/api/site/config",
         cookies=user_b.cookies,
         headers={"X-Tenant-Slug": user_b.slug},
-        timeout=10,
+        timeout=TIMEOUTS.api_request,
     )
     r.raise_for_status()
     assert r.json()["site_name"] != "Tenant A Brand", \
@@ -106,7 +108,7 @@ def test_bug_auth_003_sse_reconnect_recovers(owner_user, base_url: str):
     same person must reuse the active job, not 409 Conflict."""
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.get(
-        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=10
+        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=TIMEOUTS.api_request
     )
     r.raise_for_status()
     people = r.json()["people"]
@@ -118,7 +120,7 @@ def test_bug_auth_003_sse_reconnect_recovers(owner_user, base_url: str):
         json={"streaming": True, "force_refresh": False},
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=15,
+        timeout=TIMEOUTS.api_long,
     )
     assert r1.status_code == 200, \
         f"first enrich POST failed: {r1.status_code} {r1.text[:200]}"
@@ -128,7 +130,7 @@ def test_bug_auth_003_sse_reconnect_recovers(owner_user, base_url: str):
         json={"streaming": True, "force_refresh": False},
         cookies=owner_user.cookies,
         headers=headers,
-        timeout=15,
+        timeout=TIMEOUTS.api_long,
     )
     assert r2.status_code != 409, \
         f"BUG-AUTH-003 regression on reconnect: {r2.text[:200]}"

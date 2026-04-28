@@ -63,27 +63,54 @@ class PersonEditor:
 
 
 class AddRelativeModal:
-    """Modal for quickly adding a relative (parent / spouse / child / sibling)
-    from the orbit-view "+" buttons. Selectors deferred until reading
-    `js/components/add-relative-modal.js` — left as a Wave 3 expansion."""
+    """Modal for adding a relative (parent / spouse / child / sibling) from
+    the profile / orbit "+" affordances.
+
+    Selectors verified against js/components/add-relative-modal.js:
+    layout `.add-rel-modal-overlay > .add-rel-modal[role=dialog]`, fields
+    by ID (`#addRelSurname`, `#addRelGiven`, ...), actions by
+    `[data-action="cancel|save|save-then-edit"]`.
+    """
 
     def __init__(self, page: Page):
         self.page = page
-        # TODO Wave 3: verify against js/components/add-relative-modal.js.
-        self.container = page.locator("#addRelativeModal")
-        self.surname = self.container.locator('[data-field="surname"]')
-        self.given_name = self.container.locator('[data-field="given_name"]')
+        self.overlay = page.locator(".add-rel-modal-overlay")
+        self.container = self.overlay.locator(".add-rel-modal")
+        self.title = self.container.locator("#add-rel-title")
+        self.btn_close = self.container.locator(".add-rel-close")
+
+        # Fields
+        self.surname = self.container.locator("#addRelSurname")
+        self.given_name = self.container.locator("#addRelGiven")
+        self.patronymic = self.container.locator("#addRelPatronymic")
+        self.gender = self.container.locator("#addRelGender")
+        self.birth = self.container.locator("#addRelBirth")
+        self.death_known = self.container.locator("#addRelDeathKnown")
+        self.death = self.container.locator("#addRelDeath")
+        self.error = self.container.locator("#addRelError")
+
+        # Actions
         self.btn_save = self.container.locator('[data-action="save"]')
+        self.btn_save_and_edit = self.container.locator('[data-action="save-then-edit"]')
         self.btn_cancel = self.container.locator('[data-action="cancel"]')
 
     def expect_visible(self) -> None:
         expect(self.container).to_be_visible()
 
-    def fill_and_save(self, *, surname: str, given: str = "") -> None:
+    def fill_and_save(self, *, surname: str, given: str, patronymic: str = "") -> None:
+        """Fill the required FIO fields and click Save (without going into edit mode).
+
+        Required fields per js/components/add-relative-modal.js: surname, given.
+        Patronymic is optional; passing empty string leaves the field unchanged.
+        """
         self.surname.fill(surname)
-        if given:
-            self.given_name.fill(given)
+        self.given_name.fill(given)
+        if patronymic:
+            self.patronymic.fill(patronymic)
         self.btn_save.click()
 
     def cancel(self) -> None:
         self.btn_cancel.click()
+
+    def close(self) -> None:
+        self.btn_close.click()
