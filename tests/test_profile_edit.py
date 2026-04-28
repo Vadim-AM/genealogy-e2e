@@ -95,8 +95,10 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, base
     assert captured_dialogs, "delete must trigger a confirm() dialog"
     msg = captured_dialogs[0]
     assert "Удалить" in msg, f"confirm message must mention 'Удалить': {msg!r}"
-    assert "необратим" in msg or "необратимо" in msg, \
-        f"confirm must call out irreversibility: {msg!r}"
+    assert "необратим" in msg, (
+        f"confirm must call out irreversibility (substring «необратим» "
+        f"covers «необратимо/необратимый»): {msg!r}"
+    )
     assert "связ" in msg, \
         f"confirm must mention что связи будут отвязаны: {msg!r}"
     assert not delete_responses, \

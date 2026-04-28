@@ -80,7 +80,7 @@ def test_first_enrich_click_shows_consent_with_anthropic_and_policy_link(
     assert AiConsent.PROVIDER in msg, (
         f"consent text must mention {AiConsent.PROVIDER!r}; got: {msg[:200]!r}"
     )
-    assert t(AiConsent.POLICY_KEYWORD) in msg.lower() or t(AiConsent.POLICY_KEYWORD) in msg, (
+    assert t(AiConsent.POLICY_KEYWORD) in msg.lower(), (
         f"consent text must reference privacy policy ({t(AiConsent.POLICY_KEYWORD)!r}); "
         f"got: {msg[:200]!r}"
     )

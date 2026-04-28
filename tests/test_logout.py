@@ -8,8 +8,6 @@ from __future__ import annotations
 import httpx
 
 from tests.timeouts import TIMEOUTS
-import pytest
-from playwright.sync_api import Page, expect
 
 
 def test_logout_clears_session(owner_user, base_url: str):
@@ -19,12 +17,11 @@ def test_logout_clears_session(owner_user, base_url: str):
         cookies=owner_user.cookies,
         timeout=TIMEOUTS.api_request,
     )
-    # Logout endpoint may be 200 or 204; 404 means endpoint not yet wired
-    # (legacy invite logout uses different path).
-    if r.status_code == 404:
-        pytest.skip("auth_v2 logout endpoint not present; /api/auth/logout for legacy")
-
-    assert r.status_code in (200, 204), r.text
+    assert r.status_code in (200, 204), (
+        f"logout endpoint returned {r.status_code}; expected 200 or 204. "
+        f"404 here means /api/account/logout was unwired — that's a regression, "
+        f"not «scenario doesn't apply». Body: {r.text[:200]}"
+    )
 
     # After logout, /me should no longer return tenant data.
     me = httpx.get(f"{base_url}/api/account/me", cookies=owner_user.cookies, timeout=TIMEOUTS.api_request)
