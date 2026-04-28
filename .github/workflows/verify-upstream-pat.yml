@@ -1,0 +1,56 @@
+name: verify upstream PAT
+
+# One-shot diagnostic workflow: confirms that the `UPSTREAM_PAT` secret can
+# write commit statuses to Vadim-AM/Genealogy. Posts a `test/upstream-pat`
+# status on the SHA you supply, then exits. Delete this workflow once
+# release-gate is wired and proven.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: "Upstream Genealogy commit SHA to attach the status to (any valid sha will do)"
+        required: true
+        type: string
+      state:
+        description: "Status state to post"
+        required: false
+        default: success
+        type: choice
+        options:
+          - success
+          - failure
+          - error
+          - pending
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Probe — read access on upstream repo
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_PAT }}
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::UPSTREAM_PAT secret is missing"
+            exit 1
+          fi
+          echo "→ Probing read access on Vadim-AM/Genealogy"
+          gh api repos/Vadim-AM/Genealogy --jq '.full_name + " (" + .visibility + ")"'
+
+      - name: Write test commit-status
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_PAT }}
+          TARGET_SHA: ${{ github.event.inputs.target_sha }}
+          STATE: ${{ github.event.inputs.state }}
+        run: |
+          echo "→ Posting status state=$STATE to commit $TARGET_SHA"
+          gh api -X POST \
+            "repos/Vadim-AM/Genealogy/statuses/$TARGET_SHA" \
+            -f state="$STATE" \
+            -f context="test/upstream-pat" \
+            -f description="PAT diagnostic ping (run #${{ github.run_id }})" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "→ OK — status posted. Verify on:"
+          echo "   https://github.com/Vadim-AM/Genealogy/commit/$TARGET_SHA"
