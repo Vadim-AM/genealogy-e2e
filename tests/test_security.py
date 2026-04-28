@@ -87,6 +87,49 @@ def test_csp_header_disables_inline_event_handlers(base_url: str):
         f"CSP missing `script-src-attr 'none'`: {csp[:200]}"
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# TC-CSP-2 / BUG-CSP-001: inline event handlers in served HTML
+# ─────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.xfail(
+    reason="BUG-CSP-001: index.html содержит inline `onload=` на "
+           "`<link rel=stylesheet href=/fonts/fonts.css onload=\"this.media='all'\">` "
+           "(line ~17) — CSP `script-src-attr 'none'` блокирует выполнение, "
+           "шрифты не переключаются с media=print на media=all, видимое "
+           "ломание UI на лендинге. Run 2 (28.04) confirmed. Fix: "
+           "переехать с inline `onload` на вешaние слушателя через JS "
+           "(addEventListener), либо использовать `<link>` без media-trick.",
+    strict=False,
+)
+def test_landing_html_has_no_inline_event_handlers(base_url: str):
+    """TC-CSP-2: served `/` HTML doesn't contain any `on<ident>=` attribute.
+
+    CSP header alone не достаточно: оно блокирует только runtime (handler
+    не выполнится), но HTML с inline `onload=` всё равно ломает функцию
+    (например, fonts.css media=print → media=all переключение). Тест
+    ловит **факт** наличия inline event handlers в shipped HTML — это
+    регрессия BUG-SEC-002 sweep.
+    """
+    r = httpx.get(f"{base_url}/", timeout=TIMEOUTS.api_request)
+    r.raise_for_status()
+    html = r.text
+
+    # Match `on<lowercase-ident>=` as HTML attribute (whitespace before,
+    # `=` after). Exclude false positives like `name="oncall"` because
+    # those have `=` after `name`, not after the `on*` substring.
+    pattern = re.compile(r'\s(on[a-z]+)\s*=', re.IGNORECASE)
+    matches = pattern.findall(html)
+    unique = sorted(set(m.lower() for m in matches))
+
+    assert not matches, (
+        f"inline event handlers found in /: {unique}. CSP `script-src-attr "
+        f"'none'` blocks them at runtime, but the HTML still ships them — "
+        f"this is a BUG-SEC-002 sweep regression. Use addEventListener "
+        f"instead of inline `on*=` attributes."
+    )
+
+
 def test_hsts_header_only_on_https(base_url: str):
     """TC-SEC-2: HSTS is conditional on the request being HTTPS.
 

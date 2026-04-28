@@ -11,7 +11,7 @@ import httpx
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.messages import TestData
+from tests.messages import Buttons, TestData, t
 from tests.pages.person_editor import PersonEditor
 from tests.pages.profile_panel import ProfilePanel
 from tests.timeouts import TIMEOUTS
@@ -151,3 +151,24 @@ def test_owner_edits_demo_self_summary_through_ui(
     r.raise_for_status()
     assert r.json()["summary"] == summary, \
         f"summary not persisted: got {r.json().get('summary')!r}"
+
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TC-EDITOR-3 / X-PR-3 регрессия: «Удалить» в редакторе для root subject
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_delete_button_hidden_for_root_subject(owner_page):
+    """Editor открытый на корневой subject-карточке не должен показывать
+    кнопку «Удалить» — её удаление приводит к потере якоря пространства.
+
+    Was X-PR-3 regression (BUG-UX-002 reopen) until upstream commit
+    `1b42498` ("fix(editor): hide «Удалить» в редакторе root-карточки").
+    Now regular regression.
+    """
+    editor = _open_editor(owner_page)
+    delete_btn = editor.page.get_by_role(
+        "button", name=t(Buttons.DELETE), exact=False
+    )
+    expect(delete_btn).to_be_hidden()

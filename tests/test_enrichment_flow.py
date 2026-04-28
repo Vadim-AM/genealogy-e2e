@@ -22,8 +22,11 @@ import httpx
 from tests.timeouts import TIMEOUTS
 
 
-def test_enrichment_endpoint_returns_mocked_output(owner_user, base_url: str):
+def test_enrichment_endpoint_returns_mocked_output(
+    owner_user, grant_ai_consent, base_url: str
+):
     """F-AI-3: POST /api/enrich/{id} → job_id → poll → output uses mock fixture."""
+    grant_ai_consent(owner_user)
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.get(
         f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=TIMEOUTS.api_request
@@ -68,7 +71,9 @@ def test_enrichment_endpoint_returns_mocked_output(owner_user, base_url: str):
         f"mock fixture not applied — got real output? archives: {archives[:1]}"
 
 
-def test_enrichment_history_endpoint_returns_items_dict(owner_user, base_url: str):
+def test_enrichment_history_endpoint_returns_items_dict(
+    owner_user, grant_ai_consent, base_url: str
+):
     """TC-E2E-010 surrogate: GET /api/enrich/{pid}/history returns `{items: [...]}`.
 
     Контракт shape — backend всегда возвращает dict с ключом `items`
@@ -80,6 +85,7 @@ def test_enrichment_history_endpoint_returns_items_dict(owner_user, base_url: st
     История читает `EnrichmentCache`, а не `EnrichmentJob`, поэтому
     `actor_kind`-баг этот endpoint не задевает.
     """
+    grant_ai_consent(owner_user)
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.get(
         f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=TIMEOUTS.api_request
@@ -106,8 +112,11 @@ def test_enrichment_history_endpoint_returns_items_dict(owner_user, base_url: st
     )
 
 
-def test_enrichment_first_run_does_not_hit_quota(owner_user, base_url: str):
+def test_enrichment_first_run_does_not_hit_quota(
+    owner_user, grant_ai_consent, base_url: str
+):
     """F-AI-9 surrogate: a single mocked enrichment doesn't 429."""
+    grant_ai_consent(owner_user)
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.get(
         f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=TIMEOUTS.api_request

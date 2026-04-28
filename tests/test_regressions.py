@@ -21,8 +21,11 @@ from tests.timeouts import TIMEOUTS
 from playwright.sync_api import Page
 
 
-def test_bug_auth_001_authv2_owner_reads_enrichment(owner_user, base_url: str):
+def test_bug_auth_001_authv2_owner_reads_enrichment(
+    owner_user, grant_ai_consent, base_url: str
+):
     """TC-BUG-AUTH-001: auth_v2 owner can hit GET /api/enrich/{id}/history without 401."""
+    grant_ai_consent(owner_user)
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.get(
         f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=TIMEOUTS.api_request
@@ -103,9 +106,12 @@ def test_bug_mt_001_site_config_is_per_tenant(signup_via_api, base_url: str):
         "BUG-MT-001: tenant A's config leaked into tenant B"
 
 
-def test_bug_auth_003_sse_reconnect_recovers(owner_user, base_url: str):
+def test_bug_auth_003_sse_reconnect_recovers(
+    owner_user, grant_ai_consent, base_url: str
+):
     """TC-BUG-AUTH-003 regression: re-issuing a streaming enrichment for the
     same person must reuse the active job, not 409 Conflict."""
+    grant_ai_consent(owner_user)
     headers = {"X-Tenant-Slug": owner_user.slug}
     r = httpx.get(
         f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=TIMEOUTS.api_request

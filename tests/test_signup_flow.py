@@ -65,7 +65,7 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str):
     # POST /verify-email directly — checking that the response carries a
     # session cookie + the auto_login=true contract.
     verify = httpx.post(
-        f"{base_url}/api/account/verify-email", params={"token": token}
+        f"{base_url}/api/account/verify-email", json={"token": token}
     )
     verify.raise_for_status()
     body = verify.json()

@@ -138,7 +138,77 @@ Before writing a POM:
 POMs with `TODO Wave N: verify against ...` are a code smell — they are
 selectors written without the source. Convert before merging.
 
-### 8. Tests should be safe to run against a moving dev branch
+### 8. No raw `httpx.*` calls — go through `tenant_client(user)`
+
+Each test was repeating `cookies=user.cookies, headers={"X-Tenant-Slug":
+user.slug}, timeout=TIMEOUTS.api_request` on every API call. Encapsulated
+in `tenant_client(user)` factory in conftest:
+
+```python
+def test_x(owner_user, tenant_client):
+    api = tenant_client(owner_user)
+    r = api.get(API.TREE)
+    api.patch(API.person(pid), json={"summary": "..."})
+```
+
+Per-request override (`api.post(..., timeout=TIMEOUTS.api_long)`) is fine
+when `enrichment` job needs longer. Multiple users in one test → multiple
+factory calls (each closed automatically on teardown).
+
+**Anonymous calls** (lending, public health) — pass `httpx.get(f"{base_url}{API.HEALTH}")`
+directly; no client needed. Or use a top-level `httpx.Client(base_url=base_url)`.
+
+### 9. No raw URL strings — go through `tests/api_paths.py::API`
+
+```python
+# bad
+api.get(f"/api/people/{pid}")
+# good
+api.get(API.person(pid))
+```
+
+When backend renames an endpoint — one place to update, IDE autocomplete,
+contract is visible in code.
+
+### 10. No raw credentials/tokens — go through `tests/constants.py::TestConfig`
+
+```python
+# bad
+password = "test_password_8plus"
+# good
+password = TestConfig.DEFAULT_PASSWORD
+
+# bad
+email = f"label@e2e.example.com"
+# good
+from tests.constants import make_email, unique_email
+email = make_email("label")            # deterministic
+email = unique_email("waitlist1")      # uuid-suffixed (when reset_state doesn't wipe target table)
+```
+
+### 11. User creation — through factories in conftest, not inline
+
+If your test needs:
+- a verified, logged-in user → `owner_user` (default) or `signup_via_api(email=...)`.
+- a signed-up but **un**verified user → `signup_unverified(email=...)`.
+- a second login of an existing user → `login_existing(email)`.
+- the latest token from MockSender (verify, reset) → `read_email_token(email)`.
+- an invite issued by owner → `create_invite(owner, role=..., name=...)`.
+- accepting that invite → `accept_invite(token, cookies=...)`.
+- AI consent stamp on owner → `grant_ai_consent(user)`.
+
+**Never** inline `c.post(API.SIGNUP, ...) → c.post(API.VERIFY_EMAIL, ...) → c.post(API.LOGIN, ...)` —
+that's 8+ lines of plumbing per test, and changes in the auth flow ripple through every test.
+
+### 12. xfail markers are concrete
+
+`@pytest.mark.xfail(strict=False, reason="INV-XXX-N: <one-line cause>. <where to fix>.")`.
+
+When XPASS → drop marker, replace with a one-liner in docstring:
+`"Was xfail until upstream commit `<sha>` (`<commit subject>`)."`. This
+gives future readers the regression history without `git blame`.
+
+### 13. Tests should be safe to run against a moving dev branch
 
 The product main branch can change daily. Tests must be:
 - Robust to UI implementation changes (semantic locators).
@@ -156,9 +226,11 @@ markup.
 ```
 genealogy-e2e/
 ├── tests/
-│   ├── conftest.py           # uvicorn URL, signup_via_api, owner_page,
-│   │                         # auth_context_factory, soft_check, reset_state
-│   ├── messages.py           # locale-aware string catalogue + t() resolver
+│   ├── conftest.py           # fixtures: signup_*, login_*, tenant_client,
+│   │                         # owner_page, grant_ai_consent, reset_state, etc.
+│   ├── api_paths.py          # API.{TREE, person(pid), enrich(pid), ...}
+│   ├── constants.py          # TestConfig.{DEFAULT_PASSWORD, EMAIL_DOMAIN, ...}
+│   ├── messages.py           # locale-aware UI string catalogue + t() resolver
 │   ├── timeouts.py           # TIMEOUTS dataclass + E2E_TIMEOUT_MULTIPLIER
 │   ├── pages/                # Page Objects (one per page/component)
 │   │   ├── base.py
@@ -223,6 +295,80 @@ gated by `IS_TESTING`:
 | `POST /api/_test/uninstall-mock-ai` | restore real ai_client                                  |
 
 If a contract changes upstream, update both repos in lockstep.
+
+## Run summary (28.04.2026 late night, post-Wave 9)
+
+`E2E_BACKEND_URL=http://127.0.0.1:8645 pytest tests/` against fresh
+upstream dev (`106a1c4`) → **102 passed, 21 xfailed in 80s**.
+
+Wave 9 added 8 domain-invariant + auth-security regressions:
+
+- `test_domain_invariants.py` — 6 tests covering INV-DOMAIN-001..005
+  + INV-DATE-001:
+  - death year before birth year (PATCH)
+  - parent.birth after child.birth (PATCH)
+  - garbage birth='foobar' accepted as date (PATCH)
+  - 3rd parent relationship accepted (POST)
+  - parent-cycle (A↔B) accepted (POST)
+  - branch=demo on root subject accepted (PATCH)
+- `test_session_invalidation.py` — INV-AUTH-001 stolen session NOT
+  invalidated after password reset (P0 — defeats security purpose
+  of reset).
+- `test_concurrency.py` — INV-EDIT-001 GET /api/people/{id} returns
+  ETag for optimistic concurrency (otherwise lost-update silent).
+
+Out of e2e scope (delegated to backend pytest):
+- INV-TEST-001/002/003 (`/api/_test/*` open anonymously) — the suite
+  itself depends on anonymous access to those endpoints. Fix needs
+  coordinated change in both repos; backend can validate via
+  IS_TESTING-disabled run.
+- INV-AI-003 (failed jobs don't decrement quota) — needs controllable
+  AI-failure mock; marginal value for e2e.
+- INV-PERM-002 (auth_v2 vs admin gate) — unclear expected contract,
+  product decision pending.
+
+## Run summary (28.04.2026 night, post-Wave 8)
+
+`E2E_BACKEND_URL=http://127.0.0.1:8645 pytest tests/` against fresh
+upstream dev (`106a1c4`) → **102 passed, 13 xfailed in 80s**.
+
+Wave 8 added 13 new test files/cases covering security, a11y, privacy,
+i18n, form contracts, and ux regressions surfaced by the QA funnel run:
+
+- `test_security_timing.py` — TC-SEC-3/4 timing-based account
+  enumeration on signup (≈9× ratio) and login (≈14×). Median p50
+  ratio threshold = 3.0× (xfail until equal-work fix).
+- `test_privacy_static.py` — TC-PRIVACY-1 PII regression-trail on
+  `/js/constants.js` and inline scripts in `/`. Closed by
+  `de7f53a` ("BUG-COPY-001 finalize") in Run 2; passing tests guard
+  against regression.
+- `test_a11y.py` — A-SU-3 (`aria-invalid` not set on validation
+  fail) + A-SU-4 (honeypot lacks `aria-hidden="true"`).
+- `test_form_method.py` — TC-FORM-1 signup/login/reset-password
+  forms have explicit `method="post"` (not default GET → leaks
+  passwords to query string).
+- `test_login_unverified.py` — TC-VERIFY-1 / BUG-LG-001 unverified
+  login returns specific `verification_required` discriminator,
+  not generic English «Invalid email or password».
+- `test_welcome_email.py` — TC-COPY-3 / BUG-COPY-003 welcome-email
+  domain comes from `GENEALOGY_PUBLIC_URL`, not hardcoded
+  `nasharodoslovnaya.ru`.
+- `test_security.py` (extended) — TC-CSP-2 / BUG-CSP-001 served HTML
+  has no inline `on*=` event-handler attributes (CSP header alone
+  is not enough — index.html still ships `onload="this.media='all'"`
+  on the fonts.css link, breaking font swap).
+- `test_i18n.py` — BUG-i18N-001 backend error detail in Russian for
+  RU-product (login wrong creds + signup short password).
+- `test_profile_edit.py` (extended) — TC-EDITOR-3 / X-PR-3 (BUG-UX-002
+  reopen) Delete button hidden in editor for the root subject.
+
+Notes:
+- TC-FORGOT-1 (forgot-password email bombing per-email rate-limit)
+  **not automated** in Wave 8: requires a backend test endpoint to
+  count emails sent (current `/api/_test/last-email` returns only
+  the latest one). Sketched in CLAUDE.md backlog.
+- All product-bug tests are `@pytest.mark.xfail(strict=False, ...)`
+  with concrete BUG-XXX-N IDs and fix-hints, per Rule 6.
 
 ## Run summary (28.04.2026 evening, after upstream xfail-cleanup wave)
 
