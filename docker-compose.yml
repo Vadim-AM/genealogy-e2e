@@ -1,0 +1,45 @@
+# Compose for genealogy-e2e:
+#   - `backend` — test-instrumented genealogy backend (image built upstream
+#     in the genealogy repo and pushed to GHCR; here pulled by tag).
+#   - `e2e` — this repo's image, runs pytest+playwright against `backend`.
+#
+# Local usage:
+#     docker compose pull backend
+#     docker compose up --build --abort-on-container-exit e2e
+#
+# CI usage: see .github/workflows/release-gate.yml — it overrides the
+# `backend` image tag to whatever the upstream PR built.
+
+services:
+  backend:
+    # Override via `BACKEND_IMAGE` env var. Default to the latest test image.
+    image: ${BACKEND_IMAGE:-ghcr.io/vadim-am/genealogy-backend:test-latest}
+    environment:
+      GENEALOGY_TESTING: "1"
+      GENEALOGY_ADMIN_PASSWORD: test_admin_password
+      EMAIL_PROVIDER: mock
+      FREE_SIGNUP_LIMIT: "1000"
+      PLATFORM_SUPERADMIN_EMAILS: super@e2e.example.com
+      ANTHROPIC_API_KEY: sk-test-stub
+      GENEALOGY_PUBLIC_URL: http://backend:8642
+      GENEALOGY_CORS_ORIGINS: http://backend:8642
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8642/api/health').read()"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  e2e:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.e2e
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      E2E_BACKEND_URL: http://backend:8642
+    volumes:
+      - ./test-results:/e2e/test-results
+    # Default command in Dockerfile runs the full suite. Override:
+    #   docker compose run --rm e2e pytest tests/test_smoke.py -v
