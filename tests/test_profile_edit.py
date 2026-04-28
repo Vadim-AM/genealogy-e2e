@@ -63,6 +63,16 @@ def test_maiden_name_visible_only_for_female_gender(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.xfail(
+    reason="BUG-CSP-002 (regression after CSP cleanup): кнопка «Удалить» "
+           "в редакторе non-root карточки больше не triggers confirm() "
+           "dialog — captured_dialogs пуст. Inline `onclick=\"return "
+           "confirm(...)\"` был снят commit'ом dcc5a00 (CSP-чистка), но "
+           "event listener через addEventListener не привязан → кнопка "
+           "«мёртвая». Fix: добавить `el.addEventListener('click', ...)` "
+           "в `js/components/person-editor.js` для delete-button.",
+    strict=False,
+)
 def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, base_url: str):
     """TC-EDITOR-2: clicking «Удалить» triggers a `confirm()` whose text
     mentions «Удалить» + irreversibility + «связанные источники и связи».

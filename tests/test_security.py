@@ -92,16 +92,6 @@ def test_csp_header_disables_inline_event_handlers(base_url: str):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.xfail(
-    reason="BUG-CSP-001: index.html содержит inline `onload=` на "
-           "`<link rel=stylesheet href=/fonts/fonts.css onload=\"this.media='all'\">` "
-           "(line ~17) — CSP `script-src-attr 'none'` блокирует выполнение, "
-           "шрифты не переключаются с media=print на media=all, видимое "
-           "ломание UI на лендинге. Run 2 (28.04) confirmed. Fix: "
-           "переехать с inline `onload` на вешaние слушателя через JS "
-           "(addEventListener), либо использовать `<link>` без media-trick.",
-    strict=False,
-)
 def test_landing_html_has_no_inline_event_handlers(base_url: str):
     """TC-CSP-2: served `/` HTML doesn't contain any `on<ident>=` attribute.
 

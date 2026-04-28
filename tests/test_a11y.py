@@ -65,17 +65,11 @@ def test_signup_short_password_sets_aria_invalid(page: Page):
     )
 
 
-@pytest.mark.xfail(
-    reason="BUG-A11Y-002: honeypot `<input id=website>` имеет tabindex=-1, "
-           "но не имеет aria-hidden=\"true\". Screen-reader читает поле "
-           "«Сайт» и предлагает заполнить — пользователь попадает в "
-           "ловушку, signup silently swallowed (200 без user). Fix: "
-           "добавить `aria-hidden=\"true\"` на input#website в /signup, "
-           "также на wrapper .signup-hp.",
-    strict=False,
-)
 def test_signup_honeypot_is_aria_hidden(page: Page):
-    """A-SU-4: honeypot input has `aria-hidden="true"` (or its wrapper)."""
+    """A-SU-4: honeypot input has `aria-hidden="true"` (or its wrapper).
+
+    Was xfail until upstream batch-6/7. Now regular regression.
+    """
     page.goto("/signup")
     page.wait_for_load_state("domcontentloaded")
     honeypot = page.locator("#website")
