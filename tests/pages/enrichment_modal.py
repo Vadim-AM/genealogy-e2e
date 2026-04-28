@@ -1,53 +1,54 @@
 """POM for the ★ Найти больше enrichment modal.
 
-DEFERRED (Wave 2): container/close-button selectors are guesses. Verify
-against `js/components/enrichment-modal.js` and replace OR chains.
+Selectors verified against js/components/enrichment-modal.js (28.04 review).
+Layout:
+    .enrich-modal-overlay      ← backdrop
+      .enrich-modal[role=dialog]
+        .enrich-close          ← × button
+        #enrich-title          ← title text
+        .enrich-subject        ← person name being enriched
+        #enrichStages          ← progress stages container
+          .enrich-stage[data-stage="starting|thinking|writing|parsing"]
+        #enrichHeartbeat       ← live progress
+        .enrich-result-body    ← rendered after job completes
+          .enrich-archive-list > li > .enrich-archive-name
+          (hypotheses container — TODO if needed)
 """
 
 from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
-from tests.messages import Buttons, t
-
 
 class EnrichmentModal:
-    """Modal that drives AI search, accept/reject hypotheses, view history."""
+    """Modal driving AI search, accept/reject hypotheses, view history."""
 
     def __init__(self, page: Page):
         self.page = page
-        # TODO Wave 2: verify modal container selector.
-        self.container = page.locator(
-            ".enrichment-modal, #enrichmentModal, [role='dialog']"
-        ).first
-        # TODO Wave 2: replace OR chain with single concrete close-button selector.
-        self.btn_close = self.container.get_by_role(
-            "button", name=t(Buttons.CLOSE), exact=True
-        )
-        self.stages_indicator = self.container.locator("[data-stages]").first
-        self.archives = self.container.locator("[data-archive]")
-        self.hypotheses = self.container.locator("[data-hypothesis]")
-        self.btn_accept = self.container.get_by_role(
-            "button", name=t(Buttons.ACCEPT), exact=True
-        )
-        self.btn_reject = self.container.get_by_role(
-            "button", name=t(Buttons.REJECT), exact=True
-        )
-        self.confirm_dialog = page.locator("[role='alertdialog']").first
+        self.overlay = page.locator(".enrich-modal-overlay")
+        self.container = self.overlay.locator(".enrich-modal")
+        self.title = self.container.locator("#enrich-title")
+        self.btn_close = self.container.locator(".enrich-close")
+        self.stages_container = self.container.locator("#enrichStages")
+        self.heartbeat = self.container.locator("#enrichHeartbeat")
+
+        # Result sections (visible after job completes)
+        self.result_body = self.container.locator(".enrich-result-body")
+        self.archives = self.result_body.locator(".enrich-archive-list > li")
+        self.archive_names = self.archives.locator(".enrich-archive-name")
 
     def expect_open(self) -> None:
         expect(self.container).to_be_visible()
 
     def expect_results(self, *, min_archives: int) -> None:
-        """Expects at least `min_archives` archive cards rendered.
-
-        Uses count-based assertion (no fallback to substring match), so an
-        empty modal that happens to mention 'ЦАМО' in a hint cannot pass.
-        """
+        """Hard count assertion — caller knows how many archives the mock fixture
+        produces. Substring fallback was removed: a stray "ЦАМО" mention in a
+        hint must not pass the test."""
         expect(self.archives).to_have_count(min_archives)
+
+    def stage(self, name: str):
+        """One of 'starting' | 'thinking' | 'writing' | 'parsing'."""
+        return self.stages_container.locator(f'.enrich-stage[data-stage="{name}"]')
 
     def close(self) -> None:
         self.btn_close.click()
-
-    def accept_first_hypothesis(self) -> None:
-        self.btn_accept.click()

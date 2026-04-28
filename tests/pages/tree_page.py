@@ -1,4 +1,9 @@
-"""POM for / (index.html) — public family tree."""
+"""POM for / (index.html) — public family tree.
+
+Selectors verified against js/views/orbit.js + js/search.js (28.04 review):
+- Orbit cards: `.orbit-card`
+- Search results: `#personSearchResults > .nav-search-result`
+"""
 
 from __future__ import annotations
 
@@ -23,8 +28,12 @@ class TreePage(BasePage):
         self.tab_timeline = page.locator('[data-tab="timeline"]')
         self.tab_about = page.locator('[data-tab="about"]')
         self.search_input = page.locator("#personSearch")
-        self.search_results = page.locator("#personSearchResults")
+        self.search_results_container = page.locator("#personSearchResults")
+        self.search_results = self.search_results_container.locator(
+            ".nav-search-result[data-action='search-navigate']"
+        )
         self.tree_container = page.locator("#treeContainer")
+        self.orbit_cards = self.tree_container.locator(".orbit-card")
         self.minimap = page.locator("#minimap")
         self.auth_indicator = page.locator("#authIndicator")
         self.tour_replay_btn = page.locator("#tourReplayBtn")
@@ -34,14 +43,21 @@ class TreePage(BasePage):
         self.page.locator(f'[data-tab="{tab_name}"]').click()
         return self
 
-    def expect_tree_rendered(self) -> None:
-        """DEFERRED (Wave 2): currently only verifies the loading-indicator
-        disappeared. That passes on an empty tree or a fallback "no data" UI.
-        Replace with a concrete card-count assertion against the demo seed
-        once the orbit-card selector is confirmed.
+    def expect_tree_rendered(self, *, min_cards: int = 1) -> None:
+        """Tree is rendered when at least `min_cards` orbit cards are present.
+
+        Note on counts: orbit-view shows only the centered subject plus their
+        immediate ring (parents, spouses, children) — not the entire data set.
+        For demo-self with 2 demo parents that's 2 ring cards; pass `min_cards=2`
+        when relying on the demo seed, or default `1` for a pure rendering
+        contract.
         """
         expect(self.tree_container).to_be_visible()
-        expect(self.tree_container.locator(".loading-indicator")).not_to_be_visible()
+        # Auto-wait until the orbit renderer attaches at least one card.
+        expect(self.orbit_cards.first).to_be_visible()
+        count = self.orbit_cards.count()
+        assert count >= min_cards, \
+            f"orbit rendered {count} cards, expected at least {min_cards}"
 
     def search_person(self, query: str) -> "TreePage":
         self.search_input.fill(query)
