@@ -224,6 +224,49 @@ gated by `IS_TESTING`:
 
 If a contract changes upstream, update both repos in lockstep.
 
+## Run summary (28.04.2026 night, post-Wave 8)
+
+`E2E_BACKEND_URL=http://127.0.0.1:8645 pytest tests/` against fresh
+upstream dev (`106a1c4`) → **102 passed, 13 xfailed in 80s**.
+
+Wave 8 added 13 new test files/cases covering security, a11y, privacy,
+i18n, form contracts, and ux regressions surfaced by the QA funnel run:
+
+- `test_security_timing.py` — TC-SEC-3/4 timing-based account
+  enumeration on signup (≈9× ratio) and login (≈14×). Median p50
+  ratio threshold = 3.0× (xfail until equal-work fix).
+- `test_privacy_static.py` — TC-PRIVACY-1 PII regression-trail on
+  `/js/constants.js` and inline scripts in `/`. Closed by
+  `de7f53a` ("BUG-COPY-001 finalize") in Run 2; passing tests guard
+  against regression.
+- `test_a11y.py` — A-SU-3 (`aria-invalid` not set on validation
+  fail) + A-SU-4 (honeypot lacks `aria-hidden="true"`).
+- `test_form_method.py` — TC-FORM-1 signup/login/reset-password
+  forms have explicit `method="post"` (not default GET → leaks
+  passwords to query string).
+- `test_login_unverified.py` — TC-VERIFY-1 / BUG-LG-001 unverified
+  login returns specific `verification_required` discriminator,
+  not generic English «Invalid email or password».
+- `test_welcome_email.py` — TC-COPY-3 / BUG-COPY-003 welcome-email
+  domain comes from `GENEALOGY_PUBLIC_URL`, not hardcoded
+  `nasharodoslovnaya.ru`.
+- `test_security.py` (extended) — TC-CSP-2 / BUG-CSP-001 served HTML
+  has no inline `on*=` event-handler attributes (CSP header alone
+  is not enough — index.html still ships `onload="this.media='all'"`
+  on the fonts.css link, breaking font swap).
+- `test_i18n.py` — BUG-i18N-001 backend error detail in Russian for
+  RU-product (login wrong creds + signup short password).
+- `test_profile_edit.py` (extended) — TC-EDITOR-3 / X-PR-3 (BUG-UX-002
+  reopen) Delete button hidden in editor for the root subject.
+
+Notes:
+- TC-FORGOT-1 (forgot-password email bombing per-email rate-limit)
+  **not automated** in Wave 8: requires a backend test endpoint to
+  count emails sent (current `/api/_test/last-email` returns only
+  the latest one). Sketched in CLAUDE.md backlog.
+- All product-bug tests are `@pytest.mark.xfail(strict=False, ...)`
+  with concrete BUG-XXX-N IDs and fix-hints, per Rule 6.
+
 ## Run summary (28.04.2026 evening, after upstream xfail-cleanup wave)
 
 `E2E_BACKEND_URL=http://127.0.0.1:8643 pytest tests/` against fresh

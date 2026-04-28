@@ -11,7 +11,7 @@ import httpx
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.messages import TestData
+from tests.messages import Buttons, TestData, t
 from tests.pages.person_editor import PersonEditor
 from tests.pages.profile_panel import ProfilePanel
 from tests.timeouts import TIMEOUTS
@@ -151,3 +151,31 @@ def test_owner_edits_demo_self_summary_through_ui(
     r.raise_for_status()
     assert r.json()["summary"] == summary, \
         f"summary not persisted: got {r.json().get('summary')!r}"
+
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TC-EDITOR-3 / X-PR-3 регрессия: «Удалить» в редакторе для root subject
+# ─────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.xfail(
+    reason="X-PR-3 регрессия (BUG-UX-002 reopen): кнопка «Удалить» видна "
+           "в редакторе для root subject (demo-self) — Run 2 (28.04). "
+           "Risk: пользователь удаляет свою корневую карточку, "
+           "пространство становится без anchor, остальные родственники "
+           "висят без центра. BUG-UX-002 был closed для editor-формы, "
+           "регрессировал в feat/per-tenant-tree-data волне. Fix: в "
+           "renderPersonEditorHtml hide delete button when person.id "
+           "== tenant.root_id (или person.is_subject).",
+    strict=False,
+)
+def test_delete_button_hidden_for_root_subject(owner_page):
+    """Editor открытый на корневой subject-карточке не должен показывать
+    кнопку «Удалить» — её удаление приводит к потере якоря пространства.
+    """
+    editor = _open_editor(owner_page)
+    delete_btn = editor.page.get_by_role(
+        "button", name=t(Buttons.DELETE), exact=False
+    )
+    expect(delete_btn).to_be_hidden()
