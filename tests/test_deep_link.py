@@ -5,25 +5,17 @@ Direct navigation to `/#/p/{id}` for an authenticated owner must:
   loading (regression of BUG-AUTH-001 where loadData reset the flag);
 - render `.profile-page` for the requested person;
 - show the person's name in the tab section title.
+
+Was xfailed under BUG-AUTH-001 reopen until upstream commit `731fbc9`
+("fix(auth): expose AUTH on window + in-place resetAUTH") landed in
+dev on 28.04. Now a regular regression — keep tests strict.
 """
 
 from __future__ import annotations
 
-import pytest
 from playwright.sync_api import Page, expect
 
 from tests.messages import TestData
-
-
-_AUTH_PROPAGATION_XFAIL = pytest.mark.xfail(
-    reason="AUTH state propagation: after `/#/p/<id>` deep-link with valid "
-           "owner cookies, `window.AUTH.authenticated` stays false long after "
-           "/api/auth/me + /api/tree complete. Likely a reopen of BUG-AUTH-001 "
-           "(commit 5698d06 was supposed to fix it) or an unrelated HEAD "
-           "regression in init.js / loadData(). Test left in place as signal — "
-           "drop xfail when AUTH settles to true within 5s of networkidle.",
-    strict=False,
-)
 
 
 def _wait_for_auth_state(owner_page: Page, *, expected: bool, timeout_ms: int = 5_000) -> None:
@@ -40,7 +32,6 @@ def _wait_for_auth_state(owner_page: Page, *, expected: bool, timeout_ms: int = 
     )
 
 
-@_AUTH_PROPAGATION_XFAIL
 def test_deep_link_to_demo_self_preserves_auth(owner_page: Page):
     """TC-AUTH-1: open /#/p/demo-self directly, expect the authed UI to settle."""
     owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
@@ -55,7 +46,6 @@ def test_deep_link_to_demo_self_preserves_auth(owner_page: Page):
     _wait_for_auth_state(owner_page, expected=True)
 
 
-@_AUTH_PROPAGATION_XFAIL
 def test_deep_link_to_unknown_id_keeps_auth(owner_page: Page):
     """A deep link to a non-existent person must NOT log the user out.
 

@@ -2,18 +2,14 @@
 
 Driven by `mock_ai_client` autouse — no real Anthropic call.
 
-`test_enrichment_endpoint_returns_mocked_output` is `xfail` due to a
-known infrastructure bug: the lazy tenant-DB schema bootstrap
-(`multitenancy/engine_pool.py:_init_tenant_schema`) does not include the
-`actor_kind` column added by alembic migration
-`j8k9l0m1n2o3_enrichment_actor_kind`. Result: the enrichment background
-task crashes on `SELECT enrichmentjob.actor_kind`, job stays `queued`
-forever. Fix is in product (engine_pool bootstrap or applying alembic
-per-tenant), not in tests. Drop the marker after the fix lands.
+`test_enrichment_endpoint_returns_mocked_output` was xfailed under the
+tenant-DB `actor_kind` bootstrap bug (BUG-DB-002 episode 4). Closed
+by upstream commit `8146ed5` ("fix(enrichment): tenant-scoped session
+factory for background jobs") on 28.04. Now a regular regression.
 
 `test_enrichment_history_endpoint_returns_items_dict` is independent —
 history endpoint reads `EnrichmentCache`, not `EnrichmentJob`, so the
-`actor_kind` issue does not block it. Was previously xfailed by
+`actor_kind` issue never blocked it. Was previously xfailed by
 mistake (different bug, unrelated assertion).
 """
 
@@ -22,17 +18,10 @@ from __future__ import annotations
 import time
 
 import httpx
-import pytest
 
 from tests.timeouts import TIMEOUTS
 
 
-@pytest.mark.xfail(
-    reason="Tenant DB schema bootstrap missing `enrichmentjob.actor_kind` "
-           "column (alembic j8k9l0m1n2o3 not applied per-tenant). Fix in "
-           "backend/app/multitenancy/engine_pool.py:_init_tenant_schema.",
-    strict=False,
-)
 def test_enrichment_endpoint_returns_mocked_output(owner_user, base_url: str):
     """F-AI-3: POST /api/enrich/{id} → job_id → poll → output uses mock fixture."""
     headers = {"X-Tenant-Slug": owner_user.slug}

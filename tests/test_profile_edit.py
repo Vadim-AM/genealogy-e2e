@@ -116,24 +116,21 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, base
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# Existing UI-edit smoke (xfail under BUG-EDITOR-002)
+# Existing UI-edit regression (was xfail under BUG-EDITOR-002)
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.xfail(
-    reason="BUG-EDITOR-002 (found by e2e suite, distinct from upstream "
-           "BUG-EDITOR-001 closed in commit 588757a): bindPersonEditor sends "
-           "`branch=\"\"` on save instead of the existing value "
-           "(`subject` for demo-self), causing PATCH /api/people/{id} → 422 "
-           "`validation_error` on `branch` enum. Editor's branch <select> "
-           "doesn't pre-select the current option for seeded persons. "
-           "Drop xfail when the editor pre-selects the existing branch value.",
-    strict=False,
-)
 def test_owner_edits_demo_self_summary_through_ui(
     owner_page: Page, owner_user, base_url: str
 ):
-    """Edit `summary` via the editor UI and verify backend persisted it."""
+    """Edit `summary` via the editor UI and verify backend persisted it.
+
+    Was xfailed under BUG-EDITOR-002 (bindPersonEditor sent `branch=""`
+    on save → PATCH 422). Closed by upstream commit `7e39c57`
+    ("fix(editor): skip empty enum fields in PATCH payload"). Now
+    a regular regression — keeps surfacing if the empty-enum path
+    is reintroduced.
+    """
     summary = "Записано через UI-editor в e2e-тесте"
     editor = _open_editor(owner_page)
 

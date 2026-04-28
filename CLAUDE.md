@@ -224,7 +224,21 @@ gated by `IS_TESTING`:
 
 If a contract changes upstream, update both repos in lockstep.
 
-## Run summary (28.04.2026, post-Wave 7 + harden pass)
+## Run summary (28.04.2026 evening, after upstream xfail-cleanup wave)
+
+`E2E_BACKEND_URL=http://127.0.0.1:8643 pytest tests/` against fresh
+upstream dev (`d0e878b`) → **99 passed, 0 xfailed in 42s**.
+
+All 5 xfails closed by 4 upstream commits on dev:
+- `731fbc9` BUG-AUTH-001 reopen → `test_deep_link.*` ×2 → regular tests.
+- `fc2849e` BUG-COPY-001 → `test_landing_no_personal_owner_data` → regular.
+- `7e39c57` BUG-EDITOR-002 → `test_owner_edits_demo_self_summary_through_ui` → regular.
+- `8146ed5` BUG-DB-002 ep.4 → `test_enrichment_endpoint_returns_mocked_output` → regular.
+
+xfail markers stripped from all four files. Suite now has zero xfails;
+the next product bug we catch will get a fresh marker per Rule 6.
+
+## Run summary (28.04.2026 afternoon, post-Wave 7 + harden pass)
 
 `E2E_BACKEND_URL=http://127.0.0.1:8642 pytest tests/` → **94 passed, 5 xfailed in 82s**.
 
@@ -268,17 +282,15 @@ Audit existing tests for smoke / antipatterns from Rule 1:
   decorative `or` between `msg.lower()` and `msg`. Simplified to
   `in msg.lower()` only.
 
-## Open xfails (as of 28.04.2026, post-dev-merge)
+## Open xfails
 
-| Test | Reason | Where to fix |
-|---|---|---|
-| `test_deep_link.py::test_deep_link_to_demo_self_preserves_auth` | AUTH propagation: `/#/p/<id>` deep-link does not settle `window.AUTH.authenticated=true` within 5s of networkidle. Likely reopen of BUG-AUTH-001 (commit 5698d06) or HEAD regression in `init.js` / `loadData()`. | `js/init.js`, `js/api/auth.js` — ensure `loadData` does not reset AUTH before `/api/auth/me` resolves on deep-link. |
-| `test_deep_link.py::test_deep_link_to_unknown_id_keeps_auth` | Same as above. |  |
-| `test_landing.py::test_landing_no_personal_owner_data` | BUG-COPY-001: `js/constants.js` + global `site_config` still ship "Данилюк/Макаров" defaults. | Move per-tenant; clear js constants. |
-| `test_profile_edit.py::test_owner_edits_demo_self_summary_through_ui` | BUG-EDITOR-002: `bindPersonEditor` sends `branch=""` on save → 422 (validation_error on `branch` enum). With the new `customSelect` (js/components/select.js) the native `<select>` is hidden and the bound value reads `""` for seeded persons. | Either pre-select existing branch in renderPersonEditorHtml or have `bindPersonEditor` read native select.value AFTER customSelect init. |
-| `test_enrichment_flow.py::test_enrichment_endpoint_returns_mocked_output` | Tenant DB schema bootstrap missing `enrichmentjob.actor_kind` despite the `_ensure_columns_match_model` safety-net (confirmed in `genealogy.log`: `OperationalError: no such column: enrichmentjob.actor_kind`). | `engine_pool._init_tenant_schema` interaction with `db_safety`. |
+None as of 28.04.2026 evening. Suite is fully green against
+upstream `dev` at `d0e878b`.
 
-When a fix lands → XPASS → drop the marker.
+When the suite catches a new product bug, mark it per Rule 6
+(`@pytest.mark.xfail(strict=False, reason="BUG-XXX-N: ...")`)
+so CI stays clean while the fix is open. When the fix lands →
+XPASS → drop the marker.
 
 ### Notable fix landed in dev (28.04 merge)
 
