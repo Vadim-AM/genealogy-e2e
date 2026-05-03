@@ -16,8 +16,12 @@ class SignupPage(BasePage):
         super().__init__(page)
         self.email = page.locator("#email")
         self.password = page.locator("#password")
-        self.full_name = page.locator("#full_name")
-        self.birth_year = page.locator("#birth_year")
+        # `full_name` и `birth_year` поля удалены из signup-формы в commit
+        # 814d5f8 (feat(signup): убрать поле ФИО — display_name заполняется
+        # из карточки). Backend всё ещё принимает их в JSON-теле от API
+        # (signup_via_api fixture отправляет full_name через payload), но в
+        # UI они отсутствуют. Тесты, использовавшие SignupPage.full_name и
+        # .birth_year, должны быть переписаны либо удалены.
         self.honeypot = page.locator("#website")
         # 3 обязательных + 1 опциональный consent (P0.4 ФЗ-156, май 2026):
         # старый единый `#agree` → 4 раздельных. `#agree` legacy остаётся как
@@ -40,8 +44,8 @@ class SignupPage(BasePage):
         *,
         email: str,
         password: str,
-        full_name: str = "Тестовый Пользователь",
-        birth_year: int | None = None,
+        full_name: str | None = None,  # accepted for backward-compat, ignored (поле удалено в I4)
+        birth_year: int | None = None,  # accepted for backward-compat, ignored
         agree: bool = True,
     ) -> "SignupPage":
         """Заполняет минимально-валидную signup форму.
@@ -53,12 +57,16 @@ class SignupPage(BasePage):
 
         Для negative-проверок `agree=False` — оставляем все consent
         неотмеченными (используется в тестах валидации формы).
+
+        Параметры `full_name` и `birth_year` — приняты для совместимости
+        со старыми тест-вызовами (поля удалены из формы commit 814d5f8 «I4:
+        убрать поле ФИО — display_name заполняется из карточки»). UI их
+        больше не показывает; через JSON API всё ещё доходят (см. backend
+        SignupRequest.full_name).
         """
+        del full_name, birth_year  # silence unused — параметры for API-compat
         self.email.fill(email)
         self.password.fill(password)
-        self.full_name.fill(full_name)
-        if birth_year is not None:
-            self.birth_year.fill(str(birth_year))
         if agree:
             self.agree_terms.check()
             self.agree_privacy.check()
@@ -80,12 +88,20 @@ class SignupPage(BasePage):
         expect(self.submit_btn).to_be_visible()
 
     def soft_check_form_basics(self, soft) -> None:
-        """Smoke for X-SU-1..11: input attrs, autocomplete, required."""
+        """Smoke for X-SU-1..11: input attrs, autocomplete, required.
+
+        После I4 (commit 814d5f8) форма не имеет full_name / birth_year
+        полей — display_name берётся из первой карточки tenant'а.
+        Соответствующие проверки удалены.
+        """
         soft(self.email).to_have_attribute("type", "email")
         soft(self.email).to_have_attribute("autocomplete", "email")
         soft(self.email).to_have_attribute("required", "")
         soft(self.password).to_have_attribute("type", "password")
         soft(self.password).to_have_attribute("autocomplete", "new-password")
-        soft(self.full_name).to_have_attribute("required", "")
         soft(self.honeypot).to_have_attribute("tabindex", "-1")
         soft(self.submit_btn).to_have_attribute("type", "submit")
+        # 4 consent чекбокса — 3 required, 1 optional (P0.4 ФЗ-156, май 2026)
+        soft(self.agree_terms).to_have_attribute("required", "")
+        soft(self.agree_privacy).to_have_attribute("required", "")
+        soft(self.agree_cross_border).to_have_attribute("required", "")

@@ -17,9 +17,36 @@
 
 from __future__ import annotations
 
+import os
+
 import httpx
 import pytest
 from playwright.sync_api import Page, expect
+
+from tests.api_paths import API
+
+
+_TEST_TOKEN = os.environ.get("E2E_TEST_TOKEN", "e2e-test-token-default-2026")
+
+
+@pytest.fixture(autouse=True)
+def ai_search_disabled(uvicorn_server: str):
+    """Force `enable_ai_search=False` в БД перед каждым тестом этого
+    файла (router-guard, owner UI кнопка disabled, etc. покрываются ТОЛЬКО
+    при OFF).
+
+    Использует `/api/_test/set-platform-setting` — test-only endpoint,
+    дёрнуть в test mode без superadmin auth. После теста состояние не
+    трогаем — следующий autouse `reset_state` из conftest полностью
+    DELETE'нет таблицу и migration_seed восстановит дефолт (False).
+    """
+    httpx.post(
+        f"{uvicorn_server}/api/_test/set-platform-setting",
+        json={"enable_ai_search": False},
+        headers={"X-Test-Token": _TEST_TOKEN},
+        timeout=5,
+    ).raise_for_status()
+    yield
 
 
 # ─────────────────────────────────────────────────────────────────────────

@@ -43,19 +43,12 @@ from tests.timeouts import TIMEOUTS
 _ITERATIONS = 30
 _RATIO_THRESHOLD = 2.0
 
-# Тесты в этом файле затратные (60+ HTTP roundtrip'ов на тест) и
-# чувствительны к runner jitter. По умолчанию skip — opt-in через
-# RUN_SLOW=1 env или `pytest -m slow`.
-_RUN_SLOW = os.environ.get("RUN_SLOW") == "1"
-
-pytestmark = [
-    pytest.mark.slow,
-    pytest.mark.skipif(
-        not _RUN_SLOW,
-        reason="timing tests skipped by default — opt-in via RUN_SLOW=1 "
-               "(local verification or nightly CI run, not per-PR).",
-    ),
-]
+# Тесты затратные (60+ HTTP roundtrip'ов) и чувствительны к runner jitter,
+# но это не повод их скипать — timing-attack это security regression,
+# должно ловиться. Помечены `@pytest.mark.slow` для отдельной фильтрации
+# (`pytest -m "not slow"` исключит), но по умолчанию запускаются вместе
+# с остальным suite.
+pytestmark = pytest.mark.slow
 
 
 def _measure(client: httpx.Client, reset_url: str, make_call) -> float:

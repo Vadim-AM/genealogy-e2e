@@ -137,16 +137,6 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str):
     assert r.status_code == 404, "honeypot should suppress email send"
 
 
-@pytest.mark.xfail(
-    reason="BUG-CSP-003 (regression after CSP cleanup): signup form "
-           "не показывает inline error на disposable email — `#signupMsg` "
-           "остаётся пустой div (class=''), хотя backend возвращает 422. "
-           "JS-error-handler был привязан inline и снят commit'ом dcc5a00 "
-           "(CSP-чистка) без замены. Fix: в js/signup.js attach error "
-           "handler через addEventListener — на response 422 показать "
-           "msg в #signupMsg с class='error'.",
-    strict=False,
-)
 def test_disposable_email_rejected_inline(page: Page, base_url: str):
     """S-SU-5: disposable email — inline error visible, no email sent.
 

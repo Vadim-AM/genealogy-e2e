@@ -25,15 +25,6 @@ from playwright.sync_api import Page, expect
 from tests.timeouts import TIMEOUTS
 
 
-@pytest.mark.xfail(
-    reason="BUG-A11Y-001: после server-side validation-fail на signup "
-           "(short password) поле password не получает aria-invalid=\"true\" "
-           "и нет aria-describedby на error-msg. Screen reader не получает "
-           "signal что поле невалидно. Fix: в submit-handler signup.js, "
-           "при server 422 — input.setAttribute('aria-invalid', 'true') + "
-           "input.setAttribute('aria-describedby', '<field>-err').",
-    strict=False,
-)
 def test_signup_short_password_sets_aria_invalid(page: Page):
     """A-SU-3: server returns 422 на short password → JS handler ставит
     `aria-invalid="true"` на password input.
@@ -42,6 +33,9 @@ def test_signup_short_password_sets_aria_invalid(page: Page):
     HTML5 (битый email): HTML5 native validity блокирует submit и
     JS handler не запускается, поэтому проверять aria-invalid на
     HTML5-fail бесполезно (даже после правильного фикса).
+
+    P0.4 (ФЗ-156, май 2026): форма имеет 4 раздельных consent чекбокса
+    вместо одного `#agree`. Поле `#full_name` удалено в commit 814d5f8 (I4).
     """
     page.goto("/signup")
     page.wait_for_load_state("domcontentloaded")
@@ -50,8 +44,9 @@ def test_signup_short_password_sets_aria_invalid(page: Page):
     # JS error handler runs → должен пометить password aria-invalid.
     page.locator("#email").fill("a11y-server@e2e.example.com")
     page.locator("#password").fill("short")  # < 8 chars — server rejects
-    page.locator("#full_name").fill("Test User")
-    page.locator("#agree").check()
+    page.locator("#agreeTerms").check()
+    page.locator("#agreePrivacy").check()
+    page.locator("#agreeCrossBorder").check()
 
     # Wait for server response, then check aria state.
     with page.expect_response("**/api/account/signup") as resp_info:

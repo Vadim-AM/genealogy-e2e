@@ -174,12 +174,6 @@ def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_u
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.skip(
-    reason="BUG-012: superadmin_user fixture использует фиксированный email, "
-    "несколько подряд signup → 429. /api/_test/reset-signup-rate не сбрасывает "
-    "per-email anti-bombing rate-limit. Нужен helper /api/_test/reset-email-rate "
-    "либо пере-структурировать superadmin фикстуру как session-scoped с DB-cleanup."
-)
 def test_patch_settings_writes_to_platformsettings_db(
     superadmin_user, uvicorn_server: str
 ):
@@ -220,9 +214,6 @@ def test_patch_settings_writes_to_platformsettings_db(
         c.patch("/api/platform/settings", json={"enable_ai_search": initial_db}).raise_for_status()
 
 
-@pytest.mark.skip(
-    reason="BUG-012: см. test_patch_settings_changes_features_endpoint выше"
-)
 def test_patch_settings_validates_llm_provider_enum(
     superadmin_user, uvicorn_server: str
 ):
