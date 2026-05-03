@@ -299,3 +299,150 @@ def test_add_relative_shows_error_on_409_conflict(owner_page: Page):
 
     # После 409: модалка остаётся видимой (silent-close = регрессия).
     expect(modal.container).to_be_visible()
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TC-25.06 (extension) — keyboard ↓ navigation + Enter selection
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_custom_select_arrow_down_then_enter_selects_option(owner_page: Page):
+    """TC-25.06 (extension): ArrowDown открывает dropdown и фокусирует
+    первый option; повторный ArrowDown переходит к следующему; Enter
+    выбирает highlighted option и закрывает dropdown. Native select
+    `data-field=gender` обновляется (form submission корректность).
+    """
+    _open_editor(owner_page)
+    wrapper = _custom_select_for(owner_page, "gender")
+    wrapper.focus()
+    owner_page.keyboard.press("ArrowDown")
+    dropdown = wrapper.locator(".custom-select-dropdown")
+    expect(dropdown).to_be_visible()
+
+    # ArrowDown ещё раз — переход на следующий option (если уже не последний).
+    owner_page.keyboard.press("ArrowDown")
+    owner_page.keyboard.press("Enter")
+    expect(dropdown).not_to_be_visible()
+
+    # Native select должен иметь selected value (не пустой) после выбора.
+    native = owner_page.locator('select[data-field="gender"]')
+    selected_value = native.evaluate("(el) => el.value")
+    assert selected_value, (
+        f"select[data-field=gender] value не установлен после Enter; "
+        f"got {selected_value!r}. Native select должен sync'аться с custom UI "
+        f"для form submission."
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TC-20.02 (extension) — Enter=confirm, click backdrop=cancel
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_confirm_dialog_enter_confirms_delete(owner_page: Page):
+    """TC-20.02 (Enter): Enter в открытом confirmDialog → resolve(true)
+    → backend получает DELETE. confirm-dialog.js:138 — `Enter → cleanup(true)`.
+    Делаем delete на demo-grandpa и проверяем что DELETE действительно
+    ушёл — через `expect_request` (network ждёт fetch'а явно).
+    """
+    editor = _open_editor(owner_page, person_id="demo-grandpa")
+    editor.btn_delete.click()
+    dialog = owner_page.locator(".confirm-dialog")
+    expect(dialog).to_be_visible()
+
+    # expect_request ждёт фактический DELETE на /api/people/{id} —
+    # покрывает async chain confirmDialog → resolve(true) → onDelete →
+    # fetchWithTimeout (см. components/profile.js:599-603).
+    with owner_page.expect_request(
+        lambda req: re.search(r"/api/people/[^/?]+", req.url)
+        and req.method == "DELETE"
+    ):
+        owner_page.keyboard.press("Enter")
+
+
+def test_confirm_dialog_backdrop_click_cancels(owner_page: Page):
+    """TC-20.02 (backdrop): click на overlay вне `.confirm-dialog`
+    закрывает с resolve(false). Backend не получает DELETE.
+
+    Note: реализация confirm-dialog.js может либо использовать
+    backdrop-click handler, либо нет. Если контракт «не поддерживается»,
+    тест fail'ится явно.
+    """
+    editor = _open_editor(owner_page, person_id="demo-grandpa")
+    delete_responses: list[int] = []
+    owner_page.on(
+        "response",
+        lambda r: delete_responses.append(r.status)
+        if "/api/people/" in r.url and r.request.method == "DELETE"
+        else None,
+    )
+    editor.btn_delete.click()
+    dialog = owner_page.locator(".confirm-dialog")
+    expect(dialog).to_be_visible()
+
+    # Click на overlay (родительский контейнер dialog'а, вне самой панели).
+    overlay = owner_page.locator(".confirm-dialog-overlay, .dialog-overlay").first
+    if overlay.count() == 0:
+        # Backdrop click может быть реализован через outside-of-dialog click.
+        # Кликаем в угол viewport'а (далеко от dialog'а).
+        owner_page.mouse.click(5, 5)
+    else:
+        overlay.click(position={"x": 5, "y": 5})
+
+    expect(dialog).not_to_be_visible()
+    assert not delete_responses, (
+        f"Backdrop click должен отменить delete; backend получил DELETE: "
+        f"{delete_responses}"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TC-12.02 (extension) — click filter button переключает active
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_timeline_river_filter_click_switches_active(owner_page: Page):
+    """TC-12.02 (extension): click `.river-filter-btn[data-branch=maternal]`
+    → active class переходит с дефолтного `all` на `maternal`.
+    Контракт: только одна кнопка active в каждый момент.
+    """
+    owner_page.goto("/")
+    owner_page.wait_for_load_state("networkidle")
+    owner_page.locator('[data-tab="timeline"]').click()
+
+    all_btn = owner_page.locator('#riverFilters .river-filter-btn[data-branch="all"]')
+    maternal_btn = owner_page.locator(
+        '#riverFilters .river-filter-btn[data-branch="maternal"]'
+    )
+    expect(all_btn).to_have_class(re.compile(r"\bactive\b"))
+
+    maternal_btn.click()
+    expect(maternal_btn).to_have_class(re.compile(r"\bactive\b"))
+    expect(all_btn).not_to_have_class(re.compile(r"\bactive\b"))
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TC-11.02 — Sources tab: search input + filter buttons присутствуют
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page):
+    """TC-11.02 (structural): после переключения на sources tab UI
+    содержит search input (#evidenceSearch) с placeholder «Поиск...»
+    и хотя бы одну `.filter-btn[data-filter=all]` (default active).
+    """
+    owner_page.goto("/")
+    owner_page.wait_for_load_state("networkidle")
+    owner_page.locator('[data-tab="sources"]').click()
+
+    search = owner_page.locator("#evidenceSearch")
+    expect(search).to_be_visible()
+    placeholder = search.get_attribute("placeholder")
+    assert placeholder and "Поиск" in placeholder, (
+        f"#evidenceSearch placeholder должен начинаться с «Поиск»; "
+        f"got {placeholder!r}"
+    )
+
+    all_btn = owner_page.locator('.filter-btn[data-filter="all"]')
+    expect(all_btn).to_be_visible()
+    expect(all_btn).to_have_class(re.compile(r"\bactive\b"))
