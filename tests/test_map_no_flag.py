@@ -33,10 +33,13 @@ def test_map_attribution_flag_is_hidden_on_logged_in_owner(owner_page: Page):
     # owner_page фикстура даёт authenticated context.
     owner_page.locator('[data-tab="map"]').click()
 
-    # Дождаться рендера leaflet attribution (всегда появляется, даже
-    # без markers / точек, поскольку attribution — мета о библиотеке).
+    # Leaflet lazy-loaded (см. index.html mapTab loader, BUG-003 history) —
+    # дождаться сначала корневого .leaflet-container, потом attribution.
+    # Без этого тест flaky на медленной первичной загрузке (запуск
+    # после batch'а других тестов).
+    expect(owner_page.locator(".leaflet-container")).to_be_visible()
     attribution = owner_page.locator(".leaflet-control-attribution")
-    expect(attribution).to_be_visible(timeout=10_000)
+    expect(attribution).to_be_visible()
 
     # leaflet-attribution-flag — child элемент внутри attribution. Может
     # отсутствовать (если leaflet >=1.9 убрал в upstream), либо быть
