@@ -160,6 +160,110 @@ def test_confirm_dialog_escape_cancels(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# TC-05.06 — Кнопка «+ Родители» прячется когда уже 2 parents
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_add_parent_button_hidden_when_two_parents_exist(owner_page: Page):
+    """TC-05.06: demo seed имеет subject + 2 родителя → кнопка
+    «+ Родители» (`.profile-family-group:has-text(Родители) .profile-rel-add`)
+    либо отсутствует в DOM, либо not_visible. RELATIVE_LIMITS.parents=2.
+    """
+    owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
+    owner_page.wait_for_load_state("networkidle")
+
+    panel = ProfilePanel(owner_page)
+    panel.expect_visible()
+
+    # add_relative_button даёт scoped Locator — `.first` не нужен,
+    # filter по тексту уже сужает. Контракт: count == 0 при limit hit.
+    add_parent = panel.add_relative_button("Родители")
+    assert add_parent.count() == 0, (
+        "demo seed имеет 2 родителя, кнопка `+ Родители` должна быть удалена "
+        f"из DOM (RELATIVE_LIMITS.parents=2); найдено {add_parent.count()} "
+        "кнопок"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TC-04.07 — Footer-ornament • • • в табах sources / timeline
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page):
+    """TC-04.07: Каждый из tab-sources / tab-timeline содержит
+    `.footer-ornament` с тремя bullet-точками. Это design-system
+    маркер, регрессия = пустой/неструктурированный footer.
+    """
+    owner_page.goto("/")
+    owner_page.wait_for_load_state("networkidle")
+
+    sources_ornament = owner_page.locator("#tab-sources .footer-ornament")
+    timeline_ornament = owner_page.locator("#tab-timeline .footer-ornament")
+    assert sources_ornament.count() == 1, (
+        f"#tab-sources должен содержать ровно один .footer-ornament; "
+        f"got {sources_ornament.count()}"
+    )
+    assert timeline_ornament.count() == 1, (
+        f"#tab-timeline должен содержать ровно один .footer-ornament; "
+        f"got {timeline_ornament.count()}"
+    )
+    # Три bullet'а как design-decision (· · · — index.html:164,183).
+    expect(sources_ornament).to_contain_text("•")
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TC-12.02 — Timeline tab: river-filters (5 кнопок)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_timeline_river_filters_render_five_branches(owner_page: Page):
+    """TC-12.02: после переключения на Timeline tab — 5 кнопок-фильтров
+    (`.river-filter-btn`): Все / По матери / По отцу / Другие / История.
+    Default active = «Все» (data-branch=all).
+    """
+    owner_page.goto("/")
+    owner_page.wait_for_load_state("networkidle")
+    owner_page.locator('[data-tab="timeline"]').click()
+
+    filters = owner_page.locator("#riverFilters .river-filter-btn")
+    expect(filters).to_have_count(5)
+
+    expected_branches = ["all", "maternal", "paternal", "other", "historical"]
+    actual_branches = [
+        filters.nth(i).get_attribute("data-branch")
+        for i in range(5)
+    ]
+    assert actual_branches == expected_branches, (
+        f"river-filter порядок изменился; expected {expected_branches}, "
+        f"got {actual_branches}"
+    )
+
+    # Active по умолчанию = первый (data-branch=all).
+    expect(filters.nth(0)).to_have_class(re.compile(r"\bactive\b"))
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TC-13.05 — About: empty placeholder когда about_text not set
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_about_tab_shows_placeholder_when_about_text_is_empty(owner_page: Page):
+    """TC-13.05: на чистом demo seed about_text не заполнен →
+    `[data-config-empty="about_text"]` блок visible с дефолтным
+    текстом «Это семейное древо…». `[data-config-html="about_text"]`
+    скрыт через `data-empty-hidden`.
+    """
+    owner_page.goto("/")
+    owner_page.wait_for_load_state("networkidle")
+    owner_page.locator('[data-tab="about"]').click()
+
+    placeholder = owner_page.locator('[data-config-empty="about_text"]')
+    expect(placeholder).to_be_visible()
+    expect(placeholder).to_contain_text("семейное древо")
+
+
 def test_add_relative_shows_error_on_409_conflict(owner_page: Page):
     """TC-09.10: при попытке создать дубликат person backend возвращает
     409 Conflict. UI должен показать error (#addRelError) и НЕ
