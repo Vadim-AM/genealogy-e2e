@@ -19,7 +19,17 @@ class SignupPage(BasePage):
         self.full_name = page.locator("#full_name")
         self.birth_year = page.locator("#birth_year")
         self.honeypot = page.locator("#website")
-        self.agree = page.locator("#agree")
+        # 3 обязательных + 1 опциональный consent (P0.4 ФЗ-156, май 2026):
+        # старый единый `#agree` → 4 раздельных. `#agree` legacy остаётся как
+        # alias на agreeTerms если форма ещё не мигрирована — но новые тесты
+        # должны использовать explicit поля.
+        self.agree_terms = page.locator("#agreeTerms")
+        self.agree_privacy = page.locator("#agreePrivacy")
+        self.agree_cross_border = page.locator("#agreeCrossBorder")
+        self.agree_marketing = page.locator("#agreeMarketing")
+        # Backward-compat (старые тесты могут ещё использовать `.agree`):
+        # делаем алиас на agree_terms, чтобы не сломать вызовы.
+        self.agree = self.agree_terms
         self.submit_btn = page.locator("#signupBtn")
         self.password_toggle = page.locator("#pwToggle")
         self.password_strength = page.locator(".pw-meter")
@@ -34,13 +44,25 @@ class SignupPage(BasePage):
         birth_year: int | None = None,
         agree: bool = True,
     ) -> "SignupPage":
+        """Заполняет минимально-валидную signup форму.
+
+        `agree=True` ставит ВСЕ 3 обязательных consent (terms / privacy /
+        cross-border) — без любого из них Pydantic-validator вернёт 422
+        «Необходимо принять условия использования» (P0.4 ФЗ-156).
+        marketing_consent опциональный, default OFF.
+
+        Для negative-проверок `agree=False` — оставляем все consent
+        неотмеченными (используется в тестах валидации формы).
+        """
         self.email.fill(email)
         self.password.fill(password)
         self.full_name.fill(full_name)
         if birth_year is not None:
             self.birth_year.fill(str(birth_year))
         if agree:
-            self.agree.check()
+            self.agree_terms.check()
+            self.agree_privacy.check()
+            self.agree_cross_border.check()
         return self
 
     def submit(self) -> "SignupPage":
