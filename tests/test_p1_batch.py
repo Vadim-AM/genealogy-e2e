@@ -446,3 +446,58 @@ def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page):
     all_btn = owner_page.locator('.filter-btn[data-filter="all"]')
     expect(all_btn).to_be_visible()
     expect(all_btn).to_have_class(re.compile(r"\bactive\b"))
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TC-04.06 — Minimap скрыт на mobile (viewport ≤ 720px)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_minimap_hidden_on_mobile_viewport(owner_page: Page):
+    """TC-04.06: media-query `@media (max-width: 720px) { .minimap {
+    display:none !important; } }` (css/inline.css). Меняем viewport
+    на 375×800 (iPhone SE-class) и проверяем computed display.
+    """
+    owner_page.set_viewport_size({"width": 375, "height": 800})
+    owner_page.goto("/")
+    owner_page.wait_for_load_state("networkidle")
+
+    minimap = owner_page.locator("#minimap")
+    display = minimap.evaluate("(el) => getComputedStyle(el).display")
+    assert display == "none", (
+        f"#minimap должен быть display:none на mobile (≤720px); "
+        f"got {display!r}. Если правило @media (max-width:720px) удалено "
+        f"в css/inline.css — регрессия mobile UX."
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TC-04.08 / TC-05.01 — Click на orbit-card открывает orbit-view (SPA)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page):
+    """TC-04.08 / TC-05.01: click на не-центральную orbit-card →
+    orbitNavigateTo(pid) → дерево перерендеривается так что
+    `.orbit-zone-center .orbit-center-card[data-person-id]` указывает
+    на нового центра. Это re-center логика, **не** SPA-навигация в
+    profile (последняя триггерится отдельным data-action="open-profile").
+    """
+    owner_page.goto("/")
+    owner_page.wait_for_load_state("networkidle")
+
+    # Найдём не-центральную карту (родитель / ребёнок).
+    target_card = owner_page.locator(
+        "#treeContainer .orbit-card[data-person-id]:not(.orbit-center-card)"
+    ).first
+    expect(target_card).to_be_visible()
+    target_pid = target_card.get_attribute("data-person-id")
+    assert target_pid
+
+    target_card.click()
+
+    # После re-center центральная карта меняется на target_pid.
+    new_center = owner_page.locator(
+        f".orbit-zone-center .orbit-center-card[data-person-id='{target_pid}']"
+    )
+    expect(new_center).to_be_visible()
