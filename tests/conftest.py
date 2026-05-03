@@ -376,15 +376,21 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
             # 1. Signup. `full_name` is required by the form (see /signup) and
             # propagates into the demo-self person's `name` field — search and
             # tree-rendering tests rely on it.
-            r = c.post(
-                API.SIGNUP,
-                json={
-                    "email": email,
-                    "password": password,
-                    "full_name": full_name,
-                    **profile,
-                },
-            )
+            # 3 обязательных consent field (Phase 0 P0.4 ФЗ-156, май 2026):
+            # terms_accepted, privacy_consent, cross_border_consent — без
+            # любого из них Pydantic-валидатор отдаёт 422 «Необходимо
+            # принять условия использования». marketing_consent опциональный,
+            # default False.
+            payload = {
+                "email": email,
+                "password": password,
+                "full_name": full_name,
+                "terms_accepted": True,
+                "privacy_consent": True,
+                "cross_border_consent": True,
+                **profile,  # tests могут override консент для negative-проверок
+            }
+            r = c.post(API.SIGNUP, json=payload)
             r.raise_for_status()
             assert r.json().get("status") == "verification_sent", \
                 f"signup did not enter verification flow: {r.json()}"
