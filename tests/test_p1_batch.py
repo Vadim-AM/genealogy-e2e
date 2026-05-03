@@ -476,6 +476,30 @@ def test_minimap_hidden_on_mobile_viewport(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# TC-13.04 — Контактная info из site_config: empty → скрыта
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_about_contact_box_hidden_when_contact_text_is_empty(owner_page: Page):
+    """TC-13.04 (negative): default seed → site_config.contact_text пустой
+    → `.contact-box[data-empty-hidden]` имеет computed display:none.
+    Positive case (contact_text задан) требует PATCH /api/site/config —
+    отдельный тест.
+    """
+    owner_page.goto("/")
+    owner_page.wait_for_load_state("networkidle")
+    owner_page.locator('[data-tab="about"]').click()
+
+    contact = owner_page.locator(".contact-box[data-config-text='contact_text']")
+    assert contact.count() == 1, ".contact-box должен быть в DOM (с data-empty-hidden)"
+    display = contact.evaluate("(el) => getComputedStyle(el).display")
+    assert display == "none", (
+        f".contact-box должен быть скрыт когда contact_text пустой "
+        f"(data-empty-hidden hook); got display={display!r}"
+    )
+
+
 def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page):
     """TC-04.08 / TC-05.01: click на не-центральную orbit-card →
     orbitNavigateTo(pid) → дерево перерендеривается так что
