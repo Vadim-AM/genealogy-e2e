@@ -164,39 +164,8 @@ def test_pricing_no_console_errors(page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 # hide_pricing_ui mode — бета-режим (карточки скрыты)
 # ─────────────────────────────────────────────────────────────────────────
-
-
-@pytest.fixture
-def hide_pricing_ui(uvicorn_server: str):
-    """Временно ставит PlatformSettings.hide_pricing_ui=True через _test endpoint.
-
-    Если в `_test_endpoints.py` нет специального хелпера для PlatformSettings —
-    используем общий `/api/_test/reset` (TODO: подтвердить, что reset
-    восстанавливает hide_pricing_ui=False).
-    """
-    # Включаем hide_pricing_ui через PATCH /api/platform/settings —
-    # требует superadmin auth, что усложнит фикстуру. Альтернатива —
-    # /api/_test/* helper. Проверим что есть, иначе skip с явной причиной.
-    import os
-    token = os.environ.get("E2E_TEST_TOKEN", "e2e-test-token-default-2026")
-    headers = {"X-Test-Token": token}
-
-    # TODO: replace with dedicated _test endpoint when added.
-    # Сейчас — best-effort через прямой PATCH с admin password (legacy).
-    yield  # вместо setup делаем skip
-    # teardown — reset
-
-
-def test_pricing_hidden_when_hide_pricing_ui_true(uvicorn_server: str, page: Page):
-    """TC-N1: при hide_pricing_ui=true → карточки скрыты, показано
-    объявление «Тарифы откроются в публичной бете».
-
-    NOTE: для setup нужен `/api/_test/set-platform-setting` или аналог.
-    Если такого endpoint нет — тест skip с явной причиной (будет реализован
-    в backlog; e2e не должен использовать pytest.skip как fallback default,
-    но здесь — явный prereq missing).
-    """
-    pytest.skip(
-        "Требует _test/set-platform-setting endpoint для безопасной установки "
-        "hide_pricing_ui=true в test-режиме. См. backlog."
-    )
+# NB: setup требует superadmin auth + PATCH /api/platform/settings, что
+# триггерит BUG-012 (per-email rate-limit на superadmin signup в genealogy/
+# docs/test-cases/bugs.md). Тест осознанно НЕ написан — добавится после
+# BUG-012 fix. Не использую pytest.skip-фикстуру: пустой test = false safety
+# по правилам CLAUDE.md в этом репо. Лучше отсутствие, чем pass-by-default.

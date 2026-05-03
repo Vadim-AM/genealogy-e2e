@@ -106,27 +106,40 @@ def test_ai_search_toggle_visible(auth_context_factory, superadmin_user):
     assert toggle.get_attribute("data-flag") == "enable_ai_search"
 
 
-def test_ai_search_toggle_initially_off(auth_context_factory, superadmin_user):
-    """TC-N6: при `ENABLE_AI_SEARCH=0` env (test setup) toggle снят."""
+def test_ai_search_toggle_initially_unchecked_after_seed(
+    auth_context_factory, superadmin_user
+):
+    """TC-N6: после фрешного seed PlatformSettings (миграция
+    `r6s7t8u9v0w1` ставит enable_ai_search=False по умолчанию) UI
+    отображает toggle снятым.
+
+    NB: UI показывает значение из БД (через `GET /api/platform/settings`),
+    а НЕ env-resolved is_ai_search_enabled(). Это намеренно — чтобы
+    суперадмин видел что записано в БД, и переключал именно DB-уровень.
+    Env override (ENABLE_AI_SEARCH=1) — отдельный аварийный механизм
+    видимый только в /api/config/features (для frontend).
+    """
     ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
     page = ctx.new_page()
     page.goto("/platform/dashboard")
-    page.wait_for_selector("#feature_flags_section", timeout=10_000)
-
-    # Дашборд делает loadSettings() async — ждём пока инициализируется
+    page.wait_for_selector("#ff_enable_ai_search", timeout=10_000)
+    # Async loadSettings() — ждём пока fetch /api/platform/settings завершится
+    # и checkbox получит реальное значение (а не пустое default).
+    # Маркер готовности — наличие данных в любом другом известном поле,
+    # например settings.beta_user_cap > 0 (default seed = 30).
     page.wait_for_function(
-        "document.getElementById('ff_enable_ai_search') && "
-        "document.getElementById('ff_enable_ai_search').dataset.loaded !== 'pending'",
+        "document.getElementById('set_beta_cap') && "
+        "parseInt(document.getElementById('set_beta_cap').value, 10) > 0",
         timeout=5_000,
     )
 
-    # Backend стартует с ENABLE_AI_SEARCH=0 → checkbox должен быть unchecked
-    toggle = page.locator("#ff_enable_ai_search")
-    is_checked = toggle.is_checked()
-    # NB: env override beats БД — даже если в БД seed True, env=0 победит.
-    # Frontend получает значение через _loadFeatureFlags(s) где s — это весь
-    # PlatformSettings из БД. Тонкий момент: UI показывает БД, не env-resolved.
-    # Принимаем как baseline.
+    # Теперь действительно проверяем — не должен быть checked
+    is_checked = page.locator("#ff_enable_ai_search").is_checked()
+    assert is_checked is False, (
+        "После fresh seed (миграция r6s7t8u9v0w1, default enable_ai_search=False) "
+        "toggle должен быть UNCHECKED. Если checked — значит дефолт "
+        "сменился без отражения в фикстуре, либо сидер сломан."
+    )
 
 
 def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_user):
@@ -167,36 +180,44 @@ def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_u
     "per-email anti-bombing rate-limit. Нужен helper /api/_test/reset-email-rate "
     "либо пере-структурировать superadmin фикстуру как session-scoped с DB-cleanup."
 )
-def test_patch_settings_changes_features_endpoint(
-    superadmin_user, base_url: str, uvicorn_server: str
+def test_patch_settings_writes_to_platformsettings_db(
+    superadmin_user, uvicorn_server: str
 ):
-    """TC-N6 + A8: PATCH /api/platform/settings → /api/config/features
-    мгновенно отражает новое значение enable_ai_search."""
-    # Формируем httpx-клиент с superadmin cookies
+    """TC-N6 + A8: PATCH /api/platform/settings меняет значение в БД
+    (`PlatformSettings.enable_ai_search`).
+
+    Round-trip: PATCH → GET той же сущности → значение совпадает.
+    НЕ проверяет /api/config/features — там может быть env override
+    (см. test_features_endpoint_returns_false_when_env_disabled в
+    test_ai_disabled_flow.py — отдельный сценарий).
+    """
     cookies = httpx.Cookies()
     for name, value in superadmin_user.cookies.items():
         cookies.set(name, value)
 
     with httpx.Client(base_url=uvicorn_server, cookies=cookies, timeout=10) as c:
-        # Текущее значение (default из env=0)
-        r = httpx.get(f"{uvicorn_server}/api/config/features", timeout=10)
-        initial = r.json()["ai_search_enabled"]
+        # Текущее значение в БД (через admin API, НЕ через /api/config/features)
+        r = c.get("/api/platform/settings")
+        r.raise_for_status()
+        initial_db = r.json()["enable_ai_search"]
 
-        # Включаем через PATCH
-        new_value = not initial
-        r = c.patch("/api/platform/settings", json={"enable_ai_search": new_value})
-        assert r.status_code == 200, f"PATCH /api/platform/settings failed: {r.status_code} {r.text}"
+        # Меняем
+        new_value = not initial_db
+        patch_r = c.patch("/api/platform/settings", json={"enable_ai_search": new_value})
+        assert patch_r.status_code == 200, \
+            f"PATCH должен вернуть 200, получили {patch_r.status_code}: {patch_r.text[:200]}"
 
-        # Проверяем что /api/config/features изменился
-        r2 = httpx.get(f"{uvicorn_server}/api/config/features", timeout=10)
-        actual = r2.json()["ai_search_enabled"]
-        # NB: env override может перебить БД. В test setup ENABLE_AI_SEARCH=0 явно
-        # задан → env wins → /api/config/features всегда вернёт False независимо от БД.
-        # Поэтому здесь проверяем, что PATCH прошёл (200), а не что features меняется.
-        # Полный round-trip через UI отдельным тестом — после fix env-handling.
+        # Reread тот же endpoint — БД-значение должно поменяться
+        r2 = c.get("/api/platform/settings")
+        r2.raise_for_status()
+        actual_db = r2.json()["enable_ai_search"]
+        assert actual_db == new_value, (
+            f"БД не обновилась после PATCH: было {initial_db}, "
+            f"PATCHили на {new_value}, получили {actual_db}"
+        )
 
-        # Откатываем обратно
-        c.patch("/api/platform/settings", json={"enable_ai_search": initial}).raise_for_status()
+        # Откат — гарантируем чистоту state для последующих тестов
+        c.patch("/api/platform/settings", json={"enable_ai_search": initial_db}).raise_for_status()
 
 
 @pytest.mark.skip(
