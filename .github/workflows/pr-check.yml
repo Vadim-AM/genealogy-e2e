@@ -58,6 +58,7 @@ jobs:
           cd _genealogy/backend
           GENEALOGY_TESTING=1 \
           GENEALOGY_ADMIN_PASSWORD=test_admin_password \
+          GENEALOGY_TEST_TOKEN=e2e-test-token-default-2026 \
           EMAIL_PROVIDER=mock \
           FREE_SIGNUP_LIMIT=1000 \
           PLATFORM_SUPERADMIN_EMAILS=super@e2e.example.com \
