@@ -1,11 +1,13 @@
-"""TC-AI-1: GDPR/152-FZ consent confirm() перед первым ★ Найти больше.
+"""TC-AI-1: GDPR/152-FZ consent dialog перед первым ★ Найти больше.
 
 Контракт (`js/components/enrichment-modal.js:97-117`):
 
 1. На первый клик «★ Найти больше» проверяется
    `localStorage.genealogy_ai_consent_v1`. Если нет — рендерится
-   нативный `confirm()` с текстом про Anthropic Inc., перечнем
-   передаваемых данных и ссылкой на политику конфиденциальности.
+   custom modal `confirmDialog()` (см. `js/components/confirm-dialog.js`)
+   с текстом про Anthropic Inc., перечнем передаваемых данных и
+   ссылкой на политику конфиденциальности. Это НЕ browser-native
+   `confirm()` (after CSP-cleanup commit dcc5a00) — ловим через DOM.
 2. Cancel → НИ ОДНОГО POST на `/api/enrich/{pid}` не уходит,
    `genealogy_ai_decline_count` инкрементится.
 3. Accept → `genealogy_ai_consent_v1` сохраняется + best-effort
@@ -19,7 +21,7 @@ compliance regression.
 
 from __future__ import annotations
 
-from playwright.sync_api import Page
+from playwright.sync_api import Page, expect
 
 from tests.messages import AiConsent, TestData, t
 
@@ -52,31 +54,17 @@ def _open_demo_self(page: Page) -> None:
 def test_first_enrich_click_shows_consent_with_anthropic_and_policy_link(
     owner_page: Page,
 ):
-    """TC-AI-1 (positive): consent confirm содержит legal-load (Anthropic + политика)."""
+    """TC-AI-1 (positive): consent modal содержит legal-load (Anthropic + политика)."""
     _open_demo_self(owner_page)
     _clear_consent_state(owner_page)
 
-    captured = {}
-
-    def on_dialog(d):
-        captured["type"] = d.type
-        captured["message"] = d.message
-        d.dismiss()
-
-    owner_page.on("dialog", on_dialog)
     owner_page.get_by_role("button", name="Найти больше", exact=False).click()
 
-    # Декрементер `decline_count` пишется СИНХРОННО после dismiss — это
-    # deterministic gate, что dialog handler отработал.
-    owner_page.wait_for_function(
-        "() => parseInt(localStorage.getItem('genealogy_ai_decline_count') || '0', 10) >= 1",
-        timeout=5_000,
-    )
+    # Custom confirm-dialog (CSP-clean, not native window.confirm).
+    dialog = owner_page.locator(".confirm-dialog, [role='alertdialog']").first
+    expect(dialog).to_be_visible(timeout=5_000)
 
-    assert captured.get("type") == "confirm", (
-        f"expected confirm() dialog, got type={captured.get('type')!r}"
-    )
-    msg = captured.get("message") or ""
+    msg = dialog.inner_text()
     assert AiConsent.PROVIDER in msg, (
         f"consent text must mention {AiConsent.PROVIDER!r}; got: {msg[:200]!r}"
     )
@@ -87,6 +75,16 @@ def test_first_enrich_click_shows_consent_with_anthropic_and_policy_link(
     assert t(AiConsent.SHARED_DATA_KEYWORD) in msg, (
         f"consent text must list what data is sent ({t(AiConsent.SHARED_DATA_KEYWORD)!r}); "
         f"got: {msg[:200]!r}"
+    )
+
+    # Cancel → decline_count++ — ровно тот compliance-инвариант который
+    # тест должен зафиксировать (не пропустить data к Anthropic «случайно»).
+    # Label из enrichment-modal.js:112 — `cancelLabel: 'Не сейчас'`.
+    cancel_btn = dialog.get_by_role("button", name="Не сейчас")
+    cancel_btn.click()
+    owner_page.wait_for_function(
+        "() => parseInt(localStorage.getItem('genealogy_ai_decline_count') || '0', 10) >= 1",
+        timeout=5_000,
     )
 
 
@@ -107,9 +105,15 @@ def test_consent_decline_blocks_post_to_enrich_endpoint(owner_page: Page):
             enrich_posts.append(req.url)
 
     owner_page.on("request", track_request)
-    owner_page.on("dialog", lambda d: d.dismiss())
 
     owner_page.get_by_role("button", name="Найти больше", exact=False).click()
+
+    # Custom confirm-dialog (`./confirm-dialog.js`) — ловим через DOM
+    # selector, не через page.on('dialog') (это для native window.confirm).
+    dialog = owner_page.locator(".confirm-dialog, [role='alertdialog']").first
+    expect(dialog).to_be_visible(timeout=5_000)
+    # Label `cancelLabel: 'Не сейчас'` (enrichment-modal.js:112).
+    dialog.get_by_role("button", name="Не сейчас").click()
 
     # Дождаться что handler отработал (decline_count→1) — после этого
     # ранний return гарантирован, новых POST'ов не будет.

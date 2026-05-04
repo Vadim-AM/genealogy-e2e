@@ -44,7 +44,7 @@ import pytest
 from tests.timeouts import TIMEOUTS, set_playwright_default_expect_timeout
 
 from tests.api_paths import API
-from tests.constants import TestConfig
+from tests.constants import TestConfig, unique_email
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
@@ -160,6 +160,37 @@ def reset_state(uvicorn_server: str) -> None:
     ).raise_for_status()
 
 
+@pytest.fixture(autouse=True)
+def _default_ai_search_on(reset_state, uvicorn_server: str) -> None:
+    """Default platform_settings.enable_ai_search → True перед каждым тестом.
+
+    В бета-режиме (Phase B+C) дефолт в БД = False (server_default в
+    миграции `r6s7t8u9v0w1`), но большинство e2e сценариев (enrichment_flow,
+    consent_enforcement, regressions) требуют, чтобы AI был доступен.
+    Тесты, которые специально проверяют OFF-режим (test_ai_disabled_flow.py),
+    свои autouse override → False — они выполняются ПОСЛЕ этой фикстуры
+    (file-local autouse > conftest autouse в pytest ordering).
+
+    Зависимость от `reset_state` гарантирует, что reset (если он трогает
+    platform_settings — сейчас не трогает, но на будущее) уже отработал.
+    """
+    r = httpx.post(
+        f"{uvicorn_server}/api/_test/set-platform-setting",
+        json={"enable_ai_search": True},
+        timeout=TIMEOUTS.api_short,
+    )
+    r.raise_for_status()
+    # Sanity: после write — features endpoint видит True. Иначе кэш или
+    # race условия пробивают политику и owner_page показывает «(скоро)».
+    f = httpx.get(f"{uvicorn_server}/api/config/features", timeout=TIMEOUTS.api_short)
+    f.raise_for_status()
+    assert f.json().get("ai_search_enabled") is True, (
+        "default fixture failed: /api/config/features still reports "
+        f"{f.json()}. Either set-platform-setting не записал в БД, либо "
+        "ENABLE_AI_SEARCH env override стоит на False."
+    )
+
+
 @pytest.fixture(scope="session", autouse=True)
 def install_mock_ai(uvicorn_server: str) -> None:
     """Install AI fixture once per session (survives `/reset` — not touched by it)."""
@@ -225,7 +256,15 @@ def signup_unverified(uvicorn_server: str) -> Callable[..., str]:
             ).raise_for_status()
             r = c.post(
                 API.SIGNUP,
-                json={"email": email, "password": password, "full_name": full_name},
+                json={
+                    "email": email,
+                    "password": password,
+                    "full_name": full_name,
+                    # P0.4 (ФЗ-156, май 2026): 3 раздельных consent обязательны.
+                    "terms_accepted": True,
+                    "privacy_consent": True,
+                    "cross_border_consent": True,
+                },
             )
             r.raise_for_status()
         return email
@@ -340,6 +379,13 @@ def accept_invite(uvicorn_server: str) -> Callable[..., None]:
             timeout=TIMEOUTS.api_request,
         )
         r.raise_for_status()
+        # Backend (auth_v2/tenant_invites.py:311) deletes старую session и
+        # выпускает новую, привязанную к accepted tenant. Bytes-of-cookies
+        # переданные нам from caller — теперь stale (старая session DELETED
+        # → 401). Mutate dict in-place: новый Set-Cookie перезаписывает
+        # platform_session, остальные cookies caller'а сохраняем.
+        for k, v in r.cookies.items():
+            cookies[k] = v
 
     return _do
 
@@ -353,11 +399,20 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
     """
 
     def _do(
-        email: str = TestConfig.DEFAULT_OWNER_EMAIL,
+        email: str | None = None,
         password: str = TestConfig.DEFAULT_PASSWORD,
         full_name: str = "Тестовый Пользователь",
         **profile: Any,
     ) -> AuthUser:
+        # Default email: unique per call. Backend накапливает per-email
+        # state (slowapi rate-limit, honeypot counters, sessions) даже
+        # после `_test/reset` — фикс waitlist (commit 78f2bc3) добавил
+        # per-email rate-limit, который пережил reset на нескольких
+        # тестах подряд. Unique email избегает spurious 404 на
+        # `/api/_test/last-email` когда `signup` уходит в anti-enum
+        # silent success без отправки письма.
+        if email is None:
+            email = unique_email("owner")
         with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
             # Reset slowapi signup throttle before each signup. Not optional —
             # if the endpoint is missing we want tests to ERROR, not silently
@@ -367,15 +422,21 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
             # 1. Signup. `full_name` is required by the form (see /signup) and
             # propagates into the demo-self person's `name` field — search and
             # tree-rendering tests rely on it.
-            r = c.post(
-                API.SIGNUP,
-                json={
-                    "email": email,
-                    "password": password,
-                    "full_name": full_name,
-                    **profile,
-                },
-            )
+            # 3 обязательных consent field (Phase 0 P0.4 ФЗ-156, май 2026):
+            # terms_accepted, privacy_consent, cross_border_consent — без
+            # любого из них Pydantic-валидатор отдаёт 422 «Необходимо
+            # принять условия использования». marketing_consent опциональный,
+            # default False.
+            payload = {
+                "email": email,
+                "password": password,
+                "full_name": full_name,
+                "terms_accepted": True,
+                "privacy_consent": True,
+                "cross_border_consent": True,
+                **profile,  # tests могут override консент для negative-проверок
+            }
+            r = c.post(API.SIGNUP, json=payload)
             r.raise_for_status()
             assert r.json().get("status") == "verification_sent", \
                 f"signup did not enter verification flow: {r.json()}"

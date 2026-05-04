@@ -30,8 +30,11 @@ def test_signup_form_submits_via_post(page: Page):
     page.wait_for_load_state("domcontentloaded")
     page.locator("#email").fill(unique_email("formpost"))
     page.locator("#password").fill("test_password_8plus")
-    page.locator("#full_name").fill("Test User")
-    page.locator("#agree").check()
+    # I4 (commit 814d5f8): поле `#full_name` удалено — display_name
+    # заполняется из карточки. P0.4 (ФЗ-156): single `#agree` → 3 раздельных.
+    page.locator("#agreeTerms").check()
+    page.locator("#agreePrivacy").check()
+    page.locator("#agreeCrossBorder").check()
 
     with page.expect_request(
         lambda req: _is_submit_request(req.url, "/api/account/signup")
