@@ -36,7 +36,15 @@ def _signup_and_verify(client: httpx.Client, email: str) -> str:
 
     r = client.post(
         "/api/account/signup",
-        json={"email": email, "password": DEFAULT_PASSWORD, "full_name": "Тест"},
+        json={
+            "email": email,
+            "password": DEFAULT_PASSWORD,
+            "full_name": "Тест",
+            # P0.4 (ФЗ-156, май 2026): 3 раздельных consent обязательны.
+            "terms_accepted": True,
+            "privacy_consent": True,
+            "cross_border_consent": True,
+        },
     )
     r.raise_for_status()
 
