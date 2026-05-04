@@ -16,37 +16,25 @@ POST /me/email, PATCH /me, POST change-email — все 404/405.
 
 from __future__ import annotations
 
-import pytest
-
-from tests.api_paths import API
 from tests.constants import make_email, unique_email
 
 
-@pytest.mark.xfail(
-    reason="INV-EMAIL-002: endpoint смены email отсутствует. POST "
-           "/me/email возвращает 404 на dev tip. Compromised account "
-           "нельзя восстановить без потери данных. Fix: добавить "
-           "POST /api/account/me/email двух-шаговый flow (новый email "
-           "получает confirmation link, старый — notification).",
-    strict=False,
-)
 def test_change_email_endpoint_initiates_confirmation(
-    signup_via_api, tenant_client, read_email_token, base_url: str,
+    signup_via_api, tenant_client, read_email_token,
 ):
-    """INV-EMAIL-002 (canonical contract): POST /me/email с
-    `{new_email, password}` → 200/202 + confirmation mail на new_email.
+    """INV-EMAIL-002: POST /api/account/me/email c `{new_email,
+    current_password}` → 200/202 + confirmation mail на new_email.
 
-    Pin'нутый contract — не probe-of-existence. Если backend вернёт
-    другой shape, тест fail с понятным сообщением, и нужно будет
-    обновить под canonical decision.
+    Was xfail until upstream commit `64a206a` ("feat(auth-v2):
+    change-email endpoint"). Now plain regression-trail.
     """
     user = signup_via_api(email=make_email("orig"))
     api = tenant_client(user)
 
     new_email = unique_email("changed")
     r = api.post(
-        "/api/account/me/email",  # canonical path; см. API namespace
-        json={"new_email": new_email, "password": user.password},
+        "/api/account/me/email",
+        json={"new_email": new_email, "current_password": user.password},
     )
 
     assert r.status_code in (200, 202), (
@@ -54,7 +42,5 @@ def test_change_email_endpoint_initiates_confirmation(
         f"got {r.status_code} {r.text[:200]}"
     )
 
-    # Confirmation mail должна прийти на NEW адрес (с токеном).
-    # `read_email_token` raises если ничего не пришло — что и нужно.
     token = read_email_token(new_email)
     assert token, f"no confirmation token sent to new email {new_email}"

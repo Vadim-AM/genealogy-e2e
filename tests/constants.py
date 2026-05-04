@@ -25,7 +25,12 @@ class TestConfig:
     # `*.example.com` — RFC 2606 reserved для тестов, никогда не route'ится.
     EMAIL_DOMAIN = "e2e.example.com"
 
-    DEFAULT_OWNER_EMAIL = f"owner@{EMAIL_DOMAIN}"
+    # Не "owner@" — local-part `owner` в reserved-slugs blocklist
+    # (commit 8ff894a, INV-SLUG-001a). Backend silently swallows signup
+    # с reserved/невалидной local-part (`verification_sent` 200 для
+    # anti-enumeration, но email не отправляется). Дефис проходит,
+    # underscore — нет. Используем безопасный паттерн.
+    DEFAULT_OWNER_EMAIL = f"e2e-owner@{EMAIL_DOMAIN}"
     SUPERADMIN_EMAIL = f"super@{EMAIL_DOMAIN}"
 
 

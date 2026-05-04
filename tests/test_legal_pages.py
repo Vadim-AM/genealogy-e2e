@@ -45,3 +45,46 @@ def test_legal_has_no_unrendered_markdown_links(page: Page, path: str):
     import re
     md_links = re.findall(r"\[[^\]]+\]\([^\)]+\)", body)
     assert not md_links, f"{path} has unrendered MD links: {md_links[:3]}"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TC-24.03 — Footer links на /privacy и /terms видны и open в новой вкладке
+# ─────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("href", ["/privacy", "/terms"])
+def test_landing_footer_legal_link_is_visible_and_target_blank(
+    page: Page, href: str,
+):
+    """TC-24.03: footer на / содержит link на /privacy и /terms; target=_blank
+    чтобы юзер не терял состояние tree/orbit при чтении legal text.
+
+    Селектор по href — устойчив к смене label'ов и i18n.
+    """
+    page.goto("/")
+    page.wait_for_load_state("domcontentloaded")
+    link = page.locator(f"a[href='{href}']").first
+    expect(link).to_be_visible()
+    target = link.get_attribute("target")
+    assert target == "_blank", (
+        f"footer link {href} должен иметь target=_blank, чтобы не терять "
+        f"состояние страницы; got target={target!r}"
+    )
+
+
+@pytest.mark.parametrize("href", ["/privacy", "/terms"])
+def test_landing_footer_legal_link_resolves_to_200(
+    base_url: str, href: str,
+):
+    """TC-24.03: переход по footer-link реально возвращает 200 + HTML
+    (защита от битой ссылки). httpx — открывать новую tab через
+    Playwright ради этого избыточно.
+    """
+    response = httpx.get(f"{base_url}{href}", follow_redirects=True, timeout=10)
+    assert response.status_code == 200, (
+        f"footer link {href} returned {response.status_code}"
+    )
+    content_type = (response.headers.get("content-type") or "").lower()
+    assert "text/html" in content_type, (
+        f"footer link {href} content-type={content_type!r}, expected text/html"
+    )

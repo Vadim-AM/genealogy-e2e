@@ -123,22 +123,30 @@ def test_signup_password_eye_toggle_visible_on_iphone_se(mobile_page: Page):
 def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
     mobile_page: Page,
 ):
-    """TC-RESPONSIVE-1 (375): label чекбокса согласия не обрезается.
+    """TC-RESPONSIVE-1 (375): label всех consent-чекбоксов не обрезается.
 
-    Чекбокс `#agree` сидит в `.signup-agree` с label-текстом —
-    при 375px текст должен переноситься, не выходить вправо.
+    P0.4 (ФЗ-156, май 2026): один `#agree` → 4 раздельных consent
+    (`.signup-agree` × 4). Каждая строка должна укладываться в 375px.
     """
     mobile_page.goto("/signup")
     mobile_page.wait_for_load_state("networkidle")
 
-    agree_row = mobile_page.locator(".signup-agree")
-    expect(agree_row).to_be_visible()
-    box = agree_row.bounding_box()
-    assert box is not None
-    assert (box["x"] + box["width"]) <= 375, (
-        f".signup-agree row overflows iPhone SE width: "
-        f"right_edge={box['x'] + box['width']} > 375"
+    agree_rows = mobile_page.locator(".signup-agree")
+    expect(agree_rows.first).to_be_visible()
+    count = agree_rows.count()
+    assert count >= 3, (
+        f"Ожидали ≥3 .signup-agree блоков (terms / privacy / cross-border), "
+        f"нашли {count}"
     )
+
+    for i in range(count):
+        row = agree_rows.nth(i)
+        box = row.bounding_box()
+        assert box is not None, f".signup-agree[{i}] not visible"
+        assert (box["x"] + box["width"]) <= 375, (
+            f".signup-agree[{i}] row overflows iPhone SE width: "
+            f"right_edge={box['x'] + box['width']} > 375"
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────

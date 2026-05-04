@@ -43,19 +43,12 @@ from tests.timeouts import TIMEOUTS
 _ITERATIONS = 30
 _RATIO_THRESHOLD = 2.0
 
-# Тесты в этом файле затратные (60+ HTTP roundtrip'ов на тест) и
-# чувствительны к runner jitter. По умолчанию skip — opt-in через
-# RUN_SLOW=1 env или `pytest -m slow`.
-_RUN_SLOW = os.environ.get("RUN_SLOW") == "1"
-
-pytestmark = [
-    pytest.mark.slow,
-    pytest.mark.skipif(
-        not _RUN_SLOW,
-        reason="timing tests skipped by default — opt-in via RUN_SLOW=1 "
-               "(local verification or nightly CI run, not per-PR).",
-    ),
-]
+# Тесты затратные (60+ HTTP roundtrip'ов) и чувствительны к runner jitter,
+# но это не повод их скипать — timing-attack это security regression,
+# должно ловиться. Помечены `@pytest.mark.slow` для отдельной фильтрации
+# (`pytest -m "not slow"` исключит), но по умолчанию запускаются вместе
+# с остальным suite.
+pytestmark = pytest.mark.slow
 
 
 def _measure(client: httpx.Client, reset_url: str, make_call) -> float:
@@ -121,17 +114,6 @@ def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_ap
     )
 
 
-_LOGIN_TIMING_XFAIL = pytest.mark.xfail(
-    reason="BUG-SEC-004: /api/account/login latency differs ≈14× between "
-           "existing-but-wrong-pwd and non-existent email (Run 2 28.04). "
-           "Path for existing does bcrypt verify; for non-existent skips "
-           "to 401 immediately. Equal-work fix: do dummy bcrypt against "
-           "constant hash when user not found. See app/auth.py login.",
-    strict=False,
-)
-
-
-@_LOGIN_TIMING_XFAIL
 def test_login_no_timing_account_enumeration(uvicorn_server: str, signup_via_api):
     """TC-SEC-4: login p50 latency for wrong-password ≈ non-existent (ratio < 3×).
 

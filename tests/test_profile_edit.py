@@ -64,19 +64,17 @@ def test_maiden_name_visible_only_for_female_gender(owner_page: Page):
 
 
 def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, base_url: str):
-    """TC-EDITOR-2: clicking «Удалить» triggers a `confirm()` whose text
-    mentions «Удалить» + irreversibility + «связанные источники и связи».
-    Dismissing it must NOT send a DELETE request."""
+    """TC-EDITOR-2: clicking «Удалить» triggers a custom `confirmDialog()`
+    whose text mentions «Удалить» + irreversibility + «связанные источники
+    и связи». Dismissing it must NOT send a DELETE request.
+
+    После CSP-cleanup (commit dcc5a00) confirm живёт в `confirmDialog`
+    из `js/components/confirm-dialog.js` — это custom modal, НЕ browser
+    native confirm(). Тест ловит его через DOM-селектор `.confirm-dialog`,
+    не через `page.on('dialog')`.
+    """
     # demo-grandpa is non-root (delete button visible) and exists in seed.
     editor = _open_editor(owner_page, person_id="demo-grandpa")
-
-    captured_dialogs: list[str] = []
-
-    def _on_dialog(dialog):
-        captured_dialogs.append(dialog.message)
-        dialog.dismiss()
-
-    owner_page.once("dialog", _on_dialog)
 
     delete_responses: list[int] = []
     owner_page.on(
@@ -87,20 +85,25 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, base
     )
 
     editor.btn_delete.click()
-    # Give the dialog handler a moment to fire and the (suppressed) DELETE
-    # path to either trigger or not. expect_dialog cannot wait for absence,
-    # so we use a short networkidle to settle.
-    owner_page.wait_for_load_state("networkidle")
 
-    assert captured_dialogs, "delete must trigger a confirm() dialog"
-    msg = captured_dialogs[0]
-    assert "Удалить" in msg, f"confirm message must mention 'Удалить': {msg!r}"
+    # Custom confirm-dialog modal появляется в DOM. Ждём `.confirm-dialog`.
+    confirm_dialog = owner_page.locator(".confirm-dialog, [role='alertdialog']").first
+    expect(confirm_dialog).to_be_visible(timeout=2_000)
+
+    # Текст confirm-сообщения должен содержать критические маркеры.
+    msg = confirm_dialog.inner_text()
+    assert "Удалить" in msg, f"confirm must mention 'Удалить': {msg!r}"
     assert "необратим" in msg, (
-        f"confirm must call out irreversibility (substring «необратим» "
-        f"covers «необратимо/необратимый»): {msg!r}"
+        f"confirm must call out irreversibility (substring «необратим»): {msg!r}"
     )
     assert "связ" in msg, \
         f"confirm must mention что связи будут отвязаны: {msg!r}"
+
+    # Click «Отмена» — DELETE НЕ должен уйти.
+    cancel_btn = confirm_dialog.get_by_role("button", name="Отмена")
+    cancel_btn.click()
+    owner_page.wait_for_load_state("networkidle")
+
     assert not delete_responses, \
         f"DELETE must NOT be sent when confirm is dismissed; got: {delete_responses}"
 
