@@ -39,9 +39,12 @@ def test_signup_short_password_sets_aria_invalid(page: Page):
     """
     page.goto("/signup")
     page.wait_for_load_state("domcontentloaded")
-    # Email валидный для HTML5 (есть @), pass'ёт client validity →
-    # submit реально отправляется → server-side rejection (short pw) →
-    # JS error handler runs → должен пометить password aria-invalid.
+    # Снимаем HTML5 ограничение minlength="8" на #password — иначе native
+    # validity блокирует submit ДО fetch, JS error-handler не запускается,
+    # тест проверяет уровень `aria-invalid` который ставится только из
+    # response-handler. Server-side валидация (zxcvbn-python score>=2) —
+    # источник истины, который мы и тестируем.
+    page.evaluate("document.getElementById('password').removeAttribute('minlength')")
     page.locator("#email").fill("a11y-server@e2e.example.com")
     page.locator("#password").fill("short")  # < 8 chars — server rejects
     page.locator("#agreeTerms").check()

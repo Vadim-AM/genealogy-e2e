@@ -114,17 +114,6 @@ def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_ap
     )
 
 
-_LOGIN_TIMING_XFAIL = pytest.mark.xfail(
-    reason="BUG-SEC-004: /api/account/login latency differs ≈14× between "
-           "existing-but-wrong-pwd and non-existent email (Run 2 28.04). "
-           "Path for existing does bcrypt verify; for non-existent skips "
-           "to 401 immediately. Equal-work fix: do dummy bcrypt against "
-           "constant hash when user not found. See app/auth.py login.",
-    strict=False,
-)
-
-
-@_LOGIN_TIMING_XFAIL
 def test_login_no_timing_account_enumeration(uvicorn_server: str, signup_via_api):
     """TC-SEC-4: login p50 latency for wrong-password ≈ non-existent (ratio < 3×).
 
