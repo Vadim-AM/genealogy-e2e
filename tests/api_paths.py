@@ -85,3 +85,49 @@ class API:
     TEST_LAST_EMAIL = "/api/_test/last-email"
     TEST_INSTALL_MOCK_AI = "/api/_test/install-mock-ai"
     TEST_UNINSTALL_MOCK_AI = "/api/_test/uninstall-mock-ai"
+
+    # ── Platform superadmin (PR-1..10) ───────────────────────────
+    PLATFORM_METRICS = "/api/platform/metrics"
+    PLATFORM_TENANTS = "/api/platform/tenants"
+    PLATFORM_USERS = "/api/platform/users"
+    PLATFORM_GEO_STATS = "/api/platform/users/geo-stats"
+    PLATFORM_FUNNEL = "/api/platform/funnel"
+    PLATFORM_ACQUISITION = "/api/platform/acquisition"
+    PLATFORM_RAGE_SPOTS = "/api/platform/rage-spots"
+    PLATFORM_DEVICE_MIX = "/api/platform/device-mix"
+    PLATFORM_ACTIVITY_HEATMAP = "/api/platform/activity-heatmap"
+    PLATFORM_ONLINE_NOW = "/api/platform/online-now"
+    PLATFORM_SESSION_STATS = "/api/platform/session-stats"
+    PLATFORM_RETENTION = "/api/platform/retention"
+    PLATFORM_TIME_TO_AHA = "/api/platform/time-to-aha"
+    PLATFORM_FUNNEL_DETAIL = "/api/platform/funnel-detail"
+    PLATFORM_AUDIT_LOG = "/api/platform/audit-log"
+    PLATFORM_ALERTS = "/api/platform/alerts"
+    PLATFORM_HEALTH = "/api/platform/health"
+    PLATFORM_FREE_LICENSE_GRANT = "/api/platform/free-license-grant"
+    PLATFORM_BACKUP_SNAPSHOT = "/api/platform/backup-snapshot"
+    PLATFORM_CLEANUP_DELETED = "/api/platform/cleanup-deleted"
+    PLATFORM_TIER_CONFIG = "/api/platform/tier-config"
+    PLATFORM_SETTINGS = "/api/platform/settings"
+
+    # ── Platform MFA (PR-7..10) ──────────────────────────────────
+    MFA_SETUP = "/api/platform/mfa/setup"
+    MFA_VERIFY = "/api/platform/mfa/verify"
+    MFA_STATUS = "/api/platform/mfa/status"
+    MFA_RECOVERY_REGENERATE = "/api/platform/mfa/recovery-codes/regenerate"
+    MFA_RECOVERY_REDEEM = "/api/platform/mfa/recovery-redeem"
+    MFA_RECOVERY_COUNT = "/api/platform/mfa/recovery-codes/count"
+    MFA_STEP_UP = "/api/platform/mfa/step-up"
+    WEBAUTHN_LIST = "/api/platform/mfa/webauthn"
+    WEBAUTHN_REGISTER_BEGIN = "/api/platform/mfa/webauthn/register/begin"
+    WEBAUTHN_REGISTER_COMPLETE = "/api/platform/mfa/webauthn/register/complete"
+    WEBAUTHN_AUTH_BEGIN = "/api/platform/mfa/webauthn/authenticate/begin"
+    WEBAUTHN_AUTH_COMPLETE = "/api/platform/mfa/webauthn/authenticate/complete"
+
+    @staticmethod
+    def webauthn_credential(credential_pk: int) -> str:
+        return f"/api/platform/mfa/webauthn/{credential_pk}"
+
+    @staticmethod
+    def tier_config(tier_name: str) -> str:
+        return f"/api/platform/tier-config/{tier_name}"
