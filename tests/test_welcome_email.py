@@ -36,7 +36,15 @@ def _signup_and_verify(client: httpx.Client, email: str) -> str:
 
     r = client.post(
         "/api/account/signup",
-        json={"email": email, "password": DEFAULT_PASSWORD, "full_name": "Тест"},
+        json={
+            "email": email,
+            "password": DEFAULT_PASSWORD,
+            "full_name": "Тест",
+            # P0.4 (ФЗ-156, май 2026): 3 раздельных consent обязательны.
+            "terms_accepted": True,
+            "privacy_consent": True,
+            "cross_border_consent": True,
+        },
     )
     r.raise_for_status()
 
@@ -58,14 +66,6 @@ def _signup_and_verify(client: httpx.Client, email: str) -> str:
     return login.json()["tenant_slug"]
 
 
-@pytest.mark.xfail(
-    reason="BUG-COPY-003: welcome-email domain hardcoded to "
-           "nasharodoslovnaya.ru in `notifications/templates.py:41`, "
-           "ignores GENEALOGY_PUBLIC_URL env. Confirmed Run 2 28.04. "
-           "Fix: derive base URL from settings/env. Multi-tenant Self-"
-           "hosted клиенты сейчас получают ссылки на чужой prod.",
-    strict=False,
-)
 def test_welcome_email_uses_public_url_env_not_hardcoded_prod(
     uvicorn_server: str,
 ):

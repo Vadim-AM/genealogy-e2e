@@ -4,3 +4,7 @@ pytest-playwright>=0.4.4
 playwright>=1.45,<2.0
 pytest-xdist>=3.5
 httpx>=0.27
+# TOTP MFA tests (TC-PA-MFA-*, TC-PA-STEPUP-*) — top-level import in test
+# modules per Rule 7 ("read source before guessing"). Rule 1 forbids
+# silent skip on missing dep — declared explicitly here.
+pyotp>=2.9

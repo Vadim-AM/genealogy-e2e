@@ -34,14 +34,6 @@ def _has_cyrillic(s: str) -> bool:
     return bool(_CYRILLIC_RE.search(s or ""))
 
 
-@pytest.mark.xfail(
-    reason="BUG-i18N-001: backend error detail на английском "
-           "(`Invalid email or password`, `Password too short` и пр.). "
-           "RU-product, RU-аудитория, RU-UI — ошибки тоже должны быть на "
-           "русском. Fix: локализовать strings в auth_v2/auth handlers "
-           "(или подключить FastAPI gettext middleware).",
-    strict=False,
-)
 def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
     """Login с несуществующим email → response detail должен быть на русском."""
     with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
@@ -63,11 +55,6 @@ def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
     )
 
 
-@pytest.mark.xfail(
-    reason="BUG-i18N-001 (same): signup validation errors на английском "
-           "(«Password too short», «Disposable email» и т.п.). См. выше.",
-    strict=False,
-)
 def test_signup_validation_error_detail_in_russian(uvicorn_server: str):
     """Signup с слишком коротким паролем → 422 с detail на русском."""
     with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:

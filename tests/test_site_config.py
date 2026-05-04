@@ -17,6 +17,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
+from tests.constants import unique_email
 from tests.timeouts import TIMEOUTS
 
 
@@ -47,8 +48,8 @@ def _get_site_name_authed(base_url: str, user) -> str:
 
 def test_tenant_b_sees_default_not_tenant_a_value(signup_via_api, base_url: str):
     """TC-MT-1 step 6 (read-isolation): B GET до своего PATCH видит default, не A."""
-    user_a = signup_via_api(email="mt-default-a@e2e.example.com")
-    user_b = signup_via_api(email="mt-default-b@e2e.example.com")
+    user_a = signup_via_api(email=unique_email("mt-default-a"))
+    user_b = signup_via_api(email=unique_email("mt-default-b"))
 
     _patch_site_name(base_url, user_a, _TENANT_A_VALUE)
 
@@ -65,8 +66,8 @@ def test_tenant_b_patch_does_not_overwrite_tenant_a(signup_via_api, base_url: st
     Зеркало к existing `test_bug_mt_001_*` (PATCH в A не виден в B).
     Здесь проверяем обратное направление.
     """
-    user_a = signup_via_api(email="mt-mirror-a@e2e.example.com")
-    user_b = signup_via_api(email="mt-mirror-b@e2e.example.com")
+    user_a = signup_via_api(email=unique_email("mt-mirror-a"))
+    user_b = signup_via_api(email=unique_email("mt-mirror-b"))
 
     _patch_site_name(base_url, user_a, _TENANT_A_VALUE)
     _patch_site_name(base_url, user_b, _TENANT_B_VALUE)
@@ -87,7 +88,7 @@ def test_anonymous_site_config_does_not_leak_tenant_value(
     глобальный default, а не конфиденциальное название чужого
     пространства. Если значение протекает — это GDPR-grade leak.
     """
-    user_a = signup_via_api(email="mt-anon-a@e2e.example.com")
+    user_a = signup_via_api(email=unique_email("mt-anon-a"))
 
     _patch_site_name(base_url, user_a, _TENANT_A_VALUE)
 

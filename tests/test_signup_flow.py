@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 
 import httpx
+import pytest
 from playwright.sync_api import Page, expect
 
 from tests.pages.signup_page import SignupPage
@@ -117,13 +118,16 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str):
     backend treats it as silent success.
     """
     page.goto("/signup")
+    # P0.4 (ФЗ-156): 3 раздельных consent + honeypot. Поле full_name
+    # удалено в commit 814d5f8 — его в DOM нет.
     page.evaluate(
         """
         document.querySelector('#email').value = 'bot@e2e.example.com';
         document.querySelector('#password').value = 'strong_password_2026';
-        document.querySelector('#full_name').value = 'Bot Botov';
         document.querySelector('#website').value = 'http://spam.example.com';
-        document.querySelector('#agree').checked = true;
+        document.querySelector('#agreeTerms').checked = true;
+        document.querySelector('#agreePrivacy').checked = true;
+        document.querySelector('#agreeCrossBorder').checked = true;
         """
     )
 
@@ -139,9 +143,11 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str):
 def test_disposable_email_rejected_inline(page: Page, base_url: str):
     """S-SU-5: disposable email — inline error visible, no email sent.
 
-    Backend raises HTTPException(422, "...временные адреса не поддерживаются") with
-    no `field` key, so signup.html JS routes the message into the generic
-    `#signupMsg.error` container (not the per-field `#email-err`).
+    Backend → 422 detail с подстрокой «email», и signup.html
+    fallback-парсер находит slovo «email» → роутит ошибку в per-field
+    `#email-err` (а не в общий `#signupMsg`). Это by design: чтобы SR
+    + visual подсвечивали именно проблемное поле. Поэтому смотрим
+    aria-invalid + текст внутри `#email-err`.
     """
     signup = SignupPage(page).goto()
     signup.fill_required(
@@ -149,9 +155,9 @@ def test_disposable_email_rejected_inline(page: Page, base_url: str):
         password="strong_password_2026",
     ).submit()
 
-    msg = page.locator("#signupMsg")
-    expect(msg).to_have_class(re.compile(r"\berror\b"))
-    expect(msg).not_to_have_text("")
+    email_err = page.locator("#email-err")
+    expect(email_err).not_to_have_text("")
+    expect(page.locator("#email")).to_have_attribute("aria-invalid", "true")
 
     r = httpx.get(f"{base_url}/api/_test/last-email", params={"to": "spam@mailinator.com"})
     assert r.status_code == 404, "disposable email must not trigger verification send"
