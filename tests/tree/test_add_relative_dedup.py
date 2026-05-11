@@ -103,7 +103,7 @@ def _open_profile(page: Page, person_id: str) -> ProfilePanel:
     panel.expect_visible()
     # Sanity: section-title must contain THIS person's name, not stale demo-self.
     title = page.locator("#tab-tree .section-title")
-    expect(title).not_to_have_text("", timeout=5_000)
+    expect(title).not_to_have_text("", timeout=TIMEOUTS.pw_expect_ms)
     return panel
 
 
