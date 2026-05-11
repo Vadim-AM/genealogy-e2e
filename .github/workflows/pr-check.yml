@@ -18,7 +18,11 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 319 тестов × ~4s/test на CI runner ≈ 21 мин wall-clock с
+    # E2E_TIMEOUT_MULTIPLIER=1.5. GEDCOM import (file uploads), cross-tenant
+    # (2 signup_via_api на тест) и security_timing (60 sequential HTTP)
+    # — наиболее тяжёлые. 25 мин даёт margin без скрывания регрессий.
+    timeout-minutes: 25
     steps:
       - name: Checkout genealogy-e2e
         uses: actions/checkout@v4

@@ -380,13 +380,14 @@ def test_confirm_dialog_backdrop_click_cancels(owner_page: Page):
     dialog = owner_page.locator(".confirm-dialog")
     expect(dialog).to_be_visible()
 
-    # Click на overlay (родительский контейнер dialog'а, вне самой панели).
-    # Контракт `js/components/confirm-dialog.js`: overlay-элемент существует
-    # и backdrop-click закрывает dialog. Если backend сменит implementation
-    # (например на body-click), тест fail и его надо переписать осознанно.
-    overlay = owner_page.locator(".confirm-dialog-overlay, .dialog-overlay").first
-    expect(overlay).to_be_visible()
-    overlay.click(position={"x": 5, "y": 5})
+    # Click на backdrop (родительский контейнер dialog'а, вне самой панели).
+    # Контракт `js/components/confirm-dialog.js`: backdrop-элемент `.confirm-dialog-backdrop`
+    # существует и его click закрывает dialog. Если backend сменит implementation
+    # — тест fail и его надо переписать осознанно. Используем `.first` потому что
+    # gedcom-import widget может оставить второй backdrop на странице.
+    backdrop = owner_page.locator(".confirm-dialog-backdrop").first
+    expect(backdrop).to_be_visible()
+    backdrop.click(position={"x": 5, "y": 5})
 
     expect(dialog).not_to_be_visible()
     assert not delete_responses, (
