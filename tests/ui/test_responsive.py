@@ -123,10 +123,10 @@ def test_signup_password_eye_toggle_visible_on_iphone_se(mobile_page: Page):
 def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
     mobile_page: Page,
 ):
-    """TC-RESPONSIVE-1 (375): label всех consent-чекбоксов не обрезается.
+    """TC-RESPONSIVE-1 (375): label consent-чекбокса не обрезается.
 
-    P0.4 (ФЗ-156, май 2026): один `#agree` → 4 раздельных consent
-    (`.signup-agree` × 4). Каждая строка должна укладываться в 375px.
+    Wave-9 (май 2026): privacy/cross-border объединены с `terms_accepted`,
+    в форме остался один `.signup-agree` чекбокс. Должен укладываться в 375px.
     """
     mobile_page.goto("/signup")
     mobile_page.wait_for_load_state("domcontentloaded")
@@ -134,10 +134,7 @@ def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
     agree_rows = mobile_page.locator(".signup-agree")
     expect(agree_rows.first).to_be_visible()
     count = agree_rows.count()
-    assert count >= 3, (
-        f"Ожидали ≥3 .signup-agree блоков (terms / privacy / cross-border), "
-        f"нашли {count}"
-    )
+    assert count >= 1, f"Ожидали ≥1 .signup-agree блок, нашли {count}"
 
     for i in range(count):
         row = agree_rows.nth(i)
@@ -154,17 +151,16 @@ def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
 # ─────────────────────────────────────────────────────────────────────────
 
 
-def test_all_five_tabs_visible_on_ipad_portrait(tablet_owner_page: Page, soft_check):
-    """TC-RESPONSIVE-1 (768): все 5 главных tabs видны без обрезаний.
+def test_all_authed_tabs_visible_on_ipad_portrait(tablet_owner_page: Page, soft_check):
+    """TC-RESPONSIVE-1 (768): все основные tabs видны без обрезаний.
 
-    Authenticated owner видит tree/map/sources/timeline/about. Если
-    при portrait-режиме что-то схлопывается в hamburger — это уже
-    другое UX-решение; на текущем макете все 5 должны быть на экране.
+    Wave-9: tab `map` скрыт через `hidden` (см. BUG-MAP-001). Остальные 4
+    tabs (tree/sources/timeline/about) должны быть видны authenticated owner'у.
     """
     tablet_owner_page.goto("/")
     tablet_owner_page.wait_for_load_state("domcontentloaded")
 
-    for tab_name in ("tree", "map", "sources", "timeline", "about"):
+    for tab_name in ("tree", "sources", "timeline", "about"):
         tab = tablet_owner_page.locator(f'[data-tab="{tab_name}"]')
         soft_check(tab).to_be_visible()
         box = tab.bounding_box()

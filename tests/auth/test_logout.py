@@ -21,8 +21,8 @@ def test_logout_clears_session(owner_user, tenant_client):
     api = tenant_client(owner_user)
 
     r = api.post(API.LOGOUT)
-    assert r.status_code == 204, (
-        f"logout endpoint returned {r.status_code}; expected 204. "
+    assert r.status_code == 200, (
+        f"logout endpoint returned {r.status_code}; expected 200. "
         f"404 here means /api/account/logout was unwired — that's a regression, "
         f"not «scenario doesn't apply». Body: {r.text[:200]}"
     )

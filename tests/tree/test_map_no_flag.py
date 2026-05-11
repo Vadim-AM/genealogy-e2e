@@ -1,66 +1,45 @@
-"""TC-10.02 — Map: украинский флаг в leaflet attribution скрыт.
+"""TC-10.02 — Map tab disabled by default (Wave-9 product state).
 
-BUG-003 (closed): leaflet `<a class="leaflet-attribution-flag">` показывал
-флажок справа от ссылки «Leaflet» в bottom-right углу карты. Для
-русскоязычной аудитории — политически чувствительно.
+Map tab помечен `hidden` атрибутом прямо в `index.html:108`
+(`<button class="tab" data-tab="map" hidden>`). Никакой JS не снимает
+этот hidden — Map-фича включается через **специальную** ветку (feature
+flag / role-based unhide), которая пока не реализована.
 
-Fix: оба стиля `/css/leaflet.css` и `/fonts/leaflet.css` имеют
-`.leaflet-attribution-flag { display: none !important }`. Этот тест —
-регрессионный pin: при любом upstream-обновлении leaflet или потере
-правила тест ловит регрессию **до** релиза.
+Старый тест проверял `.leaflet-attribution-flag` (политически
+чувствительный флажок справа от ссылки «Leaflet») — это было важно
+**когда** карта была видна. Сейчас:
 
-Map tab — auth-gated (`AUTHED_TABS` в TreePage), поэтому используется
-`owner_page` (logged-in browser context).
+- Map tab hidden by default → leaflet никогда не монтируется в default
+  flow → атрибуция тоже не появляется → flag-element никогда не
+  визуализируется.
+
+Контракт сейчас: map tab `hidden` атрибут установлен. Этот регрессионный
+pin ловит обратный случай — если кто-то случайно уберёт `hidden` без
+enable feature flag, фича утечёт в prod в недо-готовом виде.
+
+Историческая защита BUG-003 (CSS `.leaflet-attribution-flag { display:
+none !important }`) сохранена в `/css/leaflet.css` — когда Map-feature
+будет включена в default, добавить отдельный test на attribution-flag
+hidden state.
 """
 
 from __future__ import annotations
 
-import pytest
 from playwright.sync_api import Page, expect
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "BUG-MAP-001: Wave-9 спрятал tab `map` через hidden=\"\" — "
-        "Map-фича за feature-flag, который сейчас выключен. Map-tab не "
-        "кликабельна, leaflet не монтируется. Снять marker когда фича "
-        "вернётся в default-on или когда feature flag enable_map зальётся в БД."
-    ),
-)
-def test_map_attribution_flag_is_hidden_on_logged_in_owner(owner_page: Page):
-    """TC-10.02: после переключения на map tab — leaflet рендерится,
-    `.leaflet-attribution-flag` имеет computed display=none.
+def test_map_tab_is_hidden_by_default(owner_page: Page):
+    """TC-10.02 (Wave-9): map tab `<button data-tab="map">` has `hidden`
+    attribute → not visible in tab strip until feature ships.
 
-    Если leaflet не отрендерил attribution-flag элемент вовсе — это тоже
-    valid (флаг и так не виден). Тест fail'ится только когда элемент
-    есть И его computed display != "none".
+    Реальный контракт: map disabled by default. Если кто-то уберёт
+    `hidden` — фича утекает в prod без готовности.
     """
     owner_page.goto("/")
     owner_page.wait_for_load_state("domcontentloaded")
 
-    # Switch to map tab. AUTHED_TABS enabled только для logged-in юзеров —
-    # owner_page фикстура даёт authenticated context.
-    owner_page.locator('[data-tab="map"]').click()
-
-    # Leaflet lazy-loaded (см. index.html mapTab loader, BUG-003 history) —
-    # дождаться сначала корневого .leaflet-container, потом attribution.
-    # Без этого тест flaky на медленной первичной загрузке (запуск
-    # после batch'а других тестов).
-    expect(owner_page.locator(".leaflet-container")).to_be_visible()
-    attribution = owner_page.locator(".leaflet-control-attribution")
-    expect(attribution).to_be_visible()
-
-    # leaflet-attribution-flag — child элемент внутри attribution. Может
-    # отсутствовать (leaflet >=1.9 удалил его в upstream) либо быть
-    # скрыт через CSS. Контракт: ни одного visible flag.
-    flags = owner_page.locator(".leaflet-attribution-flag").all()
-    for idx, flag in enumerate(flags):
-        display = flag.evaluate("(el) => getComputedStyle(el).display")
-        assert display == "none", (
-            f"BUG-003 regression: leaflet-attribution-flag[{idx}] "
-            f"computed display={display!r}, expected 'none'. "
-            f"Проверь /css/leaflet.css и /fonts/leaflet.css — правило "
-            f"`.leaflet-attribution-flag {{ display: none !important }}` "
-            f"должно быть в обоих."
-        )
+    map_tab = owner_page.locator('[data-tab="map"]')
+    # Tab existует в DOM (markup готов), но скрыт через атрибут hidden.
+    expect(map_tab).to_have_count(1)
+    expect(map_tab).to_be_hidden()
+    expect(map_tab).to_have_attribute("hidden", "")

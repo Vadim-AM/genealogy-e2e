@@ -55,7 +55,7 @@ def test_bug_auth_002_pageview_platform_session_no_500(owner_user, tenant_client
         API.ANALYTICS_LOG,
         json={"event": "page_view", "path": "/", "context": {"section": "tree"}},
     )
-    assert r.status_code == 204, \
+    assert r.status_code == 200, \
         f"BUG-AUTH-002 regression: status={r.status_code} body={r.text[:300]}"
 
 

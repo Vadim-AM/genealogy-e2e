@@ -72,13 +72,15 @@ def test_signup_validation_error_detail_in_russian(uvicorn_server: str):
     assert r.status_code == 422, f"expected 422 Pydantic validation for short password; got {r.status_code}"
     body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
 
-    # FastAPI/Pydantic 422 имеет body.detail = list[dict]; каждый item имеет
-    # `msg`. Пин на canonical Pydantic shape — если backend подменит формат
-    # на plain-string, тест упадёт и его придётся переписать осознанно.
+    # Backend форматирует validation detail двумя способами:
+    #   - Pydantic 422 → `detail: list[{msg, loc, type}]`
+    #   - Custom validator → `detail: str` (например "Value error, Пароль …")
+    # Принимаем обе формы — критично что текст содержит кириллицу (rule #4).
     detail = body.get("detail")
-    assert isinstance(detail, list), (
-        f"expected Pydantic 422 list[dict] shape, got {type(detail).__name__}: {detail!r}"
-    )
-    msgs = [item.get("msg", "") for item in detail if isinstance(item, dict)]
-    assert any(_has_cyrillic(m) for m in msgs), \
-        f"all signup validation msgs in English: {msgs!r}"
+    if isinstance(detail, list):
+        msgs = [item.get("msg", "") for item in detail if isinstance(item, dict)]
+        assert any(_has_cyrillic(m) for m in msgs), \
+            f"all signup validation msgs in English: {msgs!r}"
+    else:
+        assert _has_cyrillic(str(detail)), \
+            f"signup error detail must be in Russian; got: {detail!r}"

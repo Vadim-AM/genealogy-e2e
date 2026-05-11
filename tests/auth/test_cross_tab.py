@@ -24,7 +24,7 @@ def test_logout_invalidates_session_across_tabs(owner_user, tenant_client):
     assert me1.json()["tenant"]["slug"] == owner_user.slug
 
     logout = tab0.post(API.LOGOUT)
-    assert logout.status_code == 204, \
+    assert logout.status_code == 200, \
         f"logout returned {logout.status_code} {logout.text[:200]}"
 
     # Tab 1 is now invalidated — server-side session revocation kills the

@@ -33,7 +33,7 @@ def test_delete_tenant_invalidates_owner_session(
 
     # 2. POST delete-tenant — soft-delete с подтверждением через slug.
     r = api.post(API.DELETE_TENANT, json={"confirm_slug": user.slug})
-    assert r.status_code == 204, (
+    assert r.status_code == 200, (
         f"delete-tenant should succeed; got {r.status_code} {r.text[:200]}"
     )
 

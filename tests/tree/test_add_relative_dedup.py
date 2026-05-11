@@ -15,8 +15,9 @@ persons через API.
 from __future__ import annotations
 
 import httpx
-import pytest
 from playwright.sync_api import Page, expect
+
+import pytest
 
 from tests.api_paths import API
 from tests.messages import AgeValidation, FamilyGroups, TestData, t
@@ -24,24 +25,23 @@ from tests.pages.person_editor import AddRelativeModal
 from tests.pages.profile_panel import ProfilePanel
 from tests.timeouts import TIMEOUTS
 
-# Module-level xfail: после Wave-9 merge (e8d9118) profile-page Светланы
-# (созданной как sibling без auto-parent) не показывает `.profile-rel-add`
-# в `.profile-family-group:has-text("Родители")`. Visible label существует
-# в i18n (RU `parents: 'Родители'`), но click-target отсутствует —
-# либо empty-family-group rendering изменилось, либо canEdit для
-# new-sibling person не пробрасывается. Reproduces локально вечером
-# 11.05.2026 на dev tip e8d9118.
+# Module-level xfail: backend bug в `js/components/add-relative-modal.js`
+# (_findParentIds/_findSiblingIds используют неправильные ключи DATA.relationships
+# — `person1_id/person2_id` вместо `parent/child/person1/person2`). Из-за этого
+# `_collectSuggestedRelatives` всегда возвращает [] → suggestion block никогда
+# не рендерится. См. upstream docs/BUGS-FROM-E2E-2026-05-11.md::BUG-PROFILE-002.
+# Снять marker после backend fix.
 pytestmark = pytest.mark.xfail(
     strict=False,
     reason=(
-        "BUG-PROFILE-002: post-Wave-9 (dev e8d9118) add-parent button "
-        "(.profile-rel-add внутри .profile-family-group«Родители») не "
-        "монтируется на профиле newly-created sibling. Все 7 тестов "
-        "graph-aware suggestion упираются в click timeout. Снять marker "
-        "когда backend вернёт rendering empty-group + add-button для new "
-        "person с editor permissions."
+        "BUG-PROFILE-002 (upstream Vadim-AM/Genealogy): add-relative-modal.js "
+        "ищет relationships по `person1_id/person2_id`, но /api/tree shape — "
+        "`parent/child/person1/person2`. Suggestion block никогда не рендерится. "
+        "Fix готов: 1-file diff в add-relative-modal.js, ~10 строк. "
+        "См. docs/BUGS-FROM-E2E-2026-05-11.md в upstream."
     ),
 )
+
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -85,10 +85,26 @@ def _demo_parents_of_self(api: httpx.Client) -> dict[str, str]:
 
 
 def _open_profile(page: Page, person_id: str) -> ProfilePanel:
+    """Navigate к profile через full page load.
+
+    init.js:898 hash route — **one-shot** at page load (нет hashchange
+    listener). Если в одном тесте уже был открыт другой профиль, простой
+    `goto("/#/p/Y")` или мутация `location.hash` НЕ перезапустит init.js
+    + не подтянет свежий DATA cache.
+
+    Решение: navigate к "/" (clears state), потом goto к /#/p/{id} —
+    Playwright делает реальные навигации, init.js перезапускается, DATA
+    свежий, routed setTimeout(openProfile(pid)) открывает profile.
+    """
+    page.goto("/")
+    page.wait_for_load_state("domcontentloaded")
     page.goto(f"/#/p/{person_id}")
     page.wait_for_load_state("domcontentloaded")
     panel = ProfilePanel(page)
     panel.expect_visible()
+    # Sanity: section-title must contain THIS person's name, not stale demo-self.
+    title = page.locator("#tab-tree .section-title")
+    expect(title).not_to_have_text("", timeout=5_000)
     return panel
 
 

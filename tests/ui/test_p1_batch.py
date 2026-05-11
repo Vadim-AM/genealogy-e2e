@@ -483,19 +483,16 @@ def test_minimap_hidden_on_mobile_viewport(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "BUG-ABOUT-001: post-Wave-9 (dev e8d9118) `.contact-box"
-        "[data-config-text='contact_text']` element отсутствует в DOM "
-        "на /about (count=0). Либо selector изменился, либо empty-hidden "
-        "паттерн заменён другим механизмом скрытия. Снять marker когда "
-        "верифицирован canonical selector для contact-box."
-    ),
-)
-def test_about_contact_box_hidden_when_contact_text_is_empty(owner_page: Page):
-    """TC-13.04 (negative): default seed → site_config.contact_text пустой
-    → `.contact-box[data-empty-hidden]` имеет computed display:none.
+def test_about_contact_box_shows_placeholder_when_contacts_empty(owner_page: Page):
+    """TC-13.04 (negative): default seed → contact_text + contact_email пустые
+    → `#contactBoxPlaceholder` (auth-only подсказка owner'у) показывается.
+
+    Wave-9 markup (index.html:214-227): `.contact-box` всегда в DOM,
+    `<p data-config-text="contact_text">` и `<a data-config-text="contact_email">`
+    рендерят значения site_config. Когда оба empty — JS убирает `hidden`
+    с `#contactBoxPlaceholder` (auth-only визуально подсказывает owner'у
+    заполнить контакты).
+
     Positive case (contact_text задан) требует PATCH /api/site/config —
     отдельный тест.
     """
@@ -503,13 +500,17 @@ def test_about_contact_box_hidden_when_contact_text_is_empty(owner_page: Page):
     owner_page.wait_for_load_state("domcontentloaded")
     owner_page.locator('[data-tab="about"]').click()
 
-    contact = owner_page.locator(".contact-box[data-config-text='contact_text']")
-    assert contact.count() == 1, ".contact-box должен быть в DOM (с data-empty-hidden)"
-    display = contact.evaluate("(el) => getComputedStyle(el).display")
-    assert display == "none", (
-        f".contact-box должен быть скрыт когда contact_text пустой "
-        f"(data-empty-hidden hook); got display={display!r}"
-    )
+    # Default seed (после reset_state): contact_text и contact_email пустые.
+    contact_text_p = owner_page.locator(".contact-box [data-config-text='contact_text']")
+    contact_email_a = owner_page.locator(".contact-box [data-config-text='contact_email']")
+    assert (contact_text_p.text_content() or "").strip() == "", \
+        f"expected empty contact_text on default seed; got {contact_text_p.text_content()!r}"
+    assert (contact_email_a.text_content() or "").strip() == "", \
+        f"expected empty contact_email on default seed; got {contact_email_a.text_content()!r}"
+
+    # Когда оба контакта empty — placeholder visible (для owner'а).
+    placeholder = owner_page.locator("#contactBoxPlaceholder")
+    expect(placeholder).to_be_visible()
 
 
 def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page):

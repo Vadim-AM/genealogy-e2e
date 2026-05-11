@@ -163,7 +163,12 @@ def test_owner_profile_ai_button_is_disabled_with_skoro_text(
         "API /api/tree не вернул людей — фикстура signup_via_api должна сидировать demo-tree"
     pid = person_ids[0]
 
-    # Открываем профиль программно через публичный API компонента
+    # Ждём что _bootstrapFeatureFlags + loadData завершились до открытия
+    # профиля. После Wave-9 init.js делает несколько async fetches —
+    # `domcontentloaded` ловится до их завершения, openProfile тогда
+    # читает stale DATA и не рендерит. Polling на window.__features —
+    # маркер что bootstrap ready.
+    page.wait_for_function("window.__features !== undefined")
     page.evaluate(f"window.openProfile({pid!r})")
 
     profile = page.locator(".profile-page")
@@ -203,7 +208,9 @@ def test_window_features_reflects_ai_disabled(owner_page: Page, owner_user):
     содержит ai_search_enabled=false (отдельно от UI-кнопки, чтобы знать
     что bootstrap отработал)."""
     owner_page.goto("/")
-    owner_page.wait_for_load_state("domcontentloaded", timeout=TIMEOUTS.pw_action_ms)
+    # `_bootstrapFeatureFlags` — async fetch после DOMContentLoaded;
+    # polling даёт окно ему отработать.
+    owner_page.wait_for_function("window.__features !== undefined")
     flags = owner_page.evaluate("window.__features")
     assert flags is not None, \
         "window.__features не инициализирован — _bootstrapFeatureFlags() не отработал"
@@ -217,8 +224,10 @@ def test_features_endpoint_called_on_bootstrap(page: Page, base_url: str):
     seen_calls = []
     page.on("request", lambda req: seen_calls.append(req.url) if API.CONFIG_FEATURES in req.url else None)
 
-    page.goto("/")
-    page.wait_for_load_state("domcontentloaded", timeout=TIMEOUTS.pw_action_ms)
+    # `expect_response` синхронно ждёт fetch до timeout — без него
+    # `domcontentloaded` срабатывает до async bootstrap fetch.
+    with page.expect_response(f"**{API.CONFIG_FEATURES}"):
+        page.goto("/")
 
     assert any(API.CONFIG_FEATURES in url for url in seen_calls), \
         f"Не было запроса к {API.CONFIG_FEATURES}. Все запросы:\n" + \
