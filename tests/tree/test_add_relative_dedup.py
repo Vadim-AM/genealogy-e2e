@@ -15,9 +15,8 @@ persons через API.
 from __future__ import annotations
 
 import httpx
-from playwright.sync_api import Page, expect
-
 import pytest
+from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
 from tests.messages import AgeValidation, FamilyGroups, TestData, t
@@ -25,20 +24,20 @@ from tests.pages.person_editor import AddRelativeModal
 from tests.pages.profile_panel import ProfilePanel
 from tests.timeouts import TIMEOUTS
 
-# Module-level xfail: backend bug в `js/components/add-relative-modal.js`
-# (_findParentIds/_findSiblingIds используют неправильные ключи DATA.relationships
-# — `person1_id/person2_id` вместо `parent/child/person1/person2`). Из-за этого
-# `_collectSuggestedRelatives` всегда возвращает [] → suggestion block никогда
-# не рендерится. См. upstream docs/BUGS-FROM-E2E-2026-05-11.md::BUG-PROFILE-002.
-# Снять marker после backend fix.
-pytestmark = pytest.mark.xfail(
+# BUG-PROFILE-002 (upstream Vadim-AM/Genealogy): add-relative-modal.js использует
+# неправильные ключи `person1_id/person2_id` для DATA.relationships (приходит из
+# /api/tree со shape `parent/child/person1/person2`). `_findSiblingIds` всегда
+# возвращает [], suggestion block никогда не рендерится. См. upstream
+# docs/BUGS-FROM-E2E-2026-05-11.md. Per-test marker — не module-level — иначе
+# тесты на «no suggestion when X» natural-passят (backend bug делает их
+# суждения правильным результатом случайно) и засоряют отчёт xpassed.
+_BUG_PROFILE_002 = pytest.mark.xfail(
     strict=False,
     reason=(
-        "BUG-PROFILE-002 (upstream Vadim-AM/Genealogy): add-relative-modal.js "
-        "ищет relationships по `person1_id/person2_id`, но /api/tree shape — "
+        "BUG-PROFILE-002 (upstream): add-relative-modal.js ищет relationships "
+        "по wrong keys (`person1_id`/`person2_id`) — `/api/tree` shape "
         "`parent/child/person1/person2`. Suggestion block никогда не рендерится. "
-        "Fix готов: 1-file diff в add-relative-modal.js, ~10 строк. "
-        "См. docs/BUGS-FROM-E2E-2026-05-11.md в upstream."
+        "Fix готов (1-file diff). См. upstream docs/BUGS-FROM-E2E-2026-05-11.md."
     ),
 )
 
@@ -158,6 +157,7 @@ def _find_person_by_name(api: httpx.Client, *substrings: str) -> dict:
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@_BUG_PROFILE_002
 def test_sibling_parent_suggestion_prevents_duplicate(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -232,6 +232,7 @@ def test_sibling_parent_suggestion_prevents_duplicate(
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@_BUG_PROFILE_002
 def test_suggestion_filters_by_gender_for_mother_relationship(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -265,6 +266,7 @@ def test_suggestion_filters_by_gender_for_mother_relationship(
     expect(modal.suggestion_card_by_id(parents["f"])).to_have_count(0)
 
 
+@_BUG_PROFILE_002
 def test_no_suggestion_when_no_siblings(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -340,6 +342,7 @@ def test_no_suggestion_when_max_parents_already(
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@_BUG_PROFILE_002
 def test_user_ignores_suggestion_creates_new_person(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -401,6 +404,7 @@ def test_user_ignores_suggestion_creates_new_person(
     assert "Иннокентий" in new_father["name"]
 
 
+@_BUG_PROFILE_002
 def test_suggestion_click_does_not_create_new_person(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -449,6 +453,7 @@ def test_suggestion_click_does_not_create_new_person(
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@_BUG_PROFILE_002
 def test_existing_sibling_auto_parent_checkbox_still_works(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -499,6 +504,7 @@ def test_existing_sibling_auto_parent_checkbox_still_works(
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@_BUG_PROFILE_002
 def test_suggestion_click_shows_error_on_backend_422(
     owner_page: Page, owner_user, tenant_client
 ):
