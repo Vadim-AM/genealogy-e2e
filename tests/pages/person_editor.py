@@ -8,7 +8,7 @@ Actions:   `[data-action="save|cancel|delete"]`.
 
 from __future__ import annotations
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 
 class PersonEditor:
@@ -108,8 +108,27 @@ class AddRelativeModal:
         self.btn_save_and_edit = self.container.locator('[data-action="save-then-edit"]')
         self.btn_cancel = self.container.locator('[data-action="cancel"]')
 
+        # Suggestion block (Фаза 1 — graph-aware dedup): рендерится только если
+        # у currentPerson есть siblings с уже-привязанными parents того же пола,
+        # что фронт-форма предлагает. Иначе slot пуст.
+        self.suggest_slot = self.container.locator("[data-suggest-slot]")
+        self.suggest_block = self.container.locator("[data-suggest-block]")
+        self.suggest_cards = self.container.locator('[data-action="pick-suggestion"]')
+        self.suggest_divider = self.container.locator(".add-rel-suggest-divider")
+
     def expect_visible(self) -> None:
         expect(self.container).to_be_visible()
+
+    def fill_fio(self, *, surname: str, given: str, patronymic: str = "", birth: str = "") -> None:
+        """Fill FIO/birth fields WITHOUT clicking save. Useful for tests that
+        want to inspect the suggestion-block state mid-edit.
+        """
+        self.surname.fill(surname)
+        self.given_name.fill(given)
+        if patronymic:
+            self.patronymic.fill(patronymic)
+        if birth:
+            self.birth.fill(birth)
 
     def fill_and_save(self, *, surname: str, given: str, patronymic: str = "") -> None:
         """Fill the required FIO fields and click Save (without going into edit mode).
@@ -123,8 +142,55 @@ class AddRelativeModal:
             self.patronymic.fill(patronymic)
         self.btn_save.click()
 
+    def save(self) -> None:
+        self.btn_save.click()
+
     def cancel(self) -> None:
         self.btn_cancel.click()
 
     def close(self) -> None:
         self.btn_close.click()
+
+    # ──────────────────────────────────────────────────────────────────
+    # Gender (custom select wrapped by js/components/select.js)
+    # ──────────────────────────────────────────────────────────────────
+
+    def select_gender(self, value: str) -> None:
+        """Pick a gender value ('m'/'f') via the custom-select wrapper.
+
+        select.js replaces native <select id="addRelGender"> with a div
+        sibling — same pattern as PersonEditor.select_dropdown().
+        """
+        custom = self.container.locator(
+            "div.custom-select:has(+ select#addRelGender)"
+        )
+        custom.locator(".custom-select-trigger").click()
+        custom.locator(f".custom-select-option[data-value='{value}']").click()
+
+    # ──────────────────────────────────────────────────────────────────
+    # Suggestion-block helpers (Фаза 1 dedup)
+    # ──────────────────────────────────────────────────────────────────
+
+    def suggestion_card_by_id(self, person_id: str) -> "Locator":
+        """Suggestion card scoped to a specific person.id."""
+        return self.container.locator(f'[data-suggestion-id="{person_id}"]')
+
+    def click_suggestion(self, person_id: str) -> None:
+        """Click a suggestion-card — links existing person via POST /relationships.
+
+        Modal closes on success (see _linkExistingRelative).
+        """
+        self.suggestion_card_by_id(person_id).click()
+
+    def expect_suggestion_visible(self, person_id: str) -> None:
+        expect(self.suggest_block).to_be_visible()
+        expect(self.suggestion_card_by_id(person_id)).to_be_visible()
+
+    def expect_no_suggestions(self) -> None:
+        """The slot is always present (data-suggest-slot) but should be empty.
+
+        We don't assert slot itself is hidden — it's an always-mounted DIV.
+        Instead: zero suggestion-cards and the suggest-block element is absent.
+        """
+        expect(self.suggest_block).to_have_count(0)
+        expect(self.suggest_cards).to_have_count(0)
