@@ -73,9 +73,19 @@ def auth_context_factory(browser, uvicorn_server: str):
             ctx.add_cookies(
                 [{"name": name, "value": value, "url": uvicorn_server}]
             )
+        # Seed localStorage:
+        # - tour flags: silence editor tour + onboarding;
+        # - cookie consent: banner overlay intercepts pointer events
+        #   на первый visit (cookie-consent.js mount async) и валит клики
+        #   в неконтролируемом порядке (race с auto-wait). Pre-seed
+        #   `genealogy_cookie_consent='necessary'` — banner не рендерится
+        #   (getConsentLevel() returns non-null → init exit early).
         ctx.add_init_script(
             "try { localStorage.setItem('v1', '1'); "
-            "localStorage.setItem('genealogy_tour_v1', '1'); } catch (e) {}"
+            "localStorage.setItem('genealogy_tour_v1', '1'); "
+            "localStorage.setItem('genealogy_cookie_consent', 'necessary'); "
+            "localStorage.setItem('genealogy_cookie_consent_ts', String(Date.now())); "
+            "} catch (e) {}"
         )
         created_contexts.append(ctx)
         return ctx

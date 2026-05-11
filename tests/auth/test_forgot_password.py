@@ -1,24 +1,42 @@
-"""Forgot-password / reset-password — TC-FP-1..6.
+"""Forgot-password / reset-password — TC-FP-1..6 user-flow E2E.
 
-End-to-end through UI: request reset → MockSender captures link → reset
-form sets a new password → login works with the new password.
+Полный путь юзера через UI:
+1. /account/forgot-password → fill email → submit.
+2. MockSender capture reset-link (через test endpoint — single API hop —
+   симуляция реального email-чтения; нет UI surface для inbox).
+3. /account/reset-password?token=… → fill new password (×2) → submit.
+4. Redirect на /login → log in новым паролем → indicator authed.
+
+UI-flow ловит: success/error banner state на reset-page, redirect timing,
+empty-password validation, login form readiness, success copy.
 """
 
 from __future__ import annotations
 
 import httpx
-from playwright.sync_api import Page
+from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
 from tests.constants import make_email
+from tests.messages import TestData
 from tests.pages.forgot_password_page import ForgotPasswordPage, ResetPasswordPage
+from tests.pages.login_page import LoginPage
 from tests.timeouts import TIMEOUTS
 
 
-def test_forgot_password_full_flow_changes_password(
-    page: Page, base_url: str, owner_user, read_email_token
+_NEW_PASSWORD = "Brand_New_Password_2026"
+
+
+def test_forgot_password_full_flow_user_logs_in_with_new_password(
+    page: Page, owner_user, read_email_token,
 ):
-    """TC-FP-1, F-FP-1..6: forgot → reset email → new password → login OK."""
+    """TC-FP-1: full user journey — request reset → email → reset page →
+    new password → /login form → indicator shows authed user.
+
+    Никаких httpx-логинов в финале — реальный flow проходит через
+    `LoginPage`, и indicator проверяется DOM-ом (catches «password updated
+    но cookie не выдан», «form errors но redirect happens» и подобные).
+    """
     fp = ForgotPasswordPage(page).goto()
     fp.expect_visible_form()
     with page.expect_response("**/api/account/forgot-password") as resp_info:
@@ -28,48 +46,48 @@ def test_forgot_password_full_flow_changes_password(
 
     token = read_email_token(owner_user.email)
 
-    new_password = "Brand_New_Password_2026"
     rp = ResetPasswordPage(page).open_with_token(token)
     with page.expect_response("**/api/account/reset-password") as resp_info:
-        rp.submit_new_password(new_password)
+        rp.submit_new_password(_NEW_PASSWORD)
     assert resp_info.value.ok, f"reset-password returned {resp_info.value.status}"
     rp.expect_success_message()
 
-    # The page redirects to /login after ~1500ms — wait for that.
+    # Backend page редиректит на /login (см. main.py reset-password HTML).
     page.wait_for_url("**/login")
 
-    # Old password no longer works.
-    r = httpx.post(
-        f"{base_url}{API.LOGIN}",
-        json={"email": owner_user.email, "password": owner_user.password},
-        timeout=TIMEOUTS.api_request,
+    # Login form открыта — старый пароль больше не работает.
+    login = LoginPage(page)
+    login.expect_visible_form()
+    login.login(owner_user.email, owner_user.password)
+    login.expect_error()  # #msg текст non-empty → старый pass отвергнут
+
+    # Новый пароль — успех. После login redirect на / + indicator authed.
+    login.login(owner_user.email, _NEW_PASSWORD)
+    page.wait_for_url("**/")
+    expect(page.locator("#authIndicator .auth-name")).to_have_text(
+        TestData.DEFAULT_FULL_NAME
     )
-    assert r.status_code == 401, \
-        f"old password still works after reset: {r.status_code} {r.text[:200]}"
-
-    # New password works.
-    r = httpx.post(
-        f"{base_url}{API.LOGIN}",
-        json={"email": owner_user.email, "password": new_password},
-        timeout=TIMEOUTS.api_request,
-    )
-    r.raise_for_status()
-    assert r.json()["tenant_slug"] == owner_user.slug
 
 
-def test_forgot_password_unknown_email_silent_200(page: Page, base_url: str):
-    """F-FP-2 / TC-FP-2: anti-enumeration — request for unknown email returns
-    silent 200 (UI shows the same success copy), no email captured.
+def test_forgot_password_unknown_email_shows_silent_success_message(
+    page: Page, base_url: str,
+):
+    """F-FP-2 / TC-FP-2: anti-enumeration — для unknown email UI показывает
+    ту же success-копию (никакой подсказки «такого user не существует»).
+
+    Backend assertion (single hop) — MockSender пуст для unknown адреса.
+    UI inbox у нас нет, эта часть остаётся API-проверкой:
+    «backend NOT sending» — это negative invariant без UI surface.
     """
     unknown_email = make_email("never-registered")
     fp = ForgotPasswordPage(page).goto()
     with page.expect_response("**/api/account/forgot-password") as resp_info:
         fp.request_reset(unknown_email)
-    assert resp_info.value.ok, \
+    assert resp_info.value.ok, (
         f"unknown-email request returned {resp_info.value.status} (must be silent 200)"
+    )
     fp.expect_success_message()
 
-    # MockSender must not have captured anything for the unknown address.
     r = httpx.get(
         f"{base_url}{API.TEST_LAST_EMAIL}",
         params={"to": unknown_email},
@@ -78,34 +96,53 @@ def test_forgot_password_unknown_email_silent_200(page: Page, base_url: str):
     assert r.status_code == 404, "unknown email must not trigger a reset send"
 
 
-def test_reset_password_token_is_single_use(
-    base_url: str, owner_user, read_email_token,
+def test_reset_password_token_used_once_then_invalid_via_ui(
+    page: Page, owner_user, read_email_token,
 ):
-    """F-FP-4 / TC-FP-4: re-using a reset token after success returns 400.
+    """F-FP-4 / TC-FP-4: после успешного reset тот же token нельзя
+    использовать повторно. UI показывает error-banner вместо success.
 
-    Backend canonical contract for invalid/consumed token: 400 with a
-    specific `detail` (no enumeration-leaking branches), not 401/410.
+    User scenario: пользователь применил reset-link, потом случайно
+    открыл его ещё раз из истории браузера / другой вкладки — ожидаем
+    понятную error-copy, а не silent success или 500.
     """
-    httpx.post(
-        f"{base_url}{API.FORGOT_PASSWORD}",
-        json={"email": owner_user.email},
-        timeout=TIMEOUTS.api_request,
-    ).raise_for_status()
+    fp = ForgotPasswordPage(page).goto()
+    fp.request_reset(owner_user.email)
+    fp.expect_success_message()
 
     token = read_email_token(owner_user.email)
 
-    new_password = "First_Reset_Password_2026"
-    httpx.post(
-        f"{base_url}{API.RESET_PASSWORD}",
-        json={"token": token, "new_password": new_password},
-        timeout=TIMEOUTS.api_request,
-    ).raise_for_status()
+    # Первое применение — успех.
+    rp = ResetPasswordPage(page).open_with_token(token)
+    rp.submit_new_password("First_Reset_Password_2026")
+    rp.expect_success_message()
+    page.wait_for_url("**/login")
 
-    # Re-using the same token must fail with the canonical 400.
-    r2 = httpx.post(
-        f"{base_url}{API.RESET_PASSWORD}",
-        json={"token": token, "new_password": "Another_Password_2026"},
-        timeout=TIMEOUTS.api_request,
+    # Re-open того же reset-link → submit → error (token consumed).
+    rp2 = ResetPasswordPage(page).open_with_token(token)
+    rp2.submit_new_password("Second_Attempt_Password_2026")
+    rp2.expect_error_message()
+
+
+def test_forgot_password_empty_field_shows_inline_error_no_request(
+    page: Page,
+):
+    """Form-level guard: пустой email → submit → backend не вызывается
+    (HTML required validation либо JS-side check)."""
+    fp = ForgotPasswordPage(page).goto()
+    fp.expect_visible_form()
+
+    # Никаких сетевых запросов на forgot-password от пустого submit.
+    requests_seen: list[str] = []
+    page.on(
+        "request",
+        lambda req: requests_seen.append(req.url) if "forgot-password" in req.url else None,
     )
-    assert r2.status_code == 400, \
-        f"reused reset token must return 400, got {r2.status_code} {r2.text[:200]}"
+
+    fp.email.fill("")
+    fp.submit_btn.click()
+
+    # Validation: HTML5 required атрибут не пропускает submit. Если бы
+    # backend всё-таки получил пустой email — тест ловит это (regression
+    # against future «required» strip).
+    assert not requests_seen, f"empty email triggered network call: {requests_seen!r}"

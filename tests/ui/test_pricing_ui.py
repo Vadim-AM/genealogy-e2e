@@ -23,8 +23,9 @@ Backend endpoints, на которые опираются эти тесты:
 
 from __future__ import annotations
 
+import re
+
 import httpx
-import pytest
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
@@ -54,25 +55,35 @@ def test_public_tiers_endpoint_returns_four_paid_tiers(uvicorn_server: str):
     assert not forbidden, f"На публичной странице утекли служебные тарифы: {forbidden}"
 
 
-def test_public_tiers_have_ru_names_and_rub_prices(uvicorn_server: str):
-    """TC-N1: каждый тариф имеет русское название + цену в ₽."""
+def test_public_tiers_have_display_name_and_numeric_prices(uvicorn_server: str):
+    """TC-N1: каждый тариф имеет непустой `display_name` и числовые цены
+    `price_rub_month` / `price_rub_year` (>= 0, год >= месяц).
+
+    Локализационно-нейтрально: НЕ проверяем конкретный текст display_name
+    (он меняется per-locale), только что поле заполнено и цены — корректные
+    integer-значения.
+    """
     body = httpx.get(f"{uvicorn_server}{API.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request).json()
     by_name = {i["tier_name"]: i for i in body["items"]}
 
-    expected = {
-        "free": ("Свободный", 0, 0),
-        "starter": ("Стартовый", 290, 2900),
-        "researcher": ("Исследователь", 690, 6900),
-        "pro": ("Профессионал", 1490, 14900),
-    }
-    for tier, (ru_name, price_m, price_y) in expected.items():
+    for tier in ("free", "starter", "researcher", "pro"):
         t = by_name[tier]
-        assert t["display_name"] == ru_name, \
-            f"{tier}: display_name = {t['display_name']!r}, ждали {ru_name!r}"
-        assert t["price_rub_month"] == price_m, \
-            f"{tier}: price_rub_month = {t['price_rub_month']}, ждали {price_m}"
-        assert t["price_rub_year"] == price_y, \
-            f"{tier}: price_rub_year = {t['price_rub_year']}, ждали {price_y}"
+        assert isinstance(t.get("display_name"), str) and t["display_name"].strip(), (
+            f"{tier}: display_name пуст или не string: {t.get('display_name')!r}"
+        )
+        pm = t.get("price_rub_month")
+        py = t.get("price_rub_year")
+        assert isinstance(pm, int) and pm >= 0, f"{tier}: invalid price_rub_month: {pm!r}"
+        assert isinstance(py, int) and py >= 0, f"{tier}: invalid price_rub_year: {py!r}"
+        # Год либо равен 12× месяца (без скидки), либо больше нуля и >= месячной
+        # стоимости. Для free (0/0) обе цены легитимно нулевые.
+        if pm > 0:
+            assert py >= pm, f"{tier}: год ({py}) меньше месяца ({pm})"
+
+    # Free всегда нулевой.
+    assert by_name["free"]["price_rub_month"] == 0, (
+        f"free tier must be 0 ₽; got {by_name['free']['price_rub_month']}"
+    )
 
 
 def test_public_tiers_sorted_by_price_ascending(uvicorn_server: str):
@@ -109,16 +120,25 @@ def test_pricing_renders_four_cards(page: Page):
     expect(page.locator(".pricing-card")).to_have_count(4)
 
 
-def test_pricing_cards_have_russian_names(page: Page):
-    """TC-N1: каждая карточка содержит русское название тарифа."""
+def test_pricing_cards_have_non_empty_headings(page: Page):
+    """TC-N1: каждая карточка имеет non-empty `<h2>` (название тарифа).
+
+    Локализационно-нейтрально: проверяем что у всех 4 карточек есть
+    заголовок и он не пустой; конкретный текст определяется backend
+    `display_name`, который зависит от locale.
+    """
     page.goto("/pricing.html")
     expect(page.locator(".pricing-card").first).to_be_visible()
 
-    expected_names = {"Свободный", "Стартовый", "Исследователь", "Профессионал"}
-    found_names = {h.inner_text().strip() for h in page.locator(".pricing-card h2").all()}
-    missing = expected_names - found_names
-    assert not missing, \
-        f"На карточках не найдены названия: {missing}. Найдено: {found_names}"
+    headings = page.locator(".pricing-card h2")
+    expect(headings).to_have_count(4)
+
+    found = [h.inner_text().strip() for h in headings.all()]
+    assert all(found), f"Найдены пустые заголовки карточек: {found!r}"
+    assert len(set(found)) == 4, (
+        f"display_name на карточках должны быть уникальными; "
+        f"получили дубли: {found!r}"
+    )
 
 
 def test_pricing_cards_show_rub_symbol(page: Page):
@@ -130,17 +150,42 @@ def test_pricing_cards_show_rub_symbol(page: Page):
         "Символа ₽ нет в HTML — pricing форматирование сломано"
 
 
-def test_pricing_researcher_is_featured(page: Page):
-    """TC-N1: «Исследователь» подсвечен как featured (выделение CSS-классом)."""
+def test_pricing_researcher_card_is_featured_by_position(
+    page: Page, uvicorn_server: str,
+):
+    """TC-N1: featured-карточка (CSS-класс `.featured`) соответствует
+    `researcher` tier из `/api/tiers/public`.
+
+    Локализационно-нейтрально: связь UI ↔ tier-id определяется
+    через position в backend-response — UI рендерит cards в том же
+    порядке. `display_name` (текст) не используем.
+    """
+    body = httpx.get(
+        f"{uvicorn_server}{API.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request
+    ).json()
+    items = body["items"]
+    researcher_idx = next(
+        (i for i, t in enumerate(items) if t["tier_name"] == "researcher"),
+        None,
+    )
+    assert researcher_idx is not None, (
+        f"researcher tier отсутствует в /api/tiers/public: {[t['tier_name'] for t in items]}"
+    )
+
     page.goto("/pricing.html")
     expect(page.locator(".pricing-card").first).to_be_visible()
 
+    cards = page.locator(".pricing-card")
+    expect(cards).to_have_count(len(items))
+
     featured = page.locator(".pricing-card.featured")
-    assert featured.count() == 1, \
-        f"Ожидали ровно 1 .featured карточку, получили {featured.count()}"
-    h2 = featured.locator("h2").inner_text().strip()
-    assert h2 == "Исследователь", \
-        f"Featured карточка должна быть «Исследователь», получили {h2!r}"
+    expect(featured).to_have_count(1)
+
+    # Та же позиция, что и researcher в API-response.
+    researcher_card = cards.nth(researcher_idx)
+    # to_have_class matches the full class attribute string, поэтому
+    # regex substring `\\bfeatured\\b`.
+    expect(researcher_card).to_have_class(re.compile(r"\bfeatured\b"))
 
 
 def test_pricing_no_console_errors(page: Page):

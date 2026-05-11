@@ -17,7 +17,6 @@ state machine, preview rendering, encoding-badge, error paths, idempotency.
 
 from __future__ import annotations
 
-import pytest
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
@@ -90,19 +89,14 @@ def _tree_people_count(owner_user, tenant_client) -> int:
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "BUG-GEDCOM-001: round-trip import не идемпотентен — backend "
-        "создаёт дубликаты вместо skip по id (local repro Wave-9 dev tip "
-        "e8d9118: before=5, after=10). Summary показывает «Пропущено», но "
-        "реально count удваивается — UI/backend несогласованность."
-    ),
-)
 def test_round_trip_export_then_import(owner_page: Page, owner_user, tenant_client):
     """Round-trip: export текущего seed-tree → upload его обратно через UI
     → preview → confirm → DONE summary показывает «Пропущено N» (т.к. вся
     база уже в БД, и backend идемпотентно скипает дубликаты по id).
+
+    Was xfail until upstream backend fix for BUG-GEDCOM-001 (export-endpoint
+    теперь кладёт display_slug в people_dicts, confirm-handler матчит
+    existing person'ов по slug — count_after == count_before).
     """
     api = tenant_client(owner_user)
     # 1. Export current tree via API (returns .ged text body)

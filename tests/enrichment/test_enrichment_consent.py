@@ -2,21 +2,17 @@
 
 Контракт (`js/components/enrichment-modal.js:97-117`):
 
-1. На первый клик «★ Найти больше» проверяется
-   `localStorage.genealogy_ai_consent_v1`. Если нет — рендерится
-   custom modal `confirmDialog()` (см. `js/components/confirm-dialog.js`)
-   с текстом про Anthropic Inc., перечнем передаваемых данных и
-   ссылкой на политику конфиденциальности. Это НЕ browser-native
-   `confirm()` (after CSP-cleanup commit dcc5a00) — ловим через DOM.
-2. Cancel → НИ ОДНОГО POST на `/api/enrich/{pid}` не уходит,
-   `genealogy_ai_decline_count` инкрементится.
-3. Accept → `genealogy_ai_consent_v1` сохраняется + best-effort
-   POST `/api/account/me/ai-consent` для legal-record (ст. 9 ч. 1
-   ФЗ-152 / GDPR ст. 7 — нужен доказуемый active consent).
+1. На первый клик «★ Найти больше» рендерится custom modal
+   `confirmDialog()` (не native `confirm()`) с текстом про Anthropic
+   Inc., перечнем передаваемых данных и ссылкой на политику.
+2. Cancel → POST /api/enrich/{pid} НЕ улетает, modal закрывается.
+3. Re-click «★» после decline → modal появляется снова
+   (compliance: каждый click — новый opportunity to confirm consent;
+    silent suppress = leak vector).
 
-Эти тесты гарантируют, что консент-гейт не обходится «случайно»
-(например, refactor'ом флоу или сменой условий) — это П0
-compliance regression.
+Тесты — pure user-flow: открыть profile, кликнуть звезду, прочитать
+текст в DOM, нажать кнопку, проверить через DOM что modal закрыт и что
+сеть не пошла. Без `evaluate('localStorage...')` для assertions.
 """
 
 from __future__ import annotations
@@ -24,27 +20,6 @@ from __future__ import annotations
 from playwright.sync_api import Page, expect
 
 from tests.messages import AiConsent, Buttons, TestData, t
-from tests.timeouts import TIMEOUTS
-
-
-_CONSENT_LOCALSTORAGE_KEYS = (
-    "genealogy_ai_consent_v1",
-    "genealogy_ai_dismissed_until",
-    "genealogy_ai_decline_count",
-)
-
-
-def _clear_consent_state(page: Page) -> None:
-    """Wipe consent flags so the next ★-click triggers the dialog.
-
-    `auth_context_factory` pre-seeds tour flags but не consent — однако
-    при повторном использовании контекста (или при необычной cookie-
-    среде) флаг мог остаться. Очищаем явно.
-    """
-    page.evaluate(
-        "(keys) => keys.forEach((k) => localStorage.removeItem(k))",
-        list(_CONSENT_LOCALSTORAGE_KEYS),
-    )
 
 
 def _open_demo_self(page: Page) -> None:
@@ -52,17 +27,23 @@ def _open_demo_self(page: Page) -> None:
     page.wait_for_load_state("domcontentloaded")
 
 
-def test_first_enrich_click_shows_consent_with_anthropic_and_policy_link(
+def _enrich_button(page: Page):
+    return page.get_by_role("button", name=t(Buttons.ENRICH), exact=False)
+
+
+def _consent_dialog(page: Page):
+    return page.locator(".confirm-dialog").first
+
+
+def test_first_enrich_click_renders_consent_modal_with_legal_content(
     owner_page: Page,
 ):
-    """TC-AI-1 (positive): consent modal содержит legal-load (Anthropic + политика)."""
+    """TC-AI-1 (positive): первый click ★ → modal с Anthropic + privacy
+    policy + перечислением shared data."""
     _open_demo_self(owner_page)
-    _clear_consent_state(owner_page)
 
-    owner_page.get_by_role("button", name=t(Buttons.ENRICH), exact=False).click()
-
-    # Custom confirm-dialog (CSP-clean, not native window.confirm).
-    dialog = owner_page.locator(".confirm-dialog").first
+    _enrich_button(owner_page).click()
+    dialog = _consent_dialog(owner_page)
     expect(dialog).to_be_visible()
 
     msg = dialog.inner_text()
@@ -78,49 +59,57 @@ def test_first_enrich_click_shows_consent_with_anthropic_and_policy_link(
         f"got: {msg[:200]!r}"
     )
 
-    # Cancel → decline_count++ — ровно тот compliance-инвариант который
-    # тест должен зафиксировать (не пропустить data к Anthropic «случайно»).
-    cancel_btn = dialog.get_by_role("button", name=t(AiConsent.DECLINE_LABEL))
-    cancel_btn.click()
-    owner_page.wait_for_function(
-        "() => parseInt(localStorage.getItem('genealogy_ai_decline_count') || '0', 10) >= 1",
-        timeout=TIMEOUTS.pw_expect_ms,
-    )
+    # Кнопки видны (positive UI-contract — пользователь имеет выбор).
+    expect(dialog.get_by_role("button", name=t(AiConsent.DECLINE_LABEL))).to_be_visible()
 
 
-def test_consent_decline_blocks_post_to_enrich_endpoint(owner_page: Page):
-    """TC-AI-1 (negative): cancel в consent dialog → POST /api/enrich/* не уходит.
+def test_consent_decline_closes_modal_and_blocks_enrich_post(owner_page: Page):
+    """TC-AI-1 (negative): Cancel в consent modal — modal закрывается, и
+    POST /api/enrich/* не уходит ни до, ни после клика.
 
     Это compliance-критичный invariant: даже при ошибочном клике
     «★ Найти больше» данные карточки НЕ уходят к Anthropic, пока
     пользователь не принял консент явно.
     """
     _open_demo_self(owner_page)
-    _clear_consent_state(owner_page)
 
     enrich_posts: list[str] = []
+    owner_page.on(
+        "request",
+        lambda req: enrich_posts.append(req.url)
+        if req.method == "POST" and "/api/enrich/" in req.url
+        else None,
+    )
 
-    def track_request(req):
-        if req.method == "POST" and "/api/enrich/" in req.url:
-            enrich_posts.append(req.url)
-
-    owner_page.on("request", track_request)
-
-    owner_page.get_by_role("button", name=t(Buttons.ENRICH), exact=False).click()
-
-    # Custom confirm-dialog (`./confirm-dialog.js`) — ловим через DOM
-    # selector, не через page.on('dialog') (это для native window.confirm).
-    dialog = owner_page.locator(".confirm-dialog").first
+    _enrich_button(owner_page).click()
+    dialog = _consent_dialog(owner_page)
     expect(dialog).to_be_visible()
     dialog.get_by_role("button", name=t(AiConsent.DECLINE_LABEL)).click()
 
-    # Дождаться что handler отработал (decline_count→1) — после этого
-    # ранний return гарантирован, новых POST'ов не будет.
-    owner_page.wait_for_function(
-        "() => parseInt(localStorage.getItem('genealogy_ai_decline_count') || '0', 10) >= 1",
-        timeout=TIMEOUTS.pw_expect_ms,
-    )
+    # Modal закрылся — user-visible signal что decline принят.
+    expect(dialog).not_to_be_visible()
 
+    # Сеть не пошла на enrichment.
     assert enrich_posts == [], (
         f"declined consent must not trigger POST /api/enrich/*; got: {enrich_posts}"
     )
+
+
+def test_consent_re_click_after_decline_re_renders_modal(owner_page: Page):
+    """Compliance: second click «★» **после** Decline должен снова показать
+    consent modal — не silent fail (тогда юзер не знает что enrich
+    выключен) и не silent send (compliance leak).
+    """
+    _open_demo_self(owner_page)
+
+    # First click + decline.
+    _enrich_button(owner_page).click()
+    dialog = _consent_dialog(owner_page)
+    expect(dialog).to_be_visible()
+    dialog.get_by_role("button", name=t(AiConsent.DECLINE_LABEL)).click()
+    expect(dialog).not_to_be_visible()
+
+    # Second click → modal должен снова появиться (или дать понятный
+    # «cooldown» сигнал; main contract — НЕ silent fail).
+    _enrich_button(owner_page).click()
+    expect(_consent_dialog(owner_page)).to_be_visible()

@@ -74,6 +74,12 @@ class Invite(_Catalogue):
         "ru": "владелец",       # narrow keyword for "you are already the owner"
         "en": "owner",
     }
+    # Title after fresh accept ("Готово!") — keyword substring.
+    ACCEPT_SUCCESS_TITLE = {"ru": "Готово", "en": "Done"}
+    # Title when invitee is already a member of this tenant.
+    ALREADY_MEMBER_TITLE = {"ru": "уже здесь", "en": "already here"}
+    # CTA on the page after accept — leads to the tree dashboard.
+    OPEN_TREE_LINK = {"ru": "Открыть древо", "en": "Open tree"}
 
 
 class PII(_Catalogue):

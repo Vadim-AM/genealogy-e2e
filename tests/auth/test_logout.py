@@ -1,54 +1,111 @@
-"""Logout flow — F-LO-1..3.
+"""Logout flow — F-LO-1..2 user-flow E2E.
 
-Owner logs out → cookie cleared → /api/account/me returns 401.
+Тесты через UI, не через httpx: проверяем что юзер кликом по «Выйти» в
+header'е сбрасывает session, и при повторном /login возвращается в свой
+же tenant. UI-flow ловит регрессии, которые API не видит:
+- logout-link исчез или сменил label;
+- doLogout race с auth-indicator update — guest UI не отрисовался;
+- map/sources/timeline tabs остались видны после logout.
 """
 
 from __future__ import annotations
 
-import httpx
+from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
-from tests.timeouts import TIMEOUTS
+from tests.messages import TestData
+from tests.pages.login_page import LoginPage
 
 
-def test_logout_clears_session(owner_user, tenant_client):
-    """F-LO-1: POST /api/account/logout clears the session cookie.
+def _auth_indicator(page: Page):
+    return page.locator("#authIndicator")
 
-    Backend contract: 204 on success. Subsequent /me with the dead cookie
-    returns 401 (server-side session was invalidated even though the
-    client-side cookie value is unchanged).
+
+def _logout_link(page: Page):
+    return _auth_indicator(page).locator('a[data-action="logout"]')
+
+
+def _login_link(page: Page):
+    """Guest indicator renders `<a href="/login">Войти</a>` (см. auth-ui.js)."""
+    return _auth_indicator(page).locator('a[href="/login"]')
+
+
+def test_owner_clicks_logout_link_and_indicator_switches_to_guest(
+    owner_page: Page, owner_user,
+):
+    """F-LO-1: клик по «Выйти» сбрасывает session и переключает UI в guest.
+
+    Контракт:
+    1. Header `#authIndicator` показывает имя authenticated юзера ДО клика.
+    2. После клика появляется `Войти` / `Регистрация` (guest indicator).
+    3. Tabs map/sources/timeline скрываются (updateGuestUI).
+    4. POST /api/account/logout улетел (cookie на server-side dead).
     """
-    api = tenant_client(owner_user)
+    owner_page.goto("/")
+    owner_page.wait_for_load_state("domcontentloaded")
 
-    r = api.post(API.LOGOUT)
-    assert r.status_code == 200, (
-        f"logout endpoint returned {r.status_code}; expected 200. "
-        f"404 here means /api/account/logout was unwired — that's a regression, "
-        f"not «scenario doesn't apply». Body: {r.text[:200]}"
-    )
+    indicator = _auth_indicator(owner_page)
+    expect(indicator.locator(".auth-name")).to_have_text(TestData.DEFAULT_FULL_NAME)
+    expect(_logout_link(owner_page)).to_be_visible()
 
-    me = api.get(API.ACCOUNT_ME)
-    assert me.status_code == 401, \
-        f"session still valid after logout: {me.status_code} {me.text[:100]}"
+    # Authed: map tab visible (CSS display reset из updateGuestUI).
+    map_tab_before = owner_page.locator('[data-tab="map"]')
+
+    # Click logout — fire-and-forget POST + reset AUTH локально.
+    with owner_page.expect_response(
+        lambda r: "/api/account/logout" in r.url and r.request.method == "POST"
+    ):
+        _logout_link(owner_page).click()
+
+    # Guest indicator появляется после updateAuthIndicator.
+    expect(_login_link(owner_page)).to_be_visible()
+    expect(indicator.locator(".auth-name")).to_have_count(0)
+
+    # updateGuestUI hides auth-only tabs — visibility=false (style.display='none').
+    expect(map_tab_before).to_be_hidden()
+    expect(owner_page.locator('[data-tab="sources"]')).to_be_hidden()
+    expect(owner_page.locator('[data-tab="timeline"]')).to_be_hidden()
 
 
-def test_relogin_returns_same_tenant(owner_user, base_url: str):
-    """F-LO-2: re-login with same email reaches the same tenant.
+def test_user_relogins_via_form_lands_in_same_tenant(
+    owner_page: Page, owner_user,
+):
+    """F-LO-2: после logout юзер логинится снова через `/login` форму
+    и попадает в **тот же tenant** (slug сохраняется).
 
-    Login is anonymous (no auth needed to issue a session), so we use
-    a plain client rather than `tenant_client`.
+    UI-проверка: на главной после login видим tenant-display-name owner'а
+    (он же `full_name` — см. owner_user fixture в conftest).
     """
-    r = httpx.post(
-        f"{base_url}{API.LOGIN}",
-        json={"email": owner_user.email, "password": owner_user.password},
-        timeout=TIMEOUTS.api_request,
+    # Сначала logout — чтобы стартовать с guest state.
+    owner_page.goto("/")
+    owner_page.wait_for_load_state("domcontentloaded")
+    expect(_logout_link(owner_page)).to_be_visible()
+    with owner_page.expect_response(
+        lambda r: "/api/account/logout" in r.url and r.request.method == "POST"
+    ):
+        _logout_link(owner_page).click()
+    expect(_login_link(owner_page)).to_be_visible()
+
+    # Re-login через /login форму.
+    login = LoginPage(owner_page).goto()
+    login.expect_visible_form()
+    with owner_page.expect_response(
+        lambda r: "/api/account/login" in r.url and r.request.method == "POST"
+    ) as resp_ctx:
+        login.login(owner_user.email, owner_user.password)
+    assert resp_ctx.value.ok, (
+        f"login POST failed: {resp_ctx.value.status} {resp_ctx.value.text()[:200]}"
     )
-    assert r.status_code == 200, r.text
-    new_session = dict(r.cookies)
-    me = httpx.get(
-        f"{base_url}{API.ACCOUNT_ME}",
-        cookies=new_session,
-        timeout=TIMEOUTS.api_request,
+
+    # После login UI редиректит к / — ждём пока indicator снова authed.
+    owner_page.wait_for_url("**/")
+    expect(_auth_indicator(owner_page).locator(".auth-name")).to_have_text(
+        TestData.DEFAULT_FULL_NAME
     )
-    assert me.status_code == 200, me.text
-    assert me.json().get("tenant", {}).get("slug") == owner_user.slug
+
+    # Tenant identity видна через demo-self person в дереве — signup ставит
+    # `demo-self.name = full_name`. Если бы redirect занёс в чужой tenant
+    # (или fresh tenant без seed), demo-self бы не было либо name был бы
+    # другим. orbit-card.first читаем — это центральный subject.
+    orbit_center = owner_page.locator(".orbit-center-card")
+    expect(orbit_center).to_be_visible()
+    expect(orbit_center).to_contain_text(TestData.DEFAULT_FULL_NAME)

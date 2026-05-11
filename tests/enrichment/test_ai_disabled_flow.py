@@ -1,18 +1,21 @@
-"""AI search disabled flow — TC-N3, TC-N4, TC-N7 (Phase B+C, май 2026).
-
-Бета-режим работает с `ENABLE_AI_SEARCH=0` глобально:
-- /api/enrich/* — 503 (router-level Depends в `enrichment/router.py`)
-- /api/config/features — `{ai_search_enabled: false}`
-- Owner UI кнопка «Найти больше» — disabled с текстом «(скоро)» и
-  tooltip «Поиск откроется в публичной бете»
-
-Источник истины — `app/config.py:is_ai_search_enabled()`:
-1. ENV `ENABLE_AI_SEARCH` (если задан явно) — emergency override
-2. PlatformSettings.enable_ai_search в БД
-3. Default `True` для dev/CI
+"""AI search disabled flow — TC-N3, TC-N4, TC-N5 (user-flow E2E).
 
 В тестовом setup uvicorn стартует с `ENABLE_AI_SEARCH=0` env →
 гарантированно AI выключен независимо от значения в БД.
+
+UI часть (TC-N5) — главная пользовательская гарантия: на profile-странице
+AI-кнопка disabled с маркером «скоро» и tooltip, и **не** улетает в
+`/api/enrich/*` при попытке клика. UI ловит регрессии, которые
+API-инспекция не видит:
+- `disabled` снят, click sends request → compliance leak;
+- aiSearchOn разрулен неправильно — обе кнопки рендерятся одновременно;
+- tooltip потерян после copy-edit.
+
+API часть (TC-N3, TC-N4) — backend invariant без UI surface: router-level
+503 на 11 enrichment-endpoint'ах. UI отрисовывает только UI-кнопку, не
+все endpoints — API-проверка обязательна как смежный контракт.
+
+Источник истины: `app/config.py:is_ai_search_enabled()`.
 """
 
 from __future__ import annotations
@@ -42,193 +45,140 @@ def ai_search_disabled(uvicorn_server: str):
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# /api/config/features — public endpoint
+# UI: TC-N5 — disabled button + no network leak
 # ─────────────────────────────────────────────────────────────────────────
 
 
-def test_features_endpoint_public_no_auth_required(uvicorn_server: str):
-    """TC-N3: /api/config/features доступен без auth (frontend bootstrap)."""
-    r = httpx.get(f"{uvicorn_server}/api/config/features", timeout=TIMEOUTS.api_request)
-    assert r.status_code == 200, \
-        f"Endpoint должен быть public, получили {r.status_code}"
-    body = r.json()
-    assert "ai_search_enabled" in body, \
-        f"Response должен содержать ai_search_enabled: {body}"
+def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
+    owner_page: Page, owner_user,
+):
+    """TC-N5: настоящий user journey — owner открывает / → клик по центру
+    orbit → profile → AI-кнопка disabled c «скоро» и tooltip.
 
+    Главная compliance-проверка: **POST `/api/enrich/{pid}` (запуск
+    enrichment job)** не должен улететь при попытке клика по disabled.
+    HTML `disabled` мог быть удалён, а click-handler — нет.
 
-def test_features_endpoint_returns_false_when_env_disabled(uvicorn_server: str):
-    """TC-N3: при `ENABLE_AI_SEARCH=0` env (test setup) → false."""
-    body = httpx.get(f"{uvicorn_server}/api/config/features", timeout=TIMEOUTS.api_request).json()
-    assert body["ai_search_enabled"] is False, \
-        f"При ENABLE_AI_SEARCH=0 ожидали false, получили {body['ai_search_enabled']}"
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# /api/enrich/* — router-level guard (503)
-# ─────────────────────────────────────────────────────────────────────────
-
-
-def test_enrich_jobs_returns_503_when_ai_disabled(uvicorn_server: str):
-    """TC-N4: GET /api/enrich/jobs → 503 при выключенном AI search.
-
-    503 должен прийти ДО auth-проверки (router-level Depends срабатывает
-    раньше per-endpoint dependencies). Если бы был сначала auth — был бы 401/403.
+    Note: profile.js на open всё равно fires GET-ы на `/history` и
+    `/acceptances` для existing данных — это **graceful degradation**
+    (backend 503'ит, UI скрывает блок). Не путаем с POST на запуск нового
+    enrichment, который — реальный compliance leak если случится.
     """
-    r = httpx.get(f"{uvicorn_server}/api/enrich/jobs", timeout=TIMEOUTS.api_request)
-    assert r.status_code == 503, \
-        f"Ожидали 503, получили {r.status_code}: {r.text[:200]}"
-    assert "AI search is temporarily disabled" in r.text or "ai" in r.text.lower(), \
-        f"Detail должен упоминать причину: {r.text[:200]}"
+    page = owner_page
+    enrich_post_calls: list[str] = []
+    page.on(
+        "request",
+        lambda req: enrich_post_calls.append(req.url)
+        if req.method == "POST" and "/api/enrich/" in req.url
+        else None,
+    )
+
+    page.goto("/")
+    page.wait_for_load_state("domcontentloaded")
+
+    # User clicks по центральной orbit-card → opens demo-self profile.
+    center = page.locator(".orbit-center-card")
+    expect(center).to_be_visible()
+    center.click()
+    profile = page.locator(".profile-page")
+    expect(profile).to_be_visible()
+
+    # 1. Disabled-кнопка с маркером «скоро».
+    skoro_btn = profile.locator('button:has-text("скоро")')
+    expect(skoro_btn).to_have_count(1)
+    expect(skoro_btn.first).to_be_disabled()
+
+    # 2. Tooltip — substring (locale-aware, без full-string fit).
+    title = skoro_btn.first.get_attribute("title") or ""
+    assert "публичной бете" in title, (
+        f'title attribute должен содержать «публичной бете», получили {title!r}'
+    )
+
+    # 3. Активной enrich-кнопки нет.
+    active_enrich = profile.locator('button[data-action="enrich"]:not([disabled])')
+    expect(active_enrich).to_have_count(0)
+
+    # 4. Попытка клика по disabled-button. Native browser block'нет
+    # click-event (disabled HTMLButtonElement не fires onclick). Pre-click
+    # снимаем snapshot — если же что-то улетит после click, значит
+    # disabled был обойдён JS-ом, что и есть регрессия.
+    posts_before_click = list(enrich_post_calls)
+    skoro_btn.first.click(force=True)
+    page.wait_for_timeout(200)  # noqa: drift — settle для negative network assertion
+    new_posts = [u for u in enrich_post_calls if u not in posts_before_click]
+    assert not new_posts, (
+        f"disabled AI button triggered POST /api/enrich/* after click: {new_posts!r}"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# API: backend invariants (no UI surface)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_features_endpoint_public_returns_ai_disabled_flag(uvicorn_server: str):
+    """TC-N3: /api/config/features public (no auth) и при ENABLE_AI_SEARCH=0
+    возвращает `ai_search_enabled=false`. Frontend читает это на bootstrap.
+
+    Combined assertion — public access + value — два аспекта одного
+    contract'а, и оба регрессионно важны (auth-gate потерян = leak;
+    flag перевернулся = UI кнопку случайно разблокировали).
+    """
+    r = httpx.get(
+        f"{uvicorn_server}{API.CONFIG_FEATURES}", timeout=TIMEOUTS.api_request
+    )
+    assert r.status_code == 200, (
+        f"endpoint должен быть public, получили {r.status_code}"
+    )
+    body = r.json()
+    assert body.get("ai_search_enabled") is False, (
+        f"при ENABLE_AI_SEARCH=0 ожидали false, получили {body!r}"
+    )
 
 
 @pytest.mark.parametrize(
     "method,path",
     [
         # Реально зарегистрированные endpoints в `enrichment/router.py`.
-        # Каждый должен ровно 503 при ENABLE_AI_SEARCH=0 — иначе router-guard
-        # не работает либо обходится для какого-то метода. Эти paths нужны
-        # raw — это router-shape inventory, не tied к одному API.* helper'у.
-        ("POST", "/api/enrich/p_test_id"),                         # noqa: drift  # router.post("/{person_id}")
-        ("GET",  "/api/enrich/p_test_id"),                         # noqa: drift  # router.get("/{person_id}")
-        ("GET",  "/api/enrich/p_test_id/history"),                 # noqa: drift  # router.get("/{person_id}/history")
-        ("GET",  "/api/enrich/p_test_id/acceptances"),             # noqa: drift  # router.get("/{person_id}/acceptances")
-        ("POST", "/api/enrich/p_test_id/feedback"),                # noqa: drift  # router.post("/{person_id}/feedback")
-        ("POST", "/api/enrich/p_test_id/accept"),                  # noqa: drift  # router.post("/{person_id}/accept")
-        ("POST", "/api/enrich/letters/sent"),                      # noqa: drift  # router.post("/letters/sent")
-        ("GET",  "/api/enrich/jobs/some_job_id"),                  # noqa: drift  # router.get("/jobs/{job_id}")
-        ("GET",  "/api/enrich/cache/some_cache_id"),               # noqa: drift  # router.get("/cache/{enrichment_id}")
-        ("POST", "/api/enrich/acceptances/some_id/revert"),        # noqa: drift  # router.post("/acceptances/{id}/revert")
-        ("GET",  "/api/enrich/health/api-key"),                    # noqa: drift  # router.get("/health/api-key")
+        # Каждый должен ровно 503 — router-guard срабатывает раньше всех
+        # остальных зависимостей. Нет UI surface для каждого endpoint —
+        # API-инвентаризация остаётся как backend contract.
+        ("POST", "/api/enrich/p_test_id"),                         # noqa: drift
+        ("GET",  "/api/enrich/p_test_id"),                         # noqa: drift
+        ("GET",  "/api/enrich/p_test_id/history"),                 # noqa: drift
+        ("GET",  "/api/enrich/p_test_id/acceptances"),             # noqa: drift
+        ("POST", "/api/enrich/p_test_id/feedback"),                # noqa: drift
+        ("POST", "/api/enrich/p_test_id/accept"),                  # noqa: drift
+        ("POST", "/api/enrich/letters/sent"),                      # noqa: drift
+        ("GET",  "/api/enrich/jobs"),                              # noqa: drift
+        ("GET",  "/api/enrich/jobs/some_job_id"),                  # noqa: drift
+        ("GET",  "/api/enrich/cache/some_cache_id"),               # noqa: drift
+        ("POST", "/api/enrich/acceptances/some_id/revert"),        # noqa: drift
+        ("GET",  "/api/enrich/health/api-key"),                    # noqa: drift
     ],
 )
 def test_enrich_endpoint_returns_503_when_ai_disabled(
     uvicorn_server: str, method: str, path: str
 ):
     """TC-N4: каждый зарегистрированный /api/enrich/* endpoint при
-    ENABLE_AI_SEARCH=0 должен возвращать **ровно 503** — router-level
-    Depends(_require_ai_search_enabled) срабатывает раньше всех остальных
-    зависимостей (auth, quota, etc.).
-
-    Если endpoint вернул 404 — значит route не зарегистрирован
-    (regression в backend).
-    Если 401/403 — значит auth-проверка обогнала router-guard
-    (он привязан к endpoint, а не к router-level → ошибка реализации).
-    Если 200/500 — AI-кодпуть выполнился, что критическое нарушение.
+    ENABLE_AI_SEARCH=0 → 503 (router-level Depends). 404 = route потерян,
+    401/403 = auth-проверка обогнала router-guard, 200/500 = AI-кодпуть
+    выполнился.
     """
     r = httpx.request(method, f"{uvicorn_server}{path}", json={}, timeout=TIMEOUTS.api_request)
     assert r.status_code == 503, (
-        f"{method} {path}: ожидали 503 (router-guard), получили {r.status_code}. "
+        f"{method} {path}: ожидали 503, получили {r.status_code}. "
         f"Detail: {r.text[:200]}"
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# Owner UI — кнопка «Найти больше» в disabled state
-# ─────────────────────────────────────────────────────────────────────────
-
-
-def test_owner_profile_ai_button_is_disabled_with_skoro_text(
-    owner_page: Page, owner_user
-):
-    """TC-N5: на карточке персоны (после клика на orbit-card)
-    AI-кнопка «Найти больше» имеет:
-    - атрибут disabled (HTML)
-    - текст содержит «скоро» (визуальный индикатор)
-    - tooltip про публичную бету
-
-    Это **главная** UX-гарантия Phase B+C: пользователь видит что фича
-    запланирована, но временно недоступна, а не получает молчаливый fail.
-
-    Источник истины — `js/components/profile.js` отдаёт два варианта
-    aiBtn в зависимости от `window.__features.ai_search_enabled`:
-    - true: `<button data-action="enrich">Найти больше</button>` (active)
-    - false: `<button disabled title="Поиск откроется в публичной бете">
-              Найти больше (скоро)</button>`
+def test_features_endpoint_fires_on_main_page_bootstrap(page: Page, base_url: str):
+    """TC-N3: при загрузке `/` frontend дёргает /api/config/features
+    (bootstrap `window.__features`). Без этого UI не знает про disabled
+    state и default-рендерит active кнопки.
     """
-    page = owner_page
-    page.goto("/")
-    page.wait_for_load_state("domcontentloaded", timeout=TIMEOUTS.pw_action_ms)
-
-    # Profile открывается через `window.openProfile(personId)` (см.
-    # js/init.js:42 `window.openProfile = openProfile`). Чтобы не зависеть
-    # от конкретного UI-навигационного flow (orbit/search/breadcrumb),
-    # используем глобальную JS-функцию напрямую — это публичный API
-    # компонента profile, который покрывают и delegated event-handlers.
-    # Берём первую существующую персону из API tree.
-    person_ids = page.evaluate(
-        f"fetch('{API.TREE}').then(r => r.json()).then(d => "
-        "(d.people || []).map(p => p.id).slice(0, 1))"
-    )
-    assert person_ids, \
-        "API /api/tree не вернул людей — фикстура signup_via_api должна сидировать demo-tree"
-    pid = person_ids[0]
-
-    # Ждём что _bootstrapFeatureFlags + loadData завершились до открытия
-    # профиля. После Wave-9 init.js делает несколько async fetches —
-    # `domcontentloaded` ловится до их завершения, openProfile тогда
-    # читает stale DATA и не рендерит. Polling на window.__features —
-    # маркер что bootstrap ready.
-    page.wait_for_function("window.__features !== undefined")
-    page.evaluate(f"window.openProfile({pid!r})")
-
-    profile = page.locator(".profile-page")
-    expect(profile).to_be_visible()
-
-    # 1. Должна существовать кнопка с текстом «скоро»
-    skoro_btn = profile.locator('button:has-text("скоро")')
-    assert skoro_btn.count() == 1, (
-        f"Ожидали ровно 1 кнопку «скоро» внутри .profile-page, "
-        f"получили {skoro_btn.count()}. При ENABLE_AI_SEARCH=0 AI-кнопка "
-        f"должна быть disabled с маркером «(скоро)» (см. js/components/profile.js)."
-    )
-
-    # 2. И именно disabled (HTML attribute, не css-класс)
-    assert skoro_btn.first.is_disabled(), \
-        "Кнопка «скоро» должна иметь HTML disabled атрибут — иначе клик " \
-        "сработает и улетит в /api/enrich/"
-
-    # 3. Tooltip с правильным текстом
-    title = skoro_btn.first.get_attribute("title") or ""
-    assert "публичной бете" in title, (
-        f'title attribute должен содержать «публичной бете», получили {title!r}. '
-        f'См. fallback aiBtn в js/components/profile.js.'
-    )
-
-    # 4. НЕ должно быть активной enrich-кнопки (data-action="enrich")
-    active_enrich = profile.locator('button[data-action="enrich"]:not([disabled])')
-    assert active_enrich.count() == 0, (
-        f"При AI off не должно быть active enrich-кнопок (с data-action='enrich' "
-        f"и без disabled), нашли {active_enrich.count()}. Это значит aiSearchOn "
-        f"в profile.js разруливается неправильно."
-    )
-
-
-def test_window_features_reflects_ai_disabled(owner_page: Page, owner_user):
-    """TC-N3: дополнительная проверка — window.__features действительно
-    содержит ai_search_enabled=false (отдельно от UI-кнопки, чтобы знать
-    что bootstrap отработал)."""
-    owner_page.goto("/")
-    # `_bootstrapFeatureFlags` — async fetch после DOMContentLoaded;
-    # polling даёт окно ему отработать.
-    owner_page.wait_for_function("window.__features !== undefined")
-    flags = owner_page.evaluate("window.__features")
-    assert flags is not None, \
-        "window.__features не инициализирован — _bootstrapFeatureFlags() не отработал"
-    assert flags.get("ai_search_enabled") is False, \
-        f"window.__features.ai_search_enabled должен быть False, получили {flags}"
-
-
-def test_features_endpoint_called_on_bootstrap(page: Page, base_url: str):
-    """TC-N3: при загрузке главной страницы frontend должен дёрнуть
-    /api/config/features (bootstrap window.__features в js/init.js)."""
-    seen_calls = []
-    page.on("request", lambda req: seen_calls.append(req.url) if API.CONFIG_FEATURES in req.url else None)
-
-    # `expect_response` синхронно ждёт fetch до timeout — без него
-    # `domcontentloaded` срабатывает до async bootstrap fetch.
-    with page.expect_response(f"**{API.CONFIG_FEATURES}"):
+    with page.expect_response(f"**{API.CONFIG_FEATURES}") as resp_ctx:
         page.goto("/")
-
-    assert any(API.CONFIG_FEATURES in url for url in seen_calls), \
-        f"Не было запроса к {API.CONFIG_FEATURES}. Все запросы:\n" + \
-        "\n".join(seen_calls[:10])
+    assert resp_ctx.value.ok, (
+        f"bootstrap fetch /api/config/features failed: {resp_ctx.value.status}"
+    )

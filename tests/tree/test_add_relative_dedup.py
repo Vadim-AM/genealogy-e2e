@@ -10,12 +10,14 @@
 (signup_via_api проставляет ему 2 demo-parent'ов — отца и мать). Этого
 достаточно для главного flow; для variant-тестов добавляем дополнительные
 persons через API.
+
+Was xfail until upstream commit `32d2a9a` (fix(profile): BUG-PROFILE-002 —
+graph-aware suggestion в add-relative-modal).
 """
 
 from __future__ import annotations
 
 import httpx
-import pytest
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
@@ -23,24 +25,6 @@ from tests.messages import AgeValidation, FamilyGroups, TestData, t
 from tests.pages.person_editor import AddRelativeModal
 from tests.pages.profile_panel import ProfilePanel
 from tests.timeouts import TIMEOUTS
-
-# BUG-PROFILE-002 (upstream Vadim-AM/Genealogy): add-relative-modal.js использует
-# неправильные ключи `person1_id/person2_id` для DATA.relationships (приходит из
-# /api/tree со shape `parent/child/person1/person2`). `_findSiblingIds` всегда
-# возвращает [], suggestion block никогда не рендерится. См. upstream
-# docs/BUGS-FROM-E2E-2026-05-11.md. Per-test marker — не module-level — иначе
-# тесты на «no suggestion when X» natural-passят (backend bug делает их
-# суждения правильным результатом случайно) и засоряют отчёт xpassed.
-_BUG_PROFILE_002 = pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "BUG-PROFILE-002 (upstream): add-relative-modal.js ищет relationships "
-        "по wrong keys (`person1_id`/`person2_id`) — `/api/tree` shape "
-        "`parent/child/person1/person2`. Suggestion block никогда не рендерится. "
-        "Fix готов (1-file diff). См. upstream docs/BUGS-FROM-E2E-2026-05-11.md."
-    ),
-)
-
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -121,10 +105,9 @@ def _add_sibling_without_auto_parents(
 
     modal = AddRelativeModal(page)
     modal.expect_visible()
-
-    share_check = page.locator("#addRelSiblingShareParents")
-    if share_check.count() > 0 and share_check.is_checked():
-        share_check.uncheck()
+    # Native `#addRelSiblingShareParents` обёрнут `<label class="checkbox">`
+    # и visually-hidden; POM helper кликает по label (см. AddRelativeModal).
+    modal.uncheck_share_parents()
 
     modal.fill_fio(surname=surname, given=given, birth=birth)
     if gender:
@@ -157,7 +140,6 @@ def _find_person_by_name(api: httpx.Client, *substrings: str) -> dict:
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@_BUG_PROFILE_002
 def test_sibling_parent_suggestion_prevents_duplicate(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -232,7 +214,6 @@ def test_sibling_parent_suggestion_prevents_duplicate(
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@_BUG_PROFILE_002
 def test_suggestion_filters_by_gender_for_mother_relationship(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -266,26 +247,39 @@ def test_suggestion_filters_by_gender_for_mother_relationship(
     expect(modal.suggestion_card_by_id(parents["f"])).to_have_count(0)
 
 
-@_BUG_PROFILE_002
 def test_no_suggestion_when_no_siblings(
     owner_page: Page, owner_user, tenant_client
 ):
-    """У demo-self нет siblings (только parents) → suggestion-блока нет."""
-    api = tenant_client(owner_user)
-    # Sanity: demo-self does have parents (otherwise +parent кнопка скрыта)
-    parents = _demo_parents_of_self(api)
-    assert len(parents) == 2  # both genders present
+    """Person без siblings → suggestion-блока нет даже если у системы
+    есть кандидаты-родители «где-то ещё»: suggestion graph-aware и
+    приходит **только** через siblings.
 
-    # У demo-self уже 2 parents → "+ parent" кнопка скрыта по RELATIVE_LIMITS.
-    # Поэтому для этого теста используем одного из parents (e.g. demo-father)
-    # — у него siblings ≠ 0 не гарантировано, но parents точно нет.
-    father_id = parents["m"]
-    panel = _open_profile(owner_page, father_id)
+    Сетап: создаём чистого person'а через API — никаких parents,
+    никаких siblings. Открываем его → «+ родитель» → ожидаем пустой slot.
+    """
+    api = tenant_client(owner_user)
+    # demo-self уже имеет 2 demo-parents в seed — без siblings они
+    # значимы как доступный пул кандидатов, но фронт обязан игнорировать
+    # их (нет sibling-bridge → нет suggestion).
+    _demo_parents_of_self(api)  # sanity: seed правильно собрался
+
+    r = api.post(
+        API.PEOPLE,
+        json={
+            "name": "Одинокий Тестовый",
+            "gender": "m",
+            "birth": "1980",
+            "branch": "other",
+        },
+    )
+    r.raise_for_status()
+    lonely_id = r.json()["id"]
+
+    panel = _open_profile(owner_page, lonely_id)
     panel.click_add_parent()
     modal = AddRelativeModal(owner_page)
     modal.expect_visible()
 
-    # У demo-father в seed-данных НЕТ siblings → suggestion-block не рендерится
     modal.expect_no_suggestions()
 
 
@@ -342,7 +336,6 @@ def test_no_suggestion_when_max_parents_already(
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@_BUG_PROFILE_002
 def test_user_ignores_suggestion_creates_new_person(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -404,7 +397,6 @@ def test_user_ignores_suggestion_creates_new_person(
     assert "Иннокентий" in new_father["name"]
 
 
-@_BUG_PROFILE_002
 def test_suggestion_click_does_not_create_new_person(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -453,7 +445,6 @@ def test_suggestion_click_does_not_create_new_person(
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@_BUG_PROFILE_002
 def test_existing_sibling_auto_parent_checkbox_still_works(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -504,7 +495,6 @@ def test_existing_sibling_auto_parent_checkbox_still_works(
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@_BUG_PROFILE_002
 def test_suggestion_click_shows_error_on_backend_422(
     owner_page: Page, owner_user, tenant_client
 ):

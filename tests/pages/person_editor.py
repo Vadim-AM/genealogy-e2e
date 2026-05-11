@@ -168,6 +168,33 @@ class AddRelativeModal:
         custom.locator(f".custom-select-option[data-value='{value}']").click()
 
     # ──────────────────────────────────────────────────────────────────
+    # Sibling-share-parents checkbox (custom-wrapped `<label class="checkbox">`)
+    # ──────────────────────────────────────────────────────────────────
+
+    @property
+    def share_parents_input(self) -> Locator:
+        return self.container.locator("#addRelSiblingShareParents")
+
+    @property
+    def share_parents_label(self) -> Locator:
+        """Кастомная обёртка чекбокса — `<label class="checkbox">` со span'ом
+        `.checkbox-box`. Нативный input visually-hidden через CSS обёртки,
+        поэтому Playwright не может clicknуть его напрямую (element-not-visible).
+        Кликаем по label — стандартный HTML toggles bound input."""
+        return self.container.locator(
+            'label.checkbox:has(#addRelSiblingShareParents)'
+        )
+
+    def uncheck_share_parents(self) -> None:
+        """Снять отметку «общие родители». No-op если row отсутствует
+        (например, у currentPerson нет parents — row не рендерится)."""
+        if self.share_parents_input.count() == 0:
+            return
+        if self.share_parents_input.is_checked():
+            self.share_parents_label.click()
+            expect(self.share_parents_input).not_to_be_checked()
+
+    # ──────────────────────────────────────────────────────────────────
     # Suggestion-block helpers (Фаза 1 dedup)
     # ──────────────────────────────────────────────────────────────────
 
