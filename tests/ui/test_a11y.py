@@ -47,9 +47,8 @@ def test_signup_short_password_sets_aria_invalid(page: Page):
     page.evaluate("document.getElementById('password').removeAttribute('minlength')")
     page.locator("#email").fill("a11y-server@e2e.example.com")
     page.locator("#password").fill("short")  # < 8 chars — server rejects
+    # Wave-9: privacy/cross-border объединены с terms_accepted.
     page.locator("#agreeTerms").check()
-    page.locator("#agreePrivacy").check()
-    page.locator("#agreeCrossBorder").check()
 
     # Wait for server response, then check aria state.
     with page.expect_response("**/api/account/signup") as resp_info:

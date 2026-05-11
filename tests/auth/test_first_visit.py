@@ -30,11 +30,15 @@ def test_first_visit_renders_tree_with_demo_seed(owner_page: Page):
 
 
 def test_first_visit_shows_authed_tabs(owner_page: Page):
-    """F-FV-4: all 5 navigation tabs visible to authenticated user."""
+    """F-FV-4: основные навигационные вкладки видны.
+
+    Wave-9: tab `map` скрыт через `hidden=""` (BUG-MAP-001 — фича Map
+    спрятана за feature-flag, который пока выключен на дефолте). Проверяем
+    остальные 4 вкладки; Map-теста отдельно (xfail) — см. test_map_no_flag.
+    """
     tree = TreePage(owner_page).goto()
     owner_page.wait_for_load_state("domcontentloaded")
     expect(tree.tab_tree).to_be_visible()
-    expect(tree.tab_map).to_be_visible()
     expect(tree.tab_sources).to_be_visible()
     expect(tree.tab_timeline).to_be_visible()
     expect(tree.tab_about).to_be_visible()

@@ -145,10 +145,9 @@ def test_signup_form_submittable_on_mobile(
     email = "mobile-smoke@e2e.local"
     mobile_page.locator("#email").fill(email)
     mobile_page.locator("#password").fill("Hunter22StrongMobile!")
-    # P0.4 (ФЗ-156, май 2026): 3 раздельных consent вместо одного `#agree`.
+    # Wave-9: privacy/cross-border объединены с terms_accepted; форма
+    # имеет один `#agreeTerms`.
     mobile_page.locator("#agreeTerms").check()
-    mobile_page.locator("#agreePrivacy").check()
-    mobile_page.locator("#agreeCrossBorder").check()
 
     # Submit-кнопка должна быть видна и enabled. На мобайле она должна
     # быть достаточного размера для touch (~44px высоты).

@@ -32,11 +32,9 @@ def test_signup_form_submits_via_post(page: Page):
     page.wait_for_load_state("domcontentloaded")
     page.locator("#email").fill(unique_email("formpost"))
     page.locator("#password").fill(TestConfig.DEFAULT_PASSWORD)
-    # I4 (commit 814d5f8): поле `#full_name` удалено — display_name
-    # заполняется из карточки. P0.4 (ФЗ-156): single `#agree` → 3 раздельных.
+    # Wave-9: privacy/cross-border объединены с terms_accepted (см. backend
+    # router.py:417). В форме остался только `#agreeTerms`.
     page.locator("#agreeTerms").check()
-    page.locator("#agreePrivacy").check()
-    page.locator("#agreeCrossBorder").check()
 
     with page.expect_request(
         lambda req: _is_submit_request(req.url, API.SIGNUP)

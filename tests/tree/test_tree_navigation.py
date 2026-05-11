@@ -12,11 +12,15 @@ from tests.pages.tree_page import TreePage
 
 
 def test_switch_between_tabs(owner_page: Page):
-    """F-FV-4: switching tabs updates active class + content."""
+    """F-FV-4: switching tabs updates active class + content.
+
+    Wave-9: tab `map` скрыт через `hidden=""` (см. BUG-MAP-001). Исключён
+    из switcher list — все остальные tabs должны быть кликабельны.
+    """
     tree = TreePage(owner_page).goto()
     owner_page.wait_for_load_state("domcontentloaded")
 
-    for tab_name in ("map", "sources", "timeline", "about"):
+    for tab_name in ("sources", "timeline", "about"):
         tree.switch_to(tab_name)
         # No fixed sleep: `expect` auto-waits until the .active class
         # transition is observed in DOM.

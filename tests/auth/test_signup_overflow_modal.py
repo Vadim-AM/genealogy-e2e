@@ -51,9 +51,9 @@ def _mock_signup_overflow(page: Page, *, email: str, subscribed: bool = True) ->
 def _fill_and_submit(page: Page, email: str) -> None:
     page.locator("#email").fill(email)
     page.locator("#password").fill(TestConfig.DEFAULT_PASSWORD)
+    # Wave-9: privacy/cross-border объединены с terms_accepted; в форме
+    # остался только `#agreeTerms`.
     page.locator("#agreeTerms").check()
-    page.locator("#agreePrivacy").check()
-    page.locator("#agreeCrossBorder").check()
     page.locator("#signupBtn").click()
 
 

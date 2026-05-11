@@ -124,16 +124,14 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str):
     """
     email = make_email("bot")
     page.goto("/signup")
-    # P0.4 (ФЗ-156): 3 раздельных consent + honeypot. Поле full_name
-    # удалено в commit 814d5f8 — его в DOM нет.
+    # Wave-9: privacy/cross-border объединены с terms_accepted — в форме
+    # один `#agreeTerms`. Honeypot `#website` остался.
     page.evaluate(
         f"""
         document.querySelector('#email').value = {email!r};
         document.querySelector('#password').value = {TestConfig.DEFAULT_PASSWORD!r};
         document.querySelector('#website').value = 'http://spam.example.com';
         document.querySelector('#agreeTerms').checked = true;
-        document.querySelector('#agreePrivacy').checked = true;
-        document.querySelector('#agreeCrossBorder').checked = true;
         """
     )
 

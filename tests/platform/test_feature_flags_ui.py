@@ -63,7 +63,7 @@ def test_feature_flags_has_five_groups(auth_context_factory, superadmin_user):
         "Поиск / AI",
         "Регистрация",
         "Контент-фичи",
-        "Maintenance",
+        "Обслуживание",  # Wave-9 локализовал "Maintenance" → RU
         "Безопасность / алерты",
     }
     found_titles = {h.inner_text().strip() for h in page.locator(".ff-group-title").all()}

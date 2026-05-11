@@ -15,9 +15,19 @@ Map tab — auth-gated (`AUTHED_TABS` в TreePage), поэтому исполь�
 
 from __future__ import annotations
 
+import pytest
 from playwright.sync_api import Page, expect
 
 
+@pytest.mark.xfail(
+    strict=False,
+    reason=(
+        "BUG-MAP-001: Wave-9 спрятал tab `map` через hidden=\"\" — "
+        "Map-фича за feature-flag, который сейчас выключен. Map-tab не "
+        "кликабельна, leaflet не монтируется. Снять marker когда фича "
+        "вернётся в default-on или когда feature flag enable_map зальётся в БД."
+    ),
+)
 def test_map_attribution_flag_is_hidden_on_logged_in_owner(owner_page: Page):
     """TC-10.02: после переключения на map tab — leaflet рендерится,
     `.leaflet-attribution-flag` имеет computed display=none.

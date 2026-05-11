@@ -23,16 +23,14 @@ class SignupPage(BasePage):
         # UI они отсутствуют. Тесты, использовавшие SignupPage.full_name и
         # .birth_year, должны быть переписаны либо удалены.
         self.honeypot = page.locator("#website")
-        # 3 обязательных + 1 опциональный consent (P0.4 ФЗ-156, май 2026):
-        # старый единый `#agree` → 4 раздельных. `#agree` legacy остаётся как
-        # alias на agreeTerms если форма ещё не мигрирована — но новые тесты
-        # должны использовать explicit поля.
+        # Stage-0 (RU-бета, Wave-9): отдельные `#agreePrivacy`/`#agreeCrossBorder`
+        # удалены из формы — privacy объединён с terms_accepted (см. backend
+        # auth_v2/router.py:208-422). Остался один `#agreeTerms` обязательный.
+        # API endpoint всё ещё принимает privacy_consent / cross_border_consent
+        # / marketing_consent в payload как optional bool (default False),
+        # т.е. signup_via_api продолжает работать с 3-field payload.
         self.agree_terms = page.locator("#agreeTerms")
-        self.agree_privacy = page.locator("#agreePrivacy")
-        self.agree_cross_border = page.locator("#agreeCrossBorder")
-        self.agree_marketing = page.locator("#agreeMarketing")
-        # Backward-compat (старые тесты могут ещё использовать `.agree`):
-        # делаем алиас на agree_terms, чтобы не сломать вызовы.
+        # Backward-compat (старые тесты используют `.agree` как короткий алиас).
         self.agree = self.agree_terms
         self.submit_btn = page.locator("#signupBtn")
         self.password_toggle = page.locator("#pwToggle")
@@ -50,27 +48,23 @@ class SignupPage(BasePage):
     ) -> "SignupPage":
         """Заполняет минимально-валидную signup форму.
 
-        `agree=True` ставит ВСЕ 3 обязательных consent (terms / privacy /
-        cross-border) — без любого из них Pydantic-validator вернёт 422
-        «Необходимо принять условия использования» (P0.4 ФЗ-156).
-        marketing_consent опциональный, default OFF.
+        `agree=True` ставит обязательный `#agreeTerms` — без него
+        Pydantic-validator возвращает 422 «Необходимо принять условия
+        использования». Privacy / cross-border consent объединены с
+        terms_accepted на бэке (Wave-9, см. backend router.py:417).
 
-        Для negative-проверок `agree=False` — оставляем все consent
-        неотмеченными (используется в тестах валидации формы).
+        `agree=False` — оставляем checkbox неотмеченным (используется в
+        тестах валидации формы).
 
         Параметры `full_name` и `birth_year` — приняты для совместимости
-        со старыми тест-вызовами (поля удалены из формы commit 814d5f8 «I4:
-        убрать поле ФИО — display_name заполняется из карточки»). UI их
-        больше не показывает; через JSON API всё ещё доходят (см. backend
-        SignupRequest.full_name).
+        со старыми тест-вызовами (поля удалены из формы commit 814d5f8).
+        UI их больше не показывает; через JSON API всё ещё доходят.
         """
         del full_name, birth_year  # silence unused — параметры for API-compat
         self.email.fill(email)
         self.password.fill(password)
         if agree:
             self.agree_terms.check()
-            self.agree_privacy.check()
-            self.agree_cross_border.check()
         return self
 
     def submit(self) -> "SignupPage":
@@ -90,9 +84,8 @@ class SignupPage(BasePage):
     def soft_check_form_basics(self, soft) -> None:
         """Smoke for X-SU-1..11: input attrs, autocomplete, required.
 
-        После I4 (commit 814d5f8) форма не имеет full_name / birth_year
-        полей — display_name берётся из первой карточки tenant'а.
-        Соответствующие проверки удалены.
+        После Wave-9 форма имеет один consent (`#agreeTerms`); privacy /
+        cross-border объединены с terms_accepted на бэке.
         """
         soft(self.email).to_have_attribute("type", "email")
         soft(self.email).to_have_attribute("autocomplete", "email")
@@ -101,7 +94,4 @@ class SignupPage(BasePage):
         soft(self.password).to_have_attribute("autocomplete", "new-password")
         soft(self.honeypot).to_have_attribute("tabindex", "-1")
         soft(self.submit_btn).to_have_attribute("type", "submit")
-        # 4 consent чекбокса — 3 required, 1 optional (P0.4 ФЗ-156, май 2026)
         soft(self.agree_terms).to_have_attribute("required", "")
-        soft(self.agree_privacy).to_have_attribute("required", "")
-        soft(self.agree_cross_border).to_have_attribute("required", "")

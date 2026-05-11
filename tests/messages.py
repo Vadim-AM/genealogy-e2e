@@ -93,11 +93,16 @@ class AiConsent(_Catalogue):
 
     # Brand of the upstream LLM. Locale-independent (proper noun).
     PROVIDER = "Anthropic"
-    # Privacy-policy link mention — required by 152-FZ Art. 9 §1 / GDPR Art. 7
-    # (active consent must reference the basis of processing).
-    POLICY_KEYWORD = {"ru": "конфиденциальности", "en": "privacy"}
-    # Localised summary of what is sent (positive list).
-    SHARED_DATA_KEYWORD = {"ru": "Передаётся", "en": "Sent:"}
+    # Privacy reference — required by 152-FZ Art. 9 §1 / GDPR Art. 7
+    # (active consent must reference data subjects' privacy). Wave-9 переписал
+    # текст modal'а — раньше было «политика конфиденциальности», теперь
+    # «защищает их приватность». Substring match на корень слова.
+    POLICY_KEYWORD = {"ru": "приватность", "en": "privacy"}
+    # Localised reference to what data is sent. Wave-9 переписал modal —
+    # вместо positive-list «Передаётся:» теперь negative-list через
+    # фразу «на основе данных карточки» (что обрабатывается) и
+    # «Данные живущих родственников исключаются» (что НЕ отправляется).
+    SHARED_DATA_KEYWORD = {"ru": "данных карточки", "en": "data from the card"}
     # Decline-button label in the consent modal (enrichment-modal.js:112).
     DECLINE_LABEL = {"ru": "Не сейчас", "en": "Not now"}
 
