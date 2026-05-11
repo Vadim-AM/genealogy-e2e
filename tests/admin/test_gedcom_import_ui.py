@@ -69,7 +69,7 @@ SAMPLE_GEDCOM_MALFORMED = b"this is not a gedcom file just random text\x00\x01\x
 def _open_import_tab(owner_page: Page) -> OwnerPage:
     owner = OwnerPage(owner_page)
     owner_page.goto("/owner")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     owner.open_tab("export")
     # Widget mounts after loadMe() resolves — wait for IDLE state
     expect(owner.import_root).to_have_attribute("data-gedcom-state", "IDLE")

@@ -24,7 +24,7 @@ from tests.timeouts import TIMEOUTS
 def test_owner_settings_tab_has_inputs(owner_page: Page):
     """F-OU-2: settings tab has site_name input and save button."""
     owner = OwnerPage(owner_page).goto()
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     owner.open_tab("settings")
     expect(owner.cfg_site_name).to_be_visible()
     expect(owner.cfg_save).to_be_visible()
@@ -36,7 +36,7 @@ def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_clien
     Was xfail under BUG-MT-001 — current HEAD passes, marker dropped on 28.04.
     """
     owner = OwnerPage(owner_page).goto()
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     new_name = TestData.SAMPLE_SITE_NAME
     with owner_page.expect_response("**/api/site/config") as resp_info:

@@ -14,7 +14,7 @@ from tests.pages.tree_page import TreePage
 def test_switch_between_tabs(owner_page: Page):
     """F-FV-4: switching tabs updates active class + content."""
     tree = TreePage(owner_page).goto()
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     for tab_name in ("map", "sources", "timeline", "about"):
         tree.switch_to(tab_name)
@@ -32,7 +32,7 @@ def test_search_returns_results_for_seeded_person(owner_page: Page):
     hydrate `#personSearchResults` with `.nav-search-result` items.
     """
     tree = TreePage(owner_page).goto()
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     tree.search_person("Тест")
     expect(tree.search_results.first).to_be_visible()
 
@@ -41,19 +41,19 @@ def test_f5_keeps_profile_open(owner_page: Page):
     """TC-E2E-002: F5 on a profile URL keeps the profile route, не выкидывает в дерево."""
     profile_hash = f"#/p/{TestData.DEMO_PERSON_ID}"
     owner_page.goto("/")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     owner_page.goto("/" + profile_hash)
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     owner_page.reload()
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     assert profile_hash in owner_page.url, f"hash dropped after F5: {owner_page.url}"
 
 
 def test_back_to_tree_from_profile(owner_page: Page):
     """F-PR-4: returning to tree from profile via tab click."""
     owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     owner_page.locator('[data-tab="tree"]').click()
     expect(owner_page.locator('.tab[data-tab="tree"].active')).to_be_visible()

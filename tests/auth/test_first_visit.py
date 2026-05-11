@@ -25,14 +25,14 @@ def test_first_visit_renders_tree_with_demo_seed(owner_page: Page):
     the centered subject plus immediate ring (parents) = 2 cards visible.
     """
     tree = TreePage(owner_page).goto()
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     tree.expect_tree_rendered(min_cards=DEMO_SEED_RING_CARDS)
 
 
 def test_first_visit_shows_authed_tabs(owner_page: Page):
     """F-FV-4: all 5 navigation tabs visible to authenticated user."""
     tree = TreePage(owner_page).goto()
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     expect(tree.tab_tree).to_be_visible()
     expect(tree.tab_map).to_be_visible()
     expect(tree.tab_sources).to_be_visible()
@@ -43,14 +43,14 @@ def test_first_visit_shows_authed_tabs(owner_page: Page):
 def test_first_visit_search_input_visible(owner_page: Page):
     """F-FV-5: search input is in the header for authed users."""
     owner_page.goto("/")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     expect(owner_page.locator("#headerSearch")).to_be_visible()
 
 
 def test_first_visit_tour_replay_button_visible(owner_page: Page):
     """F-FV-6: '?' tour replay button is visible."""
     owner_page.goto("/")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     expect(owner_page.locator("#tourReplayBtn")).to_be_visible()
 
 

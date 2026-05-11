@@ -66,7 +66,7 @@ def _demo_parents_of_self(api: httpx.Client) -> dict[str, str]:
 
 def _open_profile(page: Page, person_id: str) -> ProfilePanel:
     page.goto(f"/#/p/{person_id}")
-    page.wait_for_load_state("networkidle")
+    page.wait_for_load_state("domcontentloaded")
     panel = ProfilePanel(page)
     panel.expect_visible()
     return panel

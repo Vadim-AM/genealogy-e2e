@@ -69,7 +69,7 @@ def test_bug_csrf_001_console_clean_on_signup(page: Page):
         else None,
     )
     page.goto("/signup")
-    page.wait_for_load_state("networkidle")
+    page.wait_for_load_state("domcontentloaded")
     assert not bad_404, f"BUG-CSRF-001 regression: {bad_404}"
 
 

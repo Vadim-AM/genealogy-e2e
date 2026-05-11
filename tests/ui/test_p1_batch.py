@@ -35,7 +35,7 @@ def test_minimap_visible_on_tree_tab_for_authed_owner(owner_page: Page):
     мобиле minimap скрыт через media-query `@media (max-width:...)`.
     """
     owner_page.goto("/")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     minimap = owner_page.locator("#minimap")
     expect(minimap).to_be_visible()
@@ -56,7 +56,7 @@ def test_branch_legend_is_hidden_when_tree_has_less_than_3_generations(
     отдельный тест когда появятся такие фикстуры.
     """
     owner_page.goto("/")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     legend = owner_page.locator("#branchLegend")
     expect(legend).not_to_be_visible()
@@ -69,7 +69,7 @@ def test_branch_legend_is_hidden_when_tree_has_less_than_3_generations(
 
 def _open_editor(owner_page: Page, person_id: str = TestData.DEMO_PERSON_ID) -> PersonEditor:
     owner_page.goto(f"/#/p/{person_id}")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     panel = ProfilePanel(owner_page)
     panel.expect_visible()
     panel.open_editor()
@@ -171,7 +171,7 @@ def test_add_parent_button_hidden_when_two_parents_exist(owner_page: Page):
     либо отсутствует в DOM, либо not_visible. RELATIVE_LIMITS.parents=2.
     """
     owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     panel = ProfilePanel(owner_page)
     panel.expect_visible()
@@ -197,7 +197,7 @@ def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page):
     маркер, регрессия = пустой/неструктурированный footer.
     """
     owner_page.goto("/")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     sources_ornament = owner_page.locator("#tab-sources .footer-ornament")
     timeline_ornament = owner_page.locator("#tab-timeline .footer-ornament")
@@ -224,7 +224,7 @@ def test_timeline_river_filters_render_five_branches(owner_page: Page):
     Default active = «Все» (data-branch=all).
     """
     owner_page.goto("/")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     owner_page.locator('[data-tab="timeline"]').click()
 
     filters = owner_page.locator("#riverFilters .river-filter-btn")
@@ -256,7 +256,7 @@ def test_about_tab_shows_placeholder_when_about_text_is_empty(owner_page: Page):
     скрыт через `data-empty-hidden`.
     """
     owner_page.goto("/")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     owner_page.locator('[data-tab="about"]').click()
 
     placeholder = owner_page.locator('[data-config-empty="about_text"]')
@@ -287,7 +287,7 @@ def test_add_relative_shows_error_on_409_conflict(owner_page: Page):
     owner_page.route("**/api/relationships", conflict_handler)
 
     owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     panel = ProfilePanel(owner_page)
     panel.expect_visible()
@@ -407,7 +407,7 @@ def test_timeline_river_filter_click_switches_active(owner_page: Page):
     Контракт: только одна кнопка active в каждый момент.
     """
     owner_page.goto("/")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     owner_page.locator('[data-tab="timeline"]').click()
 
     all_btn = owner_page.locator('#riverFilters .river-filter-btn[data-branch="all"]')
@@ -432,7 +432,7 @@ def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page):
     и хотя бы одну `.filter-btn[data-filter=all]` (default active).
     """
     owner_page.goto("/")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     owner_page.locator('[data-tab="sources"]').click()
 
     search = owner_page.locator("#evidenceSearch")
@@ -460,7 +460,7 @@ def test_minimap_hidden_on_mobile_viewport(owner_page: Page):
     """
     owner_page.set_viewport_size({"width": 375, "height": 800})
     owner_page.goto("/")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     minimap = owner_page.locator("#minimap")
     display = minimap.evaluate("(el) => getComputedStyle(el).display")
@@ -488,7 +488,7 @@ def test_about_contact_box_hidden_when_contact_text_is_empty(owner_page: Page):
     отдельный тест.
     """
     owner_page.goto("/")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     owner_page.locator('[data-tab="about"]').click()
 
     contact = owner_page.locator(".contact-box[data-config-text='contact_text']")
@@ -508,7 +508,7 @@ def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page)
     profile (последняя триггерится отдельным data-action="open-profile").
     """
     owner_page.goto("/")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     # Найдём не-центральную карту (родитель / ребёнок).
     target_card = owner_page.locator(

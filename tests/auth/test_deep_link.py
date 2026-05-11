@@ -35,7 +35,7 @@ def _wait_for_auth_state(owner_page: Page, *, expected: bool, timeout_ms: int = 
 def test_deep_link_to_demo_self_preserves_auth(owner_page: Page):
     """TC-AUTH-1: open /#/p/demo-self directly, expect the authed UI to settle."""
     owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     # The tab title is overwritten with the opened person's name (profile.js
     # hoists the name into `#tab-tree .section-title`).
@@ -52,6 +52,6 @@ def test_deep_link_to_unknown_id_keeps_auth(owner_page: Page):
     Tree tab remains visible (no JS crash); AUTH stays authenticated.
     """
     owner_page.goto("/#/p/no-such-person")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     expect(owner_page.locator('[data-tab="tree"]')).to_be_visible()
     _wait_for_auth_state(owner_page, expected=True)

@@ -147,7 +147,7 @@ def test_webauthn_full_register_via_ui(
     try:
         page = ctx.new_page()
         page.goto("/platform/dashboard")
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
 
         # Регистрируем virtual authenticator ДО вызова webauthnRegister
         _add_virtual_authenticator(page)
@@ -179,7 +179,7 @@ def test_webauthn_register_then_authenticate_via_ui(
     try:
         page = ctx.new_page()
         page.goto("/platform/dashboard")
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
 
         _add_virtual_authenticator(page)
         page.evaluate("() => webauthnRegister('AuthFlowKey')")
@@ -206,7 +206,7 @@ def test_setup_modal_has_webauthn_button_first(
     ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
     page = ctx.new_page()
     page.goto("/platform/dashboard")
-    page.wait_for_load_state("networkidle")
+    page.wait_for_load_state("domcontentloaded")
 
     dashboard = PlatformDashboardPage(page)
     # Проверяем что элемент существует в DOM (visible проверять нельзя —

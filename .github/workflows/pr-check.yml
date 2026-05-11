@@ -52,10 +52,26 @@ jobs:
           # python-dotenv is imported by app.config; install if not pinned upstream.
           pip install python-dotenv
 
-      - name: Install e2e deps + Chromium
-        run: |
-          pip install -r requirements.txt
-          playwright install --with-deps chromium
+      - name: Install e2e deps
+        run: pip install -r requirements.txt
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          # Key on requirements.txt — bumping playwright pin invalidates cache.
+          key: ${{ runner.os }}-playwright-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Chromium (when cache miss)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: playwright install --with-deps chromium
+
+      - name: Install Chromium system deps (always — apt packages aren't cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: playwright install-deps chromium
 
       - name: Start test-instrumented backend
         run: |

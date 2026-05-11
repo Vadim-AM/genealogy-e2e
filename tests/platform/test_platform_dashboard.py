@@ -31,7 +31,7 @@ def test_platform_metrics_visible(auth_context_factory, superadmin_user, soft_ch
     ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
     page = ctx.new_page()
     page.goto("/platform/dashboard")
-    page.wait_for_load_state("networkidle")
+    page.wait_for_load_state("domcontentloaded")
 
     dashboard = PlatformDashboardPage(page)
     dashboard.soft_check_metrics_loaded(soft_check)

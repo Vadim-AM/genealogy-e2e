@@ -49,7 +49,7 @@ def _clear_consent_state(page: Page) -> None:
 
 def _open_demo_self(page: Page) -> None:
     page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-    page.wait_for_load_state("networkidle")
+    page.wait_for_load_state("domcontentloaded")
 
 
 def test_first_enrich_click_shows_consent_with_anthropic_and_policy_link(

@@ -103,7 +103,7 @@ def test_pricing_renders_four_cards(page: Page):
     Если рендер не сработал — увидим .pricing-empty (скрыт по умолчанию).
     """
     page.goto("/pricing.html")
-    page.wait_for_load_state("networkidle", timeout=TIMEOUTS.pw_action_ms)
+    page.wait_for_load_state("domcontentloaded", timeout=TIMEOUTS.pw_action_ms)
 
     # Ждём что отрисовалось ровно 4 карточки (auto-wait через expect).
     expect(page.locator(".pricing-card")).to_have_count(4)
@@ -152,7 +152,7 @@ def test_pricing_no_console_errors(page: Page):
         lambda msg: errors.append(msg.text) if msg.type == "error" else None,
     )
     page.goto("/pricing.html")
-    page.wait_for_load_state("networkidle", timeout=TIMEOUTS.pw_action_ms)
+    page.wait_for_load_state("domcontentloaded", timeout=TIMEOUTS.pw_action_ms)
 
     # Filter known noise (favicon 404 etc.)
     real = [e for e in errors if "favicon" not in e.lower()]

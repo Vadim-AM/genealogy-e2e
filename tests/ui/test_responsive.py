@@ -79,7 +79,7 @@ def test_signup_card_no_horizontal_scroll_on_iphone_se(mobile_page: Page):
     documentElement.scrollWidth ≤ viewport.width.
     """
     mobile_page.goto("/signup")
-    mobile_page.wait_for_load_state("networkidle")
+    mobile_page.wait_for_load_state("domcontentloaded")
 
     # Не используем «<=» с допусками — браузерный layout deterministic;
     # любое превышение — bug.
@@ -103,7 +103,7 @@ def test_signup_password_eye_toggle_visible_on_iphone_se(mobile_page: Page):
     проверки бьёт по конверсии.
     """
     mobile_page.goto("/signup")
-    mobile_page.wait_for_load_state("networkidle")
+    mobile_page.wait_for_load_state("domcontentloaded")
 
     toggle = mobile_page.locator("#pwToggle")
     expect(toggle).to_be_visible()
@@ -129,7 +129,7 @@ def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
     (`.signup-agree` × 4). Каждая строка должна укладываться в 375px.
     """
     mobile_page.goto("/signup")
-    mobile_page.wait_for_load_state("networkidle")
+    mobile_page.wait_for_load_state("domcontentloaded")
 
     agree_rows = mobile_page.locator(".signup-agree")
     expect(agree_rows.first).to_be_visible()
@@ -162,7 +162,7 @@ def test_all_five_tabs_visible_on_ipad_portrait(tablet_owner_page: Page, soft_ch
     другое UX-решение; на текущем макете все 5 должны быть на экране.
     """
     tablet_owner_page.goto("/")
-    tablet_owner_page.wait_for_load_state("networkidle")
+    tablet_owner_page.wait_for_load_state("domcontentloaded")
 
     for tab_name in ("tree", "map", "sources", "timeline", "about"):
         tab = tablet_owner_page.locator(f'[data-tab="{tab_name}"]')

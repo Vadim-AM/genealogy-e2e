@@ -324,7 +324,7 @@ def test_dashboard_renders_phase1_widgets(
     ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
     page = ctx.new_page()
     page.goto("/platform/dashboard")
-    page.wait_for_load_state("networkidle")
+    page.wait_for_load_state("domcontentloaded")
 
     dashboard = PlatformDashboardPage(page)
     dashboard.soft_check_phase1_widgets_present(soft_check)

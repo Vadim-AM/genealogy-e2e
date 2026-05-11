@@ -48,7 +48,7 @@ _MIN_JPEG_BYTES = bytes.fromhex(
 
 def _open_editor(owner_page: Page, person_id: str = TestData.DEMO_PERSON_ID) -> PersonEditor:
     owner_page.goto(f"/#/p/{person_id}")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     panel = ProfilePanel(owner_page)
     panel.expect_visible()
     panel.open_editor()

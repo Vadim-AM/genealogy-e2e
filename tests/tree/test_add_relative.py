@@ -29,7 +29,7 @@ def test_add_sibling_via_profile_creates_person_and_relationship(
     count_before = len(tree_before.json()["people"])
 
     owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     panel = ProfilePanel(owner_page)
     panel.expect_visible()

@@ -17,14 +17,14 @@ def test_landing_title_has_brand(page: Page):
     """F-LND-2: title contains a brand fragment.
 
     Title is finalised by `_bootstrapSiteConfig` (js/init.js) after fetching
-    /api/site/config — wait for `networkidle` so JS bootstrap completed.
+    /api/site/config — Playwright `expect(page).to_have_title(...)` auto-waits
+    через polling, не требует `networkidle`.
     """
+    import re
     page.goto("/")
-    page.wait_for_load_state("networkidle")
-    title = page.title()
     fragments = t(Brand.TITLE_FRAGMENTS)
-    assert title and any(f in title for f in fragments), \
-        f"title {title!r} missing any of {fragments}"
+    pattern = re.compile("|".join(re.escape(f) for f in fragments))
+    expect(page).to_have_title(pattern)
 
 
 def test_landing_no_console_errors(page: Page):
@@ -53,7 +53,7 @@ def test_landing_no_console_errors(page: Page):
     page.on("response", _on_response)
 
     page.goto("/")
-    page.wait_for_load_state("networkidle")
+    page.wait_for_load_state("domcontentloaded")
 
     assert not js_errors, f"JS pageerrors on landing: {js_errors}"
     assert not bad_responses, f"unexpected network errors: {bad_responses}"
@@ -66,7 +66,7 @@ def test_landing_has_main_tabs(page: Page):
     by `updateGuestUI()` in index.html.
     """
     tree = TreePage(page).goto()
-    page.wait_for_load_state("networkidle")
+    page.wait_for_load_state("domcontentloaded")
     expect(tree.tab_tree).to_be_visible()
     expect(tree.tab_about).to_be_visible()
 
@@ -97,7 +97,7 @@ def test_static_assets_load(page: Page):
 
     page.on("response", _track)
     page.goto("/")
-    page.wait_for_load_state("networkidle")
+    page.wait_for_load_state("domcontentloaded")
 
     bad = {url: status for url, status in statuses.items() if status >= 400}
     assert not bad, f"static assets returned errors: {bad}"

@@ -67,6 +67,30 @@ def reset_state(uvicorn_server: str) -> None:
     ).raise_for_status()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _verify_ai_search_default(install_mock_ai, uvicorn_server: str) -> None:
+    """Sanity-check (session-scope): после set-platform-setting endpoint
+    видит включённый AI search. Bara один раз за session, иначе кэш или env
+    override проявятся на первом же тесте.
+
+    Не на каждый тест: per-test эту fixture (`_default_ai_search_on` ниже)
+    делает только POST set-platform-setting — выполняется быстро (~ms).
+    Сюжет с кешем/env override стабильно проявляется при первом запросе.
+    """
+    httpx.post(
+        f"{uvicorn_server}{API.TEST_SET_PLATFORM_SETTING}",
+        json={"enable_ai_search": True},
+        timeout=TIMEOUTS.api_short,
+    ).raise_for_status()
+    f = httpx.get(f"{uvicorn_server}{API.CONFIG_FEATURES}", timeout=TIMEOUTS.api_short)
+    f.raise_for_status()
+    assert f.json().get("ai_search_enabled") is True, (
+        f"session sanity failed: {API.CONFIG_FEATURES} still reports "
+        f"{f.json()}. Either set-platform-setting не записал в БД, либо "
+        "ENABLE_AI_SEARCH env override стоит на False."
+    )
+
+
 @pytest.fixture(autouse=True)
 def _default_ai_search_on(reset_state, uvicorn_server: str) -> None:
     """Default platform_settings.enable_ai_search → True перед каждым тестом.
@@ -77,22 +101,15 @@ def _default_ai_search_on(reset_state, uvicorn_server: str) -> None:
     Тесты, которые специально проверяют OFF-режим (test_ai_disabled_flow.py),
     свои autouse override → False — они выполняются ПОСЛЕ этой фикстуры
     (file-local autouse > conftest autouse в pytest ordering).
+
+    Sanity-check вынесен в session-scoped `_verify_ai_search_default`
+    выше — экономит ~319 GET-запросов на полный прогон.
     """
-    r = httpx.post(
+    httpx.post(
         f"{uvicorn_server}{API.TEST_SET_PLATFORM_SETTING}",
         json={"enable_ai_search": True},
         timeout=TIMEOUTS.api_short,
-    )
-    r.raise_for_status()
-    # Sanity: после write — features endpoint видит True. Иначе кэш или
-    # race условия пробивают политику и owner_page показывает «(скоро)».
-    f = httpx.get(f"{uvicorn_server}{API.CONFIG_FEATURES}", timeout=TIMEOUTS.api_short)
-    f.raise_for_status()
-    assert f.json().get("ai_search_enabled") is True, (
-        f"default fixture failed: {API.CONFIG_FEATURES} still reports "
-        f"{f.json()}. Either set-platform-setting не записал в БД, либо "
-        "ENABLE_AI_SEARCH env override стоит на False."
-    )
+    ).raise_for_status()
 
 
 @pytest.fixture(scope="session", autouse=True)

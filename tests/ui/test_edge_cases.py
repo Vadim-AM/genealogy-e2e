@@ -18,7 +18,7 @@ from tests.timeouts import TIMEOUTS
 def test_f5_on_nonexistent_profile_id_does_not_crash(owner_page: Page):
     """TC-EDGE-004: F5 on /#/p/<unknown> shows tree, no JS crash."""
     owner_page.goto("/#/p/nonexistent_xyz_123")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     expect(owner_page.locator('[data-tab="tree"]')).to_be_visible()
 
 

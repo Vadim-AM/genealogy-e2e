@@ -84,7 +84,7 @@ def mobile_page(mobile_context: BrowserContext) -> Iterator[Page]:
 def test_landing_loads_and_shows_demo_tree_on_mobile(mobile_page: Page):
     """TC-MOBILE-1: лендинг рендерится, treeContainer виден, нет horizontal scroll."""
     mobile_page.goto("/")
-    mobile_page.wait_for_load_state("networkidle")
+    mobile_page.wait_for_load_state("domcontentloaded")
 
     expect(mobile_page.locator("#treeContainer")).to_be_visible()
 
@@ -107,7 +107,7 @@ def test_landing_tabs_clickable_on_mobile(mobile_page: Page):
     import re
 
     mobile_page.goto("/")
-    mobile_page.wait_for_load_state("networkidle")
+    mobile_page.wait_for_load_state("domcontentloaded")
 
     for tab_name in ("tree", "about"):
         tab_btn = mobile_page.locator(f'.tab[data-tab="{tab_name}"]')
@@ -122,7 +122,7 @@ def test_about_beta_card_visible_for_guest_on_mobile(mobile_page: Page):
     """TC-MOBILE-3 (P1.2.3): на мобайле в About-вкладке гость видит beta-card
     с CTA на /wait. Пр authenticated — не видит."""
     mobile_page.goto("/")
-    mobile_page.wait_for_load_state("networkidle")
+    mobile_page.wait_for_load_state("domcontentloaded")
 
     # Открыть About
     mobile_page.locator('.tab[data-tab="about"]').click()
@@ -140,7 +140,7 @@ def test_signup_form_submittable_on_mobile(
     """TC-MOBILE-4: signup-форма работоспособна с touch — поля заполняются,
     cross_border_consent чекбокс кликается, submit идёт."""
     mobile_page.goto("/signup")
-    mobile_page.wait_for_load_state("networkidle")
+    mobile_page.wait_for_load_state("domcontentloaded")
 
     email = "mobile-smoke@e2e.local"
     mobile_page.locator("#email").fill(email)
@@ -163,7 +163,7 @@ def test_signup_form_submittable_on_mobile(
     # обе ветки валидны для smoke. Главное что нет JS-ошибки в консоли).
     submit.click()
     # Ждём response любого статуса
-    mobile_page.wait_for_load_state("networkidle")
+    mobile_page.wait_for_load_state("domcontentloaded")
 
     # Никаких uncaught errors в console (collect через listener в conftest
     # если есть; здесь — простой evaluate на presence of error-element).
@@ -177,7 +177,7 @@ def test_wait_form_submittable_on_mobile(mobile_page: Page):
     """TC-MOBILE-5: /wait — основной CTA для guest'ов в бета-режиме.
     Форма должна быть полностью функциональной на тачскрине."""
     mobile_page.goto("/wait")
-    mobile_page.wait_for_load_state("networkidle")
+    mobile_page.wait_for_load_state("domcontentloaded")
 
     email_input = mobile_page.locator('input[type="email"]')
     expect(email_input).to_be_visible()
@@ -187,7 +187,7 @@ def test_wait_form_submittable_on_mobile(mobile_page: Page):
     expect(submit).to_be_visible()
     expect(submit).to_be_enabled()
     submit.click()
-    mobile_page.wait_for_load_state("networkidle")
+    mobile_page.wait_for_load_state("domcontentloaded")
 
     # После submit'а должен появиться result-блок (success или error).
     result = mobile_page.locator("#result")

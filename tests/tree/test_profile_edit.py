@@ -23,7 +23,7 @@ def _open_editor(owner_page: Page, person_id: str = TestData.DEMO_PERSON_ID) -> 
     from current `onclick=` vs future `data-action=` implementation.
     """
     owner_page.goto(f"/#/p/{person_id}")
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
     panel = ProfilePanel(owner_page)
     panel.expect_visible()
     panel.open_editor()
@@ -101,7 +101,7 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tena
     # Click «Отмена» — DELETE НЕ должен уйти.
     cancel_btn = confirm_dialog.get_by_role("button", name=t(Buttons.CANCEL))
     cancel_btn.click()
-    owner_page.wait_for_load_state("networkidle")
+    owner_page.wait_for_load_state("domcontentloaded")
 
     assert not delete_responses, \
         f"DELETE must NOT be sent when confirm is dismissed; got: {delete_responses}"
