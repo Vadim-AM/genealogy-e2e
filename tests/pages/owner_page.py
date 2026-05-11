@@ -20,7 +20,7 @@ class OwnerPage(BasePage):
         self.tab_subscription = page.locator('[data-tab="subscription"]')
         self.tab_danger = page.locator('[data-tab="danger"]')
 
-        # Settings
+        # Settings tab inputs.
         self.cfg_site_name = page.locator("#cfg_site_name")
         self.cfg_family_name = page.locator("#cfg_family_name")
         self.cfg_regions = page.locator("#cfg_regions")
@@ -28,11 +28,11 @@ class OwnerPage(BasePage):
         self.cfg_about_text = page.locator("#cfg_about_text")
         self.cfg_save = page.locator("#cfgSave")
 
-        # Invites
-        self.inv_email = page.locator("#invEmail")
-        self.inv_role = page.locator("#invRole")
-        self.inv_create = page.locator("#invCreate")
-        self.inv_list = page.locator("#invList")
+        # Invite tab locators are intentionally NOT pre-bound — the previous
+        # `create_invite` helper used a 4-selector fallback chain to capture
+        # the produced URL (CLAUDE.md rule #3 anti-pattern: "TODO, not a
+        # passing test"). When the invite UI gets a stable `data-invite-url`
+        # surface (Wave 2), re-add a tight helper here.
 
     def open_tab(self, name: str) -> "OwnerPage":
         self.page.locator(f'[data-tab="{name}"]').click()
@@ -44,24 +44,6 @@ class OwnerPage(BasePage):
             self.cfg_site_name.fill(site_name)
         self.cfg_save.click()
         return self
-
-    def create_invite(self, *, email: str = "", role: str = "viewer") -> str | None:
-        """Create a share invite. Returns the URL captured in the UI (or None)."""
-        self.open_tab("invites")
-        if email and self.inv_email.count():
-            self.inv_email.fill(email)
-        if self.inv_role.count():
-            self.inv_role.select_option(role)
-        self.inv_create.click()
-        # Try to capture the produced URL — different markup supports a few
-        # layouts: <a data-invite-url>, modal with .invite-url-text, etc.
-        for sel in ("[data-invite-url]", ".invite-url-text", ".invite-url", "#inviteUrlBox a"):
-            loc = self.page.locator(sel).first
-            if loc.count() and loc.is_visible():
-                href = loc.get_attribute("href") or loc.text_content()
-                if href:
-                    return href.strip()
-        return None
 
     def soft_check_all_tabs(self, soft) -> None:
         for tab in self.TABS:

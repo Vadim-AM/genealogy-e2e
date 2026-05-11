@@ -73,6 +73,13 @@ jobs:
             --log-level warning > "$GITHUB_WORKSPACE/uvicorn.log" 2>&1 &
           echo "uvicorn PID=$!"
 
+      - name: Lint test files for rule drift
+        # CLAUDE.md rules #5 (no hardcoded timeouts) / #9 (no raw URL strings).
+        # Catches regressions before they accumulate; whitelist a line with
+        # `# noqa: drift` for genuinely legitimate uses (e.g. router-shape
+        # parametrize in test_ai_disabled_flow.py).
+        run: python scripts/check_drift.py
+
       - name: Wait for backend /api/health
         run: |
           for i in $(seq 1 60); do

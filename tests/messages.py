@@ -98,6 +98,8 @@ class AiConsent(_Catalogue):
     POLICY_KEYWORD = {"ru": "конфиденциальности", "en": "privacy"}
     # Localised summary of what is sent (positive list).
     SHARED_DATA_KEYWORD = {"ru": "Передаётся", "en": "Sent:"}
+    # Decline-button label in the consent modal (enrichment-modal.js:112).
+    DECLINE_LABEL = {"ru": "Не сейчас", "en": "Not now"}
 
 
 class FamilyGroups(_Catalogue):

@@ -29,6 +29,7 @@ class API:
     RESET_PASSWORD = "/api/account/reset-password"
     ACCOUNT_ME = "/api/account/me"
     ACCOUNT_AI_CONSENT = "/api/account/me/ai-consent"
+    ACCOUNT_EMAIL = "/api/account/me/email"
     ONBOARDING_COMPLETE = "/api/account/onboarding-complete"
     DELETE_TENANT = "/api/account/delete-tenant"
 
@@ -65,11 +66,29 @@ class API:
     def enrich_jobs(job_id: str) -> str:
         return f"/api/enrich/jobs/{job_id}"
 
+    @staticmethod
+    def enrich_acceptances(pid: str) -> str:
+        return f"/api/enrich/{pid}/acceptances"
+
     # ── Photos ───────────────────────────────────────────────────
     TIMELINE_GEO = "/api/timeline-geo"
 
+    # ── Analytics ────────────────────────────────────────────────
+    ANALYTICS_LOG = "/api/analytics/log"
+
+    # ── Subscription / tenant export ─────────────────────────────
+    SUBSCRIPTION_USAGE_LEGACY = "/api/subscription/usage"
+    TENANT_EXPORT = "/api/tenant/export"
+
     # ── Health / ops ─────────────────────────────────────────────
     HEALTH = "/api/health"
+    CONFIG_FEATURES = "/api/config/features"
+
+    # ── Public pricing ───────────────────────────────────────────
+    TIERS_PUBLIC = "/api/tiers/public"
+
+    # ── Legacy admin (password-gated, pre-auth_v2) ───────────────
+    ADMIN_LOGIN = "/api/admin/login"
 
     # ── Admin (legacy gates — auth_v2 миграция в процессе) ───────
     ADMIN_EXPORT_GEDCOM = "/api/admin/export-gedcom"
@@ -85,6 +104,7 @@ class API:
     TEST_LAST_EMAIL = "/api/_test/last-email"
     TEST_INSTALL_MOCK_AI = "/api/_test/install-mock-ai"
     TEST_UNINSTALL_MOCK_AI = "/api/_test/uninstall-mock-ai"
+    TEST_SET_PLATFORM_SETTING = "/api/_test/set-platform-setting"
 
     # ── Platform superadmin (PR-1..10) ───────────────────────────
     PLATFORM_METRICS = "/api/platform/metrics"
