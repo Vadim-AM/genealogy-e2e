@@ -38,7 +38,7 @@ def test_change_email_endpoint_initiates_confirmation(
         json={"new_email": new_email, "current_password": user.password},
     )
 
-    assert r.status_code in (200, 202), (
+    assert r.status_code == 200, (
         f"change-email should return 200/202 to initiate confirmation, "
         f"got {r.status_code} {r.text[:200]}"
     )

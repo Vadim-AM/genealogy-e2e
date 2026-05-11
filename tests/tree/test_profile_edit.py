@@ -86,7 +86,7 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tena
     editor.btn_delete.click()
 
     # Custom confirm-dialog modal появляется в DOM. Ждём `.confirm-dialog`.
-    confirm_dialog = owner_page.locator(".confirm-dialog, [role='alertdialog']").first
+    confirm_dialog = owner_page.locator(".confirm-dialog").first
     expect(confirm_dialog).to_be_visible()
 
     # Текст confirm-сообщения должен содержать критические маркеры.

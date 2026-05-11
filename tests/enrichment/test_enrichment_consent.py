@@ -62,7 +62,7 @@ def test_first_enrich_click_shows_consent_with_anthropic_and_policy_link(
     owner_page.get_by_role("button", name=t(Buttons.ENRICH), exact=False).click()
 
     # Custom confirm-dialog (CSP-clean, not native window.confirm).
-    dialog = owner_page.locator(".confirm-dialog, [role='alertdialog']").first
+    dialog = owner_page.locator(".confirm-dialog").first
     expect(dialog).to_be_visible()
 
     msg = dialog.inner_text()
@@ -110,7 +110,7 @@ def test_consent_decline_blocks_post_to_enrich_endpoint(owner_page: Page):
 
     # Custom confirm-dialog (`./confirm-dialog.js`) — ловим через DOM
     # selector, не через page.on('dialog') (это для native window.confirm).
-    dialog = owner_page.locator(".confirm-dialog, [role='alertdialog']").first
+    dialog = owner_page.locator(".confirm-dialog").first
     expect(dialog).to_be_visible()
     dialog.get_by_role("button", name=t(AiConsent.DECLINE_LABEL)).click()
 

@@ -14,7 +14,7 @@ session leak.
 
 from __future__ import annotations
 
-import httpx
+import concurrent.futures as cf
 
 from tests.api_paths import API
 from tests.timeouts import TIMEOUTS
@@ -64,8 +64,7 @@ def test_person_created_in_tenant_a_not_visible_in_tenant_b(
 def test_tenant_b_cannot_read_tenant_a_person_by_id(
     signup_via_api, tenant_client
 ):
-    """Прямой GET /api/people/{id} с чужим id → 404 (или 403),
-    точно не 200."""
+    """Прямой GET /api/people/{id} с чужим id → 404 (per-tenant scope hides)."""
     user_a = signup_via_api()
     user_b = signup_via_api()
 
@@ -78,14 +77,13 @@ def test_tenant_b_cannot_read_tenant_a_person_by_id(
     assert created["id"]
 
     r = api_b.get(API.person(created["id"]))
-    assert r.status_code in (403, 404), (
-        f"LEAK: tenant_b got {r.status_code} reading tenant_a's person; "
-        f"expected 404 or 403"
+    assert r.status_code == 404, (
+        f"LEAK: tenant_b got {r.status_code} reading tenant_a's person"
     )
 
 
 def test_tenant_b_cannot_patch_tenant_a_person(signup_via_api, tenant_client):
-    """Write-leak проверка: PATCH чужого person → не 200."""
+    """Write-leak проверка: PATCH чужого person → 404 (per-tenant scope hides)."""
     user_a = signup_via_api()
     user_b = signup_via_api()
 
@@ -95,7 +93,7 @@ def test_tenant_b_cannot_patch_tenant_a_person(signup_via_api, tenant_client):
     created = api_a.post(API.PEOPLE, json={"name": "Чужой Edit", "gender": "m"}).json()
 
     r = api_b.patch(API.person(created["id"]), json={"summary": "MUTATED by B"})
-    assert r.status_code != 200, (
+    assert r.status_code == 404, (
         f"WRITE-LEAK: tenant_b can mutate tenant_a's person (status {r.status_code})"
     )
 
@@ -191,14 +189,15 @@ def test_gedcom_import_creates_persons_only_in_uploading_tenant(
         files={"file": ("isolation.ged", ged, "application/octet-stream")},
         timeout=TIMEOUTS.api_long,
     )
-    if r.status_code != 200:
-        # Backend может ещё не возвращать preview без auth_v2-bridge;
-        # skip остальной тест если так.
-        import pytest
-        pytest.skip(f"import endpoint returned {r.status_code}")
+    # Hard pin: import endpoint должен принимать auth_v2 owner cookie (200).
+    # Любой другой статус — regression auth_v2-bridge → fail loud, не skip.
+    assert r.status_code == 200, (
+        f"GEDCOM import preview should accept auth_v2 owner: "
+        f"{r.status_code} {r.text[:200]}"
+    )
     preview = r.json()
     confirm = {k: preview.get(k, []) for k in ("people", "relationships", "sources")}
-    api_a.post("/api/admin/import-gedcom/confirm", json=confirm)
+    api_a.post(API.ADMIN_IMPORT_GEDCOM_CONFIRM, json=confirm)
 
     b_count_after = len(api_b.get(API.TREE).json()["people"])
     assert b_count_after == b_count_before, (
@@ -217,31 +216,22 @@ def test_concurrent_creates_in_two_tenants_dont_interfere(
 ):
     """Параллельные create-операции в двух tenant'ах — никаких cross-effects
     (без потери записей, без чужих записей)."""
-    import concurrent.futures as cf
-
     user_a = signup_via_api()
     user_b = signup_via_api()
 
-    def _create_batch(user, label: str) -> int:
+    def _create_batch(user, label: str) -> None:
         api = tenant_client(user)
-        created = 0
         for i in range(5):
-            r = api.post(
+            api.post(
                 API.PEOPLE,
                 json={"name": f"{label}-Person-{i}", "gender": "m"},
-            )
-            if r.status_code == 201:
-                created += 1
-        return created
+            ).raise_for_status()
 
     with cf.ThreadPoolExecutor(max_workers=2) as ex:
         f_a = ex.submit(_create_batch, user_a, "Concurr-A")
         f_b = ex.submit(_create_batch, user_b, "Concurr-B")
-        a_created = f_a.result()
-        b_created = f_b.result()
-
-    assert a_created == 5
-    assert b_created == 5
+        f_a.result()
+        f_b.result()
 
     api_a = tenant_client(user_a)
     api_b = tenant_client(user_b)

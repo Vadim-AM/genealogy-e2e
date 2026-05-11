@@ -16,7 +16,7 @@ from tests.api_paths import API
 def test_audit_log_403_for_non_super(owner_user, tenant_client):
     """TC-PA-AUDIT-1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_AUDIT_LOG)
-    assert r.status_code in (401, 403)
+    assert r.status_code == 403
 
 
 def test_audit_log_returns_canonical_shape(superadmin_user, tenant_client):

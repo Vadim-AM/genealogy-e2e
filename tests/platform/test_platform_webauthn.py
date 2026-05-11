@@ -28,7 +28,7 @@ from tests.pages.platform_dashboard_page import PlatformDashboardPage
 def test_webauthn_list_403_for_non_super(owner_user, tenant_client):
     """TC-PA-WEBAUTHN-1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.WEBAUTHN_LIST)
-    assert r.status_code in (401, 403)
+    assert r.status_code == 403
 
 
 def test_webauthn_list_initially_empty(superadmin_user, tenant_client):

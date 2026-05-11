@@ -42,7 +42,7 @@ def test_owner_can_import_gedcom_via_auth_v2(owner_user, tenant_client):
         files={"file": ("import.ged", minimal_gedcom.encode("utf-8"), "application/octet-stream")},
         timeout=TIMEOUTS.api_long,
     )
-    assert r.status_code in (200, 201, 202), (
+    assert r.status_code == 200, (
         f"GEDCOM import not accessible to auth_v2 owner: "
         f"{r.status_code} {r.text[:200]}"
     )

@@ -34,7 +34,7 @@ from tests.pages.platform_dashboard_page import PlatformDashboardPage
 def test_device_mix_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-1.1: regular owner получает 401/403 на device-mix."""
     r = tenant_client(owner_user).get(API.PLATFORM_DEVICE_MIX)
-    assert r.status_code in (401, 403), \
+    assert r.status_code == 403, \
         f"non-superadmin reached device-mix: {r.status_code} {r.text[:200]}"
 
 
@@ -88,7 +88,7 @@ def test_device_mix_does_not_leak_pii(superadmin_user, tenant_client):
 def test_activity_heatmap_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-2.1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_ACTIVITY_HEATMAP)
-    assert r.status_code in (401, 403)
+    assert r.status_code == 403
 
 
 def test_activity_heatmap_returns_7x24_matrix(superadmin_user, tenant_client):
@@ -147,7 +147,7 @@ def test_activity_heatmap_user_local_mode_accepted(superadmin_user, tenant_clien
 def test_online_now_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-3.1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_ONLINE_NOW)
-    assert r.status_code in (401, 403)
+    assert r.status_code == 403
 
 
 def test_online_now_returns_canonical_shape(superadmin_user, tenant_client):
@@ -167,7 +167,7 @@ def test_online_now_returns_canonical_shape(superadmin_user, tenant_client):
 def test_session_stats_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-3.3: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_SESSION_STATS)
-    assert r.status_code in (401, 403)
+    assert r.status_code == 403
 
 
 def test_session_stats_returns_canonical_shape(superadmin_user, tenant_client):
@@ -193,7 +193,7 @@ def test_session_stats_returns_canonical_shape(superadmin_user, tenant_client):
 def test_retention_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-4.1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_RETENTION)
-    assert r.status_code in (401, 403)
+    assert r.status_code == 403
 
 
 def test_retention_returns_cohort_grid(superadmin_user, tenant_client):
@@ -217,7 +217,7 @@ def test_retention_clamps_weeks_to_max_26(superadmin_user, tenant_client):
 def test_time_to_aha_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-4.4: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_TIME_TO_AHA)
-    assert r.status_code in (401, 403)
+    assert r.status_code == 403
 
 
 def test_time_to_aha_returns_percentiles_and_buckets(superadmin_user, tenant_client):
@@ -257,7 +257,7 @@ def test_funnel_detail_returns_step_metrics(superadmin_user, tenant_client):
 def test_alerts_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-6.1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_ALERTS)
-    assert r.status_code in (401, 403)
+    assert r.status_code == 403
 
 
 def test_alerts_returns_items_list(superadmin_user, tenant_client):
@@ -293,7 +293,7 @@ def test_alerts_each_item_has_severity_title_message(superadmin_user, tenant_cli
 def test_health_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-6.4: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_HEALTH)
-    assert r.status_code in (401, 403)
+    assert r.status_code == 403
 
 
 def test_health_returns_canonical_metrics(superadmin_user, tenant_client):

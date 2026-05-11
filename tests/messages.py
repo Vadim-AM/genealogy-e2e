@@ -122,6 +122,26 @@ class TestData(_Catalogue):
     DEFAULT_FULL_NAME = "Тестовый Пользователь"
 
 
+class GedcomImport(_Catalogue):
+    """UI labels shown by the GEDCOM import widget. Substring match —
+    survives copy edits as long as semantic core stays."""
+
+    # DONE-summary mentions skipped (already-existing) rows count.
+    SKIPPED_LABEL = {"ru": "Пропущено", "en": "Skipped"}
+    # alertDialog when no `.ged` extension on chosen file.
+    FILE_EXTENSION_HINT = ".ged"
+    # alertDialog for 0-byte file.
+    EMPTY_LABEL = {"ru": "пустой", "en": "empty"}
+    # alertDialog for > size-limit file.
+    TOO_LARGE_LABEL = {"ru": "слишком большой", "en": "too large"}
+
+
+class AgeValidation(_Catalogue):
+    """Substring match for backend's parent-age validation error."""
+
+    PARENT_AGE_KEYWORD = {"ru": "Возраст родителя", "en": "Parent age"}
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Resolver
 # ─────────────────────────────────────────────────────────────────────────

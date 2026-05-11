@@ -33,13 +33,13 @@ def test_delete_tenant_invalidates_owner_session(
 
     # 2. POST delete-tenant — soft-delete с подтверждением через slug.
     r = api.post(API.DELETE_TENANT, json={"confirm_slug": user.slug})
-    assert r.status_code in (200, 202, 204), (
+    assert r.status_code == 204, (
         f"delete-tenant should succeed; got {r.status_code} {r.text[:200]}"
     )
 
     # 3. Cookie должна быть отозвана.
     me_after = api.get(API.ACCOUNT_ME)
-    assert me_after.status_code in (401, 403), (
+    assert me_after.status_code == 401, (
         f"INV-GDPR-001a: session NOT invalidated after delete-tenant. "
         f"Cookie returns {me_after.status_code} {me_after.text[:200]}. "
         f"Spec promises sessions are cleared on delete."

@@ -33,7 +33,7 @@ def test_post_enrich_without_consent_is_forbidden(
 
     r = api.post(API.enrich(pid), json={"streaming": False, "force_refresh": True})
 
-    assert r.status_code in (401, 403, 422), (
+    assert r.status_code == 403, (
         f"INV-AI-005: enrich accepted without consent (status="
         f"{r.status_code}). Backend should require consent on record "
         f"before sending PII to Anthropic. Body: {r.text[:200]}"

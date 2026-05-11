@@ -93,6 +93,7 @@ class API:
     # ── Admin (legacy gates — auth_v2 миграция в процессе) ───────
     ADMIN_EXPORT_GEDCOM = "/api/admin/export-gedcom"
     ADMIN_IMPORT_GEDCOM = "/api/admin/import-gedcom"
+    ADMIN_IMPORT_GEDCOM_CONFIRM = "/api/admin/import-gedcom/confirm"
     ADMIN_INVITES = "/api/admin/invites"
 
     # ── Subscription ─────────────────────────────────────────────

@@ -46,7 +46,7 @@ def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
             headers={"Accept-Language": "ru"},
         )
 
-    assert r.status_code in (401, 403), f"expected 401/403 for unknown user; got {r.status_code}"
+    assert r.status_code == 401, f"expected 401 for unknown user; got {r.status_code}"
     body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
     detail = body.get("detail") or body.get("message") or ""
 
@@ -69,7 +69,7 @@ def test_signup_validation_error_detail_in_russian(uvicorn_server: str):
             headers={"Accept-Language": "ru"},
         )
 
-    assert 400 <= r.status_code < 500, f"expected 4xx for short password; got {r.status_code}"
+    assert r.status_code == 422, f"expected 422 Pydantic validation for short password; got {r.status_code}"
     body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
 
     # FastAPI/Pydantic 422 имеет body.detail = list[dict]; каждый item имеет

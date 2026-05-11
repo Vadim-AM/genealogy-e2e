@@ -15,11 +15,10 @@ persons через API.
 from __future__ import annotations
 
 import httpx
-import pytest
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
-from tests.messages import TestData
+from tests.messages import AgeValidation, FamilyGroups, TestData, t
 from tests.pages.person_editor import AddRelativeModal
 from tests.pages.profile_panel import ProfilePanel
 from tests.timeouts import TIMEOUTS
@@ -96,7 +95,7 @@ def _add_sibling_without_auto_parents(
     if gender:
         modal.select_gender(gender)
 
-    with page.expect_response("**/api/people**") as resp:
+    with page.expect_response(f"**{API.PEOPLE}**") as resp:
         modal.save()
     assert resp.value.ok, (
         f"POST /api/people failed: {resp.value.status} {resp.value.text()[:200]}"
@@ -163,7 +162,7 @@ def test_sibling_parent_suggestion_prevents_duplicate(
     modal.expect_suggestion_visible(demo_father_id)
 
     # KEY-2: клик на suggestion = POST /relationships (НЕ /people)
-    with owner_page.expect_response("**/api/relationships**") as rel_resp:
+    with owner_page.expect_response(f"**{API.RELATIONSHIPS}**") as rel_resp:
         modal.click_suggestion(demo_father_id)
     assert rel_resp.value.ok, (
         f"POST /api/relationships failed: {rel_resp.value.status} "
@@ -296,7 +295,6 @@ def test_no_suggestion_when_max_parents_already(
     panel = _open_profile(owner_page, TestData.DEMO_PERSON_ID)
     # +parent button locator (внутри ProfilePanel.add_relative_button)
     # должна отсутствовать или быть hidden у demo-self (2 parents already).
-    from tests.messages import FamilyGroups, t
     parents_add_btn = panel.add_relative_button(t(FamilyGroups.PARENTS))
     expect(parents_add_btn).to_have_count(0)
 
@@ -340,7 +338,7 @@ def test_user_ignores_suggestion_creates_new_person(
     modal.fill_fio(surname="Прадедов", given="Иннокентий", birth="01.01.1900")
     modal.select_gender("m")
 
-    with owner_page.expect_response("**/api/people**") as resp:
+    with owner_page.expect_response(f"**{API.PEOPLE}**") as resp:
         modal.save()
     assert resp.value.ok
     expect(modal.overlay).not_to_be_visible()
@@ -399,7 +397,7 @@ def test_suggestion_click_does_not_create_new_person(
 
     owner_page.on("request", _on_request)
     try:
-        with owner_page.expect_response("**/api/relationships**") as _:
+        with owner_page.expect_response(f"**{API.RELATIONSHIPS}**") as _:
             modal.click_suggestion(demo_father_id)
         expect(modal.overlay).not_to_be_visible()
     finally:
@@ -439,7 +437,7 @@ def test_existing_sibling_auto_parent_checkbox_still_works(
     modal.fill_fio(surname="Тестовая", given="Брат", birth="01.01.1985")
     modal.select_gender("m")
 
-    with owner_page.expect_response("**/api/people**") as resp:
+    with owner_page.expect_response(f"**{API.PEOPLE}**") as resp:
         modal.save()
     assert resp.value.ok
     expect(modal.overlay).not_to_be_visible()
@@ -503,15 +501,15 @@ def test_suggestion_click_shows_error_on_backend_422(
         else:
             route.continue_()
 
-    owner_page.route("**/api/relationships*", _block_with_422)
+    owner_page.route(f"**{API.RELATIONSHIPS}*", _block_with_422)
     try:
         modal.click_suggestion(demo_father_id)
         # Модалка должна остаться открытой
         expect(modal.overlay).to_be_visible()
         expect(modal.error).to_be_visible()
-        expect(modal.error).to_contain_text("Возраст родителя")
+        expect(modal.error).to_contain_text(t(AgeValidation.PARENT_AGE_KEYWORD))
     finally:
-        owner_page.unroute("**/api/relationships*")
+        owner_page.unroute(f"**{API.RELATIONSHIPS}*")
 
     # Граф не должен был измениться
     rels_after = _relationships(api)

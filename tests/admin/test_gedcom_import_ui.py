@@ -17,10 +17,10 @@ state machine, preview rendering, encoding-badge, error paths, idempotency.
 
 from __future__ import annotations
 
-import httpx
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
+from tests.messages import GedcomImport, t
 from tests.pages.owner_page import OwnerPage
 from tests.timeouts import TIMEOUTS
 
@@ -115,7 +115,7 @@ def test_round_trip_export_then_import(owner_page: Page, owner_user, tenant_clie
 
     # 5. DONE summary mentions «Пропущено» — нет реально-новых persons
     summary_text = owner.import_summary.text_content() or ""
-    assert "Пропущено" in summary_text, f"expected skipped count in DONE: {summary_text!r}"
+    assert t(GedcomImport.SKIPPED_LABEL) in summary_text, f"expected skipped count in DONE: {summary_text!r}"
 
     # API: count не изменился — backend skipnул всех (idempotent)
     count_after = _tree_people_count(owner_user, tenant_client)
@@ -234,7 +234,7 @@ def test_done_shows_skipped_count_on_reimport(owner_page: Page, owner_user, tena
     owner.confirm_import_via_dialog()
     owner.expect_import_state("DONE")
     summary_text = owner.import_summary.text_content() or ""
-    assert "Пропущено" in summary_text, summary_text
+    assert t(GedcomImport.SKIPPED_LABEL) in summary_text, summary_text
 
 
 def test_retry_after_error_resets_to_idle(owner_page: Page, owner_user):
@@ -247,13 +247,13 @@ def test_retry_after_error_resets_to_idle(owner_page: Page, owner_user):
                           content_type="application/json")
         else:
             route.continue_()
-    owner_page.route("**/api/admin/import-gedcom", _block_500)
+    owner_page.route(f"**{API.ADMIN_IMPORT_GEDCOM}", _block_500)
     try:
         owner.upload_ged(filename="boom.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
         owner.expect_import_state("ERROR")
         expect(owner.import_error).to_be_visible()
     finally:
-        owner_page.unroute("**/api/admin/import-gedcom")
+        owner_page.unroute(f"**{API.ADMIN_IMPORT_GEDCOM}")
 
     owner.import_retry_btn.click()
     owner.expect_import_state("IDLE")
@@ -278,7 +278,7 @@ def test_rejects_non_ged_extension(owner_page: Page, owner_user):
     )
     # alertDialog появляется
     expect(owner.confirm_dialog).to_be_visible()
-    expect(owner.confirm_dialog).to_contain_text(".ged")
+    expect(owner.confirm_dialog).to_contain_text(GedcomImport.FILE_EXTENSION_HINT)
     # POST НЕ был отправлен
     assert posted == [], f"unexpected POSTs: {posted}"
     # Закрываем alertDialog
@@ -293,7 +293,7 @@ def test_rejects_empty_file(owner_page: Page, owner_user):
         files=[{"name": "empty.ged", "mimeType": "application/octet-stream", "buffer": b""}]
     )
     expect(owner.confirm_dialog).to_be_visible()
-    expect(owner.confirm_dialog).to_contain_text("пустой")
+    expect(owner.confirm_dialog).to_contain_text(t(GedcomImport.EMPTY_LABEL))
     owner.confirm_dialog_ok.click()
     owner.expect_import_state("IDLE")
 
@@ -314,7 +314,7 @@ def test_rejects_oversize_file(owner_page: Page, owner_user):
         ]
     )
     expect(owner.confirm_dialog).to_be_visible()
-    expect(owner.confirm_dialog).to_contain_text("слишком большой")
+    expect(owner.confirm_dialog).to_contain_text(t(GedcomImport.TOO_LARGE_LABEL))
     owner.confirm_dialog_ok.click()
     owner.expect_import_state("IDLE")
 
@@ -338,23 +338,23 @@ def test_backend_400_shows_friendly_error(owner_page: Page, owner_user):
         else:
             route.continue_()
 
-    owner_page.route("**/api/admin/import-gedcom", _block_400)
+    owner_page.route(f"**{API.ADMIN_IMPORT_GEDCOM}", _block_400)
     try:
         owner.upload_ged(filename="malformed.ged", content=SAMPLE_GEDCOM_MALFORMED)
         owner.expect_import_state("ERROR")
         expect(owner.import_error).to_contain_text("GEDCOM parse error")
     finally:
-        owner_page.unroute("**/api/admin/import-gedcom")
+        owner_page.unroute(f"**{API.ADMIN_IMPORT_GEDCOM}")
 
 
 def test_network_error_shows_friendly_message(owner_page: Page, owner_user):
     """Полный network fail (route.abort) → ERROR с friendly message."""
     owner = _open_import_tab(owner_page)
-    owner_page.route("**/api/admin/import-gedcom", lambda r: r.abort())
+    owner_page.route(f"**{API.ADMIN_IMPORT_GEDCOM}", lambda r: r.abort())
     try:
         owner.upload_ged(filename="fail.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
         owner.expect_import_state("ERROR")
         # Message — friendly, не raw stacktrace
         expect(owner.import_error).to_be_visible()
     finally:
-        owner_page.unroute("**/api/admin/import-gedcom")
+        owner_page.unroute(f"**{API.ADMIN_IMPORT_GEDCOM}")

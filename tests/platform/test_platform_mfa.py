@@ -37,7 +37,7 @@ _BASE32_RE = re.compile(r"^[A-Z2-7]+$")
 def test_mfa_setup_requires_superadmin(owner_user, tenant_client):
     """TC-PA-MFA-1: regular owner → 401/403 на /mfa/setup."""
     r = tenant_client(owner_user).post(API.MFA_SETUP)
-    assert r.status_code in (401, 403)
+    assert r.status_code == 403
 
 
 def test_mfa_setup_returns_secret_and_uri(superadmin_user, tenant_client):
