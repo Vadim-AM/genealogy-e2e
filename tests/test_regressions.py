@@ -15,53 +15,48 @@ Removed (28.04 sanitize):
 
 from __future__ import annotations
 
-import httpx
-
-from tests.timeouts import TIMEOUTS
 from playwright.sync_api import Page
+
+from tests.api_paths import API
+from tests.constants import make_email
+from tests.timeouts import TIMEOUTS
 
 
 def test_bug_auth_001_authv2_owner_reads_enrichment(
-    owner_user, grant_ai_consent, base_url: str
+    owner_user, grant_ai_consent, tenant_client,
 ):
     """TC-BUG-AUTH-001: auth_v2 owner can hit GET /api/enrich/{id}/history without 401."""
     grant_ai_consent(owner_user)
-    headers = {"X-Tenant-Slug": owner_user.slug}
-    r = httpx.get(
-        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=TIMEOUTS.api_request
-    )
+    api = tenant_client(owner_user)
+    r = api.get(API.TREE)
     r.raise_for_status()
     people = r.json()["people"]
     assert people, f"new tenant must have demo people seeded; got: {r.json()}"
     pid = people[0]["id"]
 
-    for sub in ("/history", "/acceptances"):
-        r = httpx.get(
-            f"{base_url}/api/enrich/{pid}{sub}",
-            cookies=owner_user.cookies,
-            headers=headers,
-            timeout=TIMEOUTS.api_request,
-        )
+    for path in (API.enrich_history(pid), API.enrich_acceptances(pid)):
+        r = api.get(path)
         assert r.status_code != 401, \
-            f"BUG-AUTH-001 regression: GET /api/enrich/{pid}{sub} → 401"
-        # 200 = success with data, 204 = empty list. 4xx of any other shape
+            f"BUG-AUTH-001 regression: GET {path} → 401"
+        # 200 = success with data, 204 = empty list. Any other status
         # means coverage regression — fail loudly.
         assert r.status_code in (200, 204), \
-            f"unexpected status for {pid}{sub}: {r.status_code} {r.text[:200]}"
+            f"unexpected status for {path}: {r.status_code} {r.text[:200]}"
 
 
-def test_bug_auth_002_pageview_platform_session_no_500(owner_user, base_url: str):
-    """TC-BUG-AUTH-002: /api/analytics/log with PlatformSession cookie does not 500."""
-    headers = {"X-Tenant-Slug": owner_user.slug}
-    r = httpx.post(
-        f"{base_url}/api/analytics/log",
+def test_bug_auth_002_pageview_platform_session_no_500(owner_user, tenant_client):
+    """TC-BUG-AUTH-002: /api/analytics/log with PlatformSession cookie returns 204.
+
+    Pinned exact status (was `< 500` smoke per rule #1). Backend
+    contract is fire-and-forget — 204 No Content on accepted event.
+    """
+    api = tenant_client(owner_user)
+    r = api.post(
+        API.ANALYTICS_LOG,
         json={"event": "page_view", "path": "/", "context": {"section": "tree"}},
-        cookies=owner_user.cookies,
-        headers=headers,
-        timeout=TIMEOUTS.api_request,
     )
-    assert r.status_code < 500, \
-        f"BUG-AUTH-002 regression: 5xx with body {r.text[:300]}"
+    assert r.status_code == 200, \
+        f"BUG-AUTH-002 regression: status={r.status_code} body={r.text[:300]}"
 
 
 def test_bug_csrf_001_console_clean_on_signup(page: Page):
@@ -74,68 +69,53 @@ def test_bug_csrf_001_console_clean_on_signup(page: Page):
         else None,
     )
     page.goto("/signup")
-    page.wait_for_load_state("networkidle")
+    page.wait_for_load_state("domcontentloaded")
     assert not bad_404, f"BUG-CSRF-001 regression: {bad_404}"
 
 
-def test_bug_mt_001_site_config_is_per_tenant(signup_via_api, base_url: str):
+def test_bug_mt_001_site_config_is_per_tenant(signup_via_api, tenant_client):
     """BUG-MT-001 regression: PATCH /api/site/config in tenant A must NOT affect tenant B.
 
     Was xfail (Apr 2026) — passes in current HEAD; marker dropped on 28.04.
     """
-    user_a = signup_via_api(email="config-a@e2e.example.com")
-    user_b = signup_via_api(email="config-b@e2e.example.com")
+    user_a = signup_via_api(email=make_email("config-a"))
+    user_b = signup_via_api(email=make_email("config-b"))
 
-    r = httpx.patch(
-        f"{base_url}/api/site/config",
-        json={"site_name": "Tenant A Brand"},
-        cookies=user_a.cookies,
-        headers={"X-Tenant-Slug": user_a.slug},
-        timeout=TIMEOUTS.api_request,
-    )
-    r.raise_for_status()
+    api_a = tenant_client(user_a)
+    api_b = tenant_client(user_b)
 
-    r = httpx.get(
-        f"{base_url}/api/site/config",
-        cookies=user_b.cookies,
-        headers={"X-Tenant-Slug": user_b.slug},
-        timeout=TIMEOUTS.api_request,
-    )
+    api_a.patch(API.SITE_CONFIG, json={"site_name": "Tenant A Brand"}).raise_for_status()
+
+    r = api_b.get(API.SITE_CONFIG)
     r.raise_for_status()
     assert r.json()["site_name"] != "Tenant A Brand", \
         "BUG-MT-001: tenant A's config leaked into tenant B"
 
 
 def test_bug_auth_003_sse_reconnect_recovers(
-    owner_user, grant_ai_consent, base_url: str
+    owner_user, grant_ai_consent, tenant_client,
 ):
     """TC-BUG-AUTH-003 regression: re-issuing a streaming enrichment for the
     same person must reuse the active job, not 409 Conflict."""
     grant_ai_consent(owner_user)
-    headers = {"X-Tenant-Slug": owner_user.slug}
-    r = httpx.get(
-        f"{base_url}/api/tree", cookies=owner_user.cookies, headers=headers, timeout=TIMEOUTS.api_request
-    )
+    api = tenant_client(owner_user)
+    r = api.get(API.TREE)
     r.raise_for_status()
     people = r.json()["people"]
     assert people, "new tenant must have demo people seeded"
     pid = people[0]["id"]
 
-    r1 = httpx.post(
-        f"{base_url}/api/enrich/{pid}",
+    r1 = api.post(
+        API.enrich(pid),
         json={"streaming": True, "force_refresh": False},
-        cookies=owner_user.cookies,
-        headers=headers,
         timeout=TIMEOUTS.api_long,
     )
     assert r1.status_code == 200, \
         f"first enrich POST failed: {r1.status_code} {r1.text[:200]}"
 
-    r2 = httpx.post(
-        f"{base_url}/api/enrich/{pid}",
+    r2 = api.post(
+        API.enrich(pid),
         json={"streaming": True, "force_refresh": False},
-        cookies=owner_user.cookies,
-        headers=headers,
         timeout=TIMEOUTS.api_long,
     )
     assert r2.status_code != 409, \

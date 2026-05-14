@@ -65,3 +65,9 @@ class ResetPasswordPage(BasePage):
         import re
 
         expect(self.msg).to_have_class(re.compile(r"\bsuccess\b"))
+
+    def expect_error_message(self) -> None:
+        """`#msg.error` — invalid/used token."""
+        import re
+
+        expect(self.msg).to_have_class(re.compile(r"\berror\b"))

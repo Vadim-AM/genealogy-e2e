@@ -18,7 +18,11 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 319 тестов × ~4s/test на CI runner ≈ 21 мин wall-clock с
+    # E2E_TIMEOUT_MULTIPLIER=1.5. GEDCOM import (file uploads), cross-tenant
+    # (2 signup_via_api на тест) и security_timing (60 sequential HTTP)
+    # — наиболее тяжёлые. 25 мин даёт margin без скрывания регрессий.
+    timeout-minutes: 25
     steps:
       - name: Checkout genealogy-e2e
         uses: actions/checkout@v4
@@ -48,10 +52,26 @@ jobs:
           # python-dotenv is imported by app.config; install if not pinned upstream.
           pip install python-dotenv
 
-      - name: Install e2e deps + Chromium
-        run: |
-          pip install -r requirements.txt
-          playwright install --with-deps chromium
+      - name: Install e2e deps
+        run: pip install -r requirements.txt
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          # Key on requirements.txt — bumping playwright pin invalidates cache.
+          key: ${{ runner.os }}-playwright-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Chromium (when cache miss)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: playwright install --with-deps chromium
+
+      - name: Install Chromium system deps (always — apt packages aren't cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: playwright install-deps chromium
 
       - name: Start test-instrumented backend
         run: |
@@ -72,6 +92,13 @@ jobs:
           nohup uvicorn app.main:app --host 127.0.0.1 --port 8642 \
             --log-level warning > "$GITHUB_WORKSPACE/uvicorn.log" 2>&1 &
           echo "uvicorn PID=$!"
+
+      - name: Lint test files for rule drift
+        # CLAUDE.md rules #5 (no hardcoded timeouts) / #9 (no raw URL strings).
+        # Catches regressions before they accumulate; whitelist a line with
+        # `# noqa: drift` for genuinely legitimate uses (e.g. router-shape
+        # parametrize in test_ai_disabled_flow.py).
+        run: python scripts/check_drift.py
 
       - name: Wait for backend /api/health
         run: |

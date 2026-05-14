@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 from playwright.sync_api import Page, expect
 
+from tests.api_paths import API
 from tests.pages.signup_page import SignupPage
 from tests.pages.tree_page import TreePage
 from tests.pages.wait_page import WaitPage
@@ -40,6 +41,6 @@ def test_wait_form_visible(page: Page):
 @pytest.mark.smoke
 def test_health_endpoint_via_browser(page: Page):
     """Sanity: even page.goto sees the live FastAPI subprocess."""
-    response = page.goto("/api/health")
+    response = page.goto(API.HEALTH)
     assert response is not None
     assert response.status == 200

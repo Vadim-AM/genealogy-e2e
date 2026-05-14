@@ -23,6 +23,8 @@ Field semantics — pick the smallest one that fits the operation:
   - `api_long`    (30s) — exports / bulk operations
   - `health_gate` (30s) — subprocess /api/health bootstrap window
   - `enrichment_poll` (30s) — background job completion
+  - `polling_interval` (0.3s) — sleep between httpx-poll retries
+  - `pw_action_ms` (10_000ms) — Playwright `wait_for_*` action timeout
 """
 
 from __future__ import annotations
@@ -56,8 +58,12 @@ class _Timeouts:
     api_long: float
     health_gate: float
     enrichment_poll: float
+    # Sleep between retries in custom httpx polling loops (seconds).
+    polling_interval: float
     # Playwright `expect()` auto-wait window in MILLISECONDS.
     pw_expect_ms: int
+    # Playwright `wait_for_load_state` / `wait_for_selector` window (ms).
+    pw_action_ms: int
 
 
 def _build() -> _Timeouts:
@@ -68,7 +74,9 @@ def _build() -> _Timeouts:
         api_long=30.0 * m,
         health_gate=30.0 * m,
         enrichment_poll=30.0 * m,
+        polling_interval=0.3 * m,
         pw_expect_ms=int(5_000 * m),
+        pw_action_ms=int(10_000 * m),
     )
 
 

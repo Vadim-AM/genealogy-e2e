@@ -225,27 +225,51 @@ markup.
 
 ```
 genealogy-e2e/
+├── conftest.py               # root: loads tests/_fixtures/* plugins + path→marker rule
 ├── tests/
-│   ├── conftest.py           # fixtures: signup_*, login_*, tenant_client,
-│   │                         # owner_page, grant_ai_consent, reset_state, etc.
+│   ├── _fixtures/            # fixture plugins (split from old monolith conftest)
+│   │   ├── patch.py          # httpx monkey-patch + Playwright expect default
+│   │   ├── server.py         # base_url, health gate, reset_state, install_mock_ai
+│   │   ├── users.py          # AuthUser + signup_via_api / owner_user / superadmin_user / ...
+│   │   ├── clients.py        # tenant_client, auth_context_factory, owner_page
+│   │   └── utils.py          # soft_check
 │   ├── api_paths.py          # API.{TREE, person(pid), enrich(pid), ...}
 │   ├── constants.py          # TestConfig.{DEFAULT_PASSWORD, EMAIL_DOMAIN, ...}
 │   ├── messages.py           # locale-aware UI string catalogue + t() resolver
 │   ├── timeouts.py           # TIMEOUTS dataclass + E2E_TIMEOUT_MULTIPLIER
-│   ├── pages/                # Page Objects (one per page/component)
-│   │   ├── base.py
-│   │   ├── tree_page.py, signup_page.py, login_page.py, ...
-│   │   └── profile_panel.py, person_editor.py, enrichment_modal.py
+│   ├── pages/                # Page Objects (one per page/component, currently flat)
 │   ├── fixtures/
 │   │   └── ai_responses.json # mock-AI fixture installed via /api/_test/install-mock-ai
-│   └── test_*.py             # one file per feature area
+│   ├── auth/                 # signup/login/verify/forgot/invite/session/etc.
+│   ├── tree/                 # tree, profile, person editor, photos, invariants
+│   ├── platform/             # superadmin platform (dashboard, MFA, WebAuthn, ops)
+│   ├── admin/                # tenant admin (owner, site config, subscription)
+│   ├── security/             # CSP, headers, timing, role-perm, GDPR, PII
+│   ├── enrichment/           # AI enrichment (consent, mock flow, disabled-mode)
+│   ├── ui/                   # landing, i18n, a11y, responsive, legal, waitlist
+│   ├── test_smoke.py         # canary (no domain — runs on every PR)
+│   └── test_regressions.py   # closed-bug regressions (no domain)
+├── scripts/
+│   └── check_drift.py        # Lints rules #5/#9 against tests/ + tests/pages/
 ├── docker/Dockerfile.e2e     # CI-friendly image
 ├── docker-compose.yml        # backend + e2e wiring
 ├── .github/workflows/
-│   └── pr-check.yml          # checkout both repos, boot uvicorn, run pytest
-├── pytest.ini                # pythonpath=., markers=smoke|regression|slow
+│   └── pr-check.yml          # boots uvicorn → drift-lint → pytest
+├── pytest.ini                # markers: smoke, regression, slow + domains
 └── requirements.txt          # playwright>=1.45, pytest-playwright>=0.4.4
 ```
+
+Tests under `tests/<domain>/` automatically get `@pytest.mark.<domain>` via
+`pytest_collection_modifyitems` in root `conftest.py`. Run a single domain
+with `pytest -m auth`, `pytest -m security`, etc. — no per-file marker lines.
+
+## Drift enforcement
+
+`scripts/check_drift.py` lints all `tests/*.py` (and `tests/pages/*.py`)
+against rules #5 and #9 — runs in CI as a pre-pytest step. Catches
+`page.wait_for_timeout()`, hardcoded `time.sleep(N)`, `timeout=N` literals,
+and raw `'/api/...'` strings. Whitelist legitimate uses (e.g. router-shape
+parametrize lists) with a trailing `# noqa: drift` comment.
 
 ## Running locally
 
