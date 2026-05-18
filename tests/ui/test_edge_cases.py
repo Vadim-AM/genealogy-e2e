@@ -47,8 +47,14 @@ def test_old_person_with_only_name_field_renders(owner_user, tenant_client):
 
 
 def test_health_endpoint_does_not_require_auth(base_url: str):
-    """Smoke: /api/health is public, used by Caddy / monitoring."""
+    """Smoke: /api/health is public (no auth), reports status ok.
+
+    Behaviour, not exact shape (Rule 13): post-PR-B7 the body also carries
+    diagnostic keys (`dialect`, `active_tenants`). Pinning the whole dict
+    made the test fail on an additive, non-functional change. The contract
+    is: reachable without credentials + `status == "ok"`.
+    """
     r = httpx.get(f"{base_url}{API.HEALTH}", timeout=TIMEOUTS.api_request)
     r.raise_for_status()
-    assert r.json() == {"status": "ok"}, \
-        f"unexpected /api/health body: {r.json()!r}"
+    assert r.json().get("status") == "ok", \
+        f"unexpected /api/health status: {r.json()!r}"

@@ -19,12 +19,16 @@ from tests.timeouts import TIMEOUTS
 # ─────────────────────────────────────────────────────────────────────────
 
 
+# `/api/admin/invites` dropped: the legacy admin surface was removed
+# upstream in v2-Phase2 (commit `dac8535`, admin_password retired) — the
+# route now 404s, so it is no longer a "private endpoint" to gate. The v2
+# invites surface `/api/account/tenant/invites` (kept below) covers the
+# same auth boundary.
 @pytest.mark.parametrize(
     "endpoint",
     [
         "/api/people",
         "/api/account/tenant/invites",
-        "/api/admin/invites",
         "/api/platform/metrics",
     ],
 )

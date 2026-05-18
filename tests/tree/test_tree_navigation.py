@@ -8,6 +8,7 @@ from __future__ import annotations
 from playwright.sync_api import Page, expect
 
 from tests.messages import TestData
+from tests.pages.base import wait_for_authed_shell
 from tests.pages.tree_page import TreePage
 
 
@@ -18,7 +19,10 @@ def test_switch_between_tabs(owner_page: Page):
     из switcher list — все остальные tabs должны быть кликабельны.
     """
     tree = TreePage(owner_page).goto()
-    owner_page.wait_for_load_state("domcontentloaded")
+    # The auth-gated tabs (sources/timeline) only become interactable once
+    # the authed shell has settled — clicking at domcontentloaded races the
+    # guest→authed updateGuestUI() re-run. See wait_for_authed_shell.
+    wait_for_authed_shell(owner_page)
 
     for tab_name in ("sources", "timeline", "about"):
         tree.switch_to(tab_name)

@@ -137,11 +137,17 @@ def test_ai_search_toggle_reflects_db_value_when_off(
     page = ctx.new_page()
     page.goto("/platform/dashboard")
     expect(page.locator("#ff_enable_ai_search")).to_be_visible()
-    page.wait_for_function(
-        "document.getElementById('set_beta_cap') && "
-        "parseInt(document.getElementById('set_beta_cap').value, 10) > 0",
-        timeout=TIMEOUTS.pw_expect_ms,
-    )
+    # loadSettings() done-sentinel, CSP-safe. tenants.js:121 assigns
+    # `set_beta_cap.value = s.beta_user_cap`; the input has no value
+    # attribute so it reads "" until loadSettings hydrates it. Two reasons
+    # the old `wait_for_function("…>0")` broke post-cutover: (1) the
+    # platform dashboard now serves `script-src 'self'` with no
+    # 'unsafe-eval', so Playwright's string-predicate eval is CSP-blocked;
+    # (2) the PR-B7 seed default for beta_user_cap is 0 — a valid loaded
+    # value, so `>0` never held anyway. A locator assertion runs at the
+    # driver level (no page eval) and `not_to_have_value("")` is
+    # value-agnostic: only "" means not-yet-hydrated.
+    expect(page.locator("#set_beta_cap")).not_to_have_value("")
 
     is_checked = page.locator("#ff_enable_ai_search").is_checked()
     assert is_checked is False, (
@@ -158,14 +164,11 @@ def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_u
     page.goto("/platform/dashboard")
     expect(page.locator("#ff_enable_ai_search")).to_be_visible()
 
-    # Дожидаемся завершения loadSettings() — иначе click может прилететь до
-    # того, как JS подпишется на change. Маркер тот же, что и в тесте выше:
-    # set_beta_cap получает значение из БД (>0) только после bootstrap.
-    page.wait_for_function(
-        "document.getElementById('set_beta_cap') && "
-        "parseInt(document.getElementById('set_beta_cap').value, 10) > 0",
-        timeout=TIMEOUTS.pw_expect_ms,
-    )
+    # Wait for loadSettings() so the click lands after the change-listener
+    # is wired. CSP-safe locator assertion (not wait_for_function — the
+    # dashboard's `script-src 'self'` blocks string-predicate eval); see
+    # the matching note in test_ai_search_toggle_reflects_db_value_when_off.
+    expect(page.locator("#set_beta_cap")).not_to_have_value("")
 
     # Локатор должен использовать `contains` — на строке в .dirty состоянии
     # `class='ff-row dirty'`, exact match по ='ff-row' не сработает.

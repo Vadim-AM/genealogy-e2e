@@ -34,9 +34,19 @@ def test_wait_page_renders_form(page: Page):
 
 
 def test_wait_submit_email_success(page: Page):
-    """F-WAIT-2: submit → success message."""
+    """F-WAIT-2: submit → success message.
+
+    Hardened (Rule 1): the previous `expect_success()`-only assertion was a
+    false-green — on a 500 the JS still writes a non-empty error into
+    `#result`, so the test passed even when the endpoint was broken. Pin
+    the HTTP response so a real waitlist break is actually caught.
+    """
     wait = WaitPage(page).goto()
-    wait.submit_email(_unique_email("waitlist1"))
+    with page.expect_response("**/api/waitlist/subscribe") as r_info:
+        wait.submit_email(_unique_email("waitlist1"))
+    assert r_info.value.status == 200, (
+        f"subscribe must be 200: {r_info.value.status} {r_info.value.text()[:200]}"
+    )
     wait.expect_success()
 
 

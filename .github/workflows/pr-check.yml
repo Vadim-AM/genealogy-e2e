@@ -23,6 +23,23 @@ jobs:
     # (2 signup_via_api на тест) и security_timing (60 sequential HTTP)
     # — наиболее тяжёлые. 25 мин даёт margin без скрывания регрессий.
     timeout-minutes: 25
+    # Upstream dev is PostgreSQL-only since PR-B7 (SQLite codepath retired).
+    # Mirror upstream ci.yml `pytest_postgres` service verbatim — same image,
+    # creds, db, health-gate — so a green CI here means a green real-PG run.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: genealogy
+          POSTGRES_PASSWORD: genealogy
+          POSTGRES_DB: genealogy_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - name: Checkout genealogy-e2e
         uses: actions/checkout@v4
@@ -87,8 +104,7 @@ jobs:
           PLATFORM_SUPERADMIN_EMAILS=super@e2e.example.com \
           ANTHROPIC_API_KEY=sk-test-stub \
           GENEALOGY_TENANTS_ROOT="$RUNNER_TEMP/tenants" \
-          PLATFORM_DB_PATH="$RUNNER_TEMP/platform.db" \
-          GENEALOGY_DB_PATH="$RUNNER_TEMP/genealogy.db" \
+          DATABASE_URL='postgresql+psycopg://genealogy:genealogy@localhost:5432/genealogy_test' \
           nohup uvicorn app.main:app --host 127.0.0.1 --port 8642 \
             --log-level warning > "$GITHUB_WORKSPACE/uvicorn.log" 2>&1 &
           echo "uvicorn PID=$!"

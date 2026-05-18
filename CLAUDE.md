@@ -273,18 +273,51 @@ parametrize lists) with a trailing `# noqa: drift` comment.
 
 ## Running locally
 
+Upstream `dev` is **PostgreSQL-only** since PR-B7 (commit `08cec28` "retire
+SQLite production codepath" / `4155020` PG backend, cutover finalised
+`d3836bd` 2026-05-14). The SQLite fallback is gone — the backend `RuntimeError`s
+at startup without `DATABASE_URL`. The `/api/_test/*` endpoints are also
+fail-closed behind a shared-secret token gate (commit `4a3f326`): without
+`GENEALOGY_TEST_TOKEN` they return **503**, and the suite's autouse
+`install_mock_ai`/`reset_state` fixtures error out the entire run.
+
 ```bash
-# 1. Boot test-instrumented backend (in upstream repo):
+# 0. Postgres (matches upstream ci.yml `pytest_postgres` service exactly).
+#    Docker engine on this machine is Colima — `colima start` if down.
+docker run -d --name genealogy-e2e-pg \
+  -e POSTGRES_USER=genealogy -e POSTGRES_PASSWORD=genealogy \
+  -e POSTGRES_DB=genealogy_test -p 5432:5432 postgres:16-alpine
+# wait: docker exec genealogy-e2e-pg pg_isready -U genealogy -d genealogy_test
+
+# 1. Boot test-instrumented backend (in upstream repo). This env block is
+#    the canonical one — keep it in lockstep with .github/workflows/pr-check.yml.
 cd /path/to/genealogy/backend
-GENEALOGY_TESTING=1 GENEALOGY_ADMIN_PASSWORD=test_admin_password \
+GENEALOGY_TESTING=1 \
+  GENEALOGY_ADMIN_PASSWORD=test_admin_password \
+  GENEALOGY_TEST_TOKEN=e2e-test-token-default-2026 \
+  GENEALOGY_PUBLIC_URL=http://127.0.0.1:8642 \
+  WEBAUTHN_RP_ID=localhost \
+  WEBAUTHN_ORIGIN=http://localhost:8642 \
   EMAIL_PROVIDER=mock FREE_SIGNUP_LIMIT=1000 \
   PLATFORM_SUPERADMIN_EMAILS=super@e2e.example.com \
-  uvicorn app.main:app --port 8642 &
+  ANTHROPIC_API_KEY=sk-test-stub \
+  GENEALOGY_TENANTS_ROOT=/tmp/genealogy-e2e-tenants \
+  DATABASE_URL='postgresql+psycopg://genealogy:genealogy@localhost:5432/genealogy_test' \
+  uvicorn app.main:app --host 127.0.0.1 --port 8642 &
 
-# 2. Run suite:
+# 2. Run suite (E2E_TIMEOUT_MULTIPLIER=1.5 mirrors CI; drop it on fast metal):
 cd /path/to/genealogy-e2e
-E2E_BACKEND_URL=http://127.0.0.1:8642 pytest tests/ -v
+E2E_BACKEND_URL=http://127.0.0.1:8642 E2E_TIMEOUT_MULTIPLIER=1.5 pytest tests/ -v
 ```
+
+**Boot-env gotcha:** an incomplete env block produces false-positive
+failures that masquerade as product regressions. Specifically:
+`GENEALOGY_PUBLIC_URL` missing → `test_welcome_email` fails (template falls
+back to the prod domain by design, `templates.py:38`); `WEBAUTHN_RP_ID` /
+`WEBAUTHN_ORIGIN` missing → `test_platform_webauthn` register/complete `400`;
+`GENEALOGY_TEST_TOKEN` missing → **every** test errors at setup (503 on
+`/api/_test/install-mock-ai`). Always boot with the full block above before
+triaging failures as regressions.
 
 ## Key fixtures
 
@@ -308,7 +341,13 @@ E2E_BACKEND_URL=http://127.0.0.1:8642 pytest tests/ -v
 ## Backend test endpoints (upstream)
 
 The suite assumes these exist in `genealogy/backend/app/_test_endpoints.py`,
-gated by `IS_TESTING`:
+gated by `IS_TESTING` **and** a shared-secret token (commit `4a3f326`,
+`INV-TEST-001/002/003`). Every `/api/_test/*` call must carry
+`X-Test-Token: <GENEALOGY_TEST_TOKEN>`; the suite injects it automatically
+via the httpx monkey-patch in `tests/_fixtures/patch.py` using
+`TestConfig.TEST_TOKEN_DEFAULT` (override with `E2E_TEST_TOKEN`). The backend
+must boot with the **same** value in `GENEALOGY_TEST_TOKEN` or the endpoints
+fail-closed (`503` no token → `401` no header → `403` wrong token):
 
 | Endpoint                            | Purpose                                                 |
 |-------------------------------------|---------------------------------------------------------|
