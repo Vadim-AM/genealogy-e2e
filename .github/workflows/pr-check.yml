@@ -18,7 +18,7 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    # Two passes: parallel (`-m "not serial" -n 4`, ~80% of tests, no
+    # Two passes: parallel (`-m "not serial" -n 2`, ~80% of tests, no
     # per-test reset → no wedge) + serial (`-m serial -p no:xdist`,
     # superadmin/platform/timing). Parallel pass collapses the old ~36-min
     # single-thread wall-clock; serial pass is the long pole (timing tests
@@ -149,12 +149,17 @@ jobs:
           E2E_BACKEND_URL: http://127.0.0.1:8642
           # CI-class hardware is variable — give every timeout 1.5× margin.
           E2E_TIMEOUT_MULTIPLIER: "1.5"
-        # `-n 4` (bounded), NOT `-n auto`: auto = logical-CPU workers, which
-        # on a high-core host spawns many concurrent Chromium + one shared
-        # backend → resource contention flakes random light tests
-        # (non-deterministic, verified 2026-05-19). 4 is a stable bound on a
-        # 2-core CI runner and locally.
-        run: pytest tests/ -m "not serial" -n 4 --dist load -v --tb=short
+        # `-n 2`, NOT `-n auto` and NOT `-n 4`: `auto` = one worker per
+        # logical CPU → on any host it over-subscribes (many Chromium + one
+        # shared backend) and flakes random light tests (non-deterministic,
+        # observed 2026-05-19). `-n 4` was verified clean only on a
+        # high-core dev Mac — UNVERIFIED on GitHub-hosted runners (their
+        # CPU/RAM is not knowable from here). `-n 2` is the conservative
+        # no-oversubscription floor for unknown-but-modest CI hardware;
+        # still a large win over single-thread. Determinism on the real
+        # runner must be EARNED by repeated workflow_dispatch runs, not
+        # assumed — raise only if those prove headroom.
+        run: pytest tests/ -m "not serial" -n 2 --dist load -v --tb=short
 
       - name: Run e2e suite — serial (state-mutators, single worker)
         # Run regardless of the parallel pass result so we get the full

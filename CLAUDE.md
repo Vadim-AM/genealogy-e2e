@@ -358,10 +358,12 @@ GENEALOGY_TESTING=1 \
 cd /path/to/genealogy-e2e
 export E2E_BACKEND_URL=http://127.0.0.1:8642 E2E_TIMEOUT_MULTIPLIER=1.5
 # parallel pass — tenant-scoped, no per-test reset, the fast bulk.
-# `-n 4` is a deliberate bound: `-n auto` = one worker per logical CPU,
-# which on a high-core host runs many concurrent Chromium against the one
-# shared backend → contention flakes random light tests
-# (non-deterministic). 4 is stable on 2-core CI and locally.
+# Bounded worker count, NOT `-n auto` (auto = one worker per logical CPU
+# → over-subscribes any host, flakes random light tests). `-n 4` here is
+# for a high-core dev machine where it was verified clean; CI deliberately
+# uses a lower `-n 2` (see pr-check.yml — GitHub-runner specs are unknown
+# and modest, so the no-oversubscription floor is the safe default there).
+# Pick a value ≤ your physical cores; raise only if proven flake-free.
 pytest tests/ -m "not serial" -n 4 --dist load -v
 # serial pass — state-mutators, single worker, per-test reset kept:
 pytest tests/ -m serial -p no:xdist -v
