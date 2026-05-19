@@ -13,6 +13,7 @@ from __future__ import annotations
 from playwright.sync_api import Page, expect
 
 from tests.messages import TestData
+from tests.pages.base import wait_for_authed_shell
 from tests.pages.login_page import LoginPage
 
 
@@ -42,6 +43,12 @@ def test_owner_clicks_logout_link_and_indicator_switches_to_guest(
     """
     owner_page.goto("/")
     owner_page.wait_for_load_state("domcontentloaded")
+    # Gate logout-link interaction on the authed SPA being fully wired:
+    # the link can be visible (indicator HTML injected) before the
+    # delegated data-action handler is bound / AUTH settled → on slow CI
+    # the click fired no POST and `expect_response` timed out 30s
+    # (test_user_relogins, 2026-05-19). wait_for_authed_shell settles it.
+    wait_for_authed_shell(owner_page)
 
     indicator = _auth_indicator(owner_page)
     expect(indicator.locator(".auth-name")).to_have_text(TestData.DEFAULT_FULL_NAME)
@@ -78,6 +85,12 @@ def test_user_relogins_via_form_lands_in_same_tenant(
     # Сначала logout — чтобы стартовать с guest state.
     owner_page.goto("/")
     owner_page.wait_for_load_state("domcontentloaded")
+    # Gate logout-link interaction on the authed SPA being fully wired:
+    # the link can be visible (indicator HTML injected) before the
+    # delegated data-action handler is bound / AUTH settled → on slow CI
+    # the click fired no POST and `expect_response` timed out 30s
+    # (test_user_relogins, 2026-05-19). wait_for_authed_shell settles it.
+    wait_for_authed_shell(owner_page)
     expect(_logout_link(owner_page)).to_be_visible()
     with owner_page.expect_response(
         lambda r: "/api/account/logout" in r.url and r.request.method == "POST"

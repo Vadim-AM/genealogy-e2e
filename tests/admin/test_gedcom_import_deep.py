@@ -180,7 +180,14 @@ def _search_and_open_profile(owner_page: Page, query: str) -> ProfilePanel:
     expect(tree.search_results.first).to_be_visible()
     tree.search_results.first.click()
     center_card = owner_page.locator(".orbit-center-card")
-    expect(center_card).to_be_visible()
+    # Gate the click on the orbit having actually re-centred to the
+    # searched person — `.orbit-center-card` always exists (demo-self is
+    # the initial centre), so a bare `to_be_visible()` passes before the
+    # async re-centre and the click opens the WRONG profile. Fast local
+    # hid this; slow 2-core CI exposed it (5 gedcom_import_deep fails,
+    # 2026-05-19). `to_contain_text(query)` auto-waits for the re-centre —
+    # deterministic regardless of host speed, no product change.
+    expect(center_card).to_contain_text(query)
     center_card.click()
     panel = ProfilePanel(owner_page)
     panel.expect_visible()
