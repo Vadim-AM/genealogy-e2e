@@ -59,29 +59,71 @@ def uvicorn_server(base_url: str) -> str:
     return base_url
 
 
-@pytest.fixture(autouse=True)
-def reset_state(uvicorn_server: str) -> None:
-    """Wipe DB rows + tenants/ + rate limits + MockSender + site_config between tests."""
+def _post_reset(uvicorn_server: str) -> None:
     httpx.post(
         f"{uvicorn_server}{API.TEST_RESET}", timeout=TIMEOUTS.api_request
     ).raise_for_status()
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _verify_ai_search_default(install_mock_ai, uvicorn_server: str) -> None:
-    """Sanity-check (session-scope): после set-platform-setting endpoint
-    видит включённый AI search. Bara один раз за session, иначе кэш или env
-    override проявятся на первом же тесте.
-
-    Не на каждый тест: per-test эту fixture (`_default_ai_search_on` ниже)
-    делает только POST set-platform-setting — выполняется быстро (~ms).
-    Сюжет с кешем/env override стабильно проявляется при первом запросе.
-    """
+def _set_ai_search_on(uvicorn_server: str) -> None:
     httpx.post(
         f"{uvicorn_server}{API.TEST_SET_PLATFORM_SETTING}",
         json={"enable_ai_search": True},
         timeout=TIMEOUTS.api_short,
     ).raise_for_status()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _baseline_reset(uvicorn_server: str, tmp_path_factory) -> None:
+    """One global `/api/_test/reset` for the whole run — a single clean
+    baseline, NOT per-test (that was the parallelization blocker and the
+    O(n) wedge tax). Tenants then accumulate across the run on purpose:
+    a dirty multi-tenant backend ≈ production, and that's where
+    cross-tenant/workspace leak bugs surface.
+
+    Under xdist, session fixtures run once *per worker* against the SHARED
+    backend — so a naive per-worker reset would nuke other workers'
+    in-flight tenants. Gate it to exactly once via a filelock on the
+    common root tmp dir (canonical pytest-xdist "do it once" pattern).
+    `PYTEST_XDIST_WORKER` (not the xdist `worker_id` fixture) so this also
+    works under `-p no:xdist` in the serial pass.
+    """
+    if os.environ.get("PYTEST_XDIST_WORKER") is None:
+        _post_reset(uvicorn_server)  # master / no xdist
+        return
+    from filelock import FileLock
+
+    root = tmp_path_factory.getbasetemp().parent  # shared across workers
+    flag = root / "e2e_baseline_reset.done"
+    with FileLock(str(flag) + ".lock"):
+        if not flag.is_file():
+            _post_reset(uvicorn_server)
+            flag.write_text("done")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def install_mock_ai(_baseline_reset, uvicorn_server: str) -> None:
+    """Install AI fixture (survives `/reset` — not touched by it). After
+    `_baseline_reset` so ordering is deterministic; idempotent, so the
+    once-per-xdist-worker re-POST is harmless."""
+    fixture = json.loads((FIXTURES_DIR / "ai_responses.json").read_text())
+    httpx.post(
+        f"{uvicorn_server}{API.TEST_INSTALL_MOCK_AI}",
+        json=fixture,
+        timeout=TIMEOUTS.api_request,
+    ).raise_for_status()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _ai_search_on_session(install_mock_ai, uvicorn_server: str) -> None:
+    """platform_settings.enable_ai_search → True once per session.
+
+    Beta DB default is False (migration `r6s7t8u9v0w1`), but most e2e
+    scenarios need AI available. The parallel pass has no per-test reset,
+    so setting it once sticks. Also the one-time sanity-check that
+    set-platform-setting actually reaches `/config/features` (replaces the
+    old `_verify_ai_search_default`)."""
+    _set_ai_search_on(uvicorn_server)
     f = httpx.get(f"{uvicorn_server}{API.CONFIG_FEATURES}", timeout=TIMEOUTS.api_short)
     f.raise_for_status()
     assert f.json().get("ai_search_enabled") is True, (
@@ -92,35 +134,31 @@ def _verify_ai_search_default(install_mock_ai, uvicorn_server: str) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _default_ai_search_on(reset_state, uvicorn_server: str) -> None:
-    """Default platform_settings.enable_ai_search → True перед каждым тестом.
+def reset_state(request, uvicorn_server: str) -> None:
+    """Per-test global wipe — ONLY for `serial`-marked tests.
 
-    В бета-режиме (Phase B+C) дефолт в БД = False (server_default в
-    миграции `r6s7t8u9v0w1`), но большинство e2e сценариев (enrichment_flow,
-    consent_enforcement, regressions) требуют, чтобы AI был доступен.
-    Тесты, которые специально проверяют OFF-режим (test_ai_disabled_flow.py),
-    свои autouse override → False — они выполняются ПОСЛЕ этой фикстуры
-    (file-local autouse > conftest autouse в pytest ordering).
-
-    Sanity-check вынесен в session-scoped `_verify_ai_search_default`
-    выше — экономит ~319 GET-запросов на полный прогон.
-    """
-    httpx.post(
-        f"{uvicorn_server}{API.TEST_SET_PLATFORM_SETTING}",
-        json={"enable_ai_search": True},
-        timeout=TIMEOUTS.api_short,
-    ).raise_for_status()
+    Serial tests run single-worker (`-m serial -p no:xdist`), so the
+    classic isolate-by-wiping-everything is safe and kept. Parallel tests
+    (`-m "not serial" -n auto`) are isolated by a unique tenant/identity
+    instead (owner_user → unique_email); a global wipe there would corrupt
+    other workers — so this is a no-op for them. The `serial` marker is
+    auto-applied in root conftest (fixture-based)."""
+    if request.node.get_closest_marker("serial") is None:
+        return
+    _post_reset(uvicorn_server)
 
 
-@pytest.fixture(scope="session", autouse=True)
-def install_mock_ai(uvicorn_server: str) -> None:
-    """Install AI fixture once per session (survives `/reset` — not touched by it)."""
-    fixture = json.loads((FIXTURES_DIR / "ai_responses.json").read_text())
-    httpx.post(
-        f"{uvicorn_server}{API.TEST_INSTALL_MOCK_AI}",
-        json=fixture,
-        timeout=TIMEOUTS.api_request,
-    ).raise_for_status()
+@pytest.fixture(autouse=True)
+def _ai_search_on_serial(request, reset_state, uvicorn_server: str) -> None:
+    """Serial group keeps per-test reset, which wipes platform_settings →
+    `enable_ai_search` back to the False DB default. Re-enable it for
+    serial tests; `test_ai_disabled_flow.py`'s file-local autouse flips it
+    back to False AFTER this (file-local > conftest autouse ordering).
+    No-op for parallel tests (the session fixture already set it, and no
+    per-test reset wiped it). Depends on `reset_state` to run after it."""
+    if request.node.get_closest_marker("serial") is None:
+        return
+    _set_ai_search_on(uvicorn_server)
 
 
 @pytest.fixture(scope="session")
