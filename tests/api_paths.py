@@ -174,6 +174,16 @@ class API:
     PLATFORM_TIER_CONFIG = "/api/platform/tier-config"
     PLATFORM_SETTINGS = "/api/platform/settings"
 
+    # ── User MFA (account-level 2FA) ─────────────────────────────
+    USER_MFA_SETUP = "/api/account/mfa/setup"
+    USER_MFA_VERIFY = "/api/account/mfa/verify"
+    USER_MFA_DISABLE = "/api/account/mfa/disable"
+    USER_MFA_STATUS = "/api/account/mfa/status"
+    USER_MFA_STEP_UP = "/api/account/mfa/step-up"
+    USER_MFA_RECOVERY_COUNT = "/api/account/mfa/recovery-codes/count"
+    USER_MFA_RECOVERY_REGEN = "/api/account/mfa/recovery-codes/regenerate"
+    USER_MFA_RECOVERY_REDEEM = "/api/account/mfa/recovery-redeem"
+
     # ── Platform MFA (PR-7..10) ──────────────────────────────────
     MFA_SETUP = "/api/platform/mfa/setup"
     MFA_VERIFY = "/api/platform/mfa/verify"

@@ -131,6 +131,14 @@ class Enrichment(_Catalogue):
     REVERT_OK = {"ru": "Снять", "en": "Remove"}
 
 
+class Mfa(_Catalogue):
+    """Strings in the 2FA settings panel — substring keywords on the
+    status line ("✅ 2FA включена" / "❌ 2FA отключена")."""
+
+    STATUS_ON = {"ru": "включена", "en": "enabled"}
+    STATUS_OFF = {"ru": "отключена", "en": "disabled"}
+
+
 class FamilyGroups(_Catalogue):
     """Profile family-group labels — used to scope `+`-buttons to a relation."""
 

@@ -39,15 +39,6 @@ KNOWN_GAPS: frozenset[str] = frozenset({
     # ── enrichment tail — fire-and-forget telemetry, no journey ───
     "/api/enrich/{}/feedback",
     "/api/enrich/letters/sent",
-    # ── P1 · user-2FA journey ─────────────────────────────────────
-    "/api/account/mfa/setup",
-    "/api/account/mfa/verify",
-    "/api/account/mfa/disable",
-    "/api/account/mfa/status",
-    "/api/account/mfa/step-up",
-    "/api/account/mfa/recovery-codes/count",
-    "/api/account/mfa/recovery-codes/regenerate",
-    "/api/account/mfa/recovery-redeem",
     # ── P1 · post-signup onboarding journey ───────────────────────
     "/api/onboarding/clear-demo",
     "/api/onboarding/keep-demo",
