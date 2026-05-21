@@ -89,6 +89,33 @@ class API:
     # submit) — kept here so the coverage gate counts it as covered.
     WAITLIST_SUBSCRIBE = "/api/waitlist/subscribe"
 
+    # ── Sources (historical references) ──────────────────────────
+    SOURCES = "/api/sources"
+    PERSON_SOURCES = "/api/person-sources"
+
+    @staticmethod
+    def source(source_id: str) -> str:
+        return f"/api/sources/{source_id}"
+
+    @staticmethod
+    def person_sources(person_id: str) -> str:
+        return f"/api/people/{person_id}/sources"
+
+    @staticmethod
+    def person_source_link(link_id: int) -> str:
+        return f"/api/person-sources/{link_id}"
+
+    # ── Sharing (public read-only links) ─────────────────────────
+    SHARE_CREATE = "/api/share/create"
+    SHARE_LIST = "/api/share/list"
+
+    @staticmethod
+    def share(share_id: int) -> str:
+        return f"/api/share/{share_id}"
+
+    # /api/share/view/{token} deliberately absent — broken on PG
+    # (BUG-SHARE-PG-001); it stays in test_api_coverage KNOWN_GAPS.
+
     # ── Legacy admin (password-gated, pre-auth_v2) ───────────────
     ADMIN_LOGIN = "/api/admin/login"
 

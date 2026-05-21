@@ -32,11 +32,10 @@ from tests.timeouts import TIMEOUTS
 # leaves this set. Do NOT add a line here just to silence the gate for a
 # brand-new endpoint without recording which journey will own it.
 KNOWN_GAPS: frozenset[str] = frozenset({
-    # ── P1 · sharing journey (поделиться древом) ──────────────────
-    "/api/share/create",
-    "/api/share/list",
+    # ── blocked by a product bug — journey written after the fix ──
+    # BUG-SHARE-PG-001: GET /api/share/view → 500, UndefinedTable
+    # `share_token` on the anonymous tenant-less path.
     "/api/share/view/{}",
-    "/api/share/{}",
     # ── P1 · enrichment-apply journey (принять AI-результат) ──────
     "/api/enrich/{}/accept",
     "/api/enrich/acceptances/{}/revert",
@@ -59,12 +58,6 @@ KNOWN_GAPS: frozenset[str] = frozenset({
     "/api/onboarding/keep-demo",
     # ── P1 · open BUG-WAITLIST-PG-002 — journey after upstream fix
     "/api/platform/waitlist",
-    # ── P2 · sources journey ──────────────────────────────────────
-    "/api/sources",
-    "/api/sources/{}",
-    "/api/person-sources",
-    "/api/person-sources/{}",
-    "/api/people/{}/sources",
     # ── P2 · subscription-lifecycle journey ───────────────────────
     "/api/subscription/current",
     "/api/subscription/cancel",
