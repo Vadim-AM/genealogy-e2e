@@ -122,6 +122,20 @@ class FamilyGroups(_Catalogue):
     SIBLINGS = {"ru": "Братья/сёстры", "en": "Siblings"}
 
 
+class LinkedChip(_Catalogue):
+    """Copy on the `link-existing-record` chip — FEATURE-PARENT-SEARCH-001.
+
+    Substring keywords — assert chip semantics survive copy edits.
+    """
+
+    # Title row above the chip body («Привязка к существующей записи»).
+    TITLE_KEYWORD = {"ru": "Привязка", "en": "Linked"}
+    # Hint line under the body — narrows the semantic («…создаётся только связь»).
+    HINT_KEYWORD = {"ru": "связь", "en": "relationship"}
+    # The unlink button label.
+    UNLINK = {"ru": "Отвязать", "en": "Unlink"}
+
+
 class TestData(_Catalogue):
     """Fixed values supplied BY the test (not from product)."""
 
