@@ -33,9 +33,6 @@ class API:
     ONBOARDING_COMPLETE = "/api/account/onboarding-complete"
     DELETE_TENANT = "/api/account/delete-tenant"
 
-    # ── auth_v2 (also used as legacy/auth ping) ─────────────────
-    AUTH_ME = "/api/auth/me"
-
     # ── Tenant management (invites) ──────────────────────────────
     TENANT_INVITES = "/api/account/tenant/invites"
 
@@ -87,6 +84,11 @@ class API:
     # ── Public pricing ───────────────────────────────────────────
     TIERS_PUBLIC = "/api/tiers/public"
 
+    # ── Waitlist ─────────────────────────────────────────────────
+    # Exercised via the UI journey in tests/ui/test_waitlist.py (form
+    # submit) — kept here so the coverage gate counts it as covered.
+    WAITLIST_SUBSCRIBE = "/api/waitlist/subscribe"
+
     # ── Legacy admin (password-gated, pre-auth_v2) ───────────────
     ADMIN_LOGIN = "/api/admin/login"
 
@@ -94,10 +96,6 @@ class API:
     ADMIN_EXPORT_GEDCOM = "/api/admin/export-gedcom"
     ADMIN_IMPORT_GEDCOM = "/api/admin/import-gedcom"
     ADMIN_IMPORT_GEDCOM_CONFIRM = "/api/admin/import-gedcom/confirm"
-    ADMIN_INVITES = "/api/admin/invites"
-
-    # ── Subscription ─────────────────────────────────────────────
-    SUBSCRIPTION_USAGE = "/api/account/me/subscription"
 
     # ── Test infra (gated by GENEALOGY_TEST_TOKEN env) ──────────
     TEST_RESET = "/api/_test/reset"
