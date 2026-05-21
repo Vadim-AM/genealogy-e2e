@@ -139,6 +139,13 @@ class Mfa(_Catalogue):
     STATUS_OFF = {"ru": "отключена", "en": "disabled"}
 
 
+class Onboarding(_Catalogue):
+    """confirmDialog button labels for the demo-data actions (owner.js)."""
+
+    CLEAR_DEMO_CONFIRM = {"ru": "Стереть", "en": "Erase"}
+    KEEP_DEMO_CONFIRM = {"ru": "Использовать как шаблон", "en": "Use as template"}
+
+
 class FamilyGroups(_Catalogue):
     """Profile family-group labels — used to scope `+`-buttons to a relation."""
 

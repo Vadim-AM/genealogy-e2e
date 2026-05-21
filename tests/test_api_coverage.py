@@ -39,9 +39,6 @@ KNOWN_GAPS: frozenset[str] = frozenset({
     # ── enrichment tail — fire-and-forget telemetry, no journey ───
     "/api/enrich/{}/feedback",
     "/api/enrich/letters/sent",
-    # ── P1 · post-signup onboarding journey ───────────────────────
-    "/api/onboarding/clear-demo",
-    "/api/onboarding/keep-demo",
     # ── P1 · open BUG-WAITLIST-PG-002 — journey after upstream fix
     "/api/platform/waitlist",
     # ── P2 · subscription-lifecycle journey ───────────────────────

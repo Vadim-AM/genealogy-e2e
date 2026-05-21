@@ -107,6 +107,10 @@ class API:
     # submit) — kept here so the coverage gate counts it as covered.
     WAITLIST_SUBSCRIBE = "/api/waitlist/subscribe"
 
+    # ── Onboarding (demo data) ───────────────────────────────────
+    ONBOARDING_CLEAR_DEMO = "/api/onboarding/clear-demo"
+    ONBOARDING_KEEP_DEMO = "/api/onboarding/keep-demo"
+
     # ── Sources (historical references) ──────────────────────────
     SOURCES = "/api/sources"
     PERSON_SOURCES = "/api/person-sources"
