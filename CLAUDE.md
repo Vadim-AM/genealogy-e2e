@@ -221,6 +221,33 @@ If a test fails after a non-functional product change, the test was
 over-fitting to implementation. Refactor it to assert behaviour, not
 markup.
 
+### 14. Parallel by default; serial only if it mutates the stand
+
+The suite runs in two passes (see "Running locally"):
+- **parallel** (`-m "not serial" -n 4`) — tenant-scoped/independent
+  tests. **No per-test global reset**: isolation is a unique tenant +
+  unique identity (`owner_user` → `unique_email`). Many tenants coexist
+  on one backend on purpose — that's the production condition, and where
+  cross-tenant / workspace / rate-limit-key leak bugs surface. A new
+  failure here is a **candidate real bug to triage**, not noise to
+  silence with a reset.
+- **serial** (`-m serial -p no:xdist`) — tests that mutate state a
+  unique tenant can't isolate. Per-test global reset is preserved.
+
+`serial` is auto-applied in root `conftest.py` (fixture-based, precise):
+a test is serial iff it pulls `superadmin_user` **or** lives in
+`_SERIAL_FILES` (`test_ai_disabled_flow.py`, `test_security_timing.py`).
+
+**The rule:** if a test mutates shared stand/backend state (platform
+settings, the global `enable_ai_search` flag, MFA/audit/feature-flags,
+anything not isolated by tenant), it MUST be caught by that heuristic —
+either it genuinely uses `superadmin_user`, or add its file to
+`_SERIAL_FILES` (or `@pytest.mark.serial` it explicitly). A
+state-mutating test that lands in the parallel pass will corrupt other
+workers and produce confusing cross-talk. Conversely, do not reach for
+`serial` to paper over a leak failure that is actually a product bug —
+triage it (Rule 1/13).
+
 ## Project structure
 
 ```
@@ -273,18 +300,87 @@ parametrize lists) with a trailing `# noqa: drift` comment.
 
 ## Running locally
 
+Upstream `dev` is **PostgreSQL-only** since PR-B7 (commit `08cec28` "retire
+SQLite production codepath" / `4155020` PG backend, cutover finalised
+`d3836bd` 2026-05-14). The SQLite fallback is gone — the backend `RuntimeError`s
+at startup without `DATABASE_URL`. The `/api/_test/*` endpoints are also
+fail-closed behind a shared-secret token gate (commit `4a3f326`): without
+`GENEALOGY_TEST_TOKEN` they return **503**, and the suite's autouse
+`install_mock_ai`/`reset_state` fixtures error out the entire run.
+
 ```bash
-# 1. Boot test-instrumented backend (in upstream repo):
+# 0. Postgres. Docker engine on this machine is Colima — `colima start`
+#    if down. `max_locks_per_transaction` is raised because the parallel
+#    pass has no per-test reset → tenant schemas accumulate over a run,
+#    and the session/inter-pass `/api/_test/reset` DROPs them all in ONE
+#    transaction; at default 64 locks that hits "out of shared memory"
+#    once a run has built up >~100 tenants. This is OUR test-container
+#    config (not a product change). Recreate the container (not just
+#    `docker restart`) to start from a clean volume.
+docker rm -f genealogy-e2e-pg 2>/dev/null
+docker run -d --name genealogy-e2e-pg \
+  -e POSTGRES_USER=genealogy -e POSTGRES_PASSWORD=genealogy \
+  -e POSTGRES_DB=genealogy_test -p 5432:5432 postgres:16-alpine \
+  -c max_locks_per_transaction=4096 -c max_connections=200
+# wait: docker exec genealogy-e2e-pg pg_isready -U genealogy -d genealogy_test
+
+# 1. Boot test-instrumented backend (in upstream repo). This env block is
+#    the canonical one — keep it in lockstep with .github/workflows/pr-check.yml.
 cd /path/to/genealogy/backend
-GENEALOGY_TESTING=1 GENEALOGY_ADMIN_PASSWORD=test_admin_password \
+GENEALOGY_TESTING=1 \
+  GENEALOGY_ADMIN_PASSWORD=test_admin_password \
+  GENEALOGY_TEST_TOKEN=e2e-test-token-default-2026 \
+  GENEALOGY_PUBLIC_URL=http://127.0.0.1:8642 \
+  WEBAUTHN_RP_ID=localhost \
+  WEBAUTHN_ORIGIN=http://localhost:8642 \
   EMAIL_PROVIDER=mock FREE_SIGNUP_LIMIT=1000 \
   PLATFORM_SUPERADMIN_EMAILS=super@e2e.example.com \
-  uvicorn app.main:app --port 8642 &
+  ANTHROPIC_API_KEY=sk-test-stub \
+  GENEALOGY_TENANTS_ROOT=/tmp/genealogy-e2e-tenants \
+  GENEALOGY_TRUST_FORWARDED_FOR=1 \
+  DATABASE_URL='postgresql+psycopg://genealogy:genealogy@localhost:5432/genealogy_test' \
+  uvicorn app.main:app --host 127.0.0.1 --port 8642 &
+# NB: GENEALOGY_TRUST_FORWARDED_FOR=1 — config flag of OUR test instance
+# (same one prod uses behind Caddy; NOT a product change). Without the
+# per-test global reset the parallel pass no longer clears the
+# programmatic rate-limit `_buckets`, and the login throttle
+# (`login:<ip>`, 10/60s) is intentionally ON in test mode (documented
+# brute-force invariant — do NOT disable it). All xdist workers share
+# 127.0.0.1 → shared bucket → false 429s. With this flag the suite's
+# httpx monkey-patch (tests/_fixtures/patch.py) injects a per-test
+# synthetic X-Forwarded-For so each logical client gets its own bucket —
+# the throttle stays real per-identity, the suite stays green. See
+# UPSTREAM-REPORT (2026-05-19) for the full root-cause.
 
-# 2. Run suite:
+# 2. Run suite — TWO passes (E2E_TIMEOUT_MULTIPLIER=1.5 mirrors CI;
+#    drop it on fast metal). Do NOT `pytest tests/` in one shot: a single
+#    backend can't sustain ~300 sequential tenant provisions and wedges.
 cd /path/to/genealogy-e2e
-E2E_BACKEND_URL=http://127.0.0.1:8642 pytest tests/ -v
+export E2E_BACKEND_URL=http://127.0.0.1:8642 E2E_TIMEOUT_MULTIPLIER=1.5
+# parallel pass — tenant-scoped, no per-test reset, the fast bulk.
+# Bounded worker count, NOT `-n auto` (auto = one worker per logical CPU
+# → over-subscribes any host, flakes random light tests). `-n 4` here is
+# for a high-core dev machine where it was verified clean; CI deliberately
+# uses a lower `-n 2` (see pr-check.yml — GitHub-runner specs are unknown
+# and modest, so the no-oversubscription floor is the safe default there).
+# Pick a value ≤ your physical cores; raise only if proven flake-free.
+pytest tests/ -m "not serial" -n 4 --dist load -v
+# serial pass — state-mutators, single worker, per-test reset kept:
+pytest tests/ -m serial -p no:xdist -v
 ```
+
+Iterating on one area? `pytest -m auth -m "not serial" -n 4` etc.
+Single file/test is fine non-parallel: `pytest tests/ui/test_x.py`
+(it gets one session baseline reset; no per-test reset unless `serial`).
+
+**Boot-env gotcha:** an incomplete env block produces false-positive
+failures that masquerade as product regressions. Specifically:
+`GENEALOGY_PUBLIC_URL` missing → `test_welcome_email` fails (template falls
+back to the prod domain by design, `templates.py:38`); `WEBAUTHN_RP_ID` /
+`WEBAUTHN_ORIGIN` missing → `test_platform_webauthn` register/complete `400`;
+`GENEALOGY_TEST_TOKEN` missing → **every** test errors at setup (503 on
+`/api/_test/install-mock-ai`). Always boot with the full block above before
+triaging failures as regressions.
 
 ## Key fixtures
 
@@ -308,7 +404,13 @@ E2E_BACKEND_URL=http://127.0.0.1:8642 pytest tests/ -v
 ## Backend test endpoints (upstream)
 
 The suite assumes these exist in `genealogy/backend/app/_test_endpoints.py`,
-gated by `IS_TESTING`:
+gated by `IS_TESTING` **and** a shared-secret token (commit `4a3f326`,
+`INV-TEST-001/002/003`). Every `/api/_test/*` call must carry
+`X-Test-Token: <GENEALOGY_TEST_TOKEN>`; the suite injects it automatically
+via the httpx monkey-patch in `tests/_fixtures/patch.py` using
+`TestConfig.TEST_TOKEN_DEFAULT` (override with `E2E_TEST_TOKEN`). The backend
+must boot with the **same** value in `GENEALOGY_TEST_TOKEN` or the endpoints
+fail-closed (`503` no token → `401` no header → `403` wrong token):
 
 | Endpoint                            | Purpose                                                 |
 |-------------------------------------|---------------------------------------------------------|

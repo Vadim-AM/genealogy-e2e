@@ -60,9 +60,12 @@ def test_enrichment_endpoint_returns_mocked_output(
         time.sleep(TIMEOUTS.polling_interval)
 
     assert final is not None, f"enrichment job did not complete in 30s; last: {data}"
-    archives = final["output"]["archives"]
-    assert any("ЦАМО" in a["name"] for a in archives), \
-        f"mock fixture not applied — got real output? archives: {archives[:1]}"
+    # Field renamed `archives` → `archive_suggestions` upstream (output_schema.json
+    # tightened: `archive_suggestions` is now a required top-level property with
+    # a fixed item shape). Pin the canonical name (Rule 7).
+    archive_suggestions = final["output"]["archive_suggestions"]
+    assert any("ЦАМО" in a["name"] for a in archive_suggestions), \
+        f"mock fixture not applied — got real output? archive_suggestions: {archive_suggestions[:1]}"
 
 
 def test_enrichment_history_endpoint_returns_items_dict(

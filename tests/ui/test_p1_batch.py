@@ -19,6 +19,7 @@ import pytest
 from playwright.sync_api import Page, Route, expect
 
 from tests.messages import TestData
+from tests.pages.base import wait_for_authed_shell
 from tests.pages.person_editor import AddRelativeModal, PersonEditor
 from tests.pages.profile_panel import ProfilePanel
 
@@ -259,6 +260,7 @@ def test_about_tab_shows_placeholder_when_about_text_is_empty(owner_page: Page):
     """
     owner_page.goto("/")
     owner_page.wait_for_load_state("domcontentloaded")
+    wait_for_authed_shell(owner_page)
     owner_page.locator('[data-tab="about"]').click()
 
     placeholder = owner_page.locator('[data-config-empty="about_text"]')
@@ -410,6 +412,7 @@ def test_timeline_river_filter_click_switches_active(owner_page: Page):
     """
     owner_page.goto("/")
     owner_page.wait_for_load_state("domcontentloaded")
+    wait_for_authed_shell(owner_page)
     owner_page.locator('[data-tab="timeline"]').click()
 
     all_btn = owner_page.locator('#riverFilters .river-filter-btn[data-branch="all"]')
@@ -435,6 +438,7 @@ def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page):
     """
     owner_page.goto("/")
     owner_page.wait_for_load_state("domcontentloaded")
+    wait_for_authed_shell(owner_page)
     owner_page.locator('[data-tab="sources"]').click()
 
     search = owner_page.locator("#evidenceSearch")
@@ -498,6 +502,7 @@ def test_about_contact_box_shows_placeholder_when_contacts_empty(owner_page: Pag
     """
     owner_page.goto("/")
     owner_page.wait_for_load_state("domcontentloaded")
+    wait_for_authed_shell(owner_page)
     owner_page.locator('[data-tab="about"]').click()
 
     # Default seed (после reset_state): contact_text и contact_email пустые.

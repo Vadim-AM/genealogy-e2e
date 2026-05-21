@@ -80,6 +80,15 @@ class Invite(_Catalogue):
     ALREADY_MEMBER_TITLE = {"ru": "уже здесь", "en": "already here"}
     # CTA on the page after accept — leads to the tree dashboard.
     OPEN_TREE_LINK = {"ru": "Открыть древо", "en": "Open tree"}
+    # v2-Phase1 magic-link: an emailed invite opened by an anonymous
+    # visitor is auto-accepted (backend creates a passwordless user) —
+    # success copy "Вы добавлены в древо …".
+    ADDED_TO_TREE = {"ru": "добавлены в древо", "en": "added to the tree"}
+    # The login-prompt path now only fires for an *email-less* invite
+    # (401): "Это приглашение требует входа."
+    LOGIN_REQUIRED_MSG = {"ru": "требует входа", "en": "requires sign-in"}
+    LOGIN_LINK = {"ru": "Войти", "en": "Sign in"}
+    SIGNUP_LINK = {"ru": "зарегистрироваться", "en": "sign up"}
 
 
 class PII(_Catalogue):

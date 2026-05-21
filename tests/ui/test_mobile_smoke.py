@@ -65,6 +65,17 @@ def mobile_context(
         base_url=base_url,
         ignore_https_errors=True,
     )
+    # Pre-seed cookie-consent (same rationale as clients.py
+    # auth_context_factory): the cookie-consent banner mounts async on
+    # first visit and its overlay intercepts pointer events, racing
+    # touch clicks (e.g. #agreeTerms / #signupBtn on /signup). Seeding a
+    # non-null consent level makes cookie-consent.js exit early — banner
+    # never renders. Per-device contexts don't inherit the factory seed.
+    ctx.add_init_script(
+        "try { localStorage.setItem('genealogy_cookie_consent', 'necessary'); "
+        "localStorage.setItem('genealogy_cookie_consent_ts', String(Date.now())); "
+        "} catch (e) {}"
+    )
     yield ctx
     ctx.close()
 

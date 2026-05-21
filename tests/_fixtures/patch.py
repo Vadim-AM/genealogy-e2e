@@ -12,7 +12,9 @@ import itself triggers the patch — there is no fixture to depend on.
 
 from __future__ import annotations
 
+import itertools
 import os
+import threading
 
 import httpx
 
@@ -23,6 +25,45 @@ from tests.timeouts import set_playwright_default_expect_timeout
 # `hmac.compare_digest` against `GENEALOGY_TEST_TOKEN`). Not set in
 # production → those endpoints return 503.
 _E2E_TEST_TOKEN = os.environ.get("E2E_TEST_TOKEN", TestConfig.TEST_TOKEN_DEFAULT)
+
+# ── Per-client synthetic source IP (parallel pass only) ────────────────
+# Under xdist every worker hits the backend from the same host
+# (127.0.0.1). The parallel pass has no per-test global reset, so the
+# programmatic rate-limit `_buckets` aren't cleared and the `login:<ip>`
+# throttle (10/60s — intentionally ON in test mode, a documented
+# brute-force invariant we must NOT weaken) fires across workers sharing
+# that one IP. Give every `httpx.Client` a distinct synthetic
+# `X-Forwarded-For` so each logical client is its own rate-limit
+# identity: the throttle stays genuine *per identity* (a single-client
+# brute-force test still hits 429), the suite stays green. Needs the e2e
+# target booted with `GENEALOGY_TRUST_FORWARDED_FOR=1` (a config flag of
+# our test instance — the same one prod uses behind Caddy — not a
+# product change).
+#
+# Gated on `PYTEST_XDIST_WORKER`: the serial pass runs `-p no:xdist`
+# (var unset) → no injection → real `request.client.host` preserved, so
+# serial semantics and the audit-log IP-hash tests are unchanged.
+_XDIST_WORKER = os.environ.get("PYTEST_XDIST_WORKER")  # "gw3" | None
+
+
+def _worker_octet() -> int:
+    digits = "".join(c for c in (_XDIST_WORKER or "") if c.isdigit())
+    return (int(digits) if digits else 0) % 256
+
+
+_WORKER_OCTET = _worker_octet()
+_xff_counter = itertools.count(1)
+_xff_lock = threading.Lock()
+
+
+def _next_synthetic_xff() -> str:
+    """`10.<worker>.<hi>.<lo>` — unique per (xdist worker, client) for
+    the whole run. The backend uses the value verbatim as the rate-limit
+    bucket key (`client_ip()`), so it need not be a routable address."""
+    with _xff_lock:
+        n = next(_xff_counter)
+    return f"10.{_WORKER_OCTET}.{(n >> 8) & 0xFF}.{n & 0xFF}"
+
 
 _orig_httpx_request = httpx.Client.request
 
@@ -56,6 +97,21 @@ def _patched_request(self, method, url, **kwargs):
     if str(method).upper() in ("POST", "PATCH", "PUT", "DELETE"):
         client_base = str(getattr(self, "base_url", "") or "")
         headers.setdefault("Origin", _origin_for(client_base, url_str))
+
+    if _XDIST_WORKER:
+        # One stable synthetic source IP per Client instance (cached on
+        # the client). `signup_via_api`/`tenant_client` make a client per
+        # test/identity → that flow's login is alone in its bucket.
+        # `setdefault` so a test that sets its own X-Forwarded-For
+        # (e.g. to drive rate-limit behaviour) keeps control.
+        xff = getattr(self, "_e2e_xff", None)
+        if xff is None:
+            xff = _next_synthetic_xff()
+            try:
+                self._e2e_xff = xff
+            except Exception:
+                pass
+        headers.setdefault("X-Forwarded-For", xff)
 
     kwargs["headers"] = headers
     return _orig_httpx_request(self, method, url, **kwargs)

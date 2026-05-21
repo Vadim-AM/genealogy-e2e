@@ -33,22 +33,33 @@ def test_owner_settings_tab_has_inputs(owner_page: Page):
 def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_client):
     """F-OU-2: save site_name → backend reflects the new value via /api/site/config.
 
-    Was xfail under BUG-MT-001 — current HEAD passes, marker dropped on 28.04.
+    Await the WRITE specifically. `update_settings()` first opens the
+    settings tab — which GETs /api/site/config to populate the form —
+    then clicks save (the write). A bare
+    `expect_response("**/api/site/config")` matches that form-populate
+    GET, so the test never actually awaited the save and raced it: green
+    in isolation, "site_name not persisted" only under concurrent load
+    (the slower the PATCH, the more the trailing API GET out-runs it).
+    That looked like a per-tenant persistence bug; it was this matcher.
+    Match a non-GET /api/site/config response → deterministic under load.
     """
     owner = OwnerPage(owner_page).goto()
     owner_page.wait_for_load_state("domcontentloaded")
 
     new_name = TestData.SAMPLE_SITE_NAME
-    with owner_page.expect_response("**/api/site/config") as resp_info:
+    with owner_page.expect_response(
+        lambda r: r.url.endswith(API.SITE_CONFIG)
+        and r.request.method != "GET"
+    ) as resp_info:
         owner.update_settings(site_name=new_name)
     assert resp_info.value.ok, \
-        f"PATCH /api/site/config returned {resp_info.value.status}"
+        f"save /api/site/config returned {resp_info.value.status}"
 
     api = tenant_client(owner_user)
     r = api.get(API.SITE_CONFIG)
     r.raise_for_status()
     assert r.json()["site_name"] == new_name, \
-        f"site_name not persisted (BUG-MT-001 likely): got {r.json().get('site_name')!r}"
+        f"site_name not persisted: got {r.json().get('site_name')!r}"
 
 
 def test_owner_export_gedcom_returns_valid_dump(owner_user, tenant_client):

@@ -94,16 +94,20 @@ def test_invitee_clicks_open_tree_lands_on_tree_with_authed_indicator(
 def test_owner_opens_own_invite_sees_warning_with_display_name(
     owner_page: Page, owner_user, tenant_client,
 ):
-    """TC-INVITE-1 + BUG-UX-003: owner открывает собственный invite-link
-    → видит warning с tenant *display_name* (full_name из signup),
-    а не slug-URL.
+    """TC-INVITE-1 + BUG-UX-003: owner открывает invite, выписанный на
+    *свой собственный* email → видит warning «вы и так владелец древа
+    «<display_name>»» (full_name из signup), а не slug-URL.
 
-    `display_name` отдельное поле от `family_name`, выставляется на
-    signup'е (auth_v2/router.py:316,357) и выходит в «уже владелец»
-    через tenant_invites.py:253.
+    Контракт изменён в v2-Phase1: accept теперь email-bound. Если
+    авторизованный owner открывает invite на ЧУЖОЙ email — backend
+    отбивает 403 «приглашение для другого email-адреса» (anti-forward
+    защита, tenant_invites.py:270). Чтобы дойти до owner-warning,
+    invite должен быть на email самого owner'а → email совпадает →
+    `already_member`/`role=owner` → invite-accept.js рисует «Это ваше
+    древо» + tenant_display_name.
     """
     api = tenant_client(owner_user)
-    r = api.post(API.TENANT_INVITES, json={"email": make_email("self"), "role": "viewer"})
+    r = api.post(API.TENANT_INVITES, json={"email": owner_user.email, "role": "viewer"})
     r.raise_for_status()
     invite_token = r.json()["token"]
 
@@ -124,20 +128,27 @@ def test_owner_opens_own_invite_sees_warning_with_display_name(
 def test_anonymous_invitee_sees_login_links_with_token_in_next(
     page: Page, owner_user, tenant_client,
 ):
-    """TC-INVITE-2: anonymous visitor видит prompt с links на `/login`
-    и `/signup`, оба preserve token через `?next=/invite-accept?token=…`.
+    """TC-INVITE-2: anonymous visitor + **email-less** invite видит prompt
+    с links на `/login` и `/signup`, оба preserve token через
+    `?next=/invite-accept?token=…`.
+
+    Контракт изменён в v2-Phase1: invite *с* email + неавторизованный
+    recipient = magic-link (backend сам создаёт passwordless user,
+    auto-accept — см. test_anonymous_emailed_invite_is_magic_link_auto_accepted).
+    Login-prompt путь (401) теперь срабатывает ТОЛЬКО для invite **без**
+    email (`CreateInviteRequest.email` опционален). Поэтому здесь invite
+    создаётся без email.
     """
     api = tenant_client(owner_user)
-    r = api.post(API.TENANT_INVITES, json={"email": make_email("guest-invitee"), "role": "viewer"})
+    r = api.post(API.TENANT_INVITES, json={"role": "viewer"})
     r.raise_for_status()
     invite_token = r.json()["token"]
 
     invite_page = InviteAcceptPage(page).open_with_token(invite_token)
-    # Substring «войди» покрывает «войдите», «войду» — verb-forms varies.
-    expect(invite_page.message).to_contain_text("войди")
+    expect(invite_page.message).to_contain_text(t(Invite.LOGIN_REQUIRED_MSG))
 
-    login_link = page.get_by_role("link", name="ойди", exact=False).first
-    signup_link = page.get_by_role("link", name="егистр", exact=False).first
+    login_link = page.get_by_role("link", name=t(Invite.LOGIN_LINK), exact=False).first
+    signup_link = page.get_by_role("link", name=t(Invite.SIGNUP_LINK), exact=False).first
     expect(login_link).to_be_visible()
     expect(signup_link).to_be_visible()
 
@@ -149,3 +160,31 @@ def test_anonymous_invitee_sees_login_links_with_token_in_next(
     assert invite_token in signup_href, (
         f"signup link must carry invite token: {signup_href!r}"
     )
+
+
+def test_anonymous_emailed_invite_is_magic_link_auto_accepted(
+    page: Page, owner_user, tenant_client,
+):
+    """v2-Phase1 H5 (new contract): an *emailed* invite opened by an
+    anonymous visitor is a magic-link — the unique 192-bit token is the
+    email-ownership proof, so the backend creates a passwordless user and
+    auto-accepts. No login prompt. invite-accept.js renders the fresh-accept
+    success ("Готово!" + «Вы добавлены в древо … с ролью …»).
+
+    Guards the security-relevant behaviour change: clicking an emailed
+    invite link grants access without an interactive auth step.
+    """
+    viewer_email = make_email("magic-invitee")
+    api = tenant_client(owner_user)
+    r = api.post(API.TENANT_INVITES, json={"email": viewer_email, "role": "viewer"})
+    r.raise_for_status()
+    invite_token = r.json()["token"]
+
+    invite_page = InviteAcceptPage(page).open_with_token(invite_token)
+
+    expect(invite_page.title_el).to_contain_text(t(Invite.ACCEPT_SUCCESS_TITLE))
+    expect(invite_page.message).to_contain_text(t(Invite.ADDED_TO_TREE))
+    # Tenant display_name (owner full_name) rendered, not raw slug.
+    expect(invite_page.message).to_contain_text(TestData.DEFAULT_FULL_NAME)
+    assert owner_user.slug not in (invite_page.message.text_content() or ""), \
+        "raw slug leaked into magic-link success copy"
