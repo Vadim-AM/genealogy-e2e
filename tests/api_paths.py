@@ -58,6 +58,10 @@ class API:
     TENANT_INVITES = "/api/account/tenant/invites"
 
     @staticmethod
+    def tenant_invite(token: str) -> str:
+        return f"/api/account/tenant/invites/{token}"
+
+    @staticmethod
     def tenant_invite_accept(token: str) -> str:
         return f"/api/account/tenant/invites/{token}/accept"
 
@@ -114,6 +118,8 @@ class API:
 
     # ── Subscription / tenant export ─────────────────────────────
     SUBSCRIPTION_USAGE_LEGACY = "/api/subscription/usage"
+    SUBSCRIPTION_CURRENT = "/api/subscription/current"
+    SUBSCRIPTION_CANCEL = "/api/subscription/cancel"
     TENANT_EXPORT = "/api/tenant/export"
 
     # ── Health / ops ─────────────────────────────────────────────

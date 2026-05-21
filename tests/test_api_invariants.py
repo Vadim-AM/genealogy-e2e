@@ -134,6 +134,38 @@ def test_relationship_delete_removes_the_edge(owner_user, tenant_client):
         f"relationship must be gone: {len(before)} → {len(after)}"
 
 
+def test_subscription_current_and_cancel(owner_user, tenant_client):
+    """GET /api/subscription/current reports the tenant's tier; POST
+    cancel on a free tenant (no paid subscription) is rejected 400 —
+    there is nothing to cancel."""
+    api = tenant_client(owner_user)
+    current = api.get(API.SUBSCRIPTION_CURRENT)
+    current.raise_for_status()
+    assert current.json()["tenant"]["tier"] == "free"
+    assert current.json()["subscription"] is None
+
+    cancelled = api.post(API.SUBSCRIPTION_CANCEL)
+    assert cancelled.status_code == 400, \
+        f"cancel with no active subscription must 400, got {cancelled.status_code}"
+
+
+def test_invite_revoke(owner_user, tenant_client, create_invite):
+    """Owner issues a tenant invite, then revokes it by token —
+    DELETE /api/account/tenant/invites/{token} reports it revoked."""
+    create_invite(owner_user, role="editor", name="Гость")
+    api = tenant_client(owner_user)
+    pending = api.get(API.TENANT_INVITES)
+    pending.raise_for_status()
+    items = pending.json()
+    items = items if isinstance(items, list) else items["items"]
+    assert items, "issued invite must be pending"
+    token = items[0]["token"]
+
+    revoked = api.delete(API.tenant_invite(token))
+    revoked.raise_for_status()
+    assert revoked.json()["status"] == "revoked"
+
+
 def test_locations_create_then_list(owner_user, tenant_client):
     """POST /api/locations creates a location; GET lists it back."""
     api = tenant_client(owner_user)

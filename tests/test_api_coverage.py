@@ -42,14 +42,10 @@ KNOWN_GAPS: frozenset[str] = frozenset({
     # ── enrichment tail — fire-and-forget telemetry, no journey ───
     "/api/enrich/{}/feedback",
     "/api/enrich/letters/sent",
-    # ── subscription lifecycle — journey pending ──────────────────
-    "/api/subscription/current",
-    "/api/subscription/cancel",
+    # ── subscription checkout — no payment provider in test mode ──
     "/api/subscription/checkout",
     # ── tenant restore — needs a soft-deleted tenant fixture ──────
     "/api/account/restore-tenant",
-    # ── invite-revoke journey — pending ───────────────────────────
-    "/api/account/tenant/invites/{}",
     # ── photo upload / metadata journey — pending ─────────────────
     "/api/admin/upload-photo",
     "/api/admin/photos/{}",
