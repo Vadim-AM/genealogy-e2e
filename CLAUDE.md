@@ -283,7 +283,7 @@ genealogy-e2e/
 ├── .github/workflows/
 │   └── pr-check.yml          # boots uvicorn → drift-lint → pytest
 ├── pytest.ini                # markers: smoke, regression, slow + domains
-└── requirements.txt          # playwright>=1.45, pytest-playwright>=0.4.4
+└── requirements.txt          # playwright, pytest-xdist, filelock, pyotp, httpx
 ```
 
 Tests under `tests/<domain>/` automatically get `@pytest.mark.<domain>` via
@@ -422,159 +422,37 @@ fail-closed (`503` no token → `401` no header → `403` wrong token):
 
 If a contract changes upstream, update both repos in lockstep.
 
-## Run summary (28.04.2026 late night, post-Wave 9)
+## Gotchas
 
-`E2E_BACKEND_URL=http://127.0.0.1:8645 pytest tests/` against fresh
-upstream dev (`106a1c4`) → **102 passed, 21 xfailed in 80s**.
+- **`customSelect`** (`js/components/select.js`) wraps every native
+  `<select>` and hides the original (`display:none`). Calling
+  `.select_option()` on a `<select data-field="...">` fails with
+  "element not visible" — use `PersonEditor.select_dropdown(field,
+  value)`, which clicks the wrapper trigger and the option. Applies to
+  `gender`, `branch`, `status`.
+- **Per-viewport tests** build their own browser context — the default
+  `conftest` viewport is 1440×900. Don't reuse `owner_page` for a
+  mobile/responsive test; its viewport is fixed.
 
-Wave 9 added 8 domain-invariant + auth-security regressions:
+## Branching & commits
 
-- `test_domain_invariants.py` — 6 tests covering INV-DOMAIN-001..005
-  + INV-DATE-001:
-  - death year before birth year (PATCH)
-  - parent.birth after child.birth (PATCH)
-  - garbage birth='foobar' accepted as date (PATCH)
-  - 3rd parent relationship accepted (POST)
-  - parent-cycle (A↔B) accepted (POST)
-  - branch=demo on root subject accepted (PATCH)
-- `test_session_invalidation.py` — INV-AUTH-001 stolen session NOT
-  invalidated after password reset (P0 — defeats security purpose
-  of reset).
-- `test_concurrency.py` — INV-EDIT-001 GET /api/people/{id} returns
-  ETag for optimistic concurrency (otherwise lost-update silent).
+**Branch from `dev`, always** — `git switch -c <name> dev`. `dev` is the
+integration branch; `main` lags it (promoting `dev → main` is a separate
+explicit step). A branch cut from `main` misses the current layout and
+fixtures and turns structurally unmergeable into `dev` — that has
+already cost a near-lost rewrite.
 
-Out of e2e scope (delegated to backend pytest):
-- INV-TEST-001/002/003 (`/api/_test/*` open anonymously) — the suite
-  itself depends on anonymous access to those endpoints. Fix needs
-  coordinated change in both repos; backend can validate via
-  IS_TESTING-disabled run.
-- INV-AI-003 (failed jobs don't decrement quota) — needs controllable
-  AI-failure mock; marginal value for e2e.
-- INV-PERM-002 (auth_v2 vs admin gate) — unclear expected contract,
-  product decision pending.
-
-## Run summary (28.04.2026 night, post-Wave 8)
-
-`E2E_BACKEND_URL=http://127.0.0.1:8645 pytest tests/` against fresh
-upstream dev (`106a1c4`) → **102 passed, 13 xfailed in 80s**.
-
-Wave 8 added 13 new test files/cases covering security, a11y, privacy,
-i18n, form contracts, and ux regressions surfaced by the QA funnel run:
-
-- `test_security_timing.py` — TC-SEC-3/4 timing-based account
-  enumeration on signup (≈9× ratio) and login (≈14×). Median p50
-  ratio threshold = 3.0× (xfail until equal-work fix).
-- `test_privacy_static.py` — TC-PRIVACY-1 PII regression-trail on
-  `/js/constants.js` and inline scripts in `/`. Closed by
-  `de7f53a` ("BUG-COPY-001 finalize") in Run 2; passing tests guard
-  against regression.
-- `test_a11y.py` — A-SU-3 (`aria-invalid` not set on validation
-  fail) + A-SU-4 (honeypot lacks `aria-hidden="true"`).
-- `test_form_method.py` — TC-FORM-1 signup/login/reset-password
-  forms have explicit `method="post"` (not default GET → leaks
-  passwords to query string).
-- `test_login_unverified.py` — TC-VERIFY-1 / BUG-LG-001 unverified
-  login returns specific `verification_required` discriminator,
-  not generic English «Invalid email or password».
-- `test_welcome_email.py` — TC-COPY-3 / BUG-COPY-003 welcome-email
-  domain comes from `GENEALOGY_PUBLIC_URL`, not hardcoded
-  `nasharodoslovnaya.ru`.
-- `test_security.py` (extended) — TC-CSP-2 / BUG-CSP-001 served HTML
-  has no inline `on*=` event-handler attributes (CSP header alone
-  is not enough — index.html still ships `onload="this.media='all'"`
-  on the fonts.css link, breaking font swap).
-- `test_i18n.py` — BUG-i18N-001 backend error detail in Russian for
-  RU-product (login wrong creds + signup short password).
-- `test_profile_edit.py` (extended) — TC-EDITOR-3 / X-PR-3 (BUG-UX-002
-  reopen) Delete button hidden in editor for the root subject.
-
-Notes:
-- TC-FORGOT-1 (forgot-password email bombing per-email rate-limit)
-  **not automated** in Wave 8: requires a backend test endpoint to
-  count emails sent (current `/api/_test/last-email` returns only
-  the latest one). Sketched in CLAUDE.md backlog.
-- All product-bug tests are `@pytest.mark.xfail(strict=False, ...)`
-  with concrete BUG-XXX-N IDs and fix-hints, per Rule 6.
-
-## Run summary (28.04.2026 evening, after upstream xfail-cleanup wave)
-
-`E2E_BACKEND_URL=http://127.0.0.1:8643 pytest tests/` against fresh
-upstream dev (`d0e878b`) → **99 passed, 0 xfailed in 42s**.
-
-All 5 xfails closed by 4 upstream commits on dev:
-- `731fbc9` BUG-AUTH-001 reopen → `test_deep_link.*` ×2 → regular tests.
-- `fc2849e` BUG-COPY-001 → `test_landing_no_personal_owner_data` → regular.
-- `7e39c57` BUG-EDITOR-002 → `test_owner_edits_demo_self_summary_through_ui` → regular.
-- `8146ed5` BUG-DB-002 ep.4 → `test_enrichment_endpoint_returns_mocked_output` → regular.
-
-xfail markers stripped from all four files. Suite now has zero xfails;
-the next product bug we catch will get a fresh marker per Rule 6.
-
-## Run summary (28.04.2026 afternoon, post-Wave 7 + harden pass)
-
-`E2E_BACKEND_URL=http://127.0.0.1:8642 pytest tests/` → **94 passed, 5 xfailed in 82s**.
-
-Wave 7 added (no overlap with prior waves):
-- `test_site_config.py` — TC-MT-1 read/write/anon isolation (extends the
-  one-line `test_bug_mt_001_*` regression with the full 8-step scenario).
-- `test_enrichment_consent.py` — TC-AI-1 GDPR/152-FZ consent confirm:
-  positive (text contains Anthropic + privacy reference) + negative
-  (decline blocks POST `/api/enrich/`).
-- `test_responsive.py` — TC-RESPONSIVE-1 viewport tests: 375×812 signup
-  (no h-scroll, eye-toggle visible, agree-row fits) + 768×1024 owner
-  (5 tabs visible).
-
-Per-viewport tests use their own browser context (default conftest is
-1440×900). Don't try to reuse `owner_page` — viewport is fixed there.
-
-### Harden pass (28.04, evening)
-
-Audit existing tests for smoke / antipatterns from Rule 1:
-- **`test_enrichment_history_endpoint_after_run`** — was xfailed under the
-  same reason as the `actor_kind` bug, but history endpoint reads
-  `EnrichmentCache` not `EnrichmentJob` and never depended on that
-  column. The actual failure was an outdated assertion: backend returns
-  `{items: [...]}`, test asserted `isinstance(_, list)`. Fixed shape +
-  dropped xfail → renamed `test_enrichment_history_endpoint_returns_items_dict`.
-- **`test_logout::test_logout_clears_session`** — had a `pytest.skip`
-  fallback when logout endpoint returned 404. Rule 1: a missing core
-  endpoint is a regression, not «scenario doesn't apply». Removed
-  fallback; assert is now hard-pinned to 200/204.
-- **`test_waitlist::test_wait_duplicate_email_does_not_5xx`** — was a
-  `status < 500` smoke. Backend contract is precise: 200 + JSON
-  `{status: "ok"}` first, `{status: "already_subscribed"}` after.
-  Pinned both. Renamed to `test_wait_duplicate_email_idempotent_status_field`.
-  Side-finding: `_test/reset` does NOT wipe waitlist (it lives in legacy
-  `genealogy.db`, not platform.db). Tests now use `_unique_email(label)`
-  to avoid stale-row poisoning between runs.
-- **`test_profile_edit::test_delete_button_invokes_confirm_dialog`** —
-  had `"необратим" in msg or "необратимо" in msg`. Substring overlap
-  (необратим ⊂ необратимо), the `or` was decorative. Simplified.
-- **`test_enrichment_consent::test_first_enrich_click_*`** — same
-  decorative `or` between `msg.lower()` and `msg`. Simplified to
-  `in msg.lower()` only.
-
-## Open xfails
-
-None as of 28.04.2026 evening. Suite is fully green against
-upstream `dev` at `d0e878b`.
-
-When the suite catches a new product bug, mark it per Rule 6
-(`@pytest.mark.xfail(strict=False, reason="BUG-XXX-N: ...")`)
-so CI stays clean while the fix is open. When the fix lands →
-XPASS → drop the marker.
-
-### Notable fix landed in dev (28.04 merge)
-
-- `customSelect` (new `js/components/select.js`) wraps every native `<select>` and hides the original with `display:none`. Tests that did `.select_option(value)` on `<select data-field="...">` would fail with "element not visible" — POM `PersonEditor.select_dropdown(field, value)` clicks the wrapper trigger and option instead. Use that for any `gender`, `branch`, `status` interaction.
-
-## Commit style
-
-- One logical wave per branch (`chore/wave-N-<topic>`).
-- Branch names describe the change, not the date.
-- Commit messages: imperative subject, body explains the *why* (especially
-  for sanitize/refactor commits where the *what* is mechanical).
-- Co-Authored-By trailer when Claude wrote the commit.
+- **One branch = one logical change = one merge into `dev`.** Don't run
+  two branches on the same topic in parallel — they diverge, and the
+  work gets duplicated or lost.
+- Branch names describe the change, not the date: `chore/<topic>`,
+  `fix/<topic>`, `test/<topic>`.
+- Merge into `dev` with `--no-ff`, subject `merge: <branch> into dev` —
+  keeps the branch boundary visible in history.
+- Delete a branch once merged — locally **and** on `origin`.
+- Commit messages: imperative subject; the body explains the *why* (the
+  *what* is already in the diff). Add a `Co-Authored-By` trailer when
+  Claude wrote the commit.
 
 ## When in doubt
 
