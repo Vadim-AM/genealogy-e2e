@@ -67,6 +67,24 @@ class API:
     def enrich_acceptances(pid: str) -> str:
         return f"/api/enrich/{pid}/acceptances"
 
+    @staticmethod
+    def enrich_accept(pid: str) -> str:
+        return f"/api/enrich/{pid}/accept"
+
+    @staticmethod
+    def enrich_revert(acceptance_id: int) -> str:
+        return f"/api/enrich/acceptances/{acceptance_id}/revert"
+
+    @staticmethod
+    def enrich_stream(job_id: str) -> str:
+        return f"/api/enrich/jobs/{job_id}/stream"
+
+    @staticmethod
+    def enrich_cache(enrichment_id: int) -> str:
+        return f"/api/enrich/cache/{enrichment_id}"
+
+    ENRICH_HEALTH_API_KEY = "/api/enrich/health/api-key"
+
     # ── Photos ───────────────────────────────────────────────────
     TIMELINE_GEO = "/api/timeline-geo"
 

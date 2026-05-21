@@ -120,6 +120,15 @@ class AiConsent(_Catalogue):
     SHARED_DATA_KEYWORD = {"ru": "данных карточки", "en": "data from the card"}
     # Decline-button label in the consent modal (enrichment-modal.js:112).
     DECLINE_LABEL = {"ru": "Не сейчас", "en": "Not now"}
+    # Confirm-button label — accepts consent and runs the enrichment.
+    CONFIRM_LABEL = {"ru": "Запустить", "en": "Run"}
+
+
+class Enrichment(_Catalogue):
+    """Strings in the enrichment result UI (accept/revert into the card)."""
+
+    # okLabel of the revert promptDialog (view-mode.js:268).
+    REVERT_OK = {"ru": "Снять", "en": "Remove"}
 
 
 class FamilyGroups(_Catalogue):

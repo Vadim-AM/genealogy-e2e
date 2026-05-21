@@ -36,14 +36,9 @@ KNOWN_GAPS: frozenset[str] = frozenset({
     # BUG-SHARE-PG-001: GET /api/share/view → 500, UndefinedTable
     # `share_token` on the anonymous tenant-less path.
     "/api/share/view/{}",
-    # ── P1 · enrichment-apply journey (принять AI-результат) ──────
-    "/api/enrich/{}/accept",
-    "/api/enrich/acceptances/{}/revert",
+    # ── enrichment tail — fire-and-forget telemetry, no journey ───
     "/api/enrich/{}/feedback",
-    "/api/enrich/jobs/{}/stream",
-    "/api/enrich/cache/{}",
     "/api/enrich/letters/sent",
-    "/api/enrich/health/api-key",
     # ── P1 · user-2FA journey ─────────────────────────────────────
     "/api/account/mfa/setup",
     "/api/account/mfa/verify",
