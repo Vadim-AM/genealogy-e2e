@@ -57,15 +57,21 @@ def test_login_unknown_email_returns_same_error_as_wrong_password(
 
     No reverse-engineerable signal that an account does/does-not exist.
     """
+    # `to_be_visible` would pass while the element is still rendering its
+    # text; under `-n auto` parallel load that race yields a spurious empty
+    # `text_content()`. Wait for non-empty text so the comparison is
+    # between two settled strings.
+    _NON_EMPTY = re.compile(r"\S")
+
     login = LoginPage(page).goto()
     login.login(owner_user.email, "wrong_pw_2026")
-    expect(login.error_msg).to_be_visible()
+    expect(login.error_msg).to_have_text(_NON_EMPTY, timeout=TIMEOUTS.pw_action_ms)
     msg_known = login.error_msg.text_content()
 
     page.goto("/login")
     login_unknown = LoginPage(page)
     login_unknown.login("does-not-exist@e2e.example.com", "any_password_2026")
-    expect(login_unknown.error_msg).to_be_visible()
+    expect(login_unknown.error_msg).to_have_text(_NON_EMPTY, timeout=TIMEOUTS.pw_action_ms)
     msg_unknown = login_unknown.error_msg.text_content()
 
     assert msg_known == msg_unknown, (

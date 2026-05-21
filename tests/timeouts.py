@@ -25,6 +25,8 @@ Field semantics — pick the smallest one that fits the operation:
   - `enrichment_poll` (30s) — background job completion
   - `polling_interval` (0.3s) — sleep between httpx-poll retries
   - `pw_action_ms` (10_000ms) — Playwright `wait_for_*` action timeout
+  - `pw_provision_ms` (15_000ms) — Playwright `expect()` window for the
+    verify-email → provision_tenant round-trip (slow under `-n auto` load)
 """
 
 from __future__ import annotations
@@ -64,6 +66,11 @@ class _Timeouts:
     pw_expect_ms: int
     # Playwright `wait_for_load_state` / `wait_for_selector` window (ms).
     pw_action_ms: int
+    # Playwright `expect()` window for the verify-email → provision_tenant
+    # round-trip — CREATE SCHEMA + create_all + alembic stamp run under a
+    # session-level advisory lock; under `-n auto` parallel load (many
+    # xdist workers contending) it exceeds the default `pw_expect_ms`.
+    pw_provision_ms: int
 
 
 def _build() -> _Timeouts:
@@ -77,6 +84,7 @@ def _build() -> _Timeouts:
         polling_interval=0.3 * m,
         pw_expect_ms=int(5_000 * m),
         pw_action_ms=int(10_000 * m),
+        pw_provision_ms=int(15_000 * m),
     )
 
 
