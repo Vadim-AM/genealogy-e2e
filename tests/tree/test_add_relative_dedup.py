@@ -179,9 +179,13 @@ def test_sibling_parent_suggestion_prevents_duplicate(
     # KEY-1: suggestion-card на demo-father должна быть видна
     modal.expect_suggestion_visible(demo_father_id)
 
-    # KEY-2: клик на suggestion = POST /relationships (НЕ /people)
+    # KEY-2: клик на suggestion → link-mode (chip), Save → POST
+    # /relationships (НЕ /people). FEATURE-PARENT-SEARCH-001 развела
+    # выбор и применение: клик карточки больше не POST'ит немедленно.
+    modal.click_suggestion(demo_father_id)
+    modal.expect_linked_to(demo_father_id)
     with owner_page.expect_response(f"**{API.RELATIONSHIPS}**") as rel_resp:
-        modal.click_suggestion(demo_father_id)
+        modal.btn_save.click()
     assert rel_resp.value.ok, (
         f"POST /api/relationships failed: {rel_resp.value.status} "
         f"{rel_resp.value.text()[:200]}"
@@ -429,14 +433,17 @@ def test_suggestion_click_does_not_create_new_person(
 
     owner_page.on("request", _on_request)
     try:
+        # click → link-mode, Save → POST /relationships (FEATURE-PARENT-SEARCH-001).
+        modal.click_suggestion(demo_father_id)
+        modal.expect_linked_to(demo_father_id)
         with owner_page.expect_response(f"**{API.RELATIONSHIPS}**") as _:
-            modal.click_suggestion(demo_father_id)
+            modal.btn_save.click()
         expect(modal.overlay).not_to_be_visible()
     finally:
         owner_page.remove_listener("request", _on_request)
 
     assert posted_people == [], (
-        f"expected ZERO POST /api/people on suggestion-click; got {posted_people}"
+        f"expected ZERO POST /api/people on suggestion link-and-save; got {posted_people}"
     )
 
 
@@ -535,8 +542,11 @@ def test_suggestion_click_shows_error_on_backend_422(
 
     owner_page.route(f"**{API.RELATIONSHIPS}*", _block_with_422)
     try:
+        # click → link-mode; POST уходит на Save (FEATURE-PARENT-SEARCH-001).
         modal.click_suggestion(demo_father_id)
-        # Модалка должна остаться открытой
+        modal.expect_linked_to(demo_father_id)
+        modal.btn_save.click()
+        # Модалка должна остаться открытой, ошибка 422 — видимой.
         expect(modal.overlay).to_be_visible()
         expect(modal.error).to_be_visible()
         expect(modal.error).to_contain_text(t(AgeValidation.PARENT_AGE_KEYWORD))

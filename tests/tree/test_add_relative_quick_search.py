@@ -1,202 +1,280 @@
-"""FEATURE-PARENT-SEARCH-001: «быстрый поиск» existing person в add-relative-modal.
+"""FEATURE-PARENT-SEARCH-001 — inline-autocomplete + linked-chip + state-machine.
 
-Текущая graph-aware dedup (Фаза 1) предлагает кандидата-родителя **только**
-если у current-person есть sibling с уже-привязанным parent'ом. Большой
-пул сценариев это не покрывает:
+Что закрывается фичей (upstream branch `feat/add-relative-link-existing`,
+commits `f7c2931` Phase A + `c191e46` Phase B):
 
-- person без siblings (одинокий subject в дереве) хочет привязать дедушку,
-  записанного отдельно в другой ветке.
-- person с siblings, но желаемый parent не привязан ни к одному из них
-  (например, добавили только мать → ищем отца, который записан в третьем
-  поколении сбоку).
-- юзер начинает с импорта 5 INDI из GEDCOM, потом manually добавляет
-  6-го — должен иметь возможность привязать его к existing вместо
-  создания дубля.
+- На surname/given inputs модалки добавления родственника появляется
+  inline-autocomplete dropdown со строками `role="option"
+  data-action="pick-existing" data-person-id="..."`. Триггер — `surname +
+  given >= 2` символов, debounce 150ms.
+- Клик по строке (или ArrowDown+Enter) включает link-mode: появляется
+  `.add-rel-linked-chip[data-linked-id="..."]` сверху формы, поля
+  становятся `readonly`, кнопка `save-then-edit` скрывается, Save теперь
+  идёт через `linkExistingRelative()` (только `POST /api/relationships`,
+  без `POST /api/people` → без дубликата).
+- `[data-action="unlink-existing"]` на чипе возвращает в create-mode
+  (форма editable, поля остаются заполненными — типичный сценарий
+  «нашёл похожего, но это другой»).
 
-Решение: в add-relative-modal добавить input для поиска existing person'а
-по name (autocomplete), и кнопку «Привязать» — выбор → POST /relationships,
-никакого нового person'а.
-
-Тест в xfail до реализации фичи. После релиза:
-1. Снять `pytestmark`.
-2. Уточнить селекторы под актуальный markup, если они отличаются от
-   предположенных ниже.
-
-Selectors-предположения (документация для разработчика фичи):
-- `#addRelExistingSearch` — text input для name query (placeholder типа
-  «Найти существующего человека»).
-- `[data-action="pick-existing"][data-person-id="..."]` — карточка
-  результата, клик = ссылка на existing.
-- `[data-existing-results]` — контейнер списка результатов.
+Был xfail до upstream commit `c56053b` (PR #160 merge:
+«inline-autocomplete + linked-chip — FEATURE-PARENT-SEARCH-001»).
+Post-merge wave-4b split (`2c27950`) разнёс monolith shell.js (1003
+LOC) на 4 sub-модуля; данный контракт остался стабильным (drop
+xfail после полного XPASS-прогона на upstream/dev `7dcd427`).
 """
 
 from __future__ import annotations
 
-import pytest
+import httpx
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
+from tests.messages import LinkedChip, TestData, t
 from tests.pages.person_editor import AddRelativeModal
 from tests.pages.profile_panel import ProfilePanel
+from tests.timeouts import TIMEOUTS
 
 
-pytestmark = pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "FEATURE-PARENT-SEARCH-001: search-input для existing persons в "
-        "add-relative-modal не реализован. Текущий dedup graph-aware "
-        "(suggestion от siblings) не покрывает person'ов без siblings. "
-        "Снять marker когда фича приедет в add-relative-modal.js."
-    ),
-)
+# ─────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────
 
 
-def _open_profile(page: Page, person_id: str) -> ProfilePanel:
-    """Navigate к profile через `/#/p/{id}` — full reload, чтобы init.js
-    re-bound DATA cache."""
-    page.goto("/")
-    page.wait_for_load_state("domcontentloaded")
-    page.goto(f"/#/p/{person_id}")
-    page.wait_for_load_state("domcontentloaded")
+def _seed_person(api: httpx.Client, *, pid: str, name: str, **extra) -> str:
+    """POST /api/people с предсказуемым id (упрощает selectors внутри тестов).
+
+    Backend (POST /api/people в main.py) принимает client-supplied id или
+    сам генерирует UUID — фронт делает обоими путями. Тестам удобнее
+    знать id заранее, чтобы делать `modal.pick_existing(pid)` без поиска
+    по name через /api/tree.
+    """
+    body = {"id": pid, "name": name, "branch": "paternal", "gender": "m"}
+    body.update(extra)
+    api.post(API.PEOPLE, json=body).raise_for_status()
+    return pid
+
+
+def _people_count(api: httpx.Client) -> int:
+    r = api.get(API.TREE)
+    r.raise_for_status()
+    return len(r.json()["people"])
+
+
+def _open_demo_self_profile(page: Page) -> ProfilePanel:
+    page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
+    page.wait_for_load_state("networkidle")
     panel = ProfilePanel(page)
     panel.expect_visible()
     return panel
 
 
-def test_user_links_existing_parent_via_modal_quick_search(
-    owner_page: Page, owner_user, tenant_client,
-):
-    """User flow: одинокий person + существующий-в-БД отец (не sibling-bridged).
-    В модалке «+ родитель» ввод его имени → click пиктограмму выбора →
-    POST /relationships без создания дубликата.
+# ─────────────────────────────────────────────────────────────────────────
+# Acceptance tests
+# ─────────────────────────────────────────────────────────────────────────
 
-    Acceptance через UI:
-    - Search-input виден в modal.
-    - Type → появляется результат-карточка с именем кандидата.
-    - Click → modal закрывается, новый person НЕ создан, parent привязан.
+
+def test_link_existing_sibling_creates_only_relationship(
+    owner_page: Page, owner_user, tenant_client
+):
+    """Happy path: existing person → link as sibling → POST /api/relationships
+    only (НЕ /api/people). People-count не вырос → дубликата нет.
+
+    Sibling (а не parent) — потому что demo-self уже имеет 2 demo-parent'а,
+    `+ parent`-кнопка под RELATIVE_LIMITS скрыта.
     """
     api = tenant_client(owner_user)
-
-    # Существующий-в-БД отец, записан independently (не привязан ни к кому).
-    r = api.post(
-        API.PEOPLE,
-        json={
-            "name": "Богданов Аркадий",
-            "gender": "m",
-            "birth": "1935",
-            "branch": "other",
-        },
+    existing_id = _seed_person(
+        api,
+        pid="link-sib-existing",
+        name="Прохор Иванов",
+        surname="Иванов",
+        given_name="Прохор",
     )
-    r.raise_for_status()
-    father_id = r.json()["id"]
+    count_before = _people_count(api)
 
-    # Subject — одинокий, без parents и siblings.
-    r2 = api.post(
-        API.PEOPLE,
-        json={
-            "name": "Богданов Тимофей",
-            "gender": "m",
-            "birth": "1965",
-            "branch": "other",
-        },
-    )
-    r2.raise_for_status()
-    subject_id = r2.json()["id"]
+    panel = _open_demo_self_profile(owner_page)
+    panel.click_add_sibling()
 
-    people_count_before = len(api.get(API.TREE).json()["people"])
-
-    # Open subject → «+ родитель».
-    panel = _open_profile(owner_page, subject_id)
-    panel.click_add_parent()
     modal = AddRelativeModal(owner_page)
     modal.expect_visible()
 
-    # FEATURE: search-input по existing persons.
-    search_input = modal.container.locator("#addRelExistingSearch")
-    expect(search_input).to_be_visible()
+    modal.search_existing(surname="Иван")
+    modal.expect_dropdown_open()
+    expect(modal.row_by_person_id(existing_id)).to_be_visible()
 
-    search_input.fill("Аркадий")
+    modal.pick_existing(existing_id)
+    modal.expect_linked_to(existing_id)
+    modal.expect_field_readonly("surname")
+    modal.expect_field_readonly("given_name")
 
-    # Result-card видна, attached на known id.
-    result = modal.container.locator(
-        f'[data-action="pick-existing"][data-person-id="{father_id}"]'
-    )
-    expect(result).to_be_visible()
+    # Linked chip должен содержать lexicon-keywords из catalogue (а не
+    # инлайн-строки — выживет copy-edit без правки теста).
+    expect(modal.linked_chip).to_contain_text(t(LinkedChip.TITLE_KEYWORD))
+    expect(modal.linked_chip).to_contain_text(t(LinkedChip.HINT_KEYWORD))
 
-    # Click → POST /relationships (НЕ /people).
-    with owner_page.expect_response(f"**{API.RELATIONSHIPS}**") as rel_resp:
-        result.click()
-    assert rel_resp.value.ok, (
-        f"POST /api/relationships failed: {rel_resp.value.status} "
-        f"{rel_resp.value.text()[:200]}"
-    )
+    # Перехватываем POST /api/relationships, утверждаем что НИ ОДНОГО
+    # POST /api/people не было (фронт не должен дублировать).
+    post_people_count = 0
+
+    def _track(response):
+        nonlocal post_people_count
+        if response.request.method == "POST" and response.url.endswith(
+            "/api/people"
+        ):
+            post_people_count += 1
+
+    owner_page.on("response", _track)
+
+    with owner_page.expect_response("**/api/relationships") as rel_info:
+        modal.btn_save.click()
+    rel_resp = rel_info.value
+    assert rel_resp.ok, f"POST /api/relationships failed: {rel_resp.status}"
+    assert rel_resp.request.method == "POST"
+
     expect(modal.overlay).not_to_be_visible()
-
-    # Новый person не создан — только link.
-    people_after = api.get(API.TREE).json()["people"]
-    assert len(people_after) == people_count_before, (
-        f"unexpected new persons; before={people_count_before}, "
-        f"after={len(people_after)}"
+    assert post_people_count == 0, (
+        f"link-mode triggered POST /api/people {post_people_count}× — "
+        "должен быть строго 0 (дубликата не должно быть)"
     )
 
-    # Subject получил parent = известный Аркадий.
-    rels = api.get(API.RELATIONSHIPS).json()
-    parent_edges = [
-        r for r in rels
-        if r["type"] == "parent"
-        and r["person2_id"] == subject_id
-        and r["person1_id"] == father_id
-    ]
-    assert len(parent_edges) == 1, (
-        f"expected exactly 1 parent edge subject→Аркадий; got {parent_edges}"
+    # Конечная проверка: число people в дереве НЕ выросло.
+    assert _people_count(api) == count_before, (
+        "link-existing создал дубликат — people-count не должен меняться"
     )
 
 
-def test_quick_search_filters_by_relation_gender_constraint(
-    owner_page: Page, owner_user, tenant_client,
+def test_unlink_existing_returns_to_create_mode(
+    owner_page: Page, owner_user, tenant_client
 ):
-    """Search-input для «+ родитель» должен фильтровать по требуемому полу:
-    если в модалке выбран gender='f' (мать), кандидаты-мужчины не показываются.
-
-    Это эквивалент существующего gender-фильтра для suggestion-блока, но
-    для search-input.
+    """`link → create` через «Отвязать»: после клика подсказки fields readonly
+    → клик `[data-action="unlink-existing"]` → fields editable → правка
+    surname → Save создаёт нового (POST /api/people + POST /api/relationships).
     """
     api = tenant_client(owner_user)
-
-    api.post(
-        API.PEOPLE,
-        json={"name": "Богданов Аркадий", "gender": "m", "birth": "1935", "branch": "other"},
-    ).raise_for_status()
-    mother_resp = api.post(
-        API.PEOPLE,
-        json={"name": "Богданова Мария", "gender": "f", "birth": "1937", "branch": "other"},
+    existing_id = _seed_person(
+        api,
+        pid="unlink-existing",
+        name="Семён Семёнов",
+        surname="Семёнов",
+        given_name="Семён",
     )
-    mother_resp.raise_for_status()
-    mother_id = mother_resp.json()["id"]
+    count_before = _people_count(api)
 
-    subject_resp = api.post(
-        API.PEOPLE,
-        json={"name": "Богданов Тимофей", "gender": "m", "birth": "1965", "branch": "other"},
-    )
-    subject_resp.raise_for_status()
-    subject_id = subject_resp.json()["id"]
+    panel = _open_demo_self_profile(owner_page)
+    panel.click_add_sibling()
 
-    panel = _open_profile(owner_page, subject_id)
-    panel.click_add_parent()
     modal = AddRelativeModal(owner_page)
     modal.expect_visible()
-    modal.select_gender("f")
+    modal.search_existing(surname="Семён")
+    modal.expect_dropdown_open()
+    modal.pick_existing(existing_id)
+    modal.expect_linked_to(existing_id)
+    modal.expect_field_readonly("surname")
 
-    modal.container.locator("#addRelExistingSearch").fill("Богданов")
+    # Отвязать → проверяем что fields снова editable.
+    modal.unlink_existing()
+    modal.expect_not_linked()
+    expect(modal.surname).not_to_have_attribute("readonly", "readonly")
 
-    # Мать видна (gender match).
-    mother_card = modal.container.locator(
-        f'[data-action="pick-existing"][data-person-id="{mother_id}"]'
+    # Правим surname (оставляем prefilled given) → создаём нового.
+    modal.surname.fill("Семёнов-Новый")
+
+    with owner_page.expect_response(
+        lambda r: "/api/people" in r.url and r.request.method == "POST"
+    ) as person_info:
+        modal.btn_save.click()
+    assert person_info.value.ok
+
+    expect(modal.overlay).not_to_be_visible()
+    assert _people_count(api) == count_before + 1, (
+        "после unlink + правка + Save должен быть РОВНО один новый person"
     )
-    expect(mother_card).to_be_visible()
 
-    # Аркадий (мужчина) — отфильтрован.
-    male_cards = modal.container.locator(
-        '[data-action="pick-existing"]'
-    ).filter(has_text="Аркадий")
-    expect(male_cards).to_have_count(0)
+
+def test_dropdown_excludes_self(owner_page: Page, owner_user, tenant_client):
+    """Self-exclusion (validate_self_loop): ввод подстроки имени самого
+    currentPerson'а → его строки нет в dropdown'е, даже если он
+    единственный кандидат-substring-match.
+
+    owner_user.full_name по умолчанию `Тестовый Пользователь` (см.
+    `signup_via_api`); subject в дереве — demo-self с тем же name.
+    Ввод «Польз» — substring совпадает только с demo-self → dropdown
+    должен либо не открыться, либо показать пустую выдачу.
+    """
+    panel = _open_demo_self_profile(owner_page)
+    panel.click_add_sibling()
+
+    modal = AddRelativeModal(owner_page)
+    modal.expect_visible()
+    modal.search_existing(given="Польз")
+
+    # Demo-self в dropdown'е быть не должен.
+    expect(
+        modal.row_by_person_id(TestData.DEMO_PERSON_ID)
+    ).not_to_be_visible()
+
+
+def test_keyboard_arrow_down_enter_picks_first_candidate(
+    owner_page: Page, owner_user, tenant_client
+):
+    """ArrowDown открывает dropdown (если есть запрос), ещё ArrowDown
+    выделяет следующую строку, Enter — выбирает highlighted.
+
+    Здесь упрощено: один кандидат → ArrowDown откроет dropdown с
+    highlighted=0 → Enter сразу выбирает.
+    """
+    api = tenant_client(owner_user)
+    existing_id = _seed_person(
+        api,
+        pid="kbd-existing",
+        name="Глеб Глебов",
+        surname="Глебов",
+        given_name="Глеб",
+    )
+
+    panel = _open_demo_self_profile(owner_page)
+    panel.click_add_sibling()
+
+    modal = AddRelativeModal(owner_page)
+    modal.expect_visible()
+    modal.surname.fill("Глеб")
+    modal.expect_dropdown_open()
+
+    # Focus должен быть на surname после fill; ArrowDown навигирует,
+    # Enter подтверждает.
+    modal.surname.focus()
+    owner_page.keyboard.press("ArrowDown")
+    owner_page.keyboard.press("Enter")
+    modal.expect_linked_to(existing_id)
+
+
+def test_escape_closes_dropdown_keeps_modal(
+    owner_page: Page, owner_user, tenant_client
+):
+    """Esc на открытом dropdown'е → dropdown закрыт; модалка остаётся
+    открытой. Critical: trapFocus.onEscape повешен на саму модалку и
+    закрыл бы её — но dropdown-keydown делает `stopPropagation`.
+    """
+    api = tenant_client(owner_user)
+    _seed_person(
+        api,
+        pid="esc-existing",
+        name="Антон Антонов",
+        surname="Антонов",
+        given_name="Антон",
+    )
+
+    panel = _open_demo_self_profile(owner_page)
+    panel.click_add_sibling()
+
+    modal = AddRelativeModal(owner_page)
+    modal.expect_visible()
+    modal.surname.fill("Антон")
+    modal.expect_dropdown_open()
+
+    modal.surname.focus()
+    owner_page.keyboard.press("Escape")
+
+    modal.expect_dropdown_closed()
+    # Модалка ещё открыта — Esc не всплыл до trapFocus.onEscape.
+    expect(modal.container).to_be_visible()
