@@ -26,14 +26,21 @@ The point of the suite is to **catch regressions** in product behaviour. A
 test that always passes (regardless of whether the feature works) is worse
 than no test — it signals false safety.
 
+**Tests are user journeys.** An e2e test walks the user's path through the
+browser — navigate, type, click, observe what they see — and asserts on
+visible behaviour, not on "the endpoint returned 200". Drive the UI; raw
+API calls belong only in fixtures (setup/teardown) and in the few backend
+invariants no UI can express (date-order rejection, cross-tenant
+isolation). «Зашёл → ввёл почту → получил ссылку из письма → попал на
+стартовую → увидел welcome» — that is a test; a bare status-code assertion
+documents an endpoint, it is not a journey.
+
 **Anti-patterns that make tests pass-by-default:**
-- `pytest.skip` as fallback (`if r.status_code == 404: pytest.skip(...)`).
-  If a core endpoint is missing, that's a regression — fail loud, don't skip.
-  Skip is for "this scenario doesn't apply here" (different config), never
-  for "the feature isn't working".
-- Runtime `pytest.xfail(...)` inside test body. Always passes (XPASS or
-  XFAIL — never FAIL). Use `@pytest.mark.xfail(strict=False)` *outside* the
-  function with a concrete bug reference.
+- `pytest.skip` as a fallback (`if r.status_code == 404: pytest.skip(...)`).
+  A missing core endpoint is a regression — fail loud. The suite uses no
+  `skip` without an explicit owner decision (Rule 12).
+- `xfail` / `xpass` / `skip` markers of any kind — the suite carries none;
+  a test is green or it is not in the suite (Rule 12).
 - OR-fallbacks in assertions (`assert visible_a or visible_b`). One of the
   branches usually IS the broken state. Hard `expect(...)` only.
 - "Smoke" assertions on functional tests (`expect(body).to_be_visible()`,
@@ -44,8 +51,6 @@ than no test — it signals false safety.
   silently passes. List concrete values only.
 - Accept-any-of-N field names (`tier or new_users or users`). Pin one.
   Backend rename → suite catches it.
-- Running `pytest.xfail(reason=...)` at runtime when a check fails — this
-  promotes the failure to expected without external review.
 
 ### 2. Linear flow, no branching in tests
 
@@ -116,16 +121,20 @@ Playwright's `expect()` default auto-wait is fine — don't add explicit
 Use `page.expect_response("...")`, `page.wait_for_url(...)`, or
 `expect(loc).to_be_visible()` (auto-wait).
 
-### 6. Document new bugs the suite finds
+### 6. Document a new bug — don't xfail it
 
-When a test fails because the suite caught a real product issue:
-1. Mark `@pytest.mark.xfail(strict=False, reason="BUG-XXX-N: <one-line cause>. <hint where to fix>.")`
-   so CI stays clean while the bug is open.
-2. Use a fresh `BUG-XXX-N` ID — check upstream `docs/test-plan.md` to avoid
-   collisions (e.g., upstream's `BUG-EDITOR-001` was about adaptive grid;
-   ours about empty `branch=""` on save → `BUG-EDITOR-002`).
-3. When the upstream fix lands, the test goes XPASS — drop the marker
-   immediately (XPASS is the signal to convert it back to a regression).
+When the suite catches a real product bug, the journey test is **not
+committed while the bug is open** — a non-green test never enters the
+suite (Rule 12). Instead:
+1. Record the bug in project memory (`memory/`) — symptom, root-cause
+   hint, where to fix.
+2. Raise it upstream with a fresh `BUG-XXX-N` ID — check upstream
+   `docs/test-plan.md` to avoid collisions (e.g. upstream's
+   `BUG-EDITOR-001` was adaptive grid; ours empty `branch=""` on save →
+   `BUG-EDITOR-002`).
+3. Write the e2e journey once the upstream fix lands — green from its
+   first run. The coverage gate (`tests/test_api_coverage.py`,
+   `KNOWN_GAPS`) keeps the still-uncovered endpoint visible meanwhile.
 
 ### 7. Linear product code knowledge: read JS/Python before guessing
 
@@ -200,13 +209,16 @@ If your test needs:
 **Never** inline `c.post(API.SIGNUP, ...) → c.post(API.VERIFY_EMAIL, ...) → c.post(API.LOGIN, ...)` —
 that's 8+ lines of plumbing per test, and changes in the auth flow ripple through every test.
 
-### 12. xfail markers are concrete
+### 12. Green or it doesn't exist — no xfail/skip
 
-`@pytest.mark.xfail(strict=False, reason="INV-XXX-N: <one-line cause>. <where to fix>.")`.
+The suite carries no `xfail` / `xpass` / `skip` / `pytest.mark.skip`
+markers. A test is green or it is not in the suite. A non-green test
+normalises red — readers stop trusting the signal.
 
-When XPASS → drop marker, replace with a one-liner in docstring:
-`"Was xfail until upstream commit `<sha>` (`<commit subject>`)."`. This
-gives future readers the regression history without `git blame`.
+A bug the suite catches is recorded, not xfail-tested (Rule 6); its
+journey test is written after the fix. `skip` for a genuinely
+inapplicable scenario needs an explicit owner decision — never a default
+reach for a failing check.
 
 ### 13. Tests should be safe to run against a moving dev branch
 
@@ -275,7 +287,8 @@ genealogy-e2e/
 │   ├── enrichment/           # AI enrichment (consent, mock flow, disabled-mode)
 │   ├── ui/                   # landing, i18n, a11y, responsive, legal, waitlist
 │   ├── test_smoke.py         # canary (no domain — runs on every PR)
-│   └── test_regressions.py   # closed-bug regressions (no domain)
+│   ├── test_regressions.py   # closed-bug regressions (no domain)
+│   └── test_api_coverage.py  # coverage gate: backend OpenAPI vs API catalogue
 ├── scripts/
 │   └── check_drift.py        # Lints rules #5/#9 against tests/ + tests/pages/
 ├── docker/Dockerfile.e2e     # CI-friendly image
@@ -338,6 +351,7 @@ GENEALOGY_TESTING=1 \
   ANTHROPIC_API_KEY=sk-test-stub \
   GENEALOGY_TENANTS_ROOT=/tmp/genealogy-e2e-tenants \
   GENEALOGY_TRUST_FORWARDED_FOR=1 \
+  GENEALOGY_DOCS_ENABLED=1 \
   DATABASE_URL='postgresql+psycopg://genealogy:genealogy@localhost:5432/genealogy_test' \
   uvicorn app.main:app --host 127.0.0.1 --port 8642 &
 # NB: GENEALOGY_TRUST_FORWARDED_FOR=1 — config flag of OUR test instance
@@ -379,8 +393,9 @@ failures that masquerade as product regressions. Specifically:
 back to the prod domain by design, `templates.py:38`); `WEBAUTHN_RP_ID` /
 `WEBAUTHN_ORIGIN` missing → `test_platform_webauthn` register/complete `400`;
 `GENEALOGY_TEST_TOKEN` missing → **every** test errors at setup (503 on
-`/api/_test/install-mock-ai`). Always boot with the full block above before
-triaging failures as regressions.
+`/api/_test/install-mock-ai`); `GENEALOGY_DOCS_ENABLED` missing →
+`/openapi.json` is 404 → `test_api_coverage` fails. Always boot with the
+full block above before triaging failures as regressions.
 
 ## Key fixtures
 
@@ -457,8 +472,8 @@ already cost a near-lost rewrite.
 ## When in doubt
 
 - Is this test catching a real contract or just smoke? → If smoke, delete it.
-- Should I make this `xfail` or fail? → Fail unless there's a known upstream
-  bug ticket. Skip is almost never right.
+- This test is red — commit it anyway? → No. Green or it doesn't exist
+  (Rule 12). Fix the product, or record the bug and write the test after.
 - Is the selector stable enough? → If you imagine the dev rewriting this
   component once, would the test still pass? If no, refactor.
 - Is the timeout right? → Use the catalogue. If you want a different value,

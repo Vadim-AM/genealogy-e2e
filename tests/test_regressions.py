@@ -1,8 +1,9 @@
 """Regression suite for closed BUG-* tickets per docs/test-plan.md.
 
-Each test maps 1:1 to a TC-BUG-*. Open bugs are marked `xfail` outside the
-test body (no runtime `pytest.xfail`). XPASS surfaces as a signal to flip
-the marker into a regular regression.
+Each test maps 1:1 to a closed TC-BUG-*. Open bugs are NOT tested here —
+they live in project memory + an upstream issue until fixed, then get a
+green regression test (the suite has no xfail markers — see CLAUDE.md
+Rule 12).
 
 Removed (28.04 sanitize):
 - `test_bug_legal_001_html_render` — duplicate of `test_legal_pages.py`.

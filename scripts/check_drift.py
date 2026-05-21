@@ -32,6 +32,8 @@ EXEMPT_RELPATHS = {
     "tests/api_paths.py",
     "tests/messages.py",
     "tests/constants.py",
+    # Coverage gate — KNOWN_GAPS is by nature a registry of /api/ paths.
+    "tests/test_api_coverage.py",
 }
 
 # Path prefixes whose entire subtree is exempt (e.g. fixture plugin pkg).

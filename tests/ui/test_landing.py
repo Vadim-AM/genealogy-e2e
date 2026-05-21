@@ -39,7 +39,7 @@ def test_landing_no_console_errors(page: Page):
     js_errors: list[str] = []
     bad_responses: list[tuple[str, int]] = []
 
-    EXPECTED_401_URLS = (API.ACCOUNT_ME, API.AUTH_ME, API.TREE)
+    EXPECTED_401_URLS = (API.ACCOUNT_ME, API.TREE)
 
     page.on("pageerror", lambda exc: js_errors.append(str(exc)))
 

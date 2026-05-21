@@ -110,6 +110,7 @@ jobs:
           ANTHROPIC_API_KEY=sk-test-stub \
           GENEALOGY_TENANTS_ROOT="$RUNNER_TEMP/tenants" \
           GENEALOGY_TRUST_FORWARDED_FOR=1 \
+          GENEALOGY_DOCS_ENABLED=1 \
           DATABASE_URL='postgresql+psycopg://genealogy:genealogy@localhost:5432/genealogy_test' \
           nohup uvicorn app.main:app --host 127.0.0.1 --port 8642 \
             --log-level warning > "$GITHUB_WORKSPACE/uvicorn.log" 2>&1 &
