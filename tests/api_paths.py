@@ -32,6 +32,27 @@ class API:
     ACCOUNT_EMAIL = "/api/account/me/email"
     ONBOARDING_COMPLETE = "/api/account/onboarding-complete"
     DELETE_TENANT = "/api/account/delete-tenant"
+    MY_TENANTS = "/api/account/my-tenants"
+    SWITCH_TENANT = "/api/account/switch-tenant"
+    ONBOARDING_RESET = "/api/account/onboarding-reset"
+    CONFIRM_EMAIL_CHANGE = "/api/account/confirm-email-change"
+    COOKIE_CONSENT = "/api/account/me/cookie-consent"
+    ACCOUNT_TELEMETRY = "/api/account/me/telemetry"
+
+    # ── Retention / telemetry / config / locations ───────────────
+    RETENTION_OFFER_STATUS = "/api/tenant/retention-offer-status"
+    RETENTION_OFFER_APPLY = "/api/tenant/retention-offer/apply"
+    TELEMETRY_EVENTS = "/api/telemetry/events"
+    CONFIG = "/api/config"
+    LOCATIONS = "/api/locations"
+
+    @staticmethod
+    def relationship(rel_id: str) -> str:
+        return f"/api/relationships/{rel_id}"
+
+    # ── Email webhooks (inbound, HMAC-signed) ────────────────────
+    WEBHOOK_POSTMARK = "/api/notifications/postmark-webhook"
+    WEBHOOK_RESEND = "/api/notifications/resend-webhook"
 
     # ── Tenant management (invites) ──────────────────────────────
     TENANT_INVITES = "/api/account/tenant/invites"

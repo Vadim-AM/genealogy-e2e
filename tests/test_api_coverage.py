@@ -33,61 +33,40 @@ from tests.timeouts import TIMEOUTS
 # brand-new endpoint without recording which journey will own it.
 KNOWN_GAPS: frozenset[str] = frozenset({
     # ── blocked by a product bug — journey written after the fix ──
-    # BUG-SHARE-PG-001: GET /api/share/view → 500, UndefinedTable
-    # `share_token` on the anonymous tenant-less path.
+    # BUG-SHARE-PG-001: GET /api/share/view → 500 (UndefinedTable
+    # `share_token` on the anonymous tenant-less path).
     "/api/share/view/{}",
+    # BUG-WAITLIST-PG-002: GET /api/platform/waitlist → 500
+    # (UnboundExecutionError on the WaitlistSubscriber mapper).
+    "/api/platform/waitlist",
     # ── enrichment tail — fire-and-forget telemetry, no journey ───
     "/api/enrich/{}/feedback",
     "/api/enrich/letters/sent",
-    # ── P1 · open BUG-WAITLIST-PG-002 — journey after upstream fix
-    "/api/platform/waitlist",
-    # ── P2 · subscription-lifecycle journey ───────────────────────
+    # ── subscription lifecycle — journey pending ──────────────────
     "/api/subscription/current",
     "/api/subscription/cancel",
     "/api/subscription/checkout",
-    # ── P2 · tenant-ops journey (switch / restore) ────────────────
-    "/api/account/switch-tenant",
+    # ── tenant restore — needs a soft-deleted tenant fixture ──────
     "/api/account/restore-tenant",
-    "/api/account/onboarding-reset",
-    "/api/account/my-tenants",
-    # ── P2 · cookie-consent journey ───────────────────────────────
-    "/api/account/me/cookie-consent",
-    # ── P2 · GDPR telemetry opt-out journey ───────────────────────
-    "/api/telemetry/events",
-    "/api/account/me/telemetry",
-    # ── P2 · retention-offer journey ──────────────────────────────
-    "/api/tenant/retention-offer-status",
-    "/api/tenant/retention-offer/apply",
-    # ── P2 · email-change confirm journey ─────────────────────────
-    "/api/account/confirm-email-change",
-    # ── P2 · invite-revoke journey ────────────────────────────────
+    # ── invite-revoke journey — pending ───────────────────────────
     "/api/account/tenant/invites/{}",
-    # ── P3 · locations / map-view ─────────────────────────────────
-    "/api/locations",
-    # ── P3 · photo upload / metadata ──────────────────────────────
+    # ── photo upload / metadata journey — pending ─────────────────
     "/api/admin/upload-photo",
     "/api/admin/photos/{}",
-    # ── P3 · person by display-slug ───────────────────────────────
+    # ── person by display-slug — slug not auto-assigned to demo ───
     "/api/people/by-display-slug/{}",
-    # ── P3 · relationship delete ──────────────────────────────────
-    "/api/relationships/{}",
-    # ── P3 · tenant-local config ──────────────────────────────────
-    "/api/config",
-    # ── P3 · platform tenant admin ────────────────────────────────
+    # ── platform superadmin tenant-admin — pending ────────────────
     "/api/admin/tenants",
     "/api/admin/tenants/{}",
     "/api/admin/waitlist",
     "/api/admin/waitlist/{}",
-    # ── P3 · platform ops ─────────────────────────────────────────
+    # ── platform superadmin ops (step-up MFA gated) — pending ─────
     "/api/platform/backups",
     "/api/platform/send-onboarding-nudges",
     "/api/platform/tenant-override",
     "/api/platform/tenant-override/{}/{}",
     "/api/platform/tenant-overrides/{}",
     "/api/platform/waitlist/{}/invite",
-    # ── P3 · email webhooks — out of e2e scope (backend pytest) ───
-    "/api/notifications/postmark-webhook",
-    "/api/notifications/resend-webhook",
 })
 
 
