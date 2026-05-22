@@ -200,6 +200,7 @@ class API:
         return f"/api/admin/waitlist/{subscriber_id}"
 
     # ── Platform ops (superadmin) ────────────────────────────────
+    PLATFORM_WAITLIST = "/api/platform/waitlist"
     PLATFORM_BACKUPS = "/api/platform/backups"
     PLATFORM_NUDGES = "/api/platform/send-onboarding-nudges"
     PLATFORM_TENANT_OVERRIDE = "/api/platform/tenant-override"

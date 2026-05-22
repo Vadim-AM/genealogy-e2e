@@ -32,14 +32,12 @@ from tests.timeouts import TIMEOUTS
 # leaves this set. Do NOT add a line here just to silence the gate for a
 # brand-new endpoint without recording which journey will own it.
 KNOWN_GAPS: frozenset[str] = frozenset({
-    # ── blocked by a product bug — covered once the upstream fix lands.
-    # Both logged in genealogy/docs/test-plan.md.
-    # BUG-SHARE-PG-001: GET /api/share/view → 500 (UndefinedTable
-    # `share_token` on the anonymous tenant-less path).
+    # ── blocked by an open product bug — covered once the upstream fix
+    # lands. Logged in genealogy/docs/test-plan.md as BUG-SHARE-PG-001:
+    # GET /api/share/view → 500 (UndefinedTable `share_token` on the
+    # anonymous tenant-less path). The fix is architectural — ShareToken
+    # must resolve cross-tenant by token — not a one-line table reclass.
     "/api/share/view/{}",
-    # BUG-WAITLIST-PG-002: GET /api/platform/waitlist → 500
-    # (UnboundExecutionError on the WaitlistSubscriber mapper).
-    "/api/platform/waitlist",
 })
 
 

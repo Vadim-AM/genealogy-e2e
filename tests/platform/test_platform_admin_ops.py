@@ -52,6 +52,23 @@ def test_admin_waitlist_lifecycle(superadmin_user, tenant_client, base_url):
         "deleted subscriber still listed"
 
 
+def test_platform_waitlist_listing(superadmin_user, tenant_client, base_url):
+    """GET /api/platform/waitlist lists waitlist subscribers for the
+    superadmin. (BUG-WAITLIST-PG-002 — UnboundExecutionError — fixed
+    upstream by PR #167 / 6e3565f.)"""
+    email = make_email("plat-wl")
+    httpx.post(f"{base_url}{API.WAITLIST_SUBSCRIBE}", json={"email": email},
+               timeout=TIMEOUTS.api_request).raise_for_status()
+
+    api = tenant_client(superadmin_user)
+    r = api.get(API.PLATFORM_WAITLIST)
+    r.raise_for_status()
+    raw = r.json()
+    items = raw if isinstance(raw, list) else raw["items"]
+    assert any(s.get("email") == email for s in items), \
+        f"subscribed email not in platform waitlist: {items}"
+
+
 def test_platform_backups_and_nudges(superadmin_user, tenant_client):
     """GET /api/platform/backups lists snapshots; POST send-onboarding-nudges
     reports how many nudges were sent."""
