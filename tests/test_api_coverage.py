@@ -51,18 +51,6 @@ KNOWN_GAPS: frozenset[str] = frozenset({
     "/api/admin/photos/{}",
     # ── person by display-slug — slug not auto-assigned to demo ───
     "/api/people/by-display-slug/{}",
-    # ── platform superadmin tenant-admin — pending ────────────────
-    "/api/admin/tenants",
-    "/api/admin/tenants/{}",
-    "/api/admin/waitlist",
-    "/api/admin/waitlist/{}",
-    # ── platform superadmin ops (step-up MFA gated) — pending ─────
-    "/api/platform/backups",
-    "/api/platform/send-onboarding-nudges",
-    "/api/platform/tenant-override",
-    "/api/platform/tenant-override/{}/{}",
-    "/api/platform/tenant-overrides/{}",
-    "/api/platform/waitlist/{}/invite",
 })
 
 

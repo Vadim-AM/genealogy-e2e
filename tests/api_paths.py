@@ -172,6 +172,33 @@ class API:
     ADMIN_EXPORT_GEDCOM = "/api/admin/export-gedcom"
     ADMIN_IMPORT_GEDCOM = "/api/admin/import-gedcom"
     ADMIN_IMPORT_GEDCOM_CONFIRM = "/api/admin/import-gedcom/confirm"
+    ADMIN_TENANTS = "/api/admin/tenants"
+    ADMIN_WAITLIST = "/api/admin/waitlist"
+
+    @staticmethod
+    def admin_tenant(slug: str) -> str:
+        return f"/api/admin/tenants/{slug}"
+
+    @staticmethod
+    def admin_waitlist_item(subscriber_id: int) -> str:
+        return f"/api/admin/waitlist/{subscriber_id}"
+
+    # ── Platform ops (superadmin) ────────────────────────────────
+    PLATFORM_BACKUPS = "/api/platform/backups"
+    PLATFORM_NUDGES = "/api/platform/send-onboarding-nudges"
+    PLATFORM_TENANT_OVERRIDE = "/api/platform/tenant-override"
+
+    @staticmethod
+    def tenant_overrides(slug: str) -> str:
+        return f"/api/platform/tenant-overrides/{slug}"
+
+    @staticmethod
+    def tenant_override_field(slug: str, field: str) -> str:
+        return f"/api/platform/tenant-override/{slug}/{field}"
+
+    @staticmethod
+    def platform_waitlist_invite(subscriber_id: int) -> str:
+        return f"/api/platform/waitlist/{subscriber_id}/invite"
 
     # ── Test infra (gated by GENEALOGY_TEST_TOKEN env) ──────────
     TEST_RESET = "/api/_test/reset"
