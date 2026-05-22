@@ -63,6 +63,13 @@ class OwnerPage(BasePage):
     def update_settings(self, *, site_name: str | None = None) -> "OwnerPage":
         self.open_tab("settings")
         if site_name is not None:
+            # The settings tab populates #cfg_site_name asynchronously
+            # via GET /api/site/config (owner.js: `await r.json()`). The
+            # field ships empty (placeholder only), so wait for populate
+            # to fill it before fill() — otherwise the populate response
+            # lands after fill() and overwrites it, and save() submits
+            # the stale default.
+            expect(self.cfg_site_name).not_to_have_value("")
             self.cfg_site_name.fill(site_name)
         self.cfg_save.click()
         return self
