@@ -44,11 +44,9 @@ KNOWN_GAPS: frozenset[str] = frozenset({
     "/api/enrich/letters/sent",
     # ── subscription checkout — no payment provider in test mode ──
     "/api/subscription/checkout",
-    # ── tenant restore — needs a soft-deleted tenant fixture ──────
+    # ── tenant restore — needs a delete→re-login→restore flow,
+    #    login behaviour with a soft-deleted tenant unverified ──────
     "/api/account/restore-tenant",
-    # ── photo upload / metadata journey — pending ─────────────────
-    "/api/admin/upload-photo",
-    "/api/admin/photos/{}",
     # ── person by display-slug — slug not auto-assigned to demo ───
     "/api/people/by-display-slug/{}",
 })

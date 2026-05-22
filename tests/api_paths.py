@@ -172,7 +172,12 @@ class API:
     ADMIN_EXPORT_GEDCOM = "/api/admin/export-gedcom"
     ADMIN_IMPORT_GEDCOM = "/api/admin/import-gedcom"
     ADMIN_IMPORT_GEDCOM_CONFIRM = "/api/admin/import-gedcom/confirm"
+    UPLOAD_PHOTO = "/api/admin/upload-photo"
     ADMIN_TENANTS = "/api/admin/tenants"
+
+    @staticmethod
+    def photo(photo_id: str) -> str:
+        return f"/api/admin/photos/{photo_id}"
     ADMIN_WAITLIST = "/api/admin/waitlist"
 
     @staticmethod

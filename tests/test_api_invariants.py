@@ -9,10 +9,19 @@ a bare status code.
 
 from __future__ import annotations
 
+import base64
+
 import httpx
 
 from tests.api_paths import API
+from tests.messages import TestData
 from tests.timeouts import TIMEOUTS
+
+# Minimal valid 1×1 transparent PNG — for the photo-upload invariant.
+_PNG_1PX = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42m"
+    "P8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
 
 
 def test_my_tenants_lists_the_owners_tenant(owner_user, tenant_client):
@@ -164,6 +173,23 @@ def test_invite_revoke(owner_user, tenant_client, create_invite):
     revoked = api.delete(API.tenant_invite(token))
     revoked.raise_for_status()
     assert revoked.json()["status"] == "revoked"
+
+
+def test_photo_upload_and_caption(owner_user, tenant_client):
+    """Owner uploads a photo to a person, then sets its caption — the
+    upload links a Photo row and PATCH updates its caption."""
+    api = tenant_client(owner_user)
+    uploaded = api.post(
+        API.UPLOAD_PHOTO,
+        params={"person_id": TestData.DEMO_PERSON_ID},
+        files={"file": ("e2e.png", _PNG_1PX, "image/png")},
+    )
+    uploaded.raise_for_status()
+    photo_id = uploaded.json()["photo_id"]
+
+    patched = api.patch(API.photo(photo_id), json={"caption": "Тестовая подпись"})
+    patched.raise_for_status()
+    assert patched.json()["caption"] == "Тестовая подпись"
 
 
 def test_locations_create_then_list(owner_user, tenant_client):
