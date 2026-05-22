@@ -1,27 +1,25 @@
-"""Sharing — share-link lifecycle (create → list → revoke).
+"""Sharing journey — owner creates a public link, an anonymous visitor
+sees the card read-only, owner revokes, the link dies.
 
-The share trigger button is feature-flagged off in product, and the
-public view (`GET /api/share/view/{token}`) is currently broken on
-PostgreSQL — BUG-SHARE-PG-001: the `share_token` table is unreachable
-from the anonymous, tenant-less view path (`UndefinedTable`). So the
-owner→anon UI journey cannot be green yet.
-
-This covers the working surface — create / list / revoke, all
-tenant-scoped — as a backend-invariant lifecycle. The full
-window.openShareModal journey + public-view assertions are written once
-BUG-SHARE-PG-001 is fixed and the feature is enabled. See memory
-`bug-share-view-pg`.
+BUG-SHARE-PG-001 is fixed: `share_token` is platform-scoped and the
+public view resolves the owning tenant by the token's `tenant_slug`, so
+the anonymous /share/{token} page works with no tenant context at all.
 """
 
 from __future__ import annotations
+
+from playwright.sync_api import expect
 
 from tests.api_paths import API
 from tests.messages import TestData
 
 
-def test_share_link_lifecycle_create_list_revoke(owner_user, tenant_client):
-    """Owner creates a share link, sees it in the list (with the token
-    url NOT leaked), revokes it — and it leaves the active list."""
+def test_owner_shares_card_anon_views_then_revoke_kills_link(
+    owner_user, tenant_client, browser,
+):
+    """Owner creates a person share link; an anonymous visitor opens it
+    and sees the person read-only; owner revokes; the same link then
+    shows the dead-link page. Covers create / list / view / revoke."""
     api = tenant_client(owner_user)
 
     created = api.post(
@@ -30,18 +28,49 @@ def test_share_link_lifecycle_create_list_revoke(owner_user, tenant_client):
     )
     created.raise_for_status()
     share_id = created.json()["id"]
+    share_url = created.json()["url"]
+    assert "/share/" in share_url, f"unexpected share url: {share_url}"
+
+    # The owner's list shows the share — without leaking the token url.
+    items = api.get(API.SHARE_LIST).json()["items"]
+    assert any(s["id"] == share_id for s in items), \
+        "created share must appear in the owner's list"
+    for s in items:
+        assert s.get("url") is None, f"GET /api/share/list leaked a token: {s}"
+
+    # An anonymous visitor — fresh context, no auth, no tenant header —
+    # opens the public page and sees the person.
+    anon = browser.new_context()
+    try:
+        page = anon.new_page()
+        page.goto(share_url)
+        expect(page.locator(".share-name")).to_contain_text("Тестовый")
+        # public read-only — no edit affordances on the page.
+        expect(page.locator('[data-action="profile-edit"]')).to_have_count(0)
+
+        # Owner revokes the link.
+        api.delete(API.share(share_id)).raise_for_status()
+
+        # The same link is now dead for the anonymous visitor.
+        page.goto(share_url)
+        expect(page.locator(".share-error")).to_be_visible()
+    finally:
+        anon.close()
+
+
+def test_share_list_never_leaks_tokens(owner_user, tenant_client):
+    """Security invariant: GET /api/share/list returns the owner's shares
+    but never the token url — tokens must not reach logs."""
+    api = tenant_client(owner_user)
+    created = api.post(
+        API.SHARE_CREATE,
+        json={"scope": "person", "person_id": TestData.DEMO_PERSON_ID},
+    )
+    created.raise_for_status()
     assert created.json()["url"], "create response must carry the share url"
 
     listed = api.get(API.SHARE_LIST).json()["items"]
-    assert any(s["id"] == share_id for s in listed), \
-        "created share must appear in the list"
-    # Security invariant: the token url must never reach the list (logs).
-    for s in listed:
-        assert s.get("url") is None, f"GET /api/share/list leaked a token url: {s}"
-
-    revoked = api.delete(API.share(share_id))
-    revoked.raise_for_status()
-
-    after = api.get(API.SHARE_LIST).json()["items"]
-    assert not any(s["id"] == share_id for s in after), \
-        "revoked share must drop out of the active list"
+    assert listed, "the created share must appear in the list"
+    for item in listed:
+        assert item.get("url") is None, \
+            f"GET /api/share/list leaked a token url: {item}"

@@ -31,14 +31,10 @@ from tests.timeouts import TIMEOUTS
 # the endpoint + a constant in `tests/api_paths.py::API`; the line then
 # leaves this set. Do NOT add a line here just to silence the gate for a
 # brand-new endpoint without recording which journey will own it.
-KNOWN_GAPS: frozenset[str] = frozenset({
-    # ── blocked by an open product bug — covered once the upstream fix
-    # lands. Logged in genealogy/docs/test-plan.md as BUG-SHARE-PG-001:
-    # GET /api/share/view → 500 (UndefinedTable `share_token` on the
-    # anonymous tenant-less path). The fix is architectural — ShareToken
-    # must resolve cross-tenant by token — not a one-line table reclass.
-    "/api/share/view/{}",
-})
+KNOWN_GAPS: frozenset[str] = frozenset()
+# Empty: every backend /api/* path is exercised by a journey or a
+# backend-invariant test. New endpoints must land here with a roadmap
+# tag, or (preferably) with their covering test in the same change.
 
 
 _PARAM_RE = re.compile(r"\{[^}]+\}")

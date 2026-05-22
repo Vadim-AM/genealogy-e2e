@@ -173,8 +173,9 @@ class API:
     def share(share_id: int) -> str:
         return f"/api/share/{share_id}"
 
-    # /api/share/view/{token} deliberately absent — broken on PG
-    # (BUG-SHARE-PG-001); it stays in test_api_coverage KNOWN_GAPS.
+    @staticmethod
+    def share_view(token: str) -> str:
+        return f"/api/share/view/{token}"
 
     # ── Legacy admin (password-gated, pre-auth_v2) ───────────────
     ADMIN_LOGIN = "/api/admin/login"
