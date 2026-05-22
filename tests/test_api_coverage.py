@@ -32,23 +32,14 @@ from tests.timeouts import TIMEOUTS
 # leaves this set. Do NOT add a line here just to silence the gate for a
 # brand-new endpoint without recording which journey will own it.
 KNOWN_GAPS: frozenset[str] = frozenset({
-    # ── blocked by a product bug — journey written after the fix ──
+    # ── blocked by a product bug — covered once the upstream fix lands.
+    # Both logged in genealogy/docs/test-plan.md.
     # BUG-SHARE-PG-001: GET /api/share/view → 500 (UndefinedTable
     # `share_token` on the anonymous tenant-less path).
     "/api/share/view/{}",
     # BUG-WAITLIST-PG-002: GET /api/platform/waitlist → 500
     # (UnboundExecutionError on the WaitlistSubscriber mapper).
     "/api/platform/waitlist",
-    # ── enrichment tail — fire-and-forget telemetry, no journey ───
-    "/api/enrich/{}/feedback",
-    "/api/enrich/letters/sent",
-    # ── subscription checkout — no payment provider in test mode ──
-    "/api/subscription/checkout",
-    # ── tenant restore — needs a delete→re-login→restore flow,
-    #    login behaviour with a soft-deleted tenant unverified ──────
-    "/api/account/restore-tenant",
-    # ── person by display-slug — slug not auto-assigned to demo ───
-    "/api/people/by-display-slug/{}",
 })
 
 
