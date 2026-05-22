@@ -34,6 +34,7 @@ class API:
     DELETE_TENANT = "/api/account/delete-tenant"
     MY_TENANTS = "/api/account/my-tenants"
     SWITCH_TENANT = "/api/account/switch-tenant"
+    RESTORE_TENANT = "/api/account/restore-tenant"
     ONBOARDING_RESET = "/api/account/onboarding-reset"
     CONFIRM_EMAIL_CHANGE = "/api/account/confirm-email-change"
     COOKIE_CONSENT = "/api/account/me/cookie-consent"
@@ -75,6 +76,10 @@ class API:
     def person(pid: str) -> str:
         return f"/api/people/{pid}"
 
+    @staticmethod
+    def person_by_slug(slug: str) -> str:
+        return f"/api/people/by-display-slug/{slug}"
+
     # ── Enrichment (★ Найти больше) ──────────────────────────────
     @staticmethod
     def enrich(pid: str) -> str:
@@ -108,7 +113,12 @@ class API:
     def enrich_cache(enrichment_id: int) -> str:
         return f"/api/enrich/cache/{enrichment_id}"
 
+    @staticmethod
+    def enrich_feedback(pid: str) -> str:
+        return f"/api/enrich/{pid}/feedback"
+
     ENRICH_HEALTH_API_KEY = "/api/enrich/health/api-key"
+    ENRICH_LETTERS_SENT = "/api/enrich/letters/sent"
 
     # ── Photos ───────────────────────────────────────────────────
     TIMELINE_GEO = "/api/timeline-geo"
@@ -120,6 +130,7 @@ class API:
     SUBSCRIPTION_USAGE_LEGACY = "/api/subscription/usage"
     SUBSCRIPTION_CURRENT = "/api/subscription/current"
     SUBSCRIPTION_CANCEL = "/api/subscription/cancel"
+    SUBSCRIPTION_CHECKOUT = "/api/subscription/checkout"
     TENANT_EXPORT = "/api/tenant/export"
 
     # ── Health / ops ─────────────────────────────────────────────

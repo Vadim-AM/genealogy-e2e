@@ -97,3 +97,14 @@ def test_enrichment_cache_and_health_invariants(
     health.raise_for_status()
     assert "configured" in health.json(), \
         "api-key health must report a `configured` flag"
+
+    # Feedback + letter-sent telemetry — both keyed on the enrichment id.
+    feedback = api.post(API.enrich_feedback(TestData.DEMO_PERSON_ID), json={
+        "enrichment_id": enrichment_id, "feedback_type": "overall", "thumb": "up",
+    })
+    feedback.raise_for_status()
+
+    letter = api.post(API.ENRICH_LETTERS_SENT, json={
+        "enrichment_id": enrichment_id, "archive_name": "ЦАМО",
+    })
+    letter.raise_for_status()

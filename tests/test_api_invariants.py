@@ -192,6 +192,57 @@ def test_photo_upload_and_caption(owner_user, tenant_client):
     assert patched.json()["caption"] == "Тестовая подпись"
 
 
+def test_subscription_checkout_pending_without_payment_provider(
+    owner_user, tenant_client,
+):
+    """POST /api/subscription/checkout for a paid tier resolves to a
+    `pending_payment_provider` status — no payment provider is wired in
+    test mode, but the endpoint handles it cleanly (no 500)."""
+    api = tenant_client(owner_user)
+    r = api.post(API.SUBSCRIPTION_CHECKOUT, json={"tier": "pro"})
+    r.raise_for_status()
+    assert r.json()["status"] == "pending_payment_provider", r.json()
+
+
+def test_person_by_display_slug_resolves(owner_user, tenant_client):
+    """A person created with a display_slug is resolvable by that slug —
+    GET /api/people/by-display-slug/{slug} returns the same person."""
+    api = tenant_client(owner_user)
+    slug = "e2e-slug-person"
+    created = api.post(
+        API.PEOPLE, json={"name": "Слаг Тест", "display_slug": slug},
+    )
+    created.raise_for_status()
+    pid = created.json()["id"]
+
+    resolved = api.get(API.person_by_slug(slug))
+    resolved.raise_for_status()
+    assert resolved.json()["id"] == pid, \
+        "by-display-slug must resolve to the person created with that slug"
+
+
+def test_tenant_delete_then_restore(
+    owner_user, tenant_client, login_existing, base_url,
+):
+    """Owner soft-deletes their tenant; after re-login (delete kills the
+    session) the tenant is restored within the 30-day grace period."""
+    api = tenant_client(owner_user)
+    api.post(
+        API.DELETE_TENANT, json={"confirm_slug": owner_user.slug},
+    ).raise_for_status()
+
+    cookies = login_existing(owner_user.email, owner_user.password)
+    restored = httpx.post(
+        f"{base_url}{API.RESTORE_TENANT}",
+        json={"tenant_slug": owner_user.slug},
+        cookies=cookies,
+        headers={"Origin": base_url},
+        timeout=TIMEOUTS.api_request,
+    )
+    restored.raise_for_status()
+    assert restored.json()["status"] == "restored"
+
+
 def test_locations_create_then_list(owner_user, tenant_client):
     """POST /api/locations creates a location; GET lists it back."""
     api = tenant_client(owner_user)
