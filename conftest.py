@@ -67,6 +67,10 @@ _SERIAL_FILES = frozenset({
     "test_gedcom_import_ui.py",
     "test_mobile_smoke.py",
     "test_logout.py",
+    # Enrichment-apply drives the AI modal (async job + result render +
+    # accept/revert) — same heavy-UI, not-concurrency-robust class;
+    # deterministically green single-worker.
+    "test_enrichment_apply.py",
 })
 
 
