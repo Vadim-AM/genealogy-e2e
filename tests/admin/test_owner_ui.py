@@ -33,15 +33,10 @@ def test_owner_settings_tab_has_inputs(owner_page: Page):
 def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_client):
     """F-OU-2: save site_name → backend reflects the new value via /api/site/config.
 
-    Await the WRITE specifically. `update_settings()` first opens the
-    settings tab — which GETs /api/site/config to populate the form —
-    then clicks save (the write). A bare
-    `expect_response("**/api/site/config")` matches that form-populate
-    GET, so the test never actually awaited the save and raced it: green
-    in isolation, "site_name not persisted" only under concurrent load
-    (the slower the PATCH, the more the trailing API GET out-runs it).
-    That looked like a per-tenant persistence bug; it was this matcher.
-    Match a non-GET /api/site/config response → deterministic under load.
+    Awaits the WRITE specifically — a non-GET /api/site/config response,
+    not the form-populate GET. `OwnerPage.update_settings()` itself waits
+    for the populate GET to land before filling the field, so save()
+    submits the typed value rather than the stale default.
     """
     owner = OwnerPage(owner_page).goto()
     owner_page.wait_for_load_state("domcontentloaded")
