@@ -35,7 +35,8 @@ import pytest
 
 from tests.api_paths import API
 from tests.constants import TestConfig, unique_email
-from tests.helpers.security.timing import ITERATIONS, RATIO_THRESHOLD, measure, ratio
+from tests.helpers.security.timing import ITERATIONS, RATIO_THRESHOLD, measure
+from tests.helpers.security.timing import ratio as compute_ratio
 from tests.timeouts import TIMEOUTS
 
 
@@ -82,7 +83,7 @@ def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_ap
         latencies_existing = [measure(c, reset_url, call_existing) for _ in range(ITERATIONS)]
         latencies_new = [measure(c, reset_url, call_new) for _ in range(ITERATIONS)]
 
-    ratio = ratio(latencies_new, latencies_existing)
+    ratio = compute_ratio(latencies_new, latencies_existing)
     p50_new_ms = sorted(latencies_new)[ITERATIONS // 2] * 1000
     p50_existing_ms = sorted(latencies_existing)[ITERATIONS // 2] * 1000
 
@@ -124,7 +125,7 @@ def test_login_no_timing_account_enumeration(uvicorn_server: str, signup_via_api
         latencies_existing = [measure(c, reset_url, call_existing_wrong_pwd) for _ in range(ITERATIONS)]
         latencies_nonexistent = [measure(c, reset_url, call_nonexistent) for _ in range(ITERATIONS)]
 
-    ratio = ratio(latencies_existing, latencies_nonexistent)
+    ratio = compute_ratio(latencies_existing, latencies_nonexistent)
     p50_existing_ms = sorted(latencies_existing)[ITERATIONS // 2] * 1000
     p50_nonexistent_ms = sorted(latencies_nonexistent)[ITERATIONS // 2] * 1000
 
