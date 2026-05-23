@@ -49,7 +49,7 @@ def test_platform_metrics_endpoint_403_for_non_super(owner_user, tenant_client):
         f"non-superadmin reached platform metrics: {r.status_code} {r.text[:200]}"
 
 
-@allure.title("Метрики платформы: суперадмин получает данные с полями")
+@allure.title("Метрики платформы: ответ содержит tenants_active и signups_total")
 def test_platform_metrics_endpoint_200_for_super(superadmin_user, tenant_client):
     """TC-PA-4: superadmin gets 200 on /api/platform/metrics with the canonical
     field names.

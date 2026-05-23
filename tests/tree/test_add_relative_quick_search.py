@@ -113,7 +113,7 @@ def test_link_existing_sibling_creates_only_relationship(
     )
 
 
-@allure.title("Отвязка возвращает форму в режим создания нового человека")
+@allure.title("Отвязка привязанной персоны возвращает форму в режим создания")
 def test_unlink_existing_returns_to_create_mode(
     owner_page: Page, owner_user, tenant_client
 ):

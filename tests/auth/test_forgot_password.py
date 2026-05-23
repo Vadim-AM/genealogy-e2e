@@ -102,7 +102,7 @@ def test_forgot_password_unknown_email_shows_silent_success_message(
     expect_response(r, label="unknown email: no reset sent").status(404)
 
 
-@allure.title("Токен сброса пароля нельзя использовать повторно")
+@allure.title("Повторное открытие ссылки сброса пароля показывает ошибку")
 def test_reset_password_token_used_once_then_invalid_via_ui(
     page: Page, owner_user, read_email_token,
 ):

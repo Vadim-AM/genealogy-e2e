@@ -188,7 +188,7 @@ def test_online_now_returns_canonical_shape(superadmin_user, tenant_client):
     assert data["online_5m"] >= 1, "superadmin session should count as online"
 
 
-@allure.title("Статистика сессий: обычный владелец не имеет доступа")
+@allure.title("Статистика сессий: обычный владелец не имеет доступа (403)")
 def test_session_stats_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-3.3: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_SESSION_STATS)
@@ -331,7 +331,7 @@ def test_alerts_each_item_has_severity_title_message(superadmin_user, tenant_cli
             f"unexpected severity: {it['severity']!r}"
 
 
-@allure.title("Здоровье платформы: обычный владелец не имеет доступа")
+@allure.title("Здоровье платформы: обычный владелец не имеет доступа (403)")
 def test_health_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-6.4: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_HEALTH)

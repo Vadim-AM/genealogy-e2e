@@ -22,7 +22,7 @@ from tests.api_paths import API
 from tests.constants import make_email, unique_email
 
 
-@allure.title("Смена email инициирует письмо подтверждения на новый адрес")
+@allure.title("Запрос смены email отправляет токен подтверждения на новый адрес")
 def test_change_email_endpoint_initiates_confirmation(
     signup_via_api, tenant_client, read_email_token,
 ):

@@ -156,7 +156,7 @@ def test_confirm_dialog_escape_cancels(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@allure.title("Профиль: кнопка добавления родителей скрыта при двух")
+@allure.title("Профиль: кнопка добавления родителей скрыта при двух имеющихся")
 def test_add_parent_button_hidden_when_two_parents_exist(owner_page: Page):
     """TC-05.06: demo seed имеет subject + 2 родителя → кнопка
     «+ Родители» (`.profile-family-group:has-text(Родители) .profile-rel-add`)
@@ -183,7 +183,7 @@ def test_add_parent_button_hidden_when_two_parents_exist(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@allure.title("UI: декоративный футер-орнамент есть в Sources и Timeline")
+@allure.title("Вкладки Sources и Timeline содержат декоративный футер-орнамент")
 def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page):
     """TC-04.07: Каждый из tab-sources / tab-timeline содержит
     `.footer-ornament` с тремя bullet-точками. Это design-system
@@ -301,7 +301,7 @@ def test_add_relative_shows_error_on_409_conflict(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@allure.title("Редактор: стрелки + Enter выбирают опцию в select")
+@allure.title("Редактор: стрелки + Enter выбирают опцию в выпадающем списке")
 def test_custom_select_arrow_down_then_enter_selects_option(owner_page: Page):
     """TC-25.06 (extension): ArrowDown открывает dropdown и фокусирует
     первый option; повторный ArrowDown переходит к следующему; Enter

@@ -17,7 +17,7 @@ from tests.messages import TestData
 from tests.response import expect_response
 
 
-@allure.title("Роли: viewer может читать дерево (GET /api/tree)")
+@allure.title("Роли: viewer может читать дерево владельца")
 def test_viewer_can_read_tree(viewer_in_owners_tenant, tenant_client):
     """INV-PERM-003a: viewer's GET /api/tree returns 200 with data.
 

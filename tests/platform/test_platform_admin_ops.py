@@ -85,7 +85,7 @@ def test_platform_backups_and_nudges(superadmin_user, tenant_client):
     expect_response(nudges, label="POST nudges").status_ok().json_has("sent_count")
 
 
-@allure.title("Оверрайд тенанта: установка, чтение и удаление лимита")
+@allure.title("Оверрайд тенанта: установка, чтение и удаление переопределения")
 def test_tenant_override_lifecycle(superadmin_user, tenant_client):
     """Superadmin sets a tier override on a tenant, reads it back, deletes
     it. tenant-override POST/DELETE are step-up-gated — a fresh
@@ -114,7 +114,7 @@ def test_tenant_override_lifecycle(superadmin_user, tenant_client):
         "deleted override must be gone"
 
 
-@allure.title("Вейтлист: инвайт подписчика создаёт тенант и юзера")
+@allure.title("Вейтлист: инвайт подписчика возвращает статус invited")
 def test_platform_waitlist_invite_promotes_subscriber(
     superadmin_user, tenant_client, base_url,
 ):

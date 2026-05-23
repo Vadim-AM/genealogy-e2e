@@ -63,7 +63,7 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
     expect(chips).to_have_count(0)
 
 
-@allure.title("AI-обогащение: кэш, health, фидбек и письма работают")
+@allure.title("AI-обогащение: кэш отдаёт результат, health, фидбек и письма принимаются")
 def test_enrichment_cache_and_health_invariants(
     owner_user, grant_ai_consent, tenant_client,
 ):

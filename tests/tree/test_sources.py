@@ -18,7 +18,7 @@ from tests.pages.sources_block import SourcesBlock
 from tests.response import expect_response
 
 
-@allure.title("Владелец привязывает источник к персоне и отвязывает его")
+@allure.title("Владелец привязывает источник к персоне и отвязывает обратно")
 def test_owner_attaches_and_unlinks_a_source(
     owner_page: Page, owner_user, tenant_client,
 ):

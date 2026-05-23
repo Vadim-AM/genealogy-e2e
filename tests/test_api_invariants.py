@@ -154,7 +154,7 @@ def test_relationship_delete_removes_the_edge(owner_user, tenant_client):
         f"relationship must be gone: {len(before)} → {len(after)}"
 
 
-@allure.title("API: новый тенант на free, отмена подписки даёт 400")
+@allure.title("API: отмена подписки на бесплатном тарифе отклоняется (400)")
 def test_subscription_current_and_cancel(owner_user, tenant_client):
     """GET /api/subscription/current reports the tenant's tier; POST
     cancel on a free tenant (no paid subscription) is rejected 400 —

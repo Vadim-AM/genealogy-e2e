@@ -71,7 +71,7 @@ def test_login_form_submits_via_post(page: Page):
     expect(page.locator("#loginForm")).to_have_attribute("method", "post")
 
 
-@allure.title("Формы: сброс пароля имеет method=post")
+@allure.title("Формы: сброс пароля отправляется методом POST, не GET")
 def test_reset_password_form_method_is_post(page: Page):
     """Reset-password form structural check (method="post").
 

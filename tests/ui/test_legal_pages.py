@@ -16,7 +16,7 @@ from playwright.sync_api import Page, expect
 
 
 @pytest.mark.parametrize("path", ["/privacy", "/terms"])
-@allure.title("Юридические: страница {path} отрендерена как HTML")
+@allure.title("Юридические страницы отрендерены как HTML, не raw markdown")
 def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: str):
     """TC-BUG-LEGAL-001: privacy/terms must be rendered HTML."""
     response = page.goto(path)
@@ -42,7 +42,7 @@ def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: st
 
 
 @pytest.mark.parametrize("path", ["/privacy", "/terms"])
-@allure.title("Юридические: на {path} нет сырых markdown-ссылок")
+@allure.title("Юридические страницы не содержат сырых markdown-ссылок")
 def test_legal_has_no_unrendered_markdown_links(page: Page, path: str):
     """`[text](url)` syntax must not appear in rendered body."""
     page.goto(path)
@@ -59,7 +59,7 @@ def test_legal_has_no_unrendered_markdown_links(page: Page, path: str):
 
 
 @pytest.mark.parametrize("href", ["/privacy", "/terms"])
-@allure.title("Футер: ссылка {href} видна и открывается в новой вкладке")
+@allure.title("Футер: юридические ссылки открываются в новой вкладке")
 def test_landing_footer_legal_link_is_visible_and_target_blank(
     page: Page, href: str,
 ):
@@ -80,7 +80,7 @@ def test_landing_footer_legal_link_is_visible_and_target_blank(
 
 
 @pytest.mark.parametrize("href", ["/privacy", "/terms"])
-@allure.title("Футер: ссылка {href} ведёт на существующую страницу (200)")
+@allure.title("Футер: юридические ссылки ведут на существующие страницы")
 def test_landing_footer_legal_link_resolves_to_200(
     base_url: str, href: str,
 ):
