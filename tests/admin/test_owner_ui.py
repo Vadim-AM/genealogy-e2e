@@ -18,6 +18,7 @@ from playwright.sync_api import Page, expect
 from tests.api_paths import API
 from tests.messages import TestData
 from tests.pages.owner_page import OwnerPage
+from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
@@ -52,9 +53,7 @@ def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_clien
 
     api = tenant_client(owner_user)
     r = api.get(API.SITE_CONFIG)
-    r.raise_for_status()
-    assert r.json()["site_name"] == new_name, \
-        f"site_name not persisted: got {r.json().get('site_name')!r}"
+    expect_response(r, label="GET site/config").status_ok().json_eq("site_name", new_name)
 
 
 def test_owner_export_gedcom_returns_valid_dump(owner_user, tenant_client):
@@ -62,7 +61,7 @@ def test_owner_export_gedcom_returns_valid_dump(owner_user, tenant_client):
     with attachment Content-Disposition and the canonical SOUR identifier."""
     api = tenant_client(owner_user)
     r = api.get(API.TENANT_EXPORT, params={"format": "gedcom"}, timeout=TIMEOUTS.api_long)
-    r.raise_for_status()
+    expect_response(r, label="GEDCOM export").status_ok()
 
     # Header contract per docs/test-plan.md TC-EXPORT-1.
     ct = r.headers.get("content-type", "")
@@ -86,8 +85,9 @@ def test_owner_export_zip_contains_manifest_and_people(owner_user, tenant_client
     `50 4b 03 04` and includes people.json + MANIFEST.txt."""
     api = tenant_client(owner_user)
     r = api.get(API.TENANT_EXPORT, params={"format": "zip"}, timeout=TIMEOUTS.api_long)
-    r.raise_for_status()
-    assert r.headers["content-type"] == "application/zip"
+    expect_response(r, label="ZIP export").status_ok()
+    assert r.headers["content-type"] == "application/zip", \
+        f"export must return ZIP: got {r.headers.get('content-type')!r}"
     # ZIP magic-bytes — first four bytes are PK\x03\x04 (50 4b 03 04).
     assert r.content[:4] == b"PK\x03\x04", \
         f"ZIP magic bytes mismatch: {r.content[:4]!r}"

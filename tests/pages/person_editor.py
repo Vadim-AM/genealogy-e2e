@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from playwright.sync_api import Locator, Page, expect
 
+from tests.pages.base import custom_select_for
+
 
 class PersonEditor:
     """Editor form for a Person (FIO, dates, places, status, branch, notes)."""
@@ -51,16 +53,8 @@ class PersonEditor:
         self.patronymic.fill(patronymic)
 
     def select_dropdown(self, field: str, value: str) -> None:
-        """Pick a value in the customSelect for the given field.
-
-        js/components/select.js wraps every native <select> with a styled
-        dropdown and hides the native element. The wrapper is inserted as
-        previousElementSibling of the native <select>, so we locate it via
-        the `:has(+ select[data-field=X])` relation.
-        """
-        custom = self.container.locator(
-            f"div.custom-select:has(+ select[data-field='{field}'])"
-        )
+        """Pick a value in the customSelect for the given field."""
+        custom = custom_select_for(self.page, field)
         custom.locator(".custom-select-trigger").click()
         custom.locator(f".custom-select-option[data-value='{value}']").click()
 

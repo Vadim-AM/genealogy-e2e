@@ -1,0 +1,32 @@
+"""POM for the public pricing page (/pricing.html).
+
+The page fetches GET /api/tiers/public and renders pricing cards
+dynamically via JS. Each card is `.pricing-card` with an `<h2>` title.
+The featured tier carries `.pricing-card.featured`.
+"""
+
+from __future__ import annotations
+
+from playwright.sync_api import Locator, Page, expect
+
+
+class PricingPage:
+    """Drives the pricing page: navigate, inspect cards."""
+
+    def __init__(self, page: Page):
+        self.page = page
+        self._cards = page.locator(".pricing-card")
+        self.featured = page.locator(".pricing-card.featured")
+
+    def cards(self) -> Locator:
+        return self._cards
+
+    def card_count(self) -> int:
+        return self._cards.count()
+
+    def card_titles(self) -> list[str]:
+        headings = self.page.locator(".pricing-card h2")
+        return [h.inner_text().strip() for h in headings.all()]
+
+    def expect_cards_visible(self, count: int = 4) -> None:
+        expect(self._cards).to_have_count(count)

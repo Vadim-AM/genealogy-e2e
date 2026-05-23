@@ -15,6 +15,7 @@ from tests.api_paths import API
 from tests.constants import TestConfig, make_email
 from tests.pages.signup_page import SignupPage
 from tests.pages.verify_page import VerifyPage
+from tests.response import expect_response
 
 
 def test_signup_form_has_required_inputs(page: Page, soft_check):
@@ -41,7 +42,7 @@ def test_signup_happy_path_sends_verification_email(page: Page, base_url: str):
     signup.expect_verification_message()
 
     r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
-    r.raise_for_status()
+    expect_response(r, label="last-email").status_ok()
     assert "token=" in (r.json()["text_body"] or ""), \
         f"no verification token in email: {r.json()!r}"
 
@@ -64,7 +65,7 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str):
     mail = httpx.get(
         f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email}
     )
-    mail.raise_for_status()
+    expect_response(mail, label="last-email").status_ok()
     token = re.search(r"token=([\w\-]+)", mail.json()["text_body"]).group(1)
 
     # POST /verify-email directly — checking that the response carries a
@@ -72,7 +73,7 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str):
     verify = httpx.post(
         f"{base_url}{API.VERIFY_EMAIL}", json={"token": token}
     )
-    verify.raise_for_status()
+    expect_response(verify, label="verify-email").status_ok()
     body = verify.json()
     assert body.get("auto_login") is True, \
         f"verify response must include auto_login=true: {body!r}"
@@ -85,8 +86,9 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str):
 
     # The cookie alone (no separate login call) should authenticate /me.
     me = httpx.get(f"{base_url}{API.ACCOUNT_ME}", cookies=cookies)
-    me.raise_for_status()
-    assert me.json()["tenant"]["slug"] == body["tenant_slug"]
+    expect_response(me, label="/me after verify").status_ok()
+    assert me.json()["tenant"]["slug"] == body["tenant_slug"], \
+        f"/me slug mismatch: expected {body['tenant_slug']!r}, got {me.json()['tenant']['slug']!r}"
 
 
 def test_signup_then_verify_creates_tenant(page: Page, base_url: str):
@@ -103,7 +105,7 @@ def test_signup_then_verify_creates_tenant(page: Page, base_url: str):
     mail = httpx.get(
         f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email}
     )
-    mail.raise_for_status()
+    expect_response(mail, label="last-email").status_ok()
     token = re.search(r"token=([\w\-]+)", mail.json()["text_body"]).group(1)
 
     VerifyPage(page).open_with_token(token).expect_success()
@@ -112,7 +114,7 @@ def test_signup_then_verify_creates_tenant(page: Page, base_url: str):
         f"{base_url}{API.LOGIN}",
         json={"email": email, "password": TestConfig.DEFAULT_PASSWORD},
     )
-    me.raise_for_status()
+    expect_response(me, label="login after verify").status_ok()
     assert me.json()["tenant_slug"], f"no tenant_slug in login response: {me.json()}"
 
 
@@ -141,7 +143,7 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str):
         f"signup with honeypot returned {resp_info.value.status} (expected 200 silent)"
 
     r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
-    assert r.status_code == 404, "honeypot should suppress email send"
+    expect_response(r, label="honeypot: no email sent").status(404)
 
 
 def test_disposable_email_rejected_inline(page: Page, base_url: str):
@@ -167,7 +169,7 @@ def test_disposable_email_rejected_inline(page: Page, base_url: str):
     expect(page.locator("#email")).to_have_attribute("aria-invalid", "true")
 
     r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": disposable_email})
-    assert r.status_code == 404, "disposable email must not trigger verification send"
+    expect_response(r, label="disposable: no email sent").status(404)
 
 
 def test_password_too_short_rejected_inline(page: Page, base_url: str):
@@ -180,7 +182,8 @@ def test_password_too_short_rejected_inline(page: Page, base_url: str):
     ).submit()
 
     pwd_valid = page.evaluate("() => document.getElementById('password').checkValidity()")
-    assert pwd_valid is False, "password input must fail HTML5 minlength validity"
+    assert pwd_valid is False, \
+        f"password input must fail HTML5 minlength validity, got {pwd_valid!r}"
 
     r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
-    assert r.status_code == 404, "rejected password must not trigger verification send"
+    expect_response(r, label="short-pw: no email sent").status(404)

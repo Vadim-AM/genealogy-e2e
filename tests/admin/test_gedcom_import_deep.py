@@ -21,203 +21,20 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
-from tests.messages import FamilyGroups, t
-from tests.pages.owner_page import OwnerPage
-from tests.pages.profile_panel import ProfilePanel
-from tests.pages.tree_page import TreePage
-
-
-# ─────────────────────────────────────────────────────────────────────
-# GEDCOM fixtures
-# ─────────────────────────────────────────────────────────────────────
-
-# 3-generation family:
-#   Иван Сидоров (1920-1990) ─┐
-#                              ├─→ Сергей Сидоров (1950) ─┐
-#   Мария Сидорова (1925) ────┘                          │
-#                                                          ├─→ Андрей Сидоров (1980)
-#                              Елена Иванова (1952) ─────┘
-GEDCOM_THREE_GEN = """0 HEAD
-1 SOUR DeepTest
-1 CHAR UTF-8
-0 @I1@ INDI
-1 NAME Иван /Сидоров/
-1 SEX M
-1 BIRT
-2 DATE 1920
-2 PLAC Краснодар
-1 DEAT
-2 DATE 1990
-0 @I2@ INDI
-1 NAME Мария /Сидорова/
-1 SEX F
-1 BIRT
-2 DATE 1925
-0 @I3@ INDI
-1 NAME Сергей /Сидоров/
-1 SEX M
-1 BIRT
-2 DATE 1950
-1 FAMC @F1@
-1 FAMS @F2@
-0 @I4@ INDI
-1 NAME Елена /Иванова/
-1 SEX F
-1 BIRT
-2 DATE 1952
-1 FAMS @F2@
-0 @I5@ INDI
-1 NAME Андрей /Сидоров/
-1 SEX M
-1 BIRT
-2 DATE 1980
-1 FAMC @F2@
-0 @F1@ FAM
-1 HUSB @I1@
-1 WIFE @I2@
-1 CHIL @I3@
-0 @F2@ FAM
-1 HUSB @I3@
-1 WIFE @I4@
-1 CHIL @I5@
-0 TRLR
-"""
-
-
-# Persons с реальным русским orthography (ё, длинные фамилии, патронимы):
-GEDCOM_CYRILLIC_EDGE = """0 HEAD
-1 SOUR CyrillicTest
-1 CHAR UTF-8
-0 @I1@ INDI
-1 NAME Пётр /Аксёнов-Жёлтый/
-1 SEX M
-1 BIRT
-2 DATE 1900
-2 PLAC село Ёлкино, Костромская губерния
-1 DEAT
-2 DATE 1973
-2 PLAC Москва
-0 @I2@ INDI
-1 NAME Евдокия /Аксёнова-Жёлтая/
-1 SEX F
-1 BIRT
-2 DATE 1905
-1 FAMS @F1@
-0 @F1@ FAM
-1 HUSB @I1@
-1 WIFE @I2@
-0 TRLR
-"""
-
-
-# Минимальный INDI — только NAME + SEX, без BIRT/DEAT/PLAC/NOTE.
-GEDCOM_MINIMAL_INDI = """0 HEAD
-1 SOUR MinimalTest
-1 CHAR UTF-8
-0 @I1@ INDI
-1 NAME Минимальный /Тестов/
-1 SEX M
-0 TRLR
-"""
-
-
-# INDI с биографией — `1 NOTE` строкой. Биография обычно содержит знаки
-# препинания (запятые, точки) и числа (годы службы) — проверяем что
-# escape'ится корректно и текст не теряется.
-_NOTE_BIO = (
-    "Участник Первой мировой войны, награждён Георгиевским крестом 4 степени. "
-    "С 1924 года работал учителем в селе Никольское. "
-    "Эвакуировался в 1942 году вместе с семьёй."
+from tests._data.gedcom.samples import (
+    GEDCOM_CYRILLIC_EDGE,
+    GEDCOM_MINIMAL_INDI,
+    GEDCOM_THREE_GEN,
+    GEDCOM_WITH_NOTE,
 )
-GEDCOM_WITH_NOTE = f"""0 HEAD
-1 SOUR NoteTest
-1 CHAR UTF-8
-0 @I1@ INDI
-1 NAME Захар /Семёнов/
-1 SEX M
-1 BIRT
-2 DATE 1885
-1 NOTE {_NOTE_BIO}
-0 TRLR
-"""
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────────────────────────────
-
-
-def _import_via_ui(owner_page: Page, ged_content: str, filename: str) -> None:
-    """User flow: open /owner → Import tab → upload → confirm → DONE."""
-    owner = OwnerPage(owner_page)
-    owner_page.goto("/owner")
-    # GEDCOM widget mounts async после loadMe() — networkidle нужен явно.
-    owner_page.wait_for_load_state("networkidle")
-    owner.open_tab("export")
-    expect(owner.import_root).to_have_attribute("data-gedcom-state", "IDLE")
-
-    owner.upload_ged(filename=filename, content=ged_content.encode("utf-8"))
-    owner.expect_import_state("PREVIEW")
-    owner.confirm_import_via_dialog()
-    owner.expect_import_state("DONE")
-
-
-def _search_and_open_profile(owner_page: Page, query: str) -> ProfilePanel:
-    """User flow: navigate к /, type в header search, click first result
-    → orbit centers on person, click center card → profile opens.
-
-    `DATA.people` populated через `loadData()` → `/api/tree` после mount;
-    guard через `expect_response` (CSP блокирует string-`wait_for_function`).
-    Search-click переключает orbit, не открывает profile напрямую —
-    нужен дополнительный click по `.orbit-center-card` (это естественный
-    пользовательский путь: «нашёл → перешёл на него в дереве → открыл
-    карточку»).
-    """
-    tree = TreePage(owner_page)
-    with owner_page.expect_response(lambda r: "/api/tree" in r.url and r.ok):
-        tree.goto()
-    tree.search_input.fill(query)
-    expect(tree.search_results.first).to_be_visible()
-    tree.search_results.first.click()
-    center_card = owner_page.locator(".orbit-center-card")
-    # Gate the click on the orbit having actually re-centred to the
-    # searched person — `.orbit-center-card` always exists (demo-self is
-    # the initial centre), so a bare `to_be_visible()` passes before the
-    # async re-centre and the click opens the WRONG profile. Fast local
-    # hid this; slow 2-core CI exposed it (5 gedcom_import_deep fails,
-    # 2026-05-19). `to_contain_text(query)` auto-waits for the re-centre —
-    # deterministic regardless of host speed, no product change.
-    expect(center_card).to_contain_text(query)
-    center_card.click()
-    panel = ProfilePanel(owner_page)
-    panel.expect_visible()
-    return panel
-
-
-def _click_family_link(panel: ProfilePanel, group_label: str, name_substring: str) -> None:
-    """Click `<a data-action="open-profile">name</a>` внутри указанной family group."""
-    group = panel.container.locator(".profile-family-group", has_text=group_label)
-    expect(group).to_be_visible()
-    link = group.locator('a[data-action="open-profile"]').filter(has_text=name_substring).first
-    expect(link).to_be_visible()
-    link.click()
-    panel.expect_visible()
-
-
-def _search_and_orbit(owner_page: Page, query: str) -> None:
-    """User flow: navigate к /, search → click first result → orbit centers
-    on person, **stay on orbit view** (без открытия profile).
-
-    Используется для проверок, которые читают окружающие `.orbit-card`
-    (relation labels к зафокусированному человеку).
-    """
-    tree = TreePage(owner_page)
-    with owner_page.expect_response(lambda r: "/api/tree" in r.url and r.ok):
-        tree.goto()
-    tree.search_input.fill(query)
-    expect(tree.search_results.first).to_be_visible()
-    tree.search_results.first.click()
-    expect(owner_page.locator(".orbit-center-card")).to_be_visible()
+from tests.helpers.admin.gedcom_ui import import_via_ui
+from tests.helpers.tree.tree_navigation import (
+    click_family_link,
+    search_and_open_profile,
+    search_and_orbit,
+)
+from tests.messages import FamilyGroups, RelationLabels, t
+from tests.pages.owner_page import OwnerPage
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -243,13 +60,13 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
     - Сергей.«Родители» содержит Ивана + Марию (generation 1).
     - Профиль Ивана: даты 1920-1990, место рождения Краснодар.
     """
-    _import_via_ui(owner_page, GEDCOM_THREE_GEN, "three-gen.ged")
+    import_via_ui(owner_page, GEDCOM_THREE_GEN, "three-gen.ged")
 
     # User finds Андрея через search (single token: search.js matches
     # `p.name.includes(q)`; multi-word query was failing because backend
     # stores `name="Surname Given"` while UI shows `Given Surname` — UX
     # inconsistency tracked separately).
-    panel = _search_and_open_profile(owner_page, "Андрей")
+    panel = search_and_open_profile(owner_page, "Андрей")
 
     expect(panel.title).to_contain_text("Андрей")
     expect(panel.title).to_contain_text("Сидоров")
@@ -262,7 +79,7 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
     expect(parents_group.locator('a[data-action="open-profile"]')).to_have_count(2)
 
     # Connection: Андрей → Сергей (родитель).
-    _click_family_link(panel, t(FamilyGroups.PARENTS), "Сергей")
+    click_family_link(panel, t(FamilyGroups.PARENTS), "Сергей")
     expect(panel.title).to_contain_text("Сергей")
     expect(panel.container.locator(".profile-dates")).to_contain_text("1950")
 
@@ -274,7 +91,7 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
     # Connection: Сергей → Елена (супруга). Ровно один супруг.
     spouse_group = panel.container.locator(".profile-family-group", has_text=t(FamilyGroups.SPOUSE))
     expect(spouse_group.locator('a[data-action="open-profile"]')).to_have_count(1)
-    _click_family_link(panel, t(FamilyGroups.SPOUSE), "Елена")
+    click_family_link(panel, t(FamilyGroups.SPOUSE), "Елена")
     expect(panel.title).to_contain_text("Елена")
     expect(panel.container.locator(".profile-dates")).to_contain_text("1952")
 
@@ -286,7 +103,7 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
     # Navigate back к Сергею, потом вверх к Ивану (generation 1).
     elena_spouse_group.locator('a[data-action="open-profile"]').filter(has_text="Сергей").click()
     panel.expect_visible()
-    _click_family_link(panel, t(FamilyGroups.PARENTS), "Иван")
+    click_family_link(panel, t(FamilyGroups.PARENTS), "Иван")
 
     # Iван (generation 1): daдy + место + год смерти.
     expect(panel.title).to_contain_text("Иван")
@@ -311,9 +128,9 @@ def test_user_imports_cyrillic_data_renders_without_mojibake_via_ui(
     показывает символы exactly как в исходном файле — никаких `?`,
     `Иван`, или транслитерации.
     """
-    _import_via_ui(owner_page, GEDCOM_CYRILLIC_EDGE, "cyrillic.ged")
+    import_via_ui(owner_page, GEDCOM_CYRILLIC_EDGE, "cyrillic.ged")
 
-    panel = _search_and_open_profile(owner_page, "Пётр")
+    panel = search_and_open_profile(owner_page, "Пётр")
 
     # Title содержит exact символы — букву ё и дефисную фамилию.
     expect(panel.title).to_contain_text("Пётр")
@@ -326,7 +143,7 @@ def test_user_imports_cyrillic_data_renders_without_mojibake_via_ui(
     expect(panel.container.locator(".profile-place")).to_contain_text("Ёлкино")
 
     # Bidirectional spouse: Пётр → Евдокия с буквой ё в её фамилии.
-    _click_family_link(panel, t(FamilyGroups.SPOUSE), "Евдокия")
+    click_family_link(panel, t(FamilyGroups.SPOUSE), "Евдокия")
     expect(panel.title).to_contain_text("Евдокия")
     expect(panel.title).to_contain_text("Аксёнова-Жёлтая")
 
@@ -345,9 +162,9 @@ def test_user_imports_minimal_indi_profile_renders_without_crash(
     рендериться: имя в title, даты пустые (либо отсутствуют, либо empty),
     family-секция structurally OK без relations.
     """
-    _import_via_ui(owner_page, GEDCOM_MINIMAL_INDI, "minimal.ged")
+    import_via_ui(owner_page, GEDCOM_MINIMAL_INDI, "minimal.ged")
 
-    panel = _search_and_open_profile(owner_page, "Минимальный")
+    panel = search_and_open_profile(owner_page, "Минимальный")
 
     expect(panel.title).to_contain_text("Минимальный")
     expect(panel.title).to_contain_text("Тестов")
@@ -391,8 +208,8 @@ def test_user_imports_indi_with_note_renders_biography_in_profile_story(
     «notes теряются при импорте» отрезает у пользователя самую ценную
     часть содержимого.
     """
-    _import_via_ui(owner_page, GEDCOM_WITH_NOTE, "with-note.ged")
-    panel = _search_and_open_profile(owner_page, "Захар")
+    import_via_ui(owner_page, GEDCOM_WITH_NOTE, "with-note.ged")
+    panel = search_and_open_profile(owner_page, "Захар")
 
     expect(panel.title).to_contain_text("Захар")
     expect(panel.title).to_contain_text("Семёнов")
@@ -423,8 +240,8 @@ def test_user_imports_male_and_female_show_correct_relation_label_in_orbit(
     Регрессия «SEX игнорируется парсером» (все приходят как M) → все
     parent-cards будут показывать «отец», что заметно сразу.
     """
-    _import_via_ui(owner_page, GEDCOM_THREE_GEN, "three-gen.ged")
-    _search_and_orbit(owner_page, "Андрей")
+    import_via_ui(owner_page, GEDCOM_THREE_GEN, "three-gen.ged")
+    search_and_orbit(owner_page, "Андрей")
 
     # Orbit-cards вокруг Андрея. Кажда parent-card — отдельная `.orbit-card`
     # с `.orbit-card-relation` под именем. Фильтруем by name → один card
@@ -435,8 +252,8 @@ def test_user_imports_male_and_female_show_correct_relation_label_in_orbit(
     expect(sergey_card).to_be_visible()
     expect(elena_card).to_be_visible()
 
-    expect(sergey_card.locator(".orbit-card-relation")).to_have_text("отец")
-    expect(elena_card.locator(".orbit-card-relation")).to_have_text("мать")
+    expect(sergey_card.locator(".orbit-card-relation")).to_have_text(t(RelationLabels.FATHER))
+    expect(elena_card.locator(".orbit-card-relation")).to_have_text(t(RelationLabels.MOTHER))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -463,7 +280,7 @@ def test_user_reimports_same_file_does_not_duplicate_persons(
     из БД и пользователь импортит обратно — slug отсутствует) и не
     покрывается этим тестом. Здесь — внешний файл, загружаемый дважды.
     """
-    _import_via_ui(owner_page, GEDCOM_THREE_GEN, "three-gen.ged")
+    import_via_ui(owner_page, GEDCOM_THREE_GEN, "three-gen.ged")
 
     # «Импортировать ещё» → IDLE → upload того же файла → confirm → DONE.
     owner = OwnerPage(owner_page)
@@ -475,7 +292,7 @@ def test_user_reimports_same_file_does_not_duplicate_persons(
     owner.expect_import_state("DONE")
 
     # 1. Search «Андрей» → ровно 1 карточка.
-    panel = _search_and_open_profile(owner_page, "Андрей")
+    panel = search_and_open_profile(owner_page, "Андрей")
     expect(panel.title).to_contain_text("Андрей")
 
     # 2. У Андрея всё ещё ровно 2 родителя (не 4 — что было бы при дубле

@@ -25,6 +25,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
+from tests.messages import Enrichment, t
 from tests.timeouts import TIMEOUTS
 
 
@@ -84,14 +85,14 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
     expect(profile).to_be_visible()
 
     # 1. Disabled-кнопка с маркером «скоро».
-    skoro_btn = profile.locator('button:has-text("скоро")')
+    skoro_btn = profile.locator(f'button:has-text("{t(Enrichment.COMING_SOON)}")')
     expect(skoro_btn).to_have_count(1)
     expect(skoro_btn.first).to_be_disabled()
 
     # 2. Tooltip — substring (locale-aware, без full-string fit).
     title = skoro_btn.first.get_attribute("title") or ""
-    assert "публичной бете" in title, (
-        f'title attribute должен содержать «публичной бете», получили {title!r}'
+    assert t(Enrichment.BETA_KEYWORD) in title, (
+        f"title attribute should contain {t(Enrichment.BETA_KEYWORD)!r}, got {title!r}"
     )
 
     # 3. Активной enrich-кнопки нет.
@@ -104,7 +105,7 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
     # disabled был обойдён JS-ом, что и есть регрессия.
     posts_before_click = list(enrich_post_calls)
     skoro_btn.first.click(force=True)
-    page.wait_for_timeout(200)  # noqa: drift — settle для negative network assertion
+    page.wait_for_load_state("networkidle")
     new_posts = [u for u in enrich_post_calls if u not in posts_before_click]
     assert not new_posts, (
         f"disabled AI button triggered POST /api/enrich/* after click: {new_posts!r}"

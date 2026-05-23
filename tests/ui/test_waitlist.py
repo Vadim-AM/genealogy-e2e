@@ -14,17 +14,11 @@ rows, switch back to fixed addresses.
 
 from __future__ import annotations
 
-import uuid
-
 from playwright.sync_api import Page
 
+from tests.constants import unique_email
 from tests.messages import PII
 from tests.pages.wait_page import WaitPage
-
-
-def _unique_email(label: str) -> str:
-    """`<label>+<8-hex>@e2e.example.com` — never collides between runs."""
-    return f"{label}+{uuid.uuid4().hex[:8]}@e2e.example.com"
 
 
 def test_wait_page_renders_form(page: Page):
@@ -43,7 +37,7 @@ def test_wait_submit_email_success(page: Page):
     """
     wait = WaitPage(page).goto()
     with page.expect_response("**/api/waitlist/subscribe") as r_info:
-        wait.submit_email(_unique_email("waitlist1"))
+        wait.submit_email(unique_email("waitlist1"))
     assert r_info.value.status == 200, (
         f"subscribe must be 200: {r_info.value.status} {r_info.value.text()[:200]}"
     )
@@ -84,7 +78,7 @@ def test_wait_duplicate_email_idempotent_status_field(page: Page):
     Pin both the HTTP status and the `status` discriminator. Earlier this
     test only checked `<500` which let any 4xx «regression» pass silently.
     """
-    email = _unique_email("dupe")
+    email = unique_email("dupe")
     wait = WaitPage(page).goto()
     with page.expect_response("**/api/waitlist/subscribe") as r1_info:
         wait.submit_email(email)

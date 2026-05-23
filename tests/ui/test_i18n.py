@@ -18,20 +18,13 @@ gettext-like layer или просто Russian strings в auth handler).
 
 from __future__ import annotations
 
-import re
-
 import httpx
 import pytest
 
 from tests.api_paths import API
 from tests.constants import unique_email
+from tests.helpers.ui.i18n_checks import has_cyrillic
 from tests.timeouts import TIMEOUTS
-
-_CYRILLIC_RE = re.compile(r"[Ѐ-ӿ]")
-
-
-def _has_cyrillic(s: str) -> bool:
-    return bool(_CYRILLIC_RE.search(s or ""))
 
 
 def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
@@ -50,7 +43,7 @@ def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
     body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
     detail = body.get("detail") or body.get("message") or ""
 
-    assert _has_cyrillic(detail), (
+    assert has_cyrillic(detail), (
         f"login error detail must be in Russian; got: {detail!r}"
     )
 
@@ -79,8 +72,8 @@ def test_signup_validation_error_detail_in_russian(uvicorn_server: str):
     detail = body.get("detail")
     if isinstance(detail, list):
         msgs = [item.get("msg", "") for item in detail if isinstance(item, dict)]
-        assert any(_has_cyrillic(m) for m in msgs), \
+        assert any(has_cyrillic(m) for m in msgs), \
             f"all signup validation msgs in English: {msgs!r}"
     else:
-        assert _has_cyrillic(str(detail)), \
+        assert has_cyrillic(str(detail)), \
             f"signup error detail must be in Russian; got: {detail!r}"

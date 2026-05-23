@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from tests.api_paths import API
 from tests.constants import unique_email
+from tests.response import expect_response
 
 
 def test_delete_tenant_invalidates_owner_session(
@@ -29,18 +30,12 @@ def test_delete_tenant_invalidates_owner_session(
     api = tenant_client(user)
 
     # 1. Sanity: сессия валидна сейчас.
-    assert api.get(API.ACCOUNT_ME).status_code == 200
+    expect_response(api.get(API.ACCOUNT_ME), label="pre-delete /me").status(200)
 
     # 2. POST delete-tenant — soft-delete с подтверждением через slug.
     r = api.post(API.DELETE_TENANT, json={"confirm_slug": user.slug})
-    assert r.status_code == 200, (
-        f"delete-tenant should succeed; got {r.status_code} {r.text[:200]}"
-    )
+    expect_response(r, label="delete-tenant").status(200)
 
     # 3. Cookie должна быть отозвана.
     me_after = api.get(API.ACCOUNT_ME)
-    assert me_after.status_code == 401, (
-        f"INV-GDPR-001a: session NOT invalidated after delete-tenant. "
-        f"Cookie returns {me_after.status_code} {me_after.text[:200]}. "
-        f"Spec promises sessions are cleared on delete."
-    )
+    expect_response(me_after, label="INV-GDPR-001a: post-delete /me").status(401)

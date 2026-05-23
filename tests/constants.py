@@ -6,7 +6,10 @@
 
 from __future__ import annotations
 
+import re
 import uuid
+
+EMAIL_TOKEN_RE = re.compile(r"token=([A-Za-z0-9_\-]+)")
 
 
 class TestConfig:

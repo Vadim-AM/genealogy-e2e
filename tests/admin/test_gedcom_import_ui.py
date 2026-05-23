@@ -19,69 +19,17 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
+from tests._data.gedcom.samples import (
+    SAMPLE_GEDCOM_CP1251,
+    SAMPLE_GEDCOM_MALFORMED,
+    SAMPLE_GEDCOM_UTF8,
+)
 from tests.api_paths import API
+from tests.helpers.admin.gedcom_ui import open_import_tab
+from tests.helpers.tree.tree_api import people_count
 from tests.messages import GedcomImport, t
 from tests.pages.owner_page import OwnerPage
 from tests.timeouts import TIMEOUTS
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────────────────────────────────
-
-
-SAMPLE_GEDCOM_UTF8 = (
-    "0 HEAD\n"
-    "1 SOUR Genealogy-e2e\n"
-    "1 GEDC\n"
-    "2 VERS 5.5.1\n"
-    "1 CHAR UTF-8\n"
-    "0 @I1@ INDI\n"
-    "1 NAME Тестовый /Импортов/\n"
-    "1 SEX M\n"
-    "1 BIRT\n"
-    "2 DATE 1900\n"
-    "0 @I2@ INDI\n"
-    "1 NAME Импортова /Тестовая/\n"
-    "1 SEX F\n"
-    "1 BIRT\n"
-    "2 DATE 1902\n"
-    "0 TRLR\n"
-)
-
-
-SAMPLE_GEDCOM_CP1251 = (
-    "0 HEAD\n"
-    "1 SOUR Tree-1251\n"
-    "1 CHAR ANSI\n"
-    "0 @I1@ INDI\n"
-    "1 NAME Иван /Кириллов/\n"
-    "1 SEX M\n"
-    "1 BIRT\n"
-    "2 DATE 1890\n"
-    "0 TRLR\n"
-)
-
-
-SAMPLE_GEDCOM_MALFORMED = b"this is not a gedcom file just random text\x00\x01\xff\xfe"
-
-
-def _open_import_tab(owner_page: Page) -> OwnerPage:
-    owner = OwnerPage(owner_page)
-    owner_page.goto("/owner")
-    # `networkidle` нужен здесь специально: GEDCOM widget mount'ится async
-    # через JS после loadMe() fetch — `domcontentloaded` слишком ранний,
-    # widget element в DOM ещё нет.
-    owner_page.wait_for_load_state("networkidle")
-    owner.open_tab("export")
-    # Widget mounts after loadMe() resolves — wait for IDLE state
-    expect(owner.import_root).to_have_attribute("data-gedcom-state", "IDLE")
-    return owner
-
-
-def _tree_people_count(owner_user, tenant_client) -> int:
-    api = tenant_client(owner_user)
-    return len(api.get(API.TREE).json()["people"])
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -101,14 +49,14 @@ def test_round_trip_export_then_import(owner_page: Page, owner_user, tenant_clie
     api = tenant_client(owner_user)
     # 1. Export current tree via API (returns .ged text body)
     r = api.get(API.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long)
-    assert r.is_success, r.text  # httpx.Response uses .is_success, not requests-style .ok
+    assert r.is_success, f"export GEDCOM failed: {r.status_code} {r.text[:200]}"
     ged_text = r.text
-    assert "0 HEAD" in ged_text[:100]
+    assert "0 HEAD" in ged_text[:100], f"exported GEDCOM missing header: {ged_text[:100]!r}"
 
-    count_before = _tree_people_count(owner_user, tenant_client)
+    count_before = people_count(api)
 
     # 2. Open /owner → Import/Export tab → upload exported file back
-    owner = _open_import_tab(owner_page)
+    owner = open_import_tab(owner_page)
     owner.upload_ged(filename="round-trip.ged", content=ged_text.encode("utf-8"))
 
     # 3. Preview state — counts визибл
@@ -125,7 +73,7 @@ def test_round_trip_export_then_import(owner_page: Page, owner_user, tenant_clie
     assert t(GedcomImport.SKIPPED_LABEL) in summary_text, f"expected skipped count in DONE: {summary_text!r}"
 
     # API: count не изменился — backend skipnул всех (idempotent)
-    count_after = _tree_people_count(owner_user, tenant_client)
+    count_after = people_count(api)
     assert count_after == count_before, (
         f"round-trip leaked new persons: before={count_before}, after={count_after}"
     )
@@ -133,9 +81,10 @@ def test_round_trip_export_then_import(owner_page: Page, owner_user, tenant_clie
 
 def test_import_new_persons_visible_in_tree(owner_page: Page, owner_user, tenant_client):
     """Fresh sample.ged → preview → confirm → assert новые persons в /api/tree."""
-    count_before = _tree_people_count(owner_user, tenant_client)
+    api = tenant_client(owner_user)
+    count_before = people_count(api)
 
-    owner = _open_import_tab(owner_page)
+    owner = open_import_tab(owner_page)
     owner.upload_ged(filename="fresh.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
     owner.expect_import_state("PREVIEW")
     owner.confirm_import_via_dialog()
@@ -159,7 +108,7 @@ def test_cp1251_shows_cyrillic_correctly(owner_page: Page, owner_user):
     """Файл в Windows-1251 → preview показывает badge cp1251 + кириллица
     читается корректно (не mojibake). Главный РФ-кейс Фазы 2 — юзеры
     таскают .ged из «Древо Жизни» в этой кодировке."""
-    owner = _open_import_tab(owner_page)
+    owner = open_import_tab(owner_page)
     owner.upload_ged(
         filename="cp1251.ged",
         content=SAMPLE_GEDCOM_CP1251.encode("cp1251"),
@@ -176,7 +125,7 @@ def test_cp1251_shows_cyrillic_correctly(owner_page: Page, owner_user):
 def test_utf8_encoding_badge_is_neutral(owner_page: Page, owner_user):
     """UTF-8 файл → encoding badge тоже есть (для прозрачности), но
     нейтральный (без ⚠), data-gedcom-encoding=utf-8."""
-    owner = _open_import_tab(owner_page)
+    owner = open_import_tab(owner_page)
     owner.upload_ged(filename="utf8.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
     owner.expect_import_state("PREVIEW")
     expect(owner.import_encoding_badge).to_have_attribute("data-gedcom-encoding", "utf-8")
@@ -189,15 +138,16 @@ def test_utf8_encoding_badge_is_neutral(owner_page: Page, owner_user):
 
 def test_cancel_during_preview_resets_to_idle(owner_page: Page, owner_user, tenant_client):
     """Upload → PREVIEW → click Cancel → IDLE. Никаких persons не записано."""
-    count_before = _tree_people_count(owner_user, tenant_client)
+    api = tenant_client(owner_user)
+    count_before = people_count(api)
 
-    owner = _open_import_tab(owner_page)
+    owner = open_import_tab(owner_page)
     owner.upload_ged(filename="cancel.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
     owner.expect_import_state("PREVIEW")
     owner.import_cancel_btn.click()
     owner.expect_import_state("IDLE")
 
-    count_after = _tree_people_count(owner_user, tenant_client)
+    count_after = people_count(api)
     assert count_after == count_before, (
         f"cancel leaked persons: before={count_before}, after={count_after}"
     )
@@ -206,9 +156,10 @@ def test_cancel_during_preview_resets_to_idle(owner_page: Page, owner_user, tena
 def test_confirm_dialog_cancel_blocks_import(owner_page: Page, owner_user, tenant_client):
     """Click Confirm → confirmDialog opens → click Отмена в dialog →
     остаёмся в PREVIEW, никаких записей в БД."""
-    count_before = _tree_people_count(owner_user, tenant_client)
+    api = tenant_client(owner_user)
+    count_before = people_count(api)
 
-    owner = _open_import_tab(owner_page)
+    owner = open_import_tab(owner_page)
     owner.upload_ged(filename="block.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
     owner.expect_import_state("PREVIEW")
 
@@ -220,14 +171,16 @@ def test_confirm_dialog_cancel_blocks_import(owner_page: Page, owner_user, tenan
     expect(owner.confirm_dialog).to_have_count(0)
     owner.expect_import_state("PREVIEW")
 
-    count_after = _tree_people_count(owner_user, tenant_client)
-    assert count_after == count_before
+    count_after = people_count(api)
+    assert count_after == count_before, (
+        f"cancel must not import: before={count_before}, after={count_after}"
+    )
 
 
 def test_done_shows_skipped_count_on_reimport(owner_page: Page, owner_user, tenant_client):
     """Двойной импорт того же файла → DONE второго показывает «Пропущено»
     (не «Импорт упал»), счётчик правильный."""
-    owner = _open_import_tab(owner_page)
+    owner = open_import_tab(owner_page)
     # First import
     owner.upload_ged(filename="first.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
     owner.confirm_import_via_dialog()
@@ -246,7 +199,7 @@ def test_done_shows_skipped_count_on_reimport(owner_page: Page, owner_user, tena
 
 def test_retry_after_error_resets_to_idle(owner_page: Page, owner_user):
     """ERROR state → click Retry → IDLE (state-machine reset)."""
-    owner = _open_import_tab(owner_page)
+    owner = open_import_tab(owner_page)
     # Перехватываем POST /import-gedcom и возвращаем 500
     def _block_500(route):
         if route.request.method == "POST":
@@ -274,7 +227,7 @@ def test_retry_after_error_resets_to_idle(owner_page: Page, owner_user):
 def test_rejects_non_ged_extension(owner_page: Page, owner_user):
     """Upload .txt файла → alertDialog (sepia, не native browser alert),
     POST не делается."""
-    owner = _open_import_tab(owner_page)
+    owner = open_import_tab(owner_page)
     posted: list[str] = []
     owner_page.on("request", lambda req:
                   posted.append(req.url) if req.method == "POST"
@@ -295,7 +248,7 @@ def test_rejects_non_ged_extension(owner_page: Page, owner_user):
 
 def test_rejects_empty_file(owner_page: Page, owner_user):
     """0-byte .ged → alertDialog «пустой», без POST."""
-    owner = _open_import_tab(owner_page)
+    owner = open_import_tab(owner_page)
     owner.import_file_input.set_input_files(
         files=[{"name": "empty.ged", "mimeType": "application/octet-stream", "buffer": b""}]
     )
@@ -309,9 +262,10 @@ def test_rejects_oversize_file(owner_page: Page, owner_user):
     """11 MB .ged → client-side reject «слишком большой»."""
     # `b"1 NOTE xx\n"` — ровно 10 байт, чтобы multiplier × 10 = bytes.
     big_payload = b"0 HEAD\n" + b"1 NOTE xx\n" * (11 * 1024 * 1024 // 10)
-    assert len(big_payload) > 10 * 1024 * 1024  # sanity
+    assert len(big_payload) > 10 * 1024 * 1024, \
+        f"sanity: payload must exceed 10 MB, got {len(big_payload)}"
 
-    owner = _open_import_tab(owner_page)
+    owner = open_import_tab(owner_page)
     owner.import_file_input.set_input_files(
         files=[
             {
@@ -334,7 +288,7 @@ def test_rejects_oversize_file(owner_page: Page, owner_user):
 
 def test_backend_400_shows_friendly_error(owner_page: Page, owner_user):
     """Backend возвращает 400 с detail — UI показывает inline ERROR с этим detail."""
-    owner = _open_import_tab(owner_page)
+    owner = open_import_tab(owner_page)
 
     def _block_400(route):
         if route.request.method == "POST":
@@ -357,7 +311,7 @@ def test_backend_400_shows_friendly_error(owner_page: Page, owner_user):
 
 def test_network_error_shows_friendly_message(owner_page: Page, owner_user):
     """Полный network fail (route.abort) → ERROR с friendly message."""
-    owner = _open_import_tab(owner_page)
+    owner = open_import_tab(owner_page)
     owner_page.route(f"**{API.ADMIN_IMPORT_GEDCOM}", lambda r: r.abort())
     try:
         owner.upload_ged(filename="fail.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))

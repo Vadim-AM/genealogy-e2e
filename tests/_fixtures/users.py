@@ -16,7 +16,8 @@ import httpx
 import pytest
 
 from tests.api_paths import API
-from tests.constants import TestConfig, unique_email
+from tests.constants import EMAIL_TOKEN_RE, TestConfig, unique_email
+from tests.step import step
 from tests.timeouts import TIMEOUTS
 
 
@@ -29,9 +30,12 @@ class AuthUser:
 
 
 def _extract_token_from_email(body: str) -> str:
-    match = re.search(r"token=([A-Za-z0-9_\-]+)", body)
+    match = EMAIL_TOKEN_RE.search(body)
     if not match:
-        raise AssertionError(f"no verification token in email body: {body[:200]}")
+        raise AssertionError(
+            f"no verification token in email body (pattern: {EMAIL_TOKEN_RE.pattern!r}): "
+            f"{body[:200]}"
+        )
     return match.group(1)
 
 
@@ -135,20 +139,18 @@ def accept_invite(uvicorn_server: str) -> Callable[..., None]:
     Endpoint: POST /api/account/tenant/invites/{token}/accept.
     """
 
-    def _do(invite_token: str, *, cookies: dict[str, str]) -> None:
+    def _do(invite_token: str, *, cookies: dict[str, str]) -> dict[str, str]:
         r = httpx.post(
             f"{uvicorn_server}{API.tenant_invite_accept(invite_token)}",
             cookies=cookies,
             timeout=TIMEOUTS.api_request,
         )
         r.raise_for_status()
-        # Backend (auth_v2/tenant_invites.py:311) deletes старую session и
-        # выпускает новую, привязанную к accepted tenant. Bytes-of-cookies
-        # переданные нам from caller — теперь stale (старая session DELETED
-        # → 401). Mutate dict in-place: новый Set-Cookie перезаписывает
-        # platform_session, остальные cookies caller'а сохраняем.
-        for k, v in r.cookies.items():
-            cookies[k] = v
+        # Backend deletes the old session and issues a new one bound to
+        # the accepted tenant. The caller's dict is mutated in-place so
+        # subsequent API calls use the fresh session automatically.
+        cookies.update(r.cookies)
+        return cookies
 
     return _do
 
@@ -177,56 +179,46 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
         if email is None:
             email = unique_email("owner")
         with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
-            # Reset slowapi signup throttle before each signup. Not optional —
-            # if the endpoint is missing we want tests to ERROR, not silently
-            # hit the 1/minute cap mid-suite.
-            c.post(API.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short).raise_for_status()
+            with step(f"reset signup throttle for {email}"):
+                c.post(API.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short).raise_for_status()
 
-            # 1. Signup. `full_name` is required by the form (see /signup) and
-            # propagates into the demo-self person's `name` field — search and
-            # tree-rendering tests rely on it.
-            # 3 обязательных consent field (Phase 0 P0.4 ФЗ-156, май 2026):
-            # terms_accepted, privacy_consent, cross_border_consent — без
-            # любого из них Pydantic-валидатор отдаёт 422 «Необходимо
-            # принять условия использования». marketing_consent опциональный,
-            # default False.
-            payload = {
-                "email": email,
-                "password": password,
-                "full_name": full_name,
-                "terms_accepted": True,
-                "privacy_consent": True,
-                "cross_border_consent": True,
-                **profile,  # tests могут override консент для negative-проверок
-            }
-            r = c.post(API.SIGNUP, json=payload)
-            r.raise_for_status()
-            assert r.json().get("status") == "verification_sent", \
-                f"signup did not enter verification flow: {r.json()}"
+            with step(f"signup {email}"):
+                payload = {
+                    "email": email,
+                    "password": password,
+                    "full_name": full_name,
+                    "terms_accepted": True,
+                    "privacy_consent": True,
+                    "cross_border_consent": True,
+                    **profile,
+                }
+                r = c.post(API.SIGNUP, json=payload)
+                r.raise_for_status()
+                assert r.json().get("status") == "verification_sent", \
+                    f"signup did not enter verification flow: {r.json()}"
 
-            # 2. Read verification token from MockSender
-            mail = c.get(API.TEST_LAST_EMAIL, params={"to": email})
-            mail.raise_for_status()
-            token = _extract_token_from_email(mail.json()["text_body"] or "")
+            with step(f"read verification token for {email}"):
+                mail = c.get(API.TEST_LAST_EMAIL, params={"to": email})
+                mail.raise_for_status()
+                token = _extract_token_from_email(mail.json()["text_body"] or "")
 
-            # 3. Verify (token в body — commit d860de8 убрал из query
-            # чтобы не утекало в access logs).
-            c.post(API.VERIFY_EMAIL, json={"token": token}).raise_for_status()
+            with step(f"verify email {email}"):
+                c.post(API.VERIFY_EMAIL, json={"token": token}).raise_for_status()
 
-            # 4. Login → tenant_slug + cookies
-            r = c.post(API.LOGIN, json={"email": email, "password": password})
-            r.raise_for_status()
-            data = r.json()
-            slug = data["tenant_slug"]
-            cookies = dict(r.cookies)
+            with step(f"login {email}"):
+                r = c.post(API.LOGIN, json={"email": email, "password": password})
+                r.raise_for_status()
+                data = r.json()
+                slug = data["tenant_slug"]
+                cookies = dict(r.cookies)
 
-            # 5. Onboarding-complete (suppresses the auto-tour overlay)
-            c.post(
-                API.ONBOARDING_COMPLETE,
-                cookies=cookies,
-                headers={"X-Tenant-Slug": slug},
-                timeout=TIMEOUTS.api_short,
-            ).raise_for_status()
+            with step(f"onboarding-complete {slug}"):
+                c.post(
+                    API.ONBOARDING_COMPLETE,
+                    cookies=cookies,
+                    headers={"X-Tenant-Slug": slug},
+                    timeout=TIMEOUTS.api_short,
+                ).raise_for_status()
 
             return AuthUser(
                 email=email,
@@ -268,6 +260,16 @@ def grant_ai_consent(tenant_client):
         tenant_client(user).post(API.ACCOUNT_AI_CONSENT).raise_for_status()
 
     return _grant
+
+
+def setup_and_verify_mfa(api: httpx.Client) -> str:
+    """Setup + verify TOTP for the given client. Returns plaintext secret."""
+    import pyotp
+
+    setup = api.post(API.MFA_SETUP).json()
+    code = pyotp.TOTP(setup["secret"]).now()
+    api.post(API.MFA_VERIFY, json={"code": code}).raise_for_status()
+    return setup["secret"]
 
 
 @pytest.fixture

@@ -101,11 +101,13 @@ When you need to add a new visible string:
 When extending the catalogue, add an `en` translation even if there's no
 English locale yet — costs one minute, prevents future hunt.
 
-### 5. No hardcoded timeouts
+### 5. No hardcoded timeouts — and all config via `tests/settings.py`
 
-Every timeout (httpx, polling loops, Playwright `expect()`) routes through
-`tests/timeouts.py`. Slow CI/Docker bumps everything via
-`E2E_TIMEOUT_MULTIPLIER=1.5` — single env var.
+Every timeout routes through `tests/timeouts.py`. All environment config
+(`E2E_BACKEND_URL`, `E2E_TIMEOUT_MULTIPLIER`, `E2E_TEST_TOKEN`,
+`E2E_LOCALE`) validates at collection time via Pydantic in
+`tests/settings.py`. Invalid env → immediate `pytest.exit` with a clear
+message before any fixture runs.
 
 **Categories** (pick the smallest one that fits):
 - `api_short` (5s) — fire-and-forget admin/test endpoints.
@@ -147,7 +149,24 @@ Before writing a POM:
 POMs with `TODO Wave N: verify against ...` are a code smell — they are
 selectors written without the source. Convert before merging.
 
-### 8. No raw `httpx.*` calls — go through `tenant_client(user)`
+### 8. Response assertions — go through `expect_response(r)`
+
+```python
+# bad
+assert r.status_code == 200, f"expected 200, got {r.status_code}: {r.text[:200]}"
+data = r.json()
+assert "tenant_slug" in data
+
+# good
+from tests.response import expect_response
+expect_response(r).status(200).json_has("tenant_slug")
+```
+
+`expect_response(r)` chains `.status()`, `.status_ok()`, `.json_has()`,
+`.json_eq()`. Every failure automatically includes: method, URL, status,
+body excerpt. Use in tests; fixtures keep `.raise_for_status()`.
+
+### 9. No raw `httpx.*` calls — go through `tenant_client(user)`
 
 Each test was repeating `cookies=user.cookies, headers={"X-Tenant-Slug":
 user.slug}, timeout=TIMEOUTS.api_request` on every API call. Encapsulated
@@ -260,23 +279,84 @@ workers and produce confusing cross-talk. Conversely, do not reach for
 `serial` to paper over a leak failure that is actually a product bug —
 triage it (Rule 1/13).
 
+### 15. Test files contain only tests
+
+A `test_*.py` file must contain **only** `def test_*()` functions and
+imports. Everything else has a dedicated home:
+
+| What | Where |
+|------|-------|
+| Helper functions (navigation, API wrappers, UI actions) | `tests/helpers/<domain>/` |
+| Test data (GEDCOM samples, JPEG bytes, device descriptors) | `tests/_data/<topic>/` |
+| Payload builders (tree, person, relationship factories) | `tests/_data/payloads/` |
+| Global fixtures (auth, server, clients) | `tests/_fixtures/` |
+| Domain-scoped fixtures (viewport factories, role builders) | `tests/<domain>/conftest.py` |
+| File-scoped autouse fixtures (AI-flag toggle, device parametrize) | stays in the test file |
+| Page Objects | `tests/pages/` |
+
+**Module-level constants** (`_IS_OPEN = re.compile(...)`, threshold values)
+may stay in the test file when they are consumed only by that file.
+
+When adding a new helper: pick `tests/helpers/<domain>/` by semantic domain,
+not by which test file calls it. A helper used by multiple domains still
+lives in one domain — the domain it most naturally belongs to. No
+`tests/helpers/common/` — if it's truly generic, it goes in `tests/pages/`
+(if UI-related) or `tests/_fixtures/` (if fixture-related).
+
+### 16. Multi-step helpers use `step()` for visibility
+
+```python
+from tests.step import step
+
+with step("signup owner"):
+    c.post(API.SIGNUP, json=payload).raise_for_status()
+with step("verify email"):
+    c.post(API.VERIFY_EMAIL, json={"token": token}).raise_for_status()
+```
+
+On CI, step output shows which phase failed — no more guessing from a
+bare traceback. Use for logical phases (3-6 per helper), not per-line.
+
+### 17. Shared utilities live in POMs, not in test files
+
+Patterns reusable across tests belong on Page Objects:
+- `custom_select_for(page, field)` → `tests/pages/base.py`
+- `ProfilePanel.navigate_to(page, person_id)` → `tests/pages/profile_panel.py`
+- `open_editor_for(page, person_id)` → `tests/pages/profile_panel.py`
+
 ## Project structure
 
 ```
 genealogy-e2e/
 ├── conftest.py               # root: loads tests/_fixtures/* plugins + path→marker rule
 ├── tests/
-│   ├── _fixtures/            # fixture plugins (split from old monolith conftest)
+│   ├── _fixtures/            # GLOBAL fixtures (session/function scope, cross-domain)
 │   │   ├── patch.py          # httpx monkey-patch + Playwright expect default
 │   │   ├── server.py         # base_url, health gate, reset_state, install_mock_ai
-│   │   ├── users.py          # AuthUser + signup_via_api / owner_user / superadmin_user / ...
+│   │   ├── users.py          # AuthUser + signup_via_api / owner_user / superadmin_user
 │   │   ├── clients.py        # tenant_client, auth_context_factory, owner_page
 │   │   └── utils.py          # soft_check
+│   ├── _data/                # Test data artifacts (no logic, pure constants)
+│   │   ├── gedcom/samples.py # GEDCOM_THREE_GEN, SAMPLE_GEDCOM_UTF8, ...
+│   │   ├── media/jpeg.py     # MIN_JPEG_BYTES
+│   │   ├── devices/descriptors.py  # DEVICE_DESCRIPTORS (mobile emulation)
+│   │   └── payloads/tree.py  # parent_rel(), person_payload() builders
+│   ├── helpers/              # Domain-organized helper functions
+│   │   ├── auth/             # auth_ui, signup_helpers, session_helpers
+│   │   ├── tree/             # tree_api, tree_navigation, photos, add_relative
+│   │   ├── admin/            # gedcom_ui (import_via_ui, open_import_tab)
+│   │   ├── security/         # timing (measure, ratio)
+│   │   ├── enrichment/       # enrichment_ui (open_demo_self, consent_dialog)
+│   │   └── ui/               # viewport, i18n_checks, custom_select
+│   ├── pages/                # Page Objects + shared UI utilities
+│   │   ├── base.py           # BasePage, wait_for_authed_shell, custom_select_for
+│   │   ├── profile_panel.py  # ProfilePanel + open_editor_for, navigate_to
+│   │   ├── person_editor.py  # PersonEditor, AddRelativeModal
+│   │   └── ...               # login_page, signup_page, tree_page, etc.
 │   ├── api_paths.py          # API.{TREE, person(pid), enrich(pid), ...}
 │   ├── constants.py          # TestConfig.{DEFAULT_PASSWORD, EMAIL_DOMAIN, ...}
 │   ├── messages.py           # locale-aware UI string catalogue + t() resolver
 │   ├── timeouts.py           # TIMEOUTS dataclass + E2E_TIMEOUT_MULTIPLIER
-│   ├── pages/                # Page Objects (one per page/component, currently flat)
 │   ├── fixtures/
 │   │   └── ai_responses.json # mock-AI fixture installed via /api/_test/install-mock-ai
 │   ├── auth/                 # signup/login/verify/forgot/invite/session/etc.
@@ -284,8 +364,10 @@ genealogy-e2e/
 │   ├── platform/             # superadmin platform (dashboard, MFA, WebAuthn, ops)
 │   ├── admin/                # tenant admin (owner, site config, subscription)
 │   ├── security/             # CSP, headers, timing, role-perm, GDPR, PII
+│   │   └── conftest.py       # viewer_in_owners_tenant fixture
 │   ├── enrichment/           # AI enrichment (consent, mock flow, disabled-mode)
 │   ├── ui/                   # landing, i18n, a11y, responsive, legal, waitlist
+│   │   └── conftest.py       # mobile_page, tablet_owner_page fixtures
 │   ├── test_smoke.py         # canary (no domain — runs on every PR)
 │   ├── test_regressions.py   # closed-bug regressions (no domain)
 │   └── test_api_coverage.py  # coverage gate: backend OpenAPI vs API catalogue

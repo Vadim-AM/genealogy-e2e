@@ -18,10 +18,12 @@ import pytest
 
 from playwright.sync_api import Page, Route, expect
 
-from tests.messages import TestData
-from tests.pages.base import wait_for_authed_shell
+from tests.messages import AboutTab, Placeholders, TestData, t
+from tests.pages.base import custom_select_for, wait_for_authed_shell
+from tests.pages.confirm_dialog import ConfirmDialog
 from tests.pages.person_editor import AddRelativeModal, PersonEditor
-from tests.pages.profile_panel import ProfilePanel
+from tests.pages.profile_panel import ProfilePanel, open_editor_for
+from tests.pages.tree_page import TreePage
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -37,12 +39,10 @@ def test_minimap_visible_on_tree_tab_for_authed_owner(owner_page: Page):
     owner_page фикстура использует viewport 1440×900 (desktop) — на
     мобиле minimap скрыт через media-query `@media (max-width:...)`.
     """
-    owner_page.goto("/")
-    owner_page.wait_for_load_state("domcontentloaded")
+    tree = TreePage(owner_page).goto()
 
-    minimap = owner_page.locator("#minimap")
-    expect(minimap).to_be_visible()
-    expect(minimap).to_have_class(re.compile(r"\bvisible\b"))
+    expect(tree.minimap).to_be_visible()
+    expect(tree.minimap).to_have_class(re.compile(r"\bvisible\b"))
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -58,11 +58,9 @@ def test_branch_legend_is_hidden_when_tree_has_less_than_3_generations(
     (≥3 generations + visible legend) требует расширенного seed-set —
     отдельный тест когда появятся такие фикстуры.
     """
-    owner_page.goto("/")
-    owner_page.wait_for_load_state("domcontentloaded")
+    tree = TreePage(owner_page).goto()
 
-    legend = owner_page.locator("#branchLegend")
-    expect(legend).not_to_be_visible()
+    expect(tree.branch_legend).not_to_be_visible()
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -71,24 +69,7 @@ def test_branch_legend_is_hidden_when_tree_has_less_than_3_generations(
 
 
 def _open_editor(owner_page: Page, person_id: str = TestData.DEMO_PERSON_ID) -> PersonEditor:
-    owner_page.goto(f"/#/p/{person_id}")
-    owner_page.wait_for_load_state("domcontentloaded")
-    panel = ProfilePanel(owner_page)
-    panel.expect_visible()
-    panel.open_editor()
-    editor = PersonEditor(owner_page)
-    editor.expect_visible()
-    return editor
-
-
-# Helper: найти .custom-select-обёртку для конкретного field. По
-# структуре DOM (см. PersonEditor.select_dropdown в pages/person_editor.py)
-# обёртка это **sibling** скрытого native select'а: `div.custom-select`
-# идёт ПЕРЕД `select[data-field='{field}']` (CSS adjacent: `+`).
-def _custom_select_for(page: Page, field: str):
-    return page.locator(
-        f"div.custom-select:has(+ select[data-field='{field}'])"
-    )
+    return open_editor_for(owner_page, person_id)
 
 
 def test_custom_select_opens_on_arrow_down_keyboard(owner_page: Page):
@@ -99,7 +80,7 @@ def test_custom_select_opens_on_arrow_down_keyboard(owner_page: Page):
     """
     _open_editor(owner_page)
 
-    wrapper = _custom_select_for(owner_page, "gender")
+    wrapper = custom_select_for(owner_page, "gender")
     expect(wrapper).to_be_visible()
 
     # focus на wrapper (он tabindex'ed по select.js) → ArrowDown открывает.
@@ -115,7 +96,7 @@ def test_custom_select_closes_on_escape_keyboard(owner_page: Page):
     select.js:122 — `else if (e.key === 'Escape')` закрытие.
     """
     _open_editor(owner_page)
-    wrapper = _custom_select_for(owner_page, "gender")
+    wrapper = custom_select_for(owner_page, "gender")
     wrapper.focus()
     owner_page.keyboard.press("ArrowDown")
     dropdown = wrapper.locator(".custom-select-dropdown")
@@ -147,12 +128,12 @@ def test_confirm_dialog_escape_cancels(owner_page: Page):
         else None,
     )
     editor.btn_delete.click()
-    dialog = owner_page.locator(".confirm-dialog")
-    expect(dialog).to_be_visible()
+    dialog = ConfirmDialog(owner_page)
+    dialog.expect_visible()
 
     # confirm-dialog.js:137 — Escape → cleanup(false). Никаких DELETE.
-    owner_page.keyboard.press("Escape")
-    expect(dialog).not_to_be_visible()
+    dialog.dismiss_via_escape()
+    dialog.expect_hidden()
     assert not delete_responses, (
         f"Esc должен отменить delete; backend получил DELETE: {delete_responses}"
     )
@@ -226,9 +207,8 @@ def test_timeline_river_filters_render_five_branches(owner_page: Page):
     (`.river-filter-btn`): Все / По матери / По отцу / Другие / История.
     Default active = «Все» (data-branch=all).
     """
-    owner_page.goto("/")
-    owner_page.wait_for_load_state("domcontentloaded")
-    owner_page.locator('[data-tab="timeline"]').click()
+    tree = TreePage(owner_page).goto()
+    tree.switch_tab("timeline")
 
     filters = owner_page.locator("#riverFilters .river-filter-btn")
     expect(filters).to_have_count(5)
@@ -258,14 +238,13 @@ def test_about_tab_shows_placeholder_when_about_text_is_empty(owner_page: Page):
     текстом «Это семейное древо…». `[data-config-html="about_text"]`
     скрыт через `data-empty-hidden`.
     """
-    owner_page.goto("/")
-    owner_page.wait_for_load_state("domcontentloaded")
+    tree = TreePage(owner_page).goto()
     wait_for_authed_shell(owner_page)
-    owner_page.locator('[data-tab="about"]').click()
+    tree.switch_tab("about")
 
     placeholder = owner_page.locator('[data-config-empty="about_text"]')
     expect(placeholder).to_be_visible()
-    expect(placeholder).to_contain_text("семейное древо")
+    expect(placeholder).to_contain_text(t(AboutTab.FAMILY_TREE_KEYWORD))
 
 
 def test_add_relative_shows_error_on_409_conflict(owner_page: Page):
@@ -317,7 +296,7 @@ def test_custom_select_arrow_down_then_enter_selects_option(owner_page: Page):
     `data-field=gender` обновляется (form submission корректность).
     """
     _open_editor(owner_page)
-    wrapper = _custom_select_for(owner_page, "gender")
+    wrapper = custom_select_for(owner_page, "gender")
     wrapper.focus()
     owner_page.keyboard.press("ArrowDown")
     dropdown = wrapper.locator(".custom-select-dropdown")
@@ -351,8 +330,8 @@ def test_confirm_dialog_enter_confirms_delete(owner_page: Page):
     """
     editor = _open_editor(owner_page, person_id="demo-grandpa")
     editor.btn_delete.click()
-    dialog = owner_page.locator(".confirm-dialog")
-    expect(dialog).to_be_visible()
+    dialog = ConfirmDialog(owner_page)
+    dialog.expect_visible()
 
     # expect_request ждёт фактический DELETE на /api/people/{id} —
     # покрывает async chain confirmDialog → resolve(true) → onDelete →
@@ -361,7 +340,7 @@ def test_confirm_dialog_enter_confirms_delete(owner_page: Page):
         lambda req: re.search(r"/api/people/[^/?]+", req.url)
         and req.method == "DELETE"
     ):
-        owner_page.keyboard.press("Enter")
+        dialog.confirm()
 
 
 def test_confirm_dialog_backdrop_click_cancels(owner_page: Page):
@@ -381,19 +360,17 @@ def test_confirm_dialog_backdrop_click_cancels(owner_page: Page):
         else None,
     )
     editor.btn_delete.click()
-    dialog = owner_page.locator(".confirm-dialog")
-    expect(dialog).to_be_visible()
+    dialog = ConfirmDialog(owner_page)
+    dialog.expect_visible()
 
     # Click на backdrop (родительский контейнер dialog'а, вне самой панели).
     # Контракт `js/components/confirm-dialog.js`: backdrop-элемент `.confirm-dialog-backdrop`
     # существует и его click закрывает dialog. Если backend сменит implementation
     # — тест fail и его надо переписать осознанно. Используем `.first` потому что
     # gedcom-import widget может оставить второй backdrop на странице.
-    backdrop = owner_page.locator(".confirm-dialog-backdrop").first
-    expect(backdrop).to_be_visible()
-    backdrop.click(position={"x": 5, "y": 5})
+    dialog.dismiss_via_backdrop()
 
-    expect(dialog).not_to_be_visible()
+    dialog.expect_hidden()
     assert not delete_responses, (
         f"Backdrop click должен отменить delete; backend получил DELETE: "
         f"{delete_responses}"
@@ -410,10 +387,9 @@ def test_timeline_river_filter_click_switches_active(owner_page: Page):
     → active class переходит с дефолтного `all` на `maternal`.
     Контракт: только одна кнопка active в каждый момент.
     """
-    owner_page.goto("/")
-    owner_page.wait_for_load_state("domcontentloaded")
+    tree = TreePage(owner_page).goto()
     wait_for_authed_shell(owner_page)
-    owner_page.locator('[data-tab="timeline"]').click()
+    tree.switch_tab("timeline")
 
     all_btn = owner_page.locator('#riverFilters .river-filter-btn[data-branch="all"]')
     maternal_btn = owner_page.locator(
@@ -436,16 +412,15 @@ def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page):
     содержит search input (#evidenceSearch) с placeholder «Поиск...»
     и хотя бы одну `.filter-btn[data-filter=all]` (default active).
     """
-    owner_page.goto("/")
-    owner_page.wait_for_load_state("domcontentloaded")
+    tree = TreePage(owner_page).goto()
     wait_for_authed_shell(owner_page)
-    owner_page.locator('[data-tab="sources"]').click()
+    tree.switch_tab("sources")
 
     search = owner_page.locator("#evidenceSearch")
     expect(search).to_be_visible()
     placeholder = search.get_attribute("placeholder")
-    assert placeholder and "Поиск" in placeholder, (
-        f"#evidenceSearch placeholder должен начинаться с «Поиск»; "
+    assert placeholder and t(Placeholders.SEARCH) in placeholder, (
+        f"#evidenceSearch placeholder should contain {t(Placeholders.SEARCH)!r}; "
         f"got {placeholder!r}"
     )
 
@@ -465,11 +440,9 @@ def test_minimap_hidden_on_mobile_viewport(owner_page: Page):
     на 375×800 (iPhone SE-class) и проверяем computed display.
     """
     owner_page.set_viewport_size({"width": 375, "height": 800})
-    owner_page.goto("/")
-    owner_page.wait_for_load_state("domcontentloaded")
+    tree = TreePage(owner_page).goto()
 
-    minimap = owner_page.locator("#minimap")
-    display = minimap.evaluate("(el) => getComputedStyle(el).display")
+    display = tree.minimap.evaluate("(el) => getComputedStyle(el).display")
     assert display == "none", (
         f"#minimap должен быть display:none на mobile (≤720px); "
         f"got {display!r}. Если правило @media (max-width:720px) удалено "
@@ -500,10 +473,9 @@ def test_about_contact_box_shows_placeholder_when_contacts_empty(owner_page: Pag
     Positive case (contact_text задан) требует PATCH /api/site/config —
     отдельный тест.
     """
-    owner_page.goto("/")
-    owner_page.wait_for_load_state("domcontentloaded")
+    tree = TreePage(owner_page).goto()
     wait_for_authed_shell(owner_page)
-    owner_page.locator('[data-tab="about"]').click()
+    tree.switch_tab("about")
 
     # Default seed (после reset_state): contact_text и contact_email пустые.
     contact_text_p = owner_page.locator(".contact-box [data-config-text='contact_text']")
@@ -534,7 +506,7 @@ def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page)
     ).first
     expect(target_card).to_be_visible()
     target_pid = target_card.get_attribute("data-person-id")
-    assert target_pid
+    assert target_pid, "non-center orbit card has no data-person-id attribute"
 
     target_card.click()
 

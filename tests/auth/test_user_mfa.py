@@ -58,7 +58,8 @@ def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client):
     assert len(codes) == 10, f"expected 10 recovery codes, got {len(codes)}"
 
     count_before = api.get(API.USER_MFA_RECOVERY_COUNT).json()["unused"]
-    assert count_before == 10
+    assert count_before == 10, \
+        f"fresh regenerate should yield 10 codes, got {count_before}"
 
     api.post(
         API.USER_MFA_RECOVERY_REDEEM, json={"code": codes[0]},

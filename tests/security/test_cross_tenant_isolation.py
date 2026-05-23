@@ -17,6 +17,7 @@ from __future__ import annotations
 import concurrent.futures as cf
 
 from tests.api_paths import API
+from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
@@ -47,7 +48,7 @@ def test_person_created_in_tenant_a_not_visible_in_tenant_b(
             "gender": "m",
         },
     ).json()
-    assert created["id"]
+    assert created["id"], "created person must have an id"
 
     # B читает свой tree — Уникума там не должно быть
     tree_b = api_b.get(API.TREE).json()
@@ -74,12 +75,10 @@ def test_tenant_b_cannot_read_tenant_a_person_by_id(
     created = api_a.post(
         API.PEOPLE, json={"name": "Чужой Person", "gender": "m"}
     ).json()
-    assert created["id"]
+    assert created["id"], "created person must have an id"
 
     r = api_b.get(API.person(created["id"]))
-    assert r.status_code == 404, (
-        f"LEAK: tenant_b got {r.status_code} reading tenant_a's person"
-    )
+    expect_response(r, label="cross-tenant read person").status(404)
 
 
 def test_tenant_b_cannot_patch_tenant_a_person(signup_via_api, tenant_client):
@@ -93,9 +92,7 @@ def test_tenant_b_cannot_patch_tenant_a_person(signup_via_api, tenant_client):
     created = api_a.post(API.PEOPLE, json={"name": "Чужой Edit", "gender": "m"}).json()
 
     r = api_b.patch(API.person(created["id"]), json={"summary": "MUTATED by B"})
-    assert r.status_code == 404, (
-        f"WRITE-LEAK: tenant_b can mutate tenant_a's person (status {r.status_code})"
-    )
+    expect_response(r, label="cross-tenant write person").status(404)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -116,16 +113,15 @@ def test_same_display_slug_allowed_across_tenants(signup_via_api, tenant_client)
         API.PEOPLE,
         json={"name": "A Иван", "display_slug": "ivan-ivanov", "gender": "m"},
     )
-    assert r_a.status_code == 201, r_a.text
+    expect_response(r_a, label="create person A with slug").status(201)
     r_b = api_b.post(
         API.PEOPLE,
         json={"name": "B Иван", "display_slug": "ivan-ivanov", "gender": "m"},
     )
-    assert r_b.status_code == 201, (
-        f"cross-tenant display_slug collision wrongly rejected: {r_b.text}"
-    )
+    expect_response(r_b, label="cross-tenant slug reuse").status(201)
     # UUID-id'ы разные
-    assert r_a.json()["id"] != r_b.json()["id"]
+    assert r_a.json()["id"] != r_b.json()["id"], \
+        "same display_slug must resolve to different people across tenants"
 
 
 def test_tenant_signup_with_same_display_name_gets_different_slugs(
@@ -157,7 +153,8 @@ def test_gedcom_export_returns_only_own_tenant_data(signup_via_api, tenant_clien
     api_b.post(API.PEOPLE, json={"name": "ExportB Чужой", "gender": "m"})
 
     ged = api_a.get(API.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long).text
-    assert "ExportA" in ged
+    assert "ExportA" in ged, \
+        f"GEDCOM export must contain own tenant's data: {ged[:100]!r}"
     assert "ExportB" not in ged, (
         "LEAK: tenant_a GEDCOM export contains tenant_b person name"
     )
@@ -191,10 +188,7 @@ def test_gedcom_import_creates_persons_only_in_uploading_tenant(
     )
     # Hard pin: import endpoint должен принимать auth_v2 owner cookie (200).
     # Любой другой статус — regression auth_v2-bridge → fail loud, не skip.
-    assert r.status_code == 200, (
-        f"GEDCOM import preview should accept auth_v2 owner: "
-        f"{r.status_code} {r.text[:200]}"
-    )
+    expect_response(r, label="GEDCOM import preview auth_v2").status(200)
     preview = r.json()
     confirm = {k: preview.get(k, []) for k in ("people", "relationships", "sources")}
     api_a.post(API.ADMIN_IMPORT_GEDCOM_CONFIRM, json=confirm)
@@ -240,11 +234,14 @@ def test_concurrent_creates_in_two_tenants_dont_interfere(
 
     # A видит только свои concurr-A-* persons
     for i in range(5):
-        assert f"Concurr-A-Person-{i}" in a_names
+        assert f"Concurr-A-Person-{i}" in a_names, \
+            f"tenant_a missing own person Concurr-A-Person-{i}: {a_names}"
         assert f"Concurr-B-Person-{i}" not in a_names, (
             f"LEAK: tenant_a sees tenant_b person Concurr-B-Person-{i}"
         )
     # B видит только свои concurr-B-* persons
     for i in range(5):
-        assert f"Concurr-B-Person-{i}" in b_names
-        assert f"Concurr-A-Person-{i}" not in b_names
+        assert f"Concurr-B-Person-{i}" in b_names, \
+            f"tenant_b missing own person Concurr-B-Person-{i}: {b_names}"
+        assert f"Concurr-A-Person-{i}" not in b_names, \
+            f"LEAK: tenant_b sees tenant_a person Concurr-A-Person-{i}"

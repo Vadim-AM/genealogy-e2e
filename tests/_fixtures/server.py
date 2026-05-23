@@ -15,21 +15,10 @@ import httpx
 import pytest
 
 from tests.api_paths import API
+from tests.settings import settings
 from tests.timeouts import TIMEOUTS
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
-
-
-def _resolve_backend_url() -> str:
-    url = os.environ.get("E2E_BACKEND_URL")
-    if not url:
-        pytest.exit(
-            "E2E_BACKEND_URL is not set. Point it at a test-instrumented backend "
-            "(GENEALOGY_TESTING=1) — e.g. `E2E_BACKEND_URL=http://127.0.0.1:8642 pytest`. "
-            "See README for details.",
-            returncode=2,
-        )
-    return url.rstrip("/")
 
 
 def _wait_for_health(base_url: str, *, timeout: float) -> None:
@@ -48,7 +37,7 @@ def _wait_for_health(base_url: str, *, timeout: float) -> None:
 @pytest.fixture(scope="session")
 def base_url() -> str:
     """Test-instrumented backend URL. Overrides pytest-playwright's `base_url`."""
-    url = _resolve_backend_url()
+    url = settings.backend_url.rstrip("/")
     _wait_for_health(url, timeout=TIMEOUTS.health_gate)
     return url
 

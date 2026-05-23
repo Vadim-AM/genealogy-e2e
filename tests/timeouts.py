@@ -31,26 +31,9 @@ Field semantics — pick the smallest one that fits the operation:
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 
-
-def _multiplier() -> float:
-    """Read `E2E_TIMEOUT_MULTIPLIER` (default 1.0) — applied to ALL timeouts.
-
-    Set >1 in CI/Docker/slow networks; <1 only when debugging locally with
-    deliberately tight budgets (rare).
-    """
-    raw = os.environ.get("E2E_TIMEOUT_MULTIPLIER", "1.0")
-    try:
-        value = float(raw)
-    except ValueError as exc:
-        raise ValueError(
-            f"E2E_TIMEOUT_MULTIPLIER must be a positive float, got {raw!r}"
-        ) from exc
-    if value <= 0:
-        raise ValueError(f"E2E_TIMEOUT_MULTIPLIER must be positive, got {value}")
-    return value
+from tests.settings import settings
 
 
 @dataclass(frozen=True)
@@ -74,7 +57,7 @@ class _Timeouts:
 
 
 def _build() -> _Timeouts:
-    m = _multiplier()
+    m = settings.timeout_multiplier
     return _Timeouts(
         api_short=5.0 * m,
         api_request=10.0 * m,

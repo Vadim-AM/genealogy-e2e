@@ -12,9 +12,12 @@ import time
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
-from tests.messages import AiConsent, Enrichment, TestData, t
+from tests.messages import Enrichment, TestData, t
+from tests.pages.confirm_dialog import ConfirmDialog
 from tests.pages.enrichment_modal import EnrichmentModal
+from tests.pages.base import wait_for_authed_shell
 from tests.pages.profile_panel import ProfilePanel
+from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
@@ -27,15 +30,16 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
 
     owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
     owner_page.wait_for_load_state("domcontentloaded")
+    wait_for_authed_shell(owner_page)
 
     panel = ProfilePanel(owner_page)
     panel.expect_visible()
     panel.trigger_enrichment()
 
     # First enrich click → GDPR consent confirmDialog → run it.
-    owner_page.locator(".confirm-dialog").get_by_role(
-        "button", name=t(AiConsent.CONFIRM_LABEL)
-    ).click()
+    dialog = ConfirmDialog(owner_page)
+    dialog.expect_visible()
+    dialog.confirm()
 
     modal = EnrichmentModal(owner_page)
     modal.expect_open()
@@ -72,7 +76,7 @@ def test_enrichment_cache_and_health_invariants(
         json={"streaming": False, "force_refresh": True},
         timeout=TIMEOUTS.api_long,
     )
-    started.raise_for_status()
+    expect_response(started, label="POST enrich").status_ok()
     job_id = started.json()["job_id"]
 
     enrichment_id = None
@@ -89,12 +93,10 @@ def test_enrichment_cache_and_health_invariants(
     assert enrichment_id is not None, "enrichment job did not finish in time"
 
     cached = api.get(API.enrich_cache(enrichment_id))
-    cached.raise_for_status()
-    assert cached.json()["enrichment_id"] == enrichment_id, \
-        "cache endpoint must return the same enrichment by id"
+    expect_response(cached, label="GET enrich cache").status_ok().json_eq("enrichment_id", enrichment_id)
 
     health = api.get(API.ENRICH_HEALTH_API_KEY)
-    health.raise_for_status()
+    expect_response(health, label="GET enrich health").status_ok()
     assert "configured" in health.json(), \
         "api-key health must report a `configured` flag"
 
@@ -102,9 +104,9 @@ def test_enrichment_cache_and_health_invariants(
     feedback = api.post(API.enrich_feedback(TestData.DEMO_PERSON_ID), json={
         "enrichment_id": enrichment_id, "feedback_type": "overall", "thumb": "up",
     })
-    feedback.raise_for_status()
+    expect_response(feedback, label="POST enrich feedback").status_ok()
 
     letter = api.post(API.ENRICH_LETTERS_SENT, json={
         "enrichment_id": enrichment_id, "archive_name": "ЦАМО",
     })
-    letter.raise_for_status()
+    expect_response(letter, label="POST letters-sent").status_ok()

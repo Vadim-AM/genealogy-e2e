@@ -14,6 +14,7 @@ from playwright.sync_api import Page, expect
 
 from tests.messages import Links, t
 from tests.pages.login_page import LoginPage
+from tests.response import expect_response
 
 
 def test_login_form_renders(page: Page):
@@ -37,8 +38,9 @@ def test_login_with_correct_credentials_succeeds(
     assert session_cookie, f"no platform_session/session_id cookie set after login: {cookies}"
 
     me = httpx.get(f"{base_url}/api/account/me", cookies=cookies, timeout=TIMEOUTS.api_request)
-    me.raise_for_status()
-    assert me.json()["tenant"]["slug"] == owner_user.slug
+    expect_response(me, label="/me after login").status_ok()
+    assert me.json()["tenant"]["slug"] == owner_user.slug, \
+        f"/me tenant slug: expected {owner_user.slug!r}, got {me.json()['tenant']['slug']!r}"
 
 
 def test_login_with_wrong_password_shows_error(page: Page, owner_user):

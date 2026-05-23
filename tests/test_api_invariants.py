@@ -15,6 +15,7 @@ import httpx
 
 from tests.api_paths import API
 from tests.messages import TestData
+from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 # Minimal valid 1×1 transparent PNG — for the photo-upload invariant.
@@ -29,7 +30,7 @@ def test_my_tenants_lists_the_owners_tenant(owner_user, tenant_client):
     — at minimum their own."""
     api = tenant_client(owner_user)
     r = api.get(API.MY_TENANTS)
-    r.raise_for_status()
+    expect_response(r, label="my-tenants").status_ok()
     items = r.json()
     assert any(it["slug"] == owner_user.slug for it in items), \
         f"own tenant {owner_user.slug} missing from my-tenants: {items}"
@@ -40,25 +41,25 @@ def test_switch_tenant_to_own_tenant_succeeds(owner_user, tenant_client):
     session scoped there."""
     api = tenant_client(owner_user)
     r = api.post(API.SWITCH_TENANT, json={"tenant_slug": owner_user.slug})
-    r.raise_for_status()
-    assert r.json()["tenant_slug"] == owner_user.slug
+    expect_response(r, label="switch-tenant").status_ok().json_eq("tenant_slug", owner_user.slug)
 
 
 def test_cookie_consent_round_trips(owner_user, tenant_client):
     """POST then GET /api/account/me/cookie-consent returns the same level
     — server-side consent persists for multi-device sync."""
     api = tenant_client(owner_user)
-    api.post(API.COOKIE_CONSENT, json={"level": "necessary"}).raise_for_status()
+    expect_response(
+        api.post(API.COOKIE_CONSENT, json={"level": "necessary"}),
+        label="cookie-consent set",
+    ).status_ok()
     got = api.get(API.COOKIE_CONSENT)
-    got.raise_for_status()
-    assert got.json()["level"] == "necessary"
+    expect_response(got, label="cookie-consent get").status_ok().json_eq("level", "necessary")
 
 
 def test_config_is_public_and_carries_site_name(base_url):
     """GET /api/config is public (no auth) and exposes tenant branding."""
     r = httpx.get(f"{base_url}{API.CONFIG}", timeout=TIMEOUTS.api_request)
-    r.raise_for_status()
-    assert "site_name" in r.json(), f"config must carry site_name: {r.json()}"
+    expect_response(r, label="config").status_ok().json_has("site_name")
 
 
 def test_retention_offer_status_and_apply(owner_user, tenant_client):
@@ -66,14 +67,13 @@ def test_retention_offer_status_and_apply(owner_user, tenant_client):
     grants a 50%-off retention coupon."""
     api = tenant_client(owner_user)
     status = api.get(API.RETENTION_OFFER_STATUS)
-    status.raise_for_status()
-    assert isinstance(status.json()["show"], bool)
+    expect_response(status, label="retention-offer-status").status_ok().json_has("show")
+    assert isinstance(status.json()["show"], bool), \
+        f"retention-offer show must be bool, got {type(status.json()['show']).__name__}"
 
     applied = api.post(API.RETENTION_OFFER_APPLY)
-    applied.raise_for_status()
-    body = applied.json()
-    assert body["discount_percent"] == 50, body
-    assert body["coupon_code"], "apply must return a coupon code"
+    expect_response(applied, label="retention-offer-apply").status_ok().json_eq("discount_percent", 50)
+    assert applied.json()["coupon_code"], "apply must return a coupon code"
 
 
 def test_telemetry_event_then_gdpr_erasure(owner_user, tenant_client):
@@ -84,12 +84,12 @@ def test_telemetry_event_then_gdpr_erasure(owner_user, tenant_client):
         {"event": "page_view", "props": {}, "ts": 0,
          "url": "/", "session_id": "e2e"},
     ]})
-    posted.raise_for_status()
-    assert posted.json()["received"] >= 1
+    expect_response(posted, label="telemetry post").status_ok().json_has("received")
+    assert posted.json()["received"] >= 1, \
+        f"telemetry must accept >= 1 event, got {posted.json()['received']}"
 
     erased = api.delete(API.ACCOUNT_TELEMETRY)
-    erased.raise_for_status()
-    assert "deleted" in erased.json()
+    expect_response(erased, label="GDPR erasure").status_ok().json_has("deleted")
 
 
 def test_onboarding_reset_is_idempotent(owner_user, tenant_client):
@@ -97,9 +97,8 @@ def test_onboarding_reset_is_idempotent(owner_user, tenant_client):
     can be called twice without error."""
     api = tenant_client(owner_user)
     first = api.post(API.ONBOARDING_RESET)
-    first.raise_for_status()
-    assert first.json()["status"] == "reset"
-    api.post(API.ONBOARDING_RESET).raise_for_status()
+    expect_response(first, label="onboarding-reset").status_ok().json_eq("status", "reset")
+    expect_response(api.post(API.ONBOARDING_RESET), label="onboarding-reset idempotent").status_ok()
 
 
 def test_confirm_email_change_rejects_garbage_token(owner_user, tenant_client):
@@ -107,7 +106,7 @@ def test_confirm_email_change_rejects_garbage_token(owner_user, tenant_client):
     rejected — a bad token must never change an email."""
     api = tenant_client(owner_user)
     r = api.post(API.CONFIRM_EMAIL_CHANGE, json={"token": "not-a-real-token"})
-    assert r.status_code == 400, f"garbage token must 400, got {r.status_code}"
+    expect_response(r, label="confirm-email-change garbage token").status(400)
 
 
 def test_postmark_webhook_rejects_unsigned(base_url):
@@ -115,7 +114,7 @@ def test_postmark_webhook_rejects_unsigned(base_url):
     header is rejected — inbound webhooks must be authenticated."""
     r = httpx.post(f"{base_url}{API.WEBHOOK_POSTMARK}",
                    json={"RecordType": "Bounce"}, timeout=TIMEOUTS.api_request)
-    assert r.status_code == 401, f"unsigned postmark webhook: {r.status_code}"
+    expect_response(r, label="unsigned postmark webhook").status(401)
 
 
 def test_resend_webhook_rejects_unsigned(base_url):
@@ -123,7 +122,7 @@ def test_resend_webhook_rejects_unsigned(base_url):
     is rejected."""
     r = httpx.post(f"{base_url}{API.WEBHOOK_RESEND}",
                    json={"type": "email.bounced"}, timeout=TIMEOUTS.api_request)
-    assert r.status_code == 401, f"unsigned resend webhook: {r.status_code}"
+    expect_response(r, label="unsigned resend webhook").status(401)
 
 
 def test_relationship_delete_removes_the_edge(owner_user, tenant_client):
@@ -135,8 +134,7 @@ def test_relationship_delete_removes_the_edge(owner_user, tenant_client):
     rel_id = before[0]["id"]
 
     deleted = api.delete(API.relationship(rel_id))
-    assert deleted.status_code == 204, \
-        f"DELETE relationship: expected 204, got {deleted.status_code}"
+    expect_response(deleted, label="DELETE relationship").status(204)
 
     after = api.get(API.RELATIONSHIPS).json()
     assert len(after) == len(before) - 1, \
@@ -149,13 +147,14 @@ def test_subscription_current_and_cancel(owner_user, tenant_client):
     there is nothing to cancel."""
     api = tenant_client(owner_user)
     current = api.get(API.SUBSCRIPTION_CURRENT)
-    current.raise_for_status()
-    assert current.json()["tenant"]["tier"] == "free"
-    assert current.json()["subscription"] is None
+    expect_response(current, label="subscription current").status_ok().json_has("tenant", "subscription")
+    assert current.json()["tenant"]["tier"] == "free", \
+        f"new tenant tier: expected 'free', got {current.json()['tenant']['tier']!r}"
+    assert current.json()["subscription"] is None, \
+        f"new tenant subscription must be None, got {current.json()['subscription']!r}"
 
     cancelled = api.post(API.SUBSCRIPTION_CANCEL)
-    assert cancelled.status_code == 400, \
-        f"cancel with no active subscription must 400, got {cancelled.status_code}"
+    expect_response(cancelled, label="cancel without subscription").status(400)
 
 
 def test_invite_revoke(owner_user, tenant_client, create_invite):
@@ -164,15 +163,14 @@ def test_invite_revoke(owner_user, tenant_client, create_invite):
     create_invite(owner_user, role="editor", name="Гость")
     api = tenant_client(owner_user)
     pending = api.get(API.TENANT_INVITES)
-    pending.raise_for_status()
+    expect_response(pending, label="tenant invites").status_ok()
     items = pending.json()
     items = items if isinstance(items, list) else items["items"]
     assert items, "issued invite must be pending"
     token = items[0]["token"]
 
     revoked = api.delete(API.tenant_invite(token))
-    revoked.raise_for_status()
-    assert revoked.json()["status"] == "revoked"
+    expect_response(revoked, label="invite revoke").status_ok().json_eq("status", "revoked")
 
 
 def test_photo_upload_and_caption(owner_user, tenant_client):
@@ -184,12 +182,11 @@ def test_photo_upload_and_caption(owner_user, tenant_client):
         params={"person_id": TestData.DEMO_PERSON_ID},
         files={"file": ("e2e.png", _PNG_1PX, "image/png")},
     )
-    uploaded.raise_for_status()
+    expect_response(uploaded, label="photo upload").status_ok().json_has("photo_id")
     photo_id = uploaded.json()["photo_id"]
 
     patched = api.patch(API.photo(photo_id), json={"caption": "Тестовая подпись"})
-    patched.raise_for_status()
-    assert patched.json()["caption"] == "Тестовая подпись"
+    expect_response(patched, label="photo caption").status_ok().json_eq("caption", "Тестовая подпись")
 
 
 def test_subscription_checkout_pending_without_payment_provider(
@@ -200,8 +197,7 @@ def test_subscription_checkout_pending_without_payment_provider(
     test mode, but the endpoint handles it cleanly (no 500)."""
     api = tenant_client(owner_user)
     r = api.post(API.SUBSCRIPTION_CHECKOUT, json={"tier": "pro"})
-    r.raise_for_status()
-    assert r.json()["status"] == "pending_payment_provider", r.json()
+    expect_response(r, label="subscription checkout").status_ok().json_eq("status", "pending_payment_provider")
 
 
 def test_person_by_display_slug_resolves(owner_user, tenant_client):
@@ -212,13 +208,11 @@ def test_person_by_display_slug_resolves(owner_user, tenant_client):
     created = api.post(
         API.PEOPLE, json={"name": "Слаг Тест", "display_slug": slug},
     )
-    created.raise_for_status()
+    expect_response(created, label="create person with slug").status_ok().json_has("id")
     pid = created.json()["id"]
 
     resolved = api.get(API.person_by_slug(slug))
-    resolved.raise_for_status()
-    assert resolved.json()["id"] == pid, \
-        "by-display-slug must resolve to the person created with that slug"
+    expect_response(resolved, label="by-display-slug").status_ok().json_eq("id", pid)
 
 
 def test_tenant_delete_then_restore(
@@ -227,9 +221,10 @@ def test_tenant_delete_then_restore(
     """Owner soft-deletes their tenant; after re-login (delete kills the
     session) the tenant is restored within the 30-day grace period."""
     api = tenant_client(owner_user)
-    api.post(
-        API.DELETE_TENANT, json={"confirm_slug": owner_user.slug},
-    ).raise_for_status()
+    expect_response(
+        api.post(API.DELETE_TENANT, json={"confirm_slug": owner_user.slug}),
+        label="delete tenant",
+    ).status_ok()
 
     cookies = login_existing(owner_user.email, owner_user.password)
     restored = httpx.post(
@@ -239,8 +234,7 @@ def test_tenant_delete_then_restore(
         headers={"Origin": base_url},
         timeout=TIMEOUTS.api_request,
     )
-    restored.raise_for_status()
-    assert restored.json()["status"] == "restored"
+    expect_response(restored, label="tenant restore").status_ok().json_eq("status", "restored")
 
 
 def test_locations_create_then_list(owner_user, tenant_client):
@@ -250,10 +244,10 @@ def test_locations_create_then_list(owner_user, tenant_client):
         "id": "loc-test-msk", "name": "Москва",
         "lat": 55.75, "lng": 37.62, "type": "other", "note": "",
     })
-    created.raise_for_status()
+    expect_response(created, label="create location").status_ok().json_has("id")
     loc_id = created.json()["id"]
 
     listed = api.get(API.LOCATIONS)
-    listed.raise_for_status()
+    expect_response(listed, label="list locations").status_ok()
     assert any(loc["id"] == loc_id for loc in listed.json()), \
         "created location must appear in the list"

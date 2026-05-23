@@ -8,7 +8,12 @@ Pattern:
 
 from __future__ import annotations
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
+
+
+def custom_select_for(page: Page, field: str) -> Locator:
+    """Return the custom-select wrapper for a native select[data-field]."""
+    return page.locator(f"div.custom-select:has(+ select[data-field='{field}'])")
 
 
 def wait_for_authed_shell(page: Page) -> None:

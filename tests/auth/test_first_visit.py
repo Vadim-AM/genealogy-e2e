@@ -63,4 +63,5 @@ def test_me_endpoint_returns_tenant_after_login(owner_user, tenant_client):
     api = tenant_client(owner_user)
     r = api.get(API.ACCOUNT_ME)
     r.raise_for_status()
-    assert r.json()["tenant"]["slug"] == owner_user.slug
+    assert r.json()["tenant"]["slug"] == owner_user.slug, \
+        f"/me tenant slug: expected {owner_user.slug!r}, got {r.json()['tenant']['slug']!r}"

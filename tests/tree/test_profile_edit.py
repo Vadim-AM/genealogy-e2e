@@ -11,25 +11,9 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
-from tests.messages import Buttons, TestData, t
-from tests.pages.person_editor import PersonEditor
-from tests.pages.profile_panel import ProfilePanel
-
-
-def _open_editor(owner_page: Page, person_id: str = TestData.DEMO_PERSON_ID) -> PersonEditor:
-    """Open the given person's profile and switch to edit mode.
-
-    Uses `ProfilePanel` (semantic role-based locators) so we are decoupled
-    from current `onclick=` vs future `data-action=` implementation.
-    """
-    owner_page.goto(f"/#/p/{person_id}")
-    owner_page.wait_for_load_state("domcontentloaded")
-    panel = ProfilePanel(owner_page)
-    panel.expect_visible()
-    panel.open_editor()
-    editor = PersonEditor(owner_page)
-    editor.expect_visible()
-    return editor
+from tests.messages import Buttons, ConfirmDialog as ConfirmDialogMsg, TestData, t
+from tests.pages.confirm_dialog import ConfirmDialog
+from tests.pages.profile_panel import open_editor_for
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -40,7 +24,7 @@ def _open_editor(owner_page: Page, person_id: str = TestData.DEMO_PERSON_ID) -> 
 def test_maiden_name_visible_only_for_female_gender(owner_page: Page):
     """TC-EDITOR-1: `maiden_name` field is hidden for gender=m, visible for f.
     Switching back to m clears the previously typed value (no orphan data)."""
-    editor = _open_editor(owner_page)
+    editor = open_editor_for(owner_page)
 
     # Set gender=m → maiden field's wrapper hides via display:none.
     editor.select_dropdown("gender", "m")
@@ -73,7 +57,7 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tena
     не через `page.on('dialog')`.
     """
     # demo-grandpa is non-root (delete button visible) and exists in seed.
-    editor = _open_editor(owner_page, person_id="demo-grandpa")
+    editor = open_editor_for(owner_page, person_id="demo-grandpa")
 
     delete_responses: list[int] = []
     owner_page.on(
@@ -85,22 +69,20 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tena
 
     editor.btn_delete.click()
 
-    # Custom confirm-dialog modal появляется в DOM. Ждём `.confirm-dialog`.
-    confirm_dialog = owner_page.locator(".confirm-dialog").first
-    expect(confirm_dialog).to_be_visible()
+    dialog = ConfirmDialog(owner_page)
+    dialog.expect_visible()
 
     # Текст confirm-сообщения должен содержать критические маркеры.
-    msg = confirm_dialog.inner_text()
-    assert "Удалить" in msg, f"confirm must mention 'Удалить': {msg!r}"
-    assert "необратим" in msg, (
-        f"confirm must call out irreversibility (substring «необратим»): {msg!r}"
+    msg = dialog.text()
+    assert t(Buttons.DELETE) in msg, f"confirm must mention {t(Buttons.DELETE)!r}: {msg!r}"
+    assert t(ConfirmDialogMsg.IRREVERSIBLE) in msg, (
+        f"confirm must call out irreversibility ({t(ConfirmDialogMsg.IRREVERSIBLE)!r}): {msg!r}"
     )
-    assert "связ" in msg, \
-        f"confirm must mention что связи будут отвязаны: {msg!r}"
+    assert t(ConfirmDialogMsg.RELATIONS_KEYWORD) in msg, \
+        f"confirm must mention relations ({t(ConfirmDialogMsg.RELATIONS_KEYWORD)!r}): {msg!r}"
 
     # Click «Отмена» — DELETE НЕ должен уйти.
-    cancel_btn = confirm_dialog.get_by_role("button", name=t(Buttons.CANCEL))
-    cancel_btn.click()
+    dialog.cancel()
     owner_page.wait_for_load_state("domcontentloaded")
 
     assert not delete_responses, \
@@ -130,7 +112,7 @@ def test_owner_edits_demo_self_summary_through_ui(
     is reintroduced.
     """
     summary = "Записано через UI-editor в e2e-тесте"
-    editor = _open_editor(owner_page)
+    editor = open_editor_for(owner_page)
 
     editor.summary.fill(summary)
     with owner_page.expect_response(
@@ -161,7 +143,7 @@ def test_delete_button_hidden_for_root_subject(owner_page):
     `1b42498` ("fix(editor): hide «Удалить» в редакторе root-карточки").
     Now regular regression.
     """
-    editor = _open_editor(owner_page)
+    editor = open_editor_for(owner_page)
     delete_btn = editor.page.get_by_role(
         "button", name=t(Buttons.DELETE), exact=False
     )

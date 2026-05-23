@@ -17,8 +17,8 @@ from playwright.sync_api import Page, expect
 def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: str):
     """TC-BUG-LEGAL-001: privacy/terms must be rendered HTML."""
     response = page.goto(path)
-    assert response is not None
-    assert response.status == 200
+    assert response is not None, f"page.goto({path}) returned None (navigation failed)"
+    assert response.status == 200, f"{path}: expected 200, got {response.status}"
     content_type = (response.headers.get("content-type") or "").lower()
     assert "text/html" in content_type, f"{path} content-type={content_type!r}, expected text/html"
 

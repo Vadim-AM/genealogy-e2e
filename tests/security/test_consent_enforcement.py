@@ -12,6 +12,7 @@ GDPR compliance.
 from __future__ import annotations
 
 from tests.api_paths import API
+from tests.response import expect_response
 
 
 def test_post_enrich_without_consent_is_forbidden(
@@ -28,13 +29,9 @@ def test_post_enrich_without_consent_is_forbidden(
     # Берём any person, пробуем enrich — НЕ дёргая ACCOUNT_AI_CONSENT.
     # Свежий user → ai_consent_at = NULL. Backend должен отбивать.
     r = api.get(API.TREE)
-    r.raise_for_status()
+    expect_response(r, label="GET tree").status_ok()
     pid = (r.json().get("people") or [])[0]["id"]
 
     r = api.post(API.enrich(pid), json={"streaming": False, "force_refresh": True})
 
-    assert r.status_code == 403, (
-        f"INV-AI-005: enrich accepted without consent (status="
-        f"{r.status_code}). Backend should require consent on record "
-        f"before sending PII to Anthropic. Body: {r.text[:200]}"
-    )
+    expect_response(r, label="INV-AI-005: enrich without consent").status(403)

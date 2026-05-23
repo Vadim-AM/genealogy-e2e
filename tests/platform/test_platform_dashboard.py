@@ -21,7 +21,7 @@ def test_platform_dashboard_loads_for_superadmin(
     ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
     page = ctx.new_page()
     response = page.goto("/platform/dashboard")
-    assert response is not None
+    assert response is not None, "page.goto('/platform/dashboard') returned None"
     assert response.status == 200, \
         f"/platform/dashboard returned {response.status} (regression)"
 

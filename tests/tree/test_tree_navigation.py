@@ -5,6 +5,8 @@ Covers: TC-E2E-002 (F5 keeps profile), F-FV-4 tabs.
 
 from __future__ import annotations
 
+import re
+
 from playwright.sync_api import Page, expect
 
 from tests.messages import TestData
@@ -25,10 +27,11 @@ def test_switch_between_tabs(owner_page: Page):
     wait_for_authed_shell(owner_page)
 
     for tab_name in ("sources", "timeline", "about"):
-        tree.switch_to(tab_name)
+        tree.switch_tab(tab_name)
         # No fixed sleep: `expect` auto-waits until the .active class
         # transition is observed in DOM.
-        expect(owner_page.locator(f'.tab[data-tab="{tab_name}"].active')).to_be_visible()
+        tab_loc = getattr(tree, f"tab_{tab_name}")
+        expect(tab_loc).to_have_class(re.compile(r"\bactive\b"))
         expect(owner_page.locator(f"#tab-{tab_name}.active")).to_be_visible()
 
 
@@ -61,7 +64,9 @@ def test_f5_keeps_profile_open(owner_page: Page):
 
 def test_back_to_tree_from_profile(owner_page: Page):
     """F-PR-4: returning to tree from profile via tab click."""
-    owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-    owner_page.wait_for_load_state("domcontentloaded")
-    owner_page.locator('[data-tab="tree"]').click()
-    expect(owner_page.locator('.tab[data-tab="tree"].active')).to_be_visible()
+    from tests.pages.profile_panel import ProfilePanel
+
+    ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
+    tree = TreePage(owner_page)
+    tree.switch_tab("tree")
+    expect(tree.tab_tree).to_have_class(re.compile(r"\bactive\b"))

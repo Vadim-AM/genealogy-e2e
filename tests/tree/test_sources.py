@@ -14,6 +14,7 @@ from tests.messages import TestData
 from tests.pages.person_editor import PersonEditor
 from tests.pages.profile_panel import ProfilePanel
 from tests.pages.sources_block import SourcesBlock
+from tests.response import expect_response
 
 
 def test_owner_attaches_and_unlinks_a_source(
@@ -24,10 +25,7 @@ def test_owner_attaches_and_unlinks_a_source(
     pid = TestData.DEMO_PERSON_ID
     api = tenant_client(owner_user)
 
-    owner_page.goto(f"/#/p/{pid}")
-    owner_page.wait_for_load_state("domcontentloaded")
-    panel = ProfilePanel(owner_page)
-    panel.expect_visible()
+    panel = ProfilePanel.navigate_to(owner_page, pid)
     panel.open_editor()
     PersonEditor(owner_page).expect_visible()
 
@@ -38,7 +36,7 @@ def test_owner_attaches_and_unlinks_a_source(
     sources.expect_attached(src_name)
 
     linked = api.get(API.person_sources(pid))
-    linked.raise_for_status()
+    expect_response(linked, label="GET person-sources").status_ok()
     assert any(s["name"] == src_name for s in linked.json()), \
         f"source not linked backend-side: {linked.json()}"
 
@@ -47,7 +45,7 @@ def test_owner_attaches_and_unlinks_a_source(
     expect(sources.items).to_have_count(0)
 
     after = api.get(API.person_sources(pid))
-    after.raise_for_status()
+    expect_response(after, label="GET person-sources after unlink").status_ok()
     assert not after.json(), f"source still linked after unlink: {after.json()}"
 
 
@@ -59,20 +57,18 @@ def test_source_record_crud_lifecycle(owner_user, tenant_client):
 
     created = api.post(
         API.SOURCES,
-        json={"id": "src-crud-test", "name": "Архив 1", "type": "document"},
+        json={"id": "src-crud-test", "name": TestData.SOURCE_NAME, "type": "document"},
     )
-    created.raise_for_status()
+    expect_response(created, label="POST source").status_ok()
     sid = created.json()["id"]
 
-    patched = api.patch(API.source(sid), json={"name": "Архив 1 (испр.)"})
-    patched.raise_for_status()
-    assert patched.json()["name"] == "Архив 1 (испр.)"
+    patched = api.patch(API.source(sid), json={"name": TestData.SOURCE_NAME_PATCHED})
+    expect_response(patched, label="PATCH source").status_ok().json_eq("name", TestData.SOURCE_NAME_PATCHED)
 
     deleted = api.delete(API.source(sid))
-    assert deleted.status_code == 204, \
-        f"DELETE source: expected 204, got {deleted.status_code}"
+    expect_response(deleted, label="DELETE source").status(204)
 
     listed = api.get(API.SOURCES)
-    listed.raise_for_status()
+    expect_response(listed, label="GET sources after delete").status_ok()
     assert not any(s["id"] == sid for s in listed.json()), \
         "deleted source still appears in GET /api/sources"

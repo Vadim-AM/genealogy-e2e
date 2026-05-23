@@ -16,6 +16,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
+from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
@@ -23,7 +24,4 @@ from tests.timeouts import TIMEOUTS
 def test_standard_probe_paths_return_200(base_url: str, path: str):
     """k8s/reverse-proxy liveness probes — 200 OK."""
     r = httpx.get(f"{base_url}{path}", timeout=TIMEOUTS.api_short)
-    assert r.status_code == 200, (
-        f"{path} returned {r.status_code} — k8s/reverse-proxy probe "
-        f"will fail. Body: {r.text[:200]}"
-    )
+    expect_response(r, label=f"probe {path}").status(200)

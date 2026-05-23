@@ -12,7 +12,7 @@ Layout:
         #enrichHeartbeat       ← live progress
         .enrich-result-body    ← rendered after job completes
           .enrich-archive-list > li > .enrich-archive-name
-          (hypotheses container — TODO if needed)
+          .enrich-hyp-item (AI hypotheses — accept/reject into card)
 """
 
 from __future__ import annotations

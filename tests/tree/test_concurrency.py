@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from tests.api_paths import API
 from tests.messages import TestData
+from tests.response import expect_response
 
 
 def test_get_person_returns_etag_for_concurrency(owner_user, tenant_client):
@@ -20,7 +21,7 @@ def test_get_person_returns_etag_for_concurrency(owner_user, tenant_client):
     """
     api = tenant_client(owner_user)
     r = api.get(API.person(TestData.DEMO_PERSON_ID))
-    r.raise_for_status()
+    expect_response(r, label="GET person").status_ok()
     etag = r.headers.get("etag")
     assert etag, (
         f"INV-EDIT-001: GET person missing ETag header. Concurrent "

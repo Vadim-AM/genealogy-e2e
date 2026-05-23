@@ -19,16 +19,9 @@ import time
 import httpx
 
 from tests.api_paths import API
+from tests.helpers.tree.tree_api import demo_pid
+from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
-
-
-def _demo_pid(api: httpx.Client) -> str:
-    """Fetch the first seeded demo-person id from /api/tree."""
-    r = api.get(API.TREE)
-    r.raise_for_status()
-    people = r.json()["people"]
-    assert people, "fresh tenant must have demo people seeded"
-    return people[0]["id"]
 
 
 def test_enrichment_endpoint_returns_mocked_output(
@@ -37,14 +30,14 @@ def test_enrichment_endpoint_returns_mocked_output(
     """F-AI-3: POST /api/enrich/{id} → job_id → poll → output uses mock fixture."""
     grant_ai_consent(owner_user)
     api = tenant_client(owner_user)
-    pid = _demo_pid(api)
+    pid = demo_pid(api)
 
     r = api.post(
         API.enrich(pid),
         json={"streaming": False, "force_refresh": True},
         timeout=TIMEOUTS.api_long,
     )
-    r.raise_for_status()
+    expect_response(r, label="POST enrich").status_ok()
     job_id = r.json()["job_id"]
 
     deadline = time.time() + TIMEOUTS.enrichment_poll
@@ -83,10 +76,10 @@ def test_enrichment_history_endpoint_returns_items_dict(
     """
     grant_ai_consent(owner_user)
     api = tenant_client(owner_user)
-    pid = _demo_pid(api)
+    pid = demo_pid(api)
 
     r = api.get(API.enrich_history(pid))
-    r.raise_for_status()
+    expect_response(r, label="GET enrich history").status_ok()
     data = r.json()
     assert isinstance(data, dict), (
         f"history must be a dict (got {type(data).__name__}): {data!r}"
@@ -103,11 +96,14 @@ def test_enrichment_first_run_does_not_hit_quota(
     """F-AI-9 surrogate: a single mocked enrichment doesn't 429."""
     grant_ai_consent(owner_user)
     api = tenant_client(owner_user)
-    pid = _demo_pid(api)
+    pid = demo_pid(api)
 
     r = api.post(
         API.enrich(pid),
         json={"streaming": False, "force_refresh": True},
         timeout=TIMEOUTS.api_long,
     )
-    assert r.status_code != 429, f"first enrichment hit quota: {r.text[:200]}"
+    assert r.status_code != 429, (
+        f"first enrichment hit quota: {r.request.method} {r.request.url} "
+        f"status={r.status_code} body={r.text[:200]!r}"
+    )

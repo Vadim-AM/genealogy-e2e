@@ -42,5 +42,7 @@ def test_wait_form_visible(page: Page):
 def test_health_endpoint_via_browser(page: Page):
     """Sanity: even page.goto sees the live FastAPI subprocess."""
     response = page.goto(API.HEALTH)
-    assert response is not None
-    assert response.status == 200
+    assert response is not None, "page.goto(/api/health) returned None"
+    assert response.status == 200, (
+        f"/api/health returned {response.status}, backend may be down"
+    )

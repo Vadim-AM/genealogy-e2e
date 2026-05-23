@@ -15,21 +15,8 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
+from tests.helpers.auth.auth_ui import wait_for_auth_state
 from tests.messages import TestData
-
-
-def _wait_for_auth_state(owner_page: Page, *, expected: bool, timeout_ms: int = 5_000) -> None:
-    """Poll `window.AUTH.authenticated` until it matches `expected` or timeout.
-
-    `window.AUTH` is set after the initial `/api/auth/me` round-trip; deep
-    links can race that read. Asserting the final state instead of the
-    instantaneous one keeps the test honest without papering over real bugs.
-    """
-    owner_page.wait_for_function(
-        "(want) => window.AUTH && window.AUTH.authenticated === want",
-        arg=expected,
-        timeout=timeout_ms,
-    )
 
 
 def test_deep_link_to_demo_self_preserves_auth(owner_page: Page):
@@ -43,7 +30,7 @@ def test_deep_link_to_demo_self_preserves_auth(owner_page: Page):
     expect(owner_page.locator(".profile-page")).to_be_visible()
 
     # AUTH state must end up authenticated (BUG-AUTH-001 regression).
-    _wait_for_auth_state(owner_page, expected=True)
+    wait_for_auth_state(owner_page, expected=True)
 
 
 def test_deep_link_to_unknown_id_keeps_auth(owner_page: Page):
@@ -54,4 +41,4 @@ def test_deep_link_to_unknown_id_keeps_auth(owner_page: Page):
     owner_page.goto("/#/p/no-such-person")
     owner_page.wait_for_load_state("domcontentloaded")
     expect(owner_page.locator('[data-tab="tree"]')).to_be_visible()
-    _wait_for_auth_state(owner_page, expected=True)
+    wait_for_auth_state(owner_page, expected=True)
