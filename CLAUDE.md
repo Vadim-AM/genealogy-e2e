@@ -38,9 +38,9 @@ documents an endpoint, it is not a journey.
 **Anti-patterns that make tests pass-by-default:**
 - `pytest.skip` as a fallback (`if r.status_code == 404: pytest.skip(...)`).
   A missing core endpoint is a regression — fail loud. The suite uses no
-  `skip` without an explicit owner decision (Rule 12).
+  `skip` without an explicit owner decision (Rule 13).
 - `xfail` / `xpass` / `skip` markers of any kind — the suite carries none;
-  a test is green or it is not in the suite (Rule 12).
+  a test is green or it is not in the suite (Rule 13).
 - OR-fallbacks in assertions (`assert visible_a or visible_b`). One of the
   branches usually IS the broken state. Hard `expect(...)` only.
 - "Smoke" assertions on functional tests (`expect(body).to_be_visible()`,
@@ -127,7 +127,7 @@ Use `page.expect_response("...")`, `page.wait_for_url(...)`, or
 
 When the suite catches a real product bug, the journey test is **not
 committed while the bug is open** — a non-green test never enters the
-suite (Rule 12). Instead:
+suite (Rule 13). Instead:
 1. Record the bug in project memory (`memory/`) — symptom, root-cause
    hint, where to fix.
 2. Raise it upstream with a fresh `BUG-XXX-N` ID — check upstream
@@ -186,7 +186,7 @@ factory calls (each closed automatically on teardown).
 **Anonymous calls** (lending, public health) — pass `httpx.get(f"{base_url}{API.HEALTH}")`
 directly; no client needed. Or use a top-level `httpx.Client(base_url=base_url)`.
 
-### 9. No raw URL strings — go through `tests/api_paths.py::API`
+### 10. No raw URL strings — go through `tests/api_paths.py::API`
 
 ```python
 # bad
@@ -198,7 +198,7 @@ api.get(API.person(pid))
 When backend renames an endpoint — one place to update, IDE autocomplete,
 contract is visible in code.
 
-### 10. No raw credentials/tokens — go through `tests/constants.py::TestConfig`
+### 11. No raw credentials/tokens — go through `tests/constants.py::TestConfig`
 
 ```python
 # bad
@@ -214,7 +214,7 @@ email = make_email("label")            # deterministic
 email = unique_email("waitlist1")      # uuid-suffixed (when reset_state doesn't wipe target table)
 ```
 
-### 11. User creation — through factories in conftest, not inline
+### 12. User creation — through factories in conftest, not inline
 
 If your test needs:
 - a verified, logged-in user → `owner_user` (default) or `signup_via_api(email=...)`.
@@ -228,18 +228,18 @@ If your test needs:
 **Never** inline `c.post(API.SIGNUP, ...) → c.post(API.VERIFY_EMAIL, ...) → c.post(API.LOGIN, ...)` —
 that's 8+ lines of plumbing per test, and changes in the auth flow ripple through every test.
 
-### 12. Green or it doesn't exist — no xfail/skip
+### 13. Green or it doesn't exist — no xfail/skip
 
 The suite carries no `xfail` / `xpass` / `skip` / `pytest.mark.skip`
 markers. A test is green or it is not in the suite. A non-green test
 normalises red — readers stop trusting the signal.
 
-A bug the suite catches is recorded, not xfail-tested (Rule 6); its
+A bug the suite catches is recorded, not xfail-tested (Rule 7); its
 journey test is written after the fix. `skip` for a genuinely
 inapplicable scenario needs an explicit owner decision — never a default
 reach for a failing check.
 
-### 13. Tests should be safe to run against a moving dev branch
+### 14. Tests should be safe to run against a moving dev branch
 
 The product main branch can change daily. Tests must be:
 - Robust to UI implementation changes (semantic locators).
@@ -252,7 +252,7 @@ If a test fails after a non-functional product change, the test was
 over-fitting to implementation. Refactor it to assert behaviour, not
 markup.
 
-### 14. Parallel by default; serial only if it mutates the stand
+### 15. Parallel by default; serial only if it mutates the stand
 
 The suite runs in two passes (see "Running locally"):
 - **parallel** (`-m "not serial" -n 4`) — tenant-scoped/independent
@@ -277,9 +277,9 @@ either it genuinely uses `superadmin_user`, or add its file to
 state-mutating test that lands in the parallel pass will corrupt other
 workers and produce confusing cross-talk. Conversely, do not reach for
 `serial` to paper over a leak failure that is actually a product bug —
-triage it (Rule 1/13).
+triage it (Rule 1/14).
 
-### 15. Test files contain only tests
+### 16. Test files contain only tests
 
 A `test_*.py` file must contain **only** `def test_*()` functions and
 imports. Everything else has a dedicated home:
@@ -303,7 +303,7 @@ lives in one domain — the domain it most naturally belongs to. No
 `tests/helpers/common/` — if it's truly generic, it goes in `tests/pages/`
 (if UI-related) or `tests/_fixtures/` (if fixture-related).
 
-### 16. Multi-step helpers use `step()` for visibility
+### 17. Multi-step helpers use `step()` for visibility
 
 ```python
 from tests.step import step
@@ -317,7 +317,7 @@ with step("verify email"):
 On CI, step output shows which phase failed — no more guessing from a
 bare traceback. Use for logical phases (3-6 per helper), not per-line.
 
-### 17. Shared utilities live in POMs, not in test files
+### 18. Shared utilities live in POMs, not in test files
 
 Patterns reusable across tests belong on Page Objects:
 - `custom_select_for(page, field)` → `tests/pages/base.py`
@@ -555,7 +555,7 @@ already cost a near-lost rewrite.
 
 - Is this test catching a real contract or just smoke? → If smoke, delete it.
 - This test is red — commit it anyway? → No. Green or it doesn't exist
-  (Rule 12). Fix the product, or record the bug and write the test after.
+  (Rule 13). Fix the product, or record the bug and write the test after.
 - Is the selector stable enough? → If you imagine the dev rewriting this
   component once, would the test still pass? If no, refactor.
 - Is the timeout right? → Use the catalogue. If you want a different value,
