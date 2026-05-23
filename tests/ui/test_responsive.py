@@ -14,56 +14,9 @@ Default conftest viewport — 1440×900 (desktop). Этот файл созда�
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-
-import pytest
-from playwright.sync_api import Browser, BrowserContext, Page, expect
+from playwright.sync_api import Page, expect
 
 from tests.messages import TestData
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# Viewport-specific page fixtures
-# ─────────────────────────────────────────────────────────────────────────
-
-
-def _make_page(browser: Browser, base_url: str, *, w: int, h: int) -> Iterator[Page]:
-    ctx: BrowserContext = browser.new_context(
-        base_url=base_url,
-        viewport={"width": w, "height": h},
-        ignore_https_errors=True,
-    )
-    page = ctx.new_page()
-    yield page
-    ctx.close()
-
-
-@pytest.fixture
-def mobile_page(browser: Browser, base_url: str) -> Iterator[Page]:
-    """iPhone SE viewport — anonymous (no cookies)."""
-    yield from _make_page(browser, base_url, w=375, h=812)
-
-
-@pytest.fixture
-def tablet_owner_page(
-    browser: Browser, base_url: str, owner_user
-) -> Iterator[Page]:
-    """iPad portrait viewport with owner_user cookies + tenant header."""
-    ctx = browser.new_context(
-        base_url=base_url,
-        viewport={"width": 768, "height": 1024},
-        ignore_https_errors=True,
-        extra_http_headers={"X-Tenant-Slug": owner_user.slug},
-    )
-    for name, value in owner_user.cookies.items():
-        ctx.add_cookies([{"name": name, "value": value, "url": base_url}])
-    ctx.add_init_script(
-        "try { localStorage.setItem('v1', '1'); "
-        "localStorage.setItem('genealogy_tour_v1', '1'); } catch (e) {}"
-    )
-    page = ctx.new_page()
-    yield page
-    ctx.close()
 
 
 # ─────────────────────────────────────────────────────────────────────────

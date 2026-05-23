@@ -25,47 +25,13 @@ xfail после полного XPASS-прогона на upstream/dev `7dcd427`
 
 from __future__ import annotations
 
-import httpx
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
+from tests.helpers.tree.tree_api import people_count, seed_person
+from tests.helpers.tree.tree_navigation import open_demo_self_profile
 from tests.messages import LinkedChip, TestData, t
 from tests.pages.person_editor import AddRelativeModal
 from tests.pages.profile_panel import ProfilePanel
-from tests.timeouts import TIMEOUTS
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────────────────────────────────
-
-
-def _seed_person(api: httpx.Client, *, pid: str, name: str, **extra) -> str:
-    """POST /api/people с предсказуемым id (упрощает selectors внутри тестов).
-
-    Backend (POST /api/people в main.py) принимает client-supplied id или
-    сам генерирует UUID — фронт делает обоими путями. Тестам удобнее
-    знать id заранее, чтобы делать `modal.pick_existing(pid)` без поиска
-    по name через /api/tree.
-    """
-    body = {"id": pid, "name": name, "branch": "paternal", "gender": "m"}
-    body.update(extra)
-    api.post(API.PEOPLE, json=body).raise_for_status()
-    return pid
-
-
-def _people_count(api: httpx.Client) -> int:
-    r = api.get(API.TREE)
-    r.raise_for_status()
-    return len(r.json()["people"])
-
-
-def _open_demo_self_profile(page: Page) -> ProfilePanel:
-    page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-    page.wait_for_load_state("networkidle")
-    panel = ProfilePanel(page)
-    panel.expect_visible()
-    return panel
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -83,16 +49,16 @@ def test_link_existing_sibling_creates_only_relationship(
     `+ parent`-кнопка под RELATIVE_LIMITS скрыта.
     """
     api = tenant_client(owner_user)
-    existing_id = _seed_person(
+    existing_id = seed_person(
         api,
         pid="link-sib-existing",
         name="Прохор Иванов",
         surname="Иванов",
         given_name="Прохор",
     )
-    count_before = _people_count(api)
+    count_before = people_count(api)
 
-    panel = _open_demo_self_profile(owner_page)
+    panel = open_demo_self_profile(owner_page)
     panel.click_add_sibling()
 
     modal = AddRelativeModal(owner_page)
@@ -129,7 +95,9 @@ def test_link_existing_sibling_creates_only_relationship(
         modal.btn_save.click()
     rel_resp = rel_info.value
     assert rel_resp.ok, f"POST /api/relationships failed: {rel_resp.status}"
-    assert rel_resp.request.method == "POST"
+    assert rel_resp.request.method == "POST", (
+        f"expected POST /api/relationships, got {rel_resp.request.method}"
+    )
 
     expect(modal.overlay).not_to_be_visible()
     assert post_people_count == 0, (
@@ -138,7 +106,7 @@ def test_link_existing_sibling_creates_only_relationship(
     )
 
     # Конечная проверка: число people в дереве НЕ выросло.
-    assert _people_count(api) == count_before, (
+    assert people_count(api) == count_before, (
         "link-existing создал дубликат — people-count не должен меняться"
     )
 
@@ -151,16 +119,16 @@ def test_unlink_existing_returns_to_create_mode(
     surname → Save создаёт нового (POST /api/people + POST /api/relationships).
     """
     api = tenant_client(owner_user)
-    existing_id = _seed_person(
+    existing_id = seed_person(
         api,
         pid="unlink-existing",
         name="Семён Семёнов",
         surname="Семёнов",
         given_name="Семён",
     )
-    count_before = _people_count(api)
+    count_before = people_count(api)
 
-    panel = _open_demo_self_profile(owner_page)
+    panel = open_demo_self_profile(owner_page)
     panel.click_add_sibling()
 
     modal = AddRelativeModal(owner_page)
@@ -183,10 +151,12 @@ def test_unlink_existing_returns_to_create_mode(
         lambda r: "/api/people" in r.url and r.request.method == "POST"
     ) as person_info:
         modal.btn_save.click()
-    assert person_info.value.ok
+    assert person_info.value.ok, (
+        f"POST /api/people failed: {person_info.value.status}"
+    )
 
     expect(modal.overlay).not_to_be_visible()
-    assert _people_count(api) == count_before + 1, (
+    assert people_count(api) == count_before + 1, (
         "после unlink + правка + Save должен быть РОВНО один новый person"
     )
 
@@ -201,7 +171,7 @@ def test_dropdown_excludes_self(owner_page: Page, owner_user, tenant_client):
     Ввод «Польз» — substring совпадает только с demo-self → dropdown
     должен либо не открыться, либо показать пустую выдачу.
     """
-    panel = _open_demo_self_profile(owner_page)
+    panel = open_demo_self_profile(owner_page)
     panel.click_add_sibling()
 
     modal = AddRelativeModal(owner_page)
@@ -224,7 +194,7 @@ def test_keyboard_arrow_down_enter_picks_first_candidate(
     highlighted=0 → Enter сразу выбирает.
     """
     api = tenant_client(owner_user)
-    existing_id = _seed_person(
+    existing_id = seed_person(
         api,
         pid="kbd-existing",
         name="Глеб Глебов",
@@ -232,7 +202,7 @@ def test_keyboard_arrow_down_enter_picks_first_candidate(
         given_name="Глеб",
     )
 
-    panel = _open_demo_self_profile(owner_page)
+    panel = open_demo_self_profile(owner_page)
     panel.click_add_sibling()
 
     modal = AddRelativeModal(owner_page)
@@ -256,7 +226,7 @@ def test_escape_closes_dropdown_keeps_modal(
     закрыл бы её — но dropdown-keydown делает `stopPropagation`.
     """
     api = tenant_client(owner_user)
-    _seed_person(
+    seed_person(
         api,
         pid="esc-existing",
         name="Антон Антонов",
@@ -264,7 +234,7 @@ def test_escape_closes_dropdown_keeps_modal(
         given_name="Антон",
     )
 
-    panel = _open_demo_self_profile(owner_page)
+    panel = open_demo_self_profile(owner_page)
     panel.click_add_sibling()
 
     modal = AddRelativeModal(owner_page)

@@ -9,11 +9,13 @@ from __future__ import annotations
 import httpx
 from playwright.sync_api import Page, expect
 
+from tests.response import expect_response
+
 
 def test_site_config_exposes_app_version(base_url: str):
     """`/api/site/config` returns a non-empty `app_version` string."""
     r = httpx.get(f"{base_url}/api/site/config")
-    r.raise_for_status()
+    expect_response(r, label="GET /api/site/config").status_ok()
     version = r.json()["app_version"]
     assert isinstance(version, str) and version.strip(), \
         f"app_version must be a non-empty string: {version!r}"

@@ -28,11 +28,9 @@ class OwnerPage(BasePage):
         self.cfg_about_text = page.locator("#cfg_about_text")
         self.cfg_save = page.locator("#cfgSave")
 
-        # Invite tab locators are intentionally NOT pre-bound — the previous
-        # `create_invite` helper used a 4-selector fallback chain to capture
-        # the produced URL (CLAUDE.md rule #3 anti-pattern: "TODO, not a
-        # passing test"). When the invite UI gets a stable `data-invite-url`
-        # surface (Wave 2), re-add a tight helper here.
+        # Invite tab locators omitted — invite flow is exercised via API
+        # fixtures (create_invite / accept_invite in _fixtures/users.py).
+        # UI locators to be added when product exposes `data-invite-url`.
 
         # GEDCOM Import widget (Фаза 2). Стабильные хуки —
         # data-action и data-gedcom-* атрибуты, не текстовые селекторы.

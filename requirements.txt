@@ -12,3 +12,4 @@ httpx>=0.27
 # modules per Rule 7 ("read source before guessing"). Rule 1 forbids
 # silent skip on missing dep — declared explicitly here.
 pyotp>=2.9
+pydantic-settings>=2.0

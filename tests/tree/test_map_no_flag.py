@@ -27,6 +27,8 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
+from tests.pages.tree_page import TreePage
+
 
 def test_map_tab_is_hidden_by_default(owner_page: Page):
     """TC-10.02 (Wave-9): map tab `<button data-tab="map">` has `hidden`
@@ -35,11 +37,9 @@ def test_map_tab_is_hidden_by_default(owner_page: Page):
     Реальный контракт: map disabled by default. Если кто-то уберёт
     `hidden` — фича утекает в prod без готовности.
     """
-    owner_page.goto("/")
-    owner_page.wait_for_load_state("domcontentloaded")
+    tree = TreePage(owner_page).goto()
 
-    map_tab = owner_page.locator('[data-tab="map"]')
     # Tab existует в DOM (markup готов), но скрыт через атрибут hidden.
-    expect(map_tab).to_have_count(1)
-    expect(map_tab).to_be_hidden()
-    expect(map_tab).to_have_attribute("hidden", "")
+    expect(tree.tab_map).to_have_count(1)
+    expect(tree.tab_map).to_be_hidden()
+    expect(tree.tab_map).to_have_attribute("hidden", "")

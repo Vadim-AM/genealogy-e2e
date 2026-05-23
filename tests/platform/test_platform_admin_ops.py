@@ -13,6 +13,7 @@ import pyotp
 
 from tests.api_paths import API
 from tests.constants import make_email
+from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
@@ -20,15 +21,14 @@ def test_admin_tenant_listing(superadmin_user, tenant_client):
     """Superadmin lists all tenants and looks one up by slug."""
     api = tenant_client(superadmin_user)
     listed = api.get(API.ADMIN_TENANTS)
-    listed.raise_for_status()
+    expect_response(listed, label="GET admin/tenants").status_ok()
     raw = listed.json()
     tenants = raw if isinstance(raw, list) else raw["items"]
     assert any(t["slug"] == superadmin_user.slug for t in tenants), \
         "superadmin's own tenant must appear in the listing"
 
     one = api.get(API.admin_tenant(superadmin_user.slug))
-    one.raise_for_status()
-    assert one.json()["slug"] == superadmin_user.slug
+    expect_response(one, label="GET admin/tenant by slug").status_ok().json_eq("slug", superadmin_user.slug)
 
 
 def test_admin_waitlist_lifecycle(superadmin_user, tenant_client, base_url):
@@ -62,7 +62,7 @@ def test_platform_waitlist_listing(superadmin_user, tenant_client, base_url):
 
     api = tenant_client(superadmin_user)
     r = api.get(API.PLATFORM_WAITLIST)
-    r.raise_for_status()
+    expect_response(r, label="GET platform/waitlist").status_ok()
     raw = r.json()
     items = raw if isinstance(raw, list) else raw["items"]
     assert any(s.get("email") == email for s in items), \
@@ -74,12 +74,10 @@ def test_platform_backups_and_nudges(superadmin_user, tenant_client):
     reports how many nudges were sent."""
     api = tenant_client(superadmin_user)
     backups = api.get(API.PLATFORM_BACKUPS)
-    backups.raise_for_status()
-    assert "items" in backups.json()
+    expect_response(backups, label="GET backups").status_ok().json_has("items")
 
     nudges = api.post(API.PLATFORM_NUDGES)
-    nudges.raise_for_status()
-    assert "sent_count" in nudges.json()
+    expect_response(nudges, label="POST nudges").status_ok().json_has("sent_count")
 
 
 def test_tenant_override_lifecycle(superadmin_user, tenant_client):
@@ -100,7 +98,7 @@ def test_tenant_override_lifecycle(superadmin_user, tenant_client):
     }).raise_for_status()
 
     overrides = api.get(API.tenant_overrides(slug))
-    overrides.raise_for_status()
+    expect_response(overrides, label="GET tenant overrides").status_ok()
     assert any(o["field_name"] == "max_archives" for o in overrides.json()["items"]), \
         "the override must be listed back"
 
@@ -126,5 +124,8 @@ def test_platform_waitlist_invite_promotes_subscriber(
     sub = next(s for s in items if s["email"] == email)
 
     invited = api.post(API.platform_waitlist_invite(sub["id"]))
-    invited.raise_for_status()
-    assert invited.json()["status"] in ("invited", "already_exists")
+    expect_response(invited, label="waitlist invite").status_ok()
+    assert invited.json()["status"] in ("invited", "already_exists"), (
+        f"waitlist invite returned unexpected status: "
+        f"{invited.json().get('status')!r}"
+    )

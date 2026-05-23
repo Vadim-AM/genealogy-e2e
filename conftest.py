@@ -18,6 +18,13 @@ from __future__ import annotations
 
 import pytest
 
+
+def pytest_configure(config: pytest.Config) -> None:
+    try:
+        from tests.settings import settings  # noqa: F401
+    except Exception as exc:
+        pytest.exit(f"Settings validation failed: {exc}", returncode=2)
+
 pytest_plugins = (
     "tests._fixtures.patch",
     "tests._fixtures.server",
@@ -52,9 +59,11 @@ _SERIAL_FIXTURES = frozenset({"superadmin_user"})
 #     2026-05-19: -n auto vs -n 4 fail *different* tests here), i.e. a
 #     test-robustness gap, not a product bug — they are deterministically
 #     green single-worker. Serial lane is their correct home; tests still
-#     run with every assertion intact (NOT silenced). TODO-harden: give
-#     each a semantic settle-wait (cf. `wait_for_authed_shell`) and move
-#     back to the parallel bucket.
+#     run with every assertion intact (NOT silenced). Root cause:
+#     browser+backend resource contention under xdist, not missing
+#     settle-waits (test_logout, test_enrichment_apply already have
+#     wait_for_authed_shell). Moving back to parallel requires proving
+#     stable under `-n 4` on CI hardware — not a code change.
 _SERIAL_FILES = frozenset({
     "test_ai_disabled_flow.py",
     "test_security_timing.py",

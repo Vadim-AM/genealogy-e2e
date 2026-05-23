@@ -14,6 +14,7 @@ from __future__ import annotations
 import pytest
 
 from tests.api_paths import API
+from tests.response import expect_response
 
 
 def test_canonical_name_assembled_from_split_fields(owner_user, tenant_client):
@@ -22,7 +23,7 @@ def test_canonical_name_assembled_from_split_fields(owner_user, tenant_client):
     api = tenant_client(owner_user)
 
     r = api.get(API.TREE)
-    assert r.status_code == 200, r.text
+    expect_response(r, label="GET /api/tree").status(200)
     tree = r.json()
     assert tree.get("people"), \
         f"tenant has no demo people seeded — signup_via_api should produce a demo tree; got {tree}"
@@ -30,11 +31,10 @@ def test_canonical_name_assembled_from_split_fields(owner_user, tenant_client):
 
     payload = {"surname": "Иванов", "given_name": "Иван", "patronymic": "Петрович"}
     r = api.patch(API.person(pid), json=payload)
-    assert r.status_code == 200, \
-        f"PATCH {API.person(pid)} failed (status={r.status_code}): {r.text[:300]}"
+    expect_response(r, label=f"PATCH {API.person(pid)}").status(200)
 
     r = api.get(API.person(pid))
-    assert r.status_code == 200, r.text
+    expect_response(r, label="GET person").status(200)
     name = r.json().get("name") or ""
     for fragment in ("Иванов", "Иван", "Петрович"):
         assert fragment in name, f"canonical name missing '{fragment}': {name!r}"

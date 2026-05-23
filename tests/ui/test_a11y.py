@@ -22,6 +22,7 @@ from __future__ import annotations
 import pytest
 from playwright.sync_api import Page, expect
 
+from tests.pages.signup_page import SignupPage
 from tests.timeouts import TIMEOUTS
 
 
@@ -44,20 +45,21 @@ def test_signup_short_password_sets_aria_invalid(page: Page):
     # тест проверяет уровень `aria-invalid` который ставится только из
     # response-handler. Server-side валидация (zxcvbn-python score>=2) —
     # источник истины, который мы и тестируем.
+    signup = SignupPage(page)
     page.evaluate("document.getElementById('password').removeAttribute('minlength')")
-    page.locator("#email").fill("a11y-server@e2e.example.com")
-    page.locator("#password").fill("short")  # < 8 chars — server rejects
+    signup.email.fill("a11y-server@e2e.example.com")
+    signup.password.fill("short")  # < 8 chars — server rejects
     # Wave-9: privacy/cross-border объединены с terms_accepted.
-    page.locator("#agreeTerms").check()
+    signup.agree_terms.check()
 
     # Wait for server response, then check aria state.
     with page.expect_response("**/api/account/signup") as resp_info:
-        page.locator("#signupBtn").click()
+        signup.submit_btn.click()
     assert resp_info.value.status >= 400, (
         f"expected server validation error; got {resp_info.value.status}"
     )
 
-    expect(page.locator("#password")).to_have_attribute(
+    expect(signup.password).to_have_attribute(
         "aria-invalid", "true", timeout=TIMEOUTS.api_request * 1000
     )
 
@@ -69,5 +71,5 @@ def test_signup_honeypot_is_aria_hidden(page: Page):
     """
     page.goto("/signup")
     page.wait_for_load_state("domcontentloaded")
-    honeypot = page.locator("#website")
-    expect(honeypot).to_have_attribute("aria-hidden", "true")
+    signup = SignupPage(page)
+    expect(signup.honeypot).to_have_attribute("aria-hidden", "true")

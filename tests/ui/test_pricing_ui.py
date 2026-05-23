@@ -29,6 +29,8 @@ import httpx
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
+from tests.pages.pricing_page import PricingPage
+from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
@@ -40,7 +42,7 @@ from tests.timeouts import TIMEOUTS
 def test_public_tiers_endpoint_returns_four_paid_tiers(uvicorn_server: str):
     """TC-N2: GET /api/tiers/public должен отдавать 4 publik-тарифа в ₽."""
     r = httpx.get(f"{uvicorn_server}{API.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request)
-    assert r.status_code == 200
+    expect_response(r, label="GET /api/tiers/public").status(200)
     body = r.json()
     assert body.get("hidden") is False, "Default hide_pricing_ui=False — items должны быть"
     items = body["items"]
@@ -102,8 +104,8 @@ def test_public_tiers_sorted_by_price_ascending(uvicorn_server: str):
 def test_pricing_page_loads_html(page: Page):
     """TC-N1: GET /pricing.html → 200 + text/html."""
     r = page.goto("/pricing.html")
-    assert r is not None
-    assert r.status == 200
+    assert r is not None, "page.goto returned None (navigation failed)"
+    assert r.status == 200, f"GET /pricing.html: expected 200, got {r.status}"
     ct = (r.headers.get("content-type") or "").lower()
     assert "text/html" in ct, f"content-type={ct!r}"
 
@@ -116,8 +118,8 @@ def test_pricing_renders_four_cards(page: Page):
     page.goto("/pricing.html")
     page.wait_for_load_state("domcontentloaded", timeout=TIMEOUTS.pw_action_ms)
 
-    # Ждём что отрисовалось ровно 4 карточки (auto-wait через expect).
-    expect(page.locator(".pricing-card")).to_have_count(4)
+    pricing = PricingPage(page)
+    pricing.expect_cards_visible()
 
 
 def test_pricing_cards_have_non_empty_headings(page: Page):
@@ -128,12 +130,11 @@ def test_pricing_cards_have_non_empty_headings(page: Page):
     `display_name`, который зависит от locale.
     """
     page.goto("/pricing.html")
-    expect(page.locator(".pricing-card").first).to_be_visible()
+    pricing = PricingPage(page)
+    expect(pricing.cards().first).to_be_visible()
 
-    headings = page.locator(".pricing-card h2")
-    expect(headings).to_have_count(4)
-
-    found = [h.inner_text().strip() for h in headings.all()]
+    found = pricing.card_titles()
+    assert len(found) == 4, f"expected 4 card titles; got {len(found)}"
     assert all(found), f"Найдены пустые заголовки карточек: {found!r}"
     assert len(set(found)) == 4, (
         f"display_name на карточках должны быть уникальными; "
@@ -144,7 +145,8 @@ def test_pricing_cards_have_non_empty_headings(page: Page):
 def test_pricing_cards_show_rub_symbol(page: Page):
     """TC-N1: на странице должен быть символ ₽."""
     page.goto("/pricing.html")
-    expect(page.locator(".pricing-card").first).to_be_visible()
+    pricing = PricingPage(page)
+    expect(pricing.cards().first).to_be_visible()
     body_html = page.content()
     assert "₽" in body_html, \
         "Символа ₽ нет в HTML — pricing форматирование сломано"
@@ -173,16 +175,15 @@ def test_pricing_researcher_card_is_featured_by_position(
     )
 
     page.goto("/pricing.html")
-    expect(page.locator(".pricing-card").first).to_be_visible()
+    pricing = PricingPage(page)
+    expect(pricing.cards().first).to_be_visible()
 
-    cards = page.locator(".pricing-card")
-    expect(cards).to_have_count(len(items))
+    pricing.expect_cards_visible(len(items))
 
-    featured = page.locator(".pricing-card.featured")
-    expect(featured).to_have_count(1)
+    expect(pricing.featured).to_have_count(1)
 
     # Та же позиция, что и researcher в API-response.
-    researcher_card = cards.nth(researcher_idx)
+    researcher_card = pricing.cards().nth(researcher_idx)
     # to_have_class matches the full class attribute string, поэтому
     # regex substring `\\bfeatured\\b`.
     expect(researcher_card).to_have_class(re.compile(r"\bfeatured\b"))

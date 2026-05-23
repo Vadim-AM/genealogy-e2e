@@ -8,6 +8,7 @@ owner для photos и GEDCOM"). Now plain regression — auth_v2 owner
 from __future__ import annotations
 
 from tests.api_paths import API
+from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
@@ -15,10 +16,7 @@ def test_owner_can_export_gedcom_via_auth_v2(owner_user, tenant_client):
     """INV-GEDCOM-001 (export): auth_v2 owner получает 200 + GEDCOM body."""
     api = tenant_client(owner_user)
     r = api.get(API.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long)
-    assert r.status_code == 200, (
-        f"GEDCOM export not accessible to auth_v2 owner: "
-        f"{r.status_code} {r.text[:200]}"
-    )
+    expect_response(r, label="GEDCOM export auth_v2").status(200)
     # GEDCOM-формат начинается с '0 HEAD'. Response charset=utf-8
     # (см. test_owner_ui::test_owner_export_gedcom_returns_valid_dump),
     # так что r.text — корректно декодированная строка.
@@ -42,7 +40,4 @@ def test_owner_can_import_gedcom_via_auth_v2(owner_user, tenant_client):
         files={"file": ("import.ged", minimal_gedcom.encode("utf-8"), "application/octet-stream")},
         timeout=TIMEOUTS.api_long,
     )
-    assert r.status_code == 200, (
-        f"GEDCOM import not accessible to auth_v2 owner: "
-        f"{r.status_code} {r.text[:200]}"
-    )
+    expect_response(r, label="GEDCOM import auth_v2").status(200)

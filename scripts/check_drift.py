@@ -39,6 +39,7 @@ EXEMPT_RELPATHS = {
 # Path prefixes whose entire subtree is exempt (e.g. fixture plugin pkg).
 EXEMPT_PREFIXES = (
     "tests/_fixtures/",
+    "tests/_data/",
     "tests/fixtures/",
 )
 

@@ -30,18 +30,14 @@ latency может варьироваться. Тесты помечены `@pyt
 
 from __future__ import annotations
 
-import time
-
 import httpx
 import pytest
 
 from tests.api_paths import API
 from tests.constants import TestConfig, unique_email
+from tests.helpers.security.timing import ITERATIONS, RATIO_THRESHOLD, measure, ratio
 from tests.timeouts import TIMEOUTS
 
-
-_ITERATIONS = 30
-_RATIO_THRESHOLD = 2.0
 
 # Тесты затратные (60+ HTTP roundtrip'ов) и чувствительны к runner jitter,
 # но это не повод их скипать — timing-attack это security regression,
@@ -49,23 +45,6 @@ _RATIO_THRESHOLD = 2.0
 # (`pytest -m "not slow"` исключит), но по умолчанию запускаются вместе
 # с остальным suite.
 pytestmark = pytest.mark.slow
-
-
-def _measure(client: httpx.Client, reset_url: str, make_call) -> float:
-    """Single iteration: reset signup throttle, measure call duration."""
-    httpx.post(reset_url, timeout=TIMEOUTS.api_short).raise_for_status()
-    start = time.perf_counter()
-    make_call(client)
-    return time.perf_counter() - start
-
-
-def _ratio(slow_samples: list[float], fast_samples: list[float]) -> float:
-    """Median ratio (slow / fast). Median is robust to jitter outliers."""
-    s = sorted(slow_samples)
-    f = sorted(fast_samples)
-    p50_slow = s[len(s) // 2]
-    p50_fast = f[len(f) // 2]
-    return p50_slow / p50_fast if p50_fast > 0 else float("inf")
 
 
 def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_api):
@@ -100,17 +79,17 @@ def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_ap
         )
 
     with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
-        latencies_existing = [_measure(c, reset_url, call_existing) for _ in range(_ITERATIONS)]
-        latencies_new = [_measure(c, reset_url, call_new) for _ in range(_ITERATIONS)]
+        latencies_existing = [measure(c, reset_url, call_existing) for _ in range(ITERATIONS)]
+        latencies_new = [measure(c, reset_url, call_new) for _ in range(ITERATIONS)]
 
-    ratio = _ratio(latencies_new, latencies_existing)
-    p50_new_ms = sorted(latencies_new)[_ITERATIONS // 2] * 1000
-    p50_existing_ms = sorted(latencies_existing)[_ITERATIONS // 2] * 1000
+    ratio = ratio(latencies_new, latencies_existing)
+    p50_new_ms = sorted(latencies_new)[ITERATIONS // 2] * 1000
+    p50_existing_ms = sorted(latencies_existing)[ITERATIONS // 2] * 1000
 
-    assert ratio < _RATIO_THRESHOLD, (
+    assert ratio < RATIO_THRESHOLD, (
         f"signup timing leaks account existence: "
         f"new p50={p50_new_ms:.1f}ms, existing p50={p50_existing_ms:.1f}ms, "
-        f"ratio={ratio:.1f}× (must be <{_RATIO_THRESHOLD}×)"
+        f"ratio={ratio:.1f}× (must be <{RATIO_THRESHOLD}×)"
     )
 
 
@@ -142,16 +121,16 @@ def test_login_no_timing_account_enumeration(uvicorn_server: str, signup_via_api
         )
 
     with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
-        latencies_existing = [_measure(c, reset_url, call_existing_wrong_pwd) for _ in range(_ITERATIONS)]
-        latencies_nonexistent = [_measure(c, reset_url, call_nonexistent) for _ in range(_ITERATIONS)]
+        latencies_existing = [measure(c, reset_url, call_existing_wrong_pwd) for _ in range(ITERATIONS)]
+        latencies_nonexistent = [measure(c, reset_url, call_nonexistent) for _ in range(ITERATIONS)]
 
-    ratio = _ratio(latencies_existing, latencies_nonexistent)
-    p50_existing_ms = sorted(latencies_existing)[_ITERATIONS // 2] * 1000
-    p50_nonexistent_ms = sorted(latencies_nonexistent)[_ITERATIONS // 2] * 1000
+    ratio = ratio(latencies_existing, latencies_nonexistent)
+    p50_existing_ms = sorted(latencies_existing)[ITERATIONS // 2] * 1000
+    p50_nonexistent_ms = sorted(latencies_nonexistent)[ITERATIONS // 2] * 1000
 
-    assert ratio < _RATIO_THRESHOLD, (
+    assert ratio < RATIO_THRESHOLD, (
         f"login timing leaks account existence: "
         f"existing-wrong-pwd p50={p50_existing_ms:.1f}ms, "
         f"non-existent p50={p50_nonexistent_ms:.1f}ms, "
-        f"ratio={ratio:.1f}× (must be <{_RATIO_THRESHOLD}×)"
+        f"ratio={ratio:.1f}× (must be <{RATIO_THRESHOLD}×)"
     )

@@ -18,13 +18,10 @@ import threading
 
 import httpx
 
-from tests.constants import TestConfig
+from tests.settings import settings
 from tests.timeouts import set_playwright_default_expect_timeout
 
-# Shared secret for `/api/_test/*` endpoints (backend gates them with
-# `hmac.compare_digest` against `GENEALOGY_TEST_TOKEN`). Not set in
-# production → those endpoints return 503.
-_E2E_TEST_TOKEN = os.environ.get("E2E_TEST_TOKEN", TestConfig.TEST_TOKEN_DEFAULT)
+_E2E_TEST_TOKEN = settings.test_token
 
 # ── Per-client synthetic source IP (parallel pass only) ────────────────
 # Under xdist every worker hits the backend from the same host

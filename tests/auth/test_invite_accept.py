@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
+from tests.helpers.auth.auth_ui import auth_name
+
 from tests.api_paths import API
 from tests.constants import make_email
 from tests.messages import Invite, TestData, t
@@ -85,7 +87,7 @@ def test_invitee_clicks_open_tree_lands_on_tree_with_authed_indicator(
     open_link.click()
 
     page.wait_for_url("**/")
-    expect(page.locator("#authIndicator .auth-name")).to_have_text(
+    expect(auth_name(page)).to_have_text(
         TestData.DEFAULT_FULL_NAME
     )
     page.close()

@@ -20,6 +20,7 @@ from playwright.sync_api import Page
 
 from tests.api_paths import API
 from tests.constants import make_email
+from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
@@ -30,19 +31,14 @@ def test_bug_auth_001_authv2_owner_reads_enrichment(
     grant_ai_consent(owner_user)
     api = tenant_client(owner_user)
     r = api.get(API.TREE)
-    r.raise_for_status()
+    expect_response(r, label="tree").status_ok().json_has("people")
     people = r.json()["people"]
     assert people, f"new tenant must have demo people seeded; got: {r.json()}"
     pid = people[0]["id"]
 
     for path in (API.enrich_history(pid), API.enrich_acceptances(pid)):
         r = api.get(path)
-        assert r.status_code != 401, \
-            f"BUG-AUTH-001 regression: GET {path} → 401"
-        # 200 = success with data, 204 = empty list. Any other status
-        # means coverage regression — fail loudly.
-        assert r.status_code in (200, 204), \
-            f"unexpected status for {path}: {r.status_code} {r.text[:200]}"
+        expect_response(r, label=f"GET {path}").status(200, 204)
 
 
 def test_bug_auth_002_pageview_platform_session_no_500(owner_user, tenant_client):
@@ -56,8 +52,7 @@ def test_bug_auth_002_pageview_platform_session_no_500(owner_user, tenant_client
         API.ANALYTICS_LOG,
         json={"event": "page_view", "path": "/", "context": {"section": "tree"}},
     )
-    assert r.status_code == 200, \
-        f"BUG-AUTH-002 regression: status={r.status_code} body={r.text[:300]}"
+    expect_response(r, label="BUG-AUTH-002 analytics log").status(200)
 
 
 def test_bug_csrf_001_console_clean_on_signup(page: Page):
@@ -85,10 +80,13 @@ def test_bug_mt_001_site_config_is_per_tenant(signup_via_api, tenant_client):
     api_a = tenant_client(user_a)
     api_b = tenant_client(user_b)
 
-    api_a.patch(API.SITE_CONFIG, json={"site_name": "Tenant A Brand"}).raise_for_status()
+    expect_response(
+        api_a.patch(API.SITE_CONFIG, json={"site_name": "Tenant A Brand"}),
+        label="patch site config A",
+    ).status_ok()
 
     r = api_b.get(API.SITE_CONFIG)
-    r.raise_for_status()
+    expect_response(r, label="get site config B").status_ok()
     assert r.json()["site_name"] != "Tenant A Brand", \
         "BUG-MT-001: tenant A's config leaked into tenant B"
 
@@ -101,7 +99,7 @@ def test_bug_auth_003_sse_reconnect_recovers(
     grant_ai_consent(owner_user)
     api = tenant_client(owner_user)
     r = api.get(API.TREE)
-    r.raise_for_status()
+    expect_response(r, label="tree").status_ok().json_has("people")
     people = r.json()["people"]
     assert people, "new tenant must have demo people seeded"
     pid = people[0]["id"]
@@ -111,15 +109,11 @@ def test_bug_auth_003_sse_reconnect_recovers(
         json={"streaming": True, "force_refresh": False},
         timeout=TIMEOUTS.api_long,
     )
-    assert r1.status_code == 200, \
-        f"first enrich POST failed: {r1.status_code} {r1.text[:200]}"
+    expect_response(r1, label="first enrich POST").status(200)
 
     r2 = api.post(
         API.enrich(pid),
         json={"streaming": True, "force_refresh": False},
         timeout=TIMEOUTS.api_long,
     )
-    assert r2.status_code != 409, \
-        f"BUG-AUTH-003 regression on reconnect: {r2.text[:200]}"
-    assert r2.status_code == 200, \
-        f"reconnect failed: {r2.status_code} {r2.text[:200]}"
+    expect_response(r2, label="BUG-AUTH-003 reconnect").status(200)

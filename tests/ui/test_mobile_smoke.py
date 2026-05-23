@@ -17,49 +17,19 @@ from typing import Iterator
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Page, expect
 
+from tests._data.devices.descriptors import DEVICE_DESCRIPTORS
 from tests.api_paths import API
+from tests.pages.signup_page import SignupPage
 from tests.timeouts import TIMEOUTS
 
 
-# Каноничный набор устройств: один iOS-like Safari + один Android Chrome.
-# Дескрипторы хардкоднуты (snapshot из `playwright.sync_api.sync_playwright().devices`,
-# Playwright 1.40+) — раньше fixture использовала `with sync_playwright() as p:
-# p.devices[name]` внутри pytest-playwright контекста, что роняло тест с
-# `Playwright Sync API inside the asyncio loop`. Хардкод стабильнее
-# (Playwright обновляет UA-строки между релизами, нам пофиг для smoke).
-#
-# `default_browser_type` исключён — pytest-playwright контролирует браузер
-# через `--browser` flag, а наш chromium-only не запускает webkit
-# параллельно.
-_DEVICE_DESCRIPTORS = {
-    "iPhone 13": {
-        "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) "
-                      "AppleWebKit/605.1.15 (KHTML, like Gecko) "
-                      "Version/15.0 Mobile/15E148 Safari/604.1",
-        "viewport": {"width": 390, "height": 664},
-        "device_scale_factor": 3,
-        "is_mobile": True,
-        "has_touch": True,
-    },
-    "Pixel 7": {
-        "user_agent": "Mozilla/5.0 (Linux; Android 14; Pixel 7) "
-                      "AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/120.0.0.0 Mobile Safari/537.36",
-        "viewport": {"width": 412, "height": 839},
-        "device_scale_factor": 2.625,
-        "is_mobile": True,
-        "has_touch": True,
-    },
-}
-
-
-@pytest.fixture(params=list(_DEVICE_DESCRIPTORS), ids=list(_DEVICE_DESCRIPTORS))
+@pytest.fixture(params=list(DEVICE_DESCRIPTORS), ids=list(DEVICE_DESCRIPTORS))
 def mobile_context(
     request, browser: Browser, base_url: str
 ) -> Iterator[BrowserContext]:
     """Per-device context. Виртуальное устройство задаёт viewport, UA,
     deviceScaleFactor, hasTouch, isMobile."""
-    device_descriptor = _DEVICE_DESCRIPTORS[request.param]
+    device_descriptor = DEVICE_DESCRIPTORS[request.param]
     ctx = browser.new_context(
         **device_descriptor,
         base_url=base_url,
@@ -153,16 +123,17 @@ def test_signup_form_submittable_on_mobile(
     mobile_page.goto("/signup")
     mobile_page.wait_for_load_state("domcontentloaded")
 
+    signup = SignupPage(mobile_page)
     email = "mobile-smoke@e2e.local"
-    mobile_page.locator("#email").fill(email)
-    mobile_page.locator("#password").fill("Hunter22StrongMobile!")
+    signup.email.fill(email)
+    signup.password.fill("Hunter22StrongMobile!")
     # Wave-9: privacy/cross-border объединены с terms_accepted; форма
     # имеет один `#agreeTerms`.
-    mobile_page.locator("#agreeTerms").check()
+    signup.agree_terms.check()
 
     # Submit-кнопка должна быть видна и enabled. На мобайле она должна
     # быть достаточного размера для touch (~44px высоты).
-    submit = mobile_page.locator("#signupBtn")
+    submit = signup.submit_btn
     expect(submit).to_be_visible()
     expect(submit).to_be_enabled()
     box = submit.bounding_box()

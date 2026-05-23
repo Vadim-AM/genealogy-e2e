@@ -16,45 +16,16 @@ os.environ через дополнительный test endpoint.
 
 from __future__ import annotations
 
-import json
 import re
 
-from playwright.sync_api import Page, expect, Route
+from playwright.sync_api import Page, expect
 
-from tests.constants import TestConfig, unique_email
+from tests.constants import unique_email
+from tests.helpers.auth.signup_helpers import mock_signup_overflow, fill_and_submit
+from tests.messages import Waitlist, t
 
 
 _IS_OPEN = re.compile(r"\bis-open\b")
-
-
-def _mock_signup_overflow(page: Page, *, email: str, subscribed: bool = True) -> None:
-    """Перехватить POST /api/account/signup и вернуть waitlist_required.
-
-    Frontend (signup.html:515) смотрит на `j.status === 'waitlist_required'`
-    → openWaitlistModal({email, subscribed: !!j.waitlist_subscribed}).
-    """
-
-    def handler(route: Route) -> None:
-        route.fulfill(
-            status=200,
-            content_type="application/json",
-            body=json.dumps({
-                "status": "waitlist_required",
-                "email": email,
-                "waitlist_subscribed": subscribed,
-            }),
-        )
-
-    page.route("**/api/account/signup", handler)
-
-
-def _fill_and_submit(page: Page, email: str) -> None:
-    page.locator("#email").fill(email)
-    page.locator("#password").fill(TestConfig.DEFAULT_PASSWORD)
-    # Wave-9: privacy/cross-border объединены с terms_accepted; в форме
-    # остался только `#agreeTerms`.
-    page.locator("#agreeTerms").check()
-    page.locator("#signupBtn").click()
 
 
 def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page):
@@ -69,14 +40,14 @@ def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page):
     test_email = unique_email("overflow-modal")
     page.goto("/signup")
     page.wait_for_load_state("domcontentloaded")
-    _mock_signup_overflow(page, email=test_email)
-    _fill_and_submit(page, test_email)
+    mock_signup_overflow(page, email=test_email)
+    fill_and_submit(page, test_email)
 
     overlay = page.locator("#waitlistOverlay")
     expect(overlay).to_have_class(_IS_OPEN)
-    expect(page.locator("#waitlistTitle")).to_contain_text("Сейчас принимаем не всех")
+    expect(page.locator("#waitlistTitle")).to_contain_text(t(Waitlist.OVERFLOW_TITLE))
     expect(page.locator("#waitlistBody2")).to_contain_text(test_email)
-    expect(page.locator("#waitlistBody2")).to_contain_text("список ожидания")
+    expect(page.locator("#waitlistBody2")).to_contain_text(t(Waitlist.WAITLIST_KEYWORD))
 
 
 def test_waitlist_modal_ok_button_redirects_to_landing(page: Page):
@@ -86,8 +57,8 @@ def test_waitlist_modal_ok_button_redirects_to_landing(page: Page):
     test_email = unique_email("overflow-ok")
     page.goto("/signup")
     page.wait_for_load_state("domcontentloaded")
-    _mock_signup_overflow(page, email=test_email)
-    _fill_and_submit(page, test_email)
+    mock_signup_overflow(page, email=test_email)
+    fill_and_submit(page, test_email)
 
     expect(page.locator("#waitlistOverlay")).to_have_class(_IS_OPEN)
     page.locator("#waitlistOk").click()
@@ -102,8 +73,8 @@ def test_waitlist_modal_esc_closes_without_redirect(page: Page):
     test_email = unique_email("overflow-esc")
     page.goto("/signup")
     page.wait_for_load_state("domcontentloaded")
-    _mock_signup_overflow(page, email=test_email)
-    _fill_and_submit(page, test_email)
+    mock_signup_overflow(page, email=test_email)
+    fill_and_submit(page, test_email)
 
     overlay = page.locator("#waitlistOverlay")
     expect(overlay).to_have_class(_IS_OPEN)
@@ -123,8 +94,8 @@ def test_waitlist_modal_shows_wait_link_when_auto_subscribe_failed(page: Page):
     test_email = unique_email("overflow-fallback")
     page.goto("/signup")
     page.wait_for_load_state("domcontentloaded")
-    _mock_signup_overflow(page, email=test_email, subscribed=False)
-    _fill_and_submit(page, test_email)
+    mock_signup_overflow(page, email=test_email, subscribed=False)
+    fill_and_submit(page, test_email)
 
     expect(page.locator("#waitlistOverlay")).to_have_class(_IS_OPEN)
     fallback_link = page.locator('#waitlistBody2 a[href*="/wait"]')

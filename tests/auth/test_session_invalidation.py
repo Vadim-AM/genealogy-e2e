@@ -16,38 +16,8 @@
 
 from __future__ import annotations
 
-import httpx
-
-from tests.api_paths import API
 from tests.constants import unique_email
-from tests.timeouts import TIMEOUTS
-
-NEW_PASSWORD = "NewPassword_After_Reset_2026"
-
-
-def _me_status(base_url: str, cookies: dict[str, str]) -> int:
-    return httpx.get(
-        f"{base_url}{API.ACCOUNT_ME}",
-        cookies=cookies,
-        timeout=TIMEOUTS.api_request,
-    ).status_code
-
-
-def _trigger_password_reset(
-    base_url: str, *, email: str, new_password: str, read_email_token,
-) -> None:
-    """forgot-password → read token from mail → reset-password."""
-    httpx.post(
-        f"{base_url}{API.FORGOT_PASSWORD}",
-        json={"email": email},
-        timeout=TIMEOUTS.api_request,
-    ).raise_for_status()
-    token = read_email_token(email)
-    httpx.post(
-        f"{base_url}{API.RESET_PASSWORD}",
-        json={"token": token, "new_password": new_password},
-        timeout=TIMEOUTS.api_request,
-    ).raise_for_status()
+from tests.helpers.auth.session_helpers import NEW_PASSWORD, me_status, trigger_password_reset
 
 
 def test_password_reset_invalidates_active_session(
@@ -62,14 +32,15 @@ def test_password_reset_invalidates_active_session(
     user = signup_via_api(email=email)
 
     # Sanity: сессия активна сразу после signup.
-    assert _me_status(base_url, user.cookies) == 200
+    assert me_status(base_url, user.cookies) == 200, \
+        "session must be active immediately after signup"
 
-    _trigger_password_reset(
+    trigger_password_reset(
         base_url, email=email, new_password=NEW_PASSWORD,
         read_email_token=read_email_token,
     )
 
-    after = _me_status(base_url, user.cookies)
+    after = me_status(base_url, user.cookies)
     assert after == 401, (
         f"INV-AUTH-001 regression: stolen session NOT invalidated after "
         f"password reset. Cookie still returns {after}. Defeats the "
@@ -96,15 +67,17 @@ def test_password_reset_invalidates_all_devices_sessions(
     device_b_cookies = login_existing(email)
 
     # Sanity: обе валидны.
-    assert _me_status(base_url, device_a_cookies) == 200
-    assert _me_status(base_url, device_b_cookies) == 200
+    assert me_status(base_url, device_a_cookies) == 200, \
+        "device A session must be active before reset"
+    assert me_status(base_url, device_b_cookies) == 200, \
+        "device B session must be active before reset"
 
-    _trigger_password_reset(
+    trigger_password_reset(
         base_url, email=email, new_password=NEW_PASSWORD,
         read_email_token=read_email_token,
     )
 
-    a_after = _me_status(base_url, device_a_cookies)
+    a_after = me_status(base_url, device_a_cookies)
     assert a_after == 401, (
         f"INV-MULTIDEVICE-001a regression: device A session NOT "
         f"invalidated after reset initiated elsewhere. Cookie "

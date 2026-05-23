@@ -41,7 +41,9 @@ def test_dashboard_has_feature_flags_section(auth_context_factory, superadmin_us
     ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
     page = ctx.new_page()
     r = page.goto("/platform/dashboard")
-    assert r is not None and r.status == 200
+    assert r is not None and r.status == 200, (
+        f"/platform/dashboard navigation failed: response={r and r.status}"
+    )
 
     # Дашборд может быть тяжёлым — ждём что секция вообще появилась
     section = page.locator("#feature_flags_section")
@@ -108,7 +110,10 @@ def test_ai_search_toggle_visible(auth_context_factory, superadmin_user):
     toggle = page.locator("#ff_enable_ai_search")
     expect(toggle).to_be_visible()
     # checkbox имеет правильный data-flag атрибут (используется JS-слоем)
-    assert toggle.get_attribute("data-flag") == "enable_ai_search"
+    assert toggle.get_attribute("data-flag") == "enable_ai_search", (
+        f"toggle data-flag mismatch: expected 'enable_ai_search', "
+        f"got {toggle.get_attribute('data-flag')!r}"
+    )
 
 
 def test_ai_search_toggle_reflects_db_value_when_off(

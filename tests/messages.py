@@ -21,10 +21,10 @@ useful for assertions on visible copy (warning messages, error texts).
 
 from __future__ import annotations
 
-import os
+from tests.settings import settings
 
 
-_LOCALE = os.environ.get("E2E_LOCALE", "ru")
+_LOCALE = settings.locale
 
 
 class _Catalogue:
@@ -48,6 +48,7 @@ class Buttons(_Catalogue):
     ACCEPT = {"ru": "Принять", "en": "Accept"}
     REJECT = {"ru": "Отклонить", "en": "Reject"}
     ENRICH = {"ru": "Найти больше", "en": "Find more"}
+    ADD = {"ru": "Добавить", "en": "Add"}
 
 
 class Links(_Catalogue):
@@ -87,7 +88,7 @@ class Invite(_Catalogue):
     # The login-prompt path now only fires for an *email-less* invite
     # (401): "Это приглашение требует входа."
     LOGIN_REQUIRED_MSG = {"ru": "требует входа", "en": "requires sign-in"}
-    LOGIN_LINK = {"ru": "Войти", "en": "Sign in"}
+    LOGIN_LINK = Buttons.LOGIN
     SIGNUP_LINK = {"ru": "зарегистрироваться", "en": "sign up"}
 
 
@@ -129,6 +130,10 @@ class Enrichment(_Catalogue):
 
     # okLabel of the revert promptDialog (view-mode.js:268).
     REVERT_OK = {"ru": "Снять", "en": "Remove"}
+    # Tooltip on disabled AI button when platform flag is off.
+    BETA_KEYWORD = {"ru": "публичной бете", "en": "public beta"}
+    # Disabled-button marker text (enrichment is "coming soon").
+    COMING_SOON = {"ru": "скоро", "en": "soon"}
 
 
 class Mfa(_Catalogue):
@@ -178,6 +183,13 @@ class TestData(_Catalogue):
     # Default `full_name` used by `signup_via_api` — also becomes the
     # tenant's display_name and the demo-self person's name.
     DEFAULT_FULL_NAME = "Тестовый Пользователь"
+    # Fixture surname/given for add-relative tests — used as input AND
+    # as assertion target (search the created person in the tree).
+    ADD_REL_SURNAME = "Тестовый"
+    ADD_REL_GIVEN = "Брат"
+    # Source CRUD fixture data.
+    SOURCE_NAME = "Архив 1"
+    SOURCE_NAME_PATCHED = "Архив 1 (испр.)"
 
 
 class GedcomImport(_Catalogue):
@@ -198,6 +210,39 @@ class AgeValidation(_Catalogue):
     """Substring match for backend's parent-age validation error."""
 
     PARENT_AGE_KEYWORD = {"ru": "Возраст родителя", "en": "Parent age"}
+
+
+class Waitlist(_Catalogue):
+    """Strings on the waitlist/overflow modal (signup.html)."""
+
+    OVERFLOW_TITLE = {"ru": "Сейчас принимаем не всех", "en": "Not accepting everyone"}
+    WAITLIST_KEYWORD = {"ru": "список ожидания", "en": "waiting list"}
+
+
+class ConfirmDialog(_Catalogue):
+    """Keyword fragments in the delete-person confirm modal."""
+
+    IRREVERSIBLE = {"ru": "необратим", "en": "irreversible"}
+    RELATIONS_KEYWORD = {"ru": "связ", "en": "relat"}
+
+
+class RelationLabels(_Catalogue):
+    """Orbit-card relation labels (parent role by gender)."""
+
+    FATHER = {"ru": "отец", "en": "father"}
+    MOTHER = {"ru": "мать", "en": "mother"}
+
+
+class Placeholders(_Catalogue):
+    """Placeholder text on input fields."""
+
+    SEARCH = {"ru": "Поиск", "en": "Search"}
+
+
+class AboutTab(_Catalogue):
+    """Strings on the about-tab placeholder."""
+
+    FAMILY_TREE_KEYWORD = {"ru": "семейное древо", "en": "family tree"}
 
 
 # ─────────────────────────────────────────────────────────────────────────

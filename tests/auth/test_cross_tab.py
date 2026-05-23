@@ -21,7 +21,8 @@ def test_logout_invalidates_session_across_tabs(owner_user, tenant_client):
 
     me1 = tab1.get(API.ACCOUNT_ME)
     me1.raise_for_status()
-    assert me1.json()["tenant"]["slug"] == owner_user.slug
+    assert me1.json()["tenant"]["slug"] == owner_user.slug, \
+        f"session should belong to {owner_user.slug!r}, got {me1.json()['tenant']['slug']!r}"
 
     logout = tab0.post(API.LOGOUT)
     assert logout.status_code == 200, \

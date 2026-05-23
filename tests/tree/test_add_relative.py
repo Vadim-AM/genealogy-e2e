@@ -28,18 +28,14 @@ def test_add_sibling_via_profile_creates_person_and_relationship(
     tree_before.raise_for_status()
     count_before = len(tree_before.json()["people"])
 
-    owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-    owner_page.wait_for_load_state("domcontentloaded")
-
-    panel = ProfilePanel(owner_page)
-    panel.expect_visible()
+    panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
     panel.click_add_sibling()
 
     modal = AddRelativeModal(owner_page)
     modal.expect_visible()
 
     with owner_page.expect_response("**/api/people**") as resp_info:
-        modal.fill_and_save(surname="Тестовый", given="Брат")
+        modal.fill_and_save(surname=TestData.ADD_REL_SURNAME, given=TestData.ADD_REL_GIVEN)
     create_response = resp_info.value
     assert create_response.ok, \
         f"POST /api/people failed: {create_response.status} {create_response.text()[:200]}"
@@ -53,5 +49,5 @@ def test_add_sibling_via_profile_creates_person_and_relationship(
         f"expected exactly one new person; before={count_before}, after={len(people_after)}"
 
     new_names = {p["name"] for p in people_after}
-    assert any("Тестовый" in n and "Брат" in n for n in new_names), \
-        f"new sibling 'Тестовый Брат' not in tree names: {new_names}"
+    assert any(TestData.ADD_REL_SURNAME in n and TestData.ADD_REL_GIVEN in n for n in new_names), \
+        f"new sibling not in tree names: {new_names}"

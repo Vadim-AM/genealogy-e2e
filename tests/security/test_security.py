@@ -11,6 +11,7 @@ import re
 import httpx
 import pytest
 
+from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
@@ -39,15 +40,13 @@ def test_anonymous_get_returns_401_on_private_endpoints(base_url: str, endpoint:
     showcase) — those are tested separately in `test_landing.py`.
     """
     r = httpx.get(f"{base_url}{endpoint}", timeout=TIMEOUTS.api_request)
-    assert r.status_code == 401, \
-        f"GET {endpoint} returned {r.status_code} {r.text[:200]} (expected 401)"
+    expect_response(r, label=f"GET {endpoint}").status(401)
 
 
 def test_anonymous_get_tree_returns_200_minimal_showcase(base_url: str):
     """TC-SEC-1 inverse: /api/tree IS public — guest sees the showcase tree."""
     r = httpx.get(f"{base_url}/api/tree", timeout=TIMEOUTS.api_request)
-    assert r.status_code == 200, \
-        f"GET /api/tree returned {r.status_code} (must be public 200)"
+    expect_response(r, label="GET /api/tree (public)").status(200)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -106,7 +105,7 @@ def test_landing_html_has_no_inline_event_handlers(base_url: str):
     регрессия BUG-SEC-002 sweep.
     """
     r = httpx.get(f"{base_url}/", timeout=TIMEOUTS.api_request)
-    r.raise_for_status()
+    expect_response(r, label="GET /").status_ok()
     html = r.text
 
     # Match `on<lowercase-ident>=` as HTML attribute (whitespace before,

@@ -13,22 +13,11 @@ pre-wired с base_url + cookies + slug header. Никаких raw httpx-
 
 from __future__ import annotations
 
-import pytest
-
+from tests._data.payloads.tree import parent_rel, person_payload
 from tests.api_paths import API
 from tests.constants import unique_email
 from tests.messages import TestData
-
-
-def _parent_rel(parent_id: str, child_id: str) -> dict:
-    """Schema: `type=parent`, person1=parent, person2=child (directional)."""
-    return {"type": "parent", "person1_id": parent_id, "person2_id": child_id}
-
-
-def _person_payload(id: str, name: str, **extra) -> dict:
-    base = {"id": id, "name": name, "branch": "paternal", "gender": "m"}
-    base.update(extra)
-    return base
+from tests.response import expect_response
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -46,9 +35,7 @@ def test_patch_person_death_before_birth_is_422(owner_user, tenant_client):
         API.person(TestData.DEMO_PERSON_ID),
         json={"birth": "1920", "death": "1900"},
     )
-    assert r.status_code in (400, 422), (
-        f"death(1900) before birth(1920) accepted: {r.status_code} {r.text[:200]}"
-    )
+    expect_response(r, label="death before birth").status(400, 422)
 
 
 def test_patch_parent_birth_after_child_is_422(signup_via_api, tenant_client):
@@ -60,19 +47,16 @@ def test_patch_parent_birth_after_child_is_422(signup_via_api, tenant_client):
     user = signup_via_api(email=unique_email("dom004"))
     api = tenant_client(user)
 
-    api.post(API.PEOPLE, json=_person_payload(
+    api.post(API.PEOPLE, json=person_payload(
         "dom004-child", "Ребёнок", branch="subject", birth="1985"
     )).raise_for_status()
-    api.post(API.PEOPLE, json=_person_payload(
+    api.post(API.PEOPLE, json=person_payload(
         "dom004-parent", "Родитель", birth="1960"
     )).raise_for_status()
-    api.post(API.RELATIONSHIPS, json=_parent_rel("dom004-parent", "dom004-child")).raise_for_status()
+    api.post(API.RELATIONSHIPS, json=parent_rel("dom004-parent", "dom004-child")).raise_for_status()
 
     r = api.patch(API.person("dom004-parent"), json={"birth": "2000"})
-    assert r.status_code in (400, 422), (
-        f"parent.birth(2000) > child.birth(1985) accepted: "
-        f"{r.status_code} {r.text[:200]}"
-    )
+    expect_response(r, label="parent birth after child").status(400, 422)
 
 
 def test_patch_person_garbage_birth_is_422(owner_user, tenant_client):
@@ -86,9 +70,7 @@ def test_patch_person_garbage_birth_is_422(owner_user, tenant_client):
         API.person(TestData.DEMO_PERSON_ID),
         json={"birth": "foobar"},
     )
-    assert r.status_code in (400, 422), (
-        f"garbage birth='foobar' accepted: {r.status_code} {r.text[:200]}"
-    )
+    expect_response(r, label="garbage birth value").status(400, 422)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -104,17 +86,15 @@ def test_third_parent_relationship_is_rejected(signup_via_api, tenant_client):
     user = signup_via_api(email=unique_email("dom002"))
     api = tenant_client(user)
 
-    api.post(API.PEOPLE, json=_person_payload("dom002-child", "Ребёнок", branch="subject")).raise_for_status()
+    api.post(API.PEOPLE, json=person_payload("dom002-child", "Ребёнок", branch="subject")).raise_for_status()
     for pid, pname in (("dom002-p1", "Родитель-1"), ("dom002-p2", "Родитель-2"), ("dom002-p3", "Родитель-3")):
-        api.post(API.PEOPLE, json=_person_payload(pid, pname)).raise_for_status()
+        api.post(API.PEOPLE, json=person_payload(pid, pname)).raise_for_status()
 
-    api.post(API.RELATIONSHIPS, json=_parent_rel("dom002-p1", "dom002-child")).raise_for_status()
-    api.post(API.RELATIONSHIPS, json=_parent_rel("dom002-p2", "dom002-child")).raise_for_status()
+    api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p1", "dom002-child")).raise_for_status()
+    api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p2", "dom002-child")).raise_for_status()
 
-    r = api.post(API.RELATIONSHIPS, json=_parent_rel("dom002-p3", "dom002-child"))
-    assert r.status_code in (400, 409, 422), (
-        f"3rd parent accepted: {r.status_code} {r.text[:200]}"
-    )
+    r = api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p3", "dom002-child"))
+    expect_response(r, label="3rd parent").status(400, 409, 422)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -130,15 +110,13 @@ def test_parent_cycle_is_rejected(signup_via_api, tenant_client):
     user = signup_via_api(email=unique_email("dom003"))
     api = tenant_client(user)
 
-    api.post(API.PEOPLE, json=_person_payload("dom003-a", "Цикл-A")).raise_for_status()
-    api.post(API.PEOPLE, json=_person_payload("dom003-b", "Цикл-B")).raise_for_status()
+    api.post(API.PEOPLE, json=person_payload("dom003-a", "Цикл-A")).raise_for_status()
+    api.post(API.PEOPLE, json=person_payload("dom003-b", "Цикл-B")).raise_for_status()
 
-    api.post(API.RELATIONSHIPS, json=_parent_rel("dom003-a", "dom003-b")).raise_for_status()
+    api.post(API.RELATIONSHIPS, json=parent_rel("dom003-a", "dom003-b")).raise_for_status()
 
-    r2 = api.post(API.RELATIONSHIPS, json=_parent_rel("dom003-b", "dom003-a"))
-    assert r2.status_code in (400, 409, 422), (
-        f"parent-cycle B→A→B accepted: {r2.status_code} {r2.text[:200]}"
-    )
+    r2 = api.post(API.RELATIONSHIPS, json=parent_rel("dom003-b", "dom003-a"))
+    expect_response(r2, label="parent cycle B->A->B").status(400, 409, 422)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -153,9 +131,7 @@ def test_subject_cannot_be_demoted_to_demo_branch(owner_user, tenant_client):
     """
     api = tenant_client(owner_user)
     r = api.patch(API.person(TestData.DEMO_PERSON_ID), json={"branch": "demo"})
-    assert r.status_code in (400, 409, 422), (
-        f"subject root demoted to branch=demo: {r.status_code} {r.text[:200]}"
-    )
+    expect_response(r, label="subject demoted to demo").status(400, 409, 422)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -175,16 +151,15 @@ def test_delete_non_root_person_with_relationship_does_not_500(
     user = signup_via_api(email=unique_email("cascade"))
     api = tenant_client(user)
 
-    api.post(API.PEOPLE, json=_person_payload("cascade-child", "Ребёнок", branch="subject")).raise_for_status()
-    api.post(API.PEOPLE, json=_person_payload("cascade-parent", "Родитель")).raise_for_status()
-    api.post(API.RELATIONSHIPS, json=_parent_rel("cascade-parent", "cascade-child")).raise_for_status()
+    api.post(API.PEOPLE, json=person_payload("cascade-child", "Ребёнок", branch="subject")).raise_for_status()
+    api.post(API.PEOPLE, json=person_payload("cascade-parent", "Родитель")).raise_for_status()
+    api.post(API.RELATIONSHIPS, json=parent_rel("cascade-parent", "cascade-child")).raise_for_status()
 
     r = api.delete(API.person("cascade-parent"))
-    assert r.status_code != 500, (
-        f"DELETE /api/people/cascade-parent crashed 500 — cascade not "
-        f"handled. Body: {r.text[:300]}"
+    assert r.status_code < 500, (
+        f"DELETE /api/people/cascade-parent crashed {r.status_code} — "
+        f"cascade not handled. Body: {r.text[:300]}"
     )
-    assert r.status_code < 500, f"unexpected 5xx: {r.status_code}"
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -203,19 +178,13 @@ def test_relationship_with_orphan_person_id_returns_404_not_500(
     user = signup_via_api(email=unique_email("txn001"))
     api = tenant_client(user)
 
-    api.post(API.PEOPLE, json=_person_payload("txn001-real", "Реальный")).raise_for_status()
+    api.post(API.PEOPLE, json=person_payload("txn001-real", "Реальный")).raise_for_status()
 
     r = api.post(
         API.RELATIONSHIPS,
         json={"type": "parent", "person1_id": "txn001-real", "person2_id": "NONEXIST-ORPHAN-ID"},
     )
-    assert r.status_code != 500, (
-        f"POST /api/relationships with orphan FK crashed 500. "
-        f"Body: {r.text[:300]}"
-    )
-    assert r.status_code in (400, 404, 422), (
-        f"orphan FK should return 4xx, got {r.status_code} {r.text[:200]}"
-    )
+    expect_response(r, label="orphan FK relationship").status(400, 404, 422)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -233,10 +202,7 @@ def test_patch_person_huge_notes_is_rejected(owner_user, tenant_client):
         API.person(TestData.DEMO_PERSON_ID),
         json={"notes": "X" * (50 * 1024)},  # 50 KB
     )
-    assert r.status_code in (400, 413, 422), (
-        f"PATCH with 50KB notes accepted (status={r.status_code}) — "
-        f"no upper-bound on text fields, DB inflation vector."
-    )
+    expect_response(r, label="50KB notes rejected").status(400, 413, 422)
 
 
 def test_patch_person_huge_surname_is_rejected(owner_user, tenant_client):
@@ -249,6 +215,4 @@ def test_patch_person_huge_surname_is_rejected(owner_user, tenant_client):
         API.person(TestData.DEMO_PERSON_ID),
         json={"surname": "А" * 5_000},
     )
-    assert r.status_code in (400, 413, 422), (
-        f"PATCH with 5K-char surname accepted (status={r.status_code})."
-    )
+    expect_response(r, label="5K-char surname rejected").status(400, 413, 422)

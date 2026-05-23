@@ -9,6 +9,7 @@ from __future__ import annotations
 import httpx
 
 from tests.api_paths import API
+from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
@@ -28,7 +29,7 @@ def test_subscription_usage_shape_for_free_owner(owner_user, tenant_client):
     """TC-AI-2: /api/subscription/usage returns the canonical free-tier shape."""
     api = tenant_client(owner_user)
     r = api.get(API.SUBSCRIPTION_USAGE_LEGACY)
-    r.raise_for_status()
+    expect_response(r, label="GET subscription/usage").status_ok()
     data = r.json()
 
     missing = REQUIRED_KEYS - set(data.keys())
@@ -39,13 +40,14 @@ def test_subscription_usage_shape_for_free_owner(owner_user, tenant_client):
         f"free tier limit per docs/test-plan.md is 3, got {data['limit']}"
     assert data["used"] == 0, f"new owner must have 0 used, got {data['used']}"
     assert data["remaining"] == 3, f"new owner must have 3 remaining, got {data['remaining']}"
-    assert data["exhausted"] is False
+    assert data["exhausted"] is False, \
+        f"new owner must not be exhausted, got {data['exhausted']!r}"
     # `soft_warn` is True when remaining/limit < 0.2 — a fresh owner is well above.
-    assert data["soft_warn"] is False
+    assert data["soft_warn"] is False, \
+        f"new owner must not have soft_warn, got {data['soft_warn']!r}"
 
 
 def test_subscription_usage_requires_auth(base_url: str):
     """Anonymous request to /api/subscription/usage → 401."""
     r = httpx.get(f"{base_url}{API.SUBSCRIPTION_USAGE_LEGACY}", timeout=TIMEOUTS.api_request)
-    assert r.status_code == 401, \
-        f"anon got {r.status_code} on {API.SUBSCRIPTION_USAGE_LEGACY} (expected 401)"
+    expect_response(r, label="anon subscription/usage").status(401)

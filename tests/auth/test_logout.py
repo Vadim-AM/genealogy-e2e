@@ -12,22 +12,10 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
+from tests.helpers.auth.auth_ui import auth_indicator, auth_name, logout_link, login_link
 from tests.messages import TestData
 from tests.pages.base import wait_for_authed_shell
 from tests.pages.login_page import LoginPage
-
-
-def _auth_indicator(page: Page):
-    return page.locator("#authIndicator")
-
-
-def _logout_link(page: Page):
-    return _auth_indicator(page).locator('a[data-action="logout"]')
-
-
-def _login_link(page: Page):
-    """Guest indicator renders `<a href="/login">Войти</a>` (см. auth-ui.js)."""
-    return _auth_indicator(page).locator('a[href="/login"]')
 
 
 def test_owner_clicks_logout_link_and_indicator_switches_to_guest(
@@ -50,9 +38,9 @@ def test_owner_clicks_logout_link_and_indicator_switches_to_guest(
     # (test_user_relogins, 2026-05-19). wait_for_authed_shell settles it.
     wait_for_authed_shell(owner_page)
 
-    indicator = _auth_indicator(owner_page)
-    expect(indicator.locator(".auth-name")).to_have_text(TestData.DEFAULT_FULL_NAME)
-    expect(_logout_link(owner_page)).to_be_visible()
+    indicator = auth_indicator(owner_page)
+    expect(auth_name(owner_page)).to_have_text(TestData.DEFAULT_FULL_NAME)
+    expect(logout_link(owner_page)).to_be_visible()
 
     # Authed: map tab visible (CSS display reset из updateGuestUI).
     map_tab_before = owner_page.locator('[data-tab="map"]')
@@ -61,11 +49,11 @@ def test_owner_clicks_logout_link_and_indicator_switches_to_guest(
     with owner_page.expect_response(
         lambda r: "/api/account/logout" in r.url and r.request.method == "POST"
     ):
-        _logout_link(owner_page).click()
+        logout_link(owner_page).click()
 
     # Guest indicator появляется после updateAuthIndicator.
-    expect(_login_link(owner_page)).to_be_visible()
-    expect(indicator.locator(".auth-name")).to_have_count(0)
+    expect(login_link(owner_page)).to_be_visible()
+    expect(auth_name(owner_page)).to_have_count(0)
 
     # updateGuestUI hides auth-only tabs — visibility=false (style.display='none').
     expect(map_tab_before).to_be_hidden()
@@ -91,12 +79,12 @@ def test_user_relogins_via_form_lands_in_same_tenant(
     # the click fired no POST and `expect_response` timed out 30s
     # (test_user_relogins, 2026-05-19). wait_for_authed_shell settles it.
     wait_for_authed_shell(owner_page)
-    expect(_logout_link(owner_page)).to_be_visible()
+    expect(logout_link(owner_page)).to_be_visible()
     with owner_page.expect_response(
         lambda r: "/api/account/logout" in r.url and r.request.method == "POST"
     ):
-        _logout_link(owner_page).click()
-    expect(_login_link(owner_page)).to_be_visible()
+        logout_link(owner_page).click()
+    expect(login_link(owner_page)).to_be_visible()
 
     # Re-login через /login форму.
     login = LoginPage(owner_page).goto()
@@ -111,7 +99,7 @@ def test_user_relogins_via_form_lands_in_same_tenant(
 
     # После login UI редиректит к / — ждём пока indicator снова authed.
     owner_page.wait_for_url("**/")
-    expect(_auth_indicator(owner_page).locator(".auth-name")).to_have_text(
+    expect(auth_indicator(owner_page).locator(".auth-name")).to_have_text(
         TestData.DEFAULT_FULL_NAME
     )
 

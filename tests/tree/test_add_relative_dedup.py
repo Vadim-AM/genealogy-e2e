@@ -17,122 +17,20 @@ graph-aware suggestion в add-relative-modal).
 
 from __future__ import annotations
 
-import httpx
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
+from tests.helpers.tree.add_relative import add_sibling_without_auto_parents
+from tests.helpers.tree.tree_api import (
+    demo_parents_of_self,
+    find_person_by_name,
+    people,
+    relationships,
+)
+from tests.helpers.tree.tree_navigation import open_profile
 from tests.messages import AgeValidation, FamilyGroups, TestData, t
 from tests.pages.person_editor import AddRelativeModal
 from tests.pages.profile_panel import ProfilePanel
-from tests.timeouts import TIMEOUTS
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# Helpers (локальные, чтобы не плодить fixture'ы — переиспользуются только
-# внутри этого файла)
-# ─────────────────────────────────────────────────────────────────────────
-
-
-def _people(api: httpx.Client) -> list[dict]:
-    r = api.get(API.TREE)
-    r.raise_for_status()
-    return r.json()["people"]
-
-
-def _relationships(api: httpx.Client) -> list[dict]:
-    r = api.get(API.RELATIONSHIPS)
-    r.raise_for_status()
-    return r.json()
-
-
-def _demo_parents_of_self(api: httpx.Client) -> dict[str, str]:
-    """Returns {'m': father_id, 'f': mother_id} for demo-self."""
-    people_by_id = {p["id"]: p for p in _people(api)}
-    rels = _relationships(api)
-    parent_rels = [
-        r for r in rels
-        if r["type"] == "parent" and r["person2_id"] == TestData.DEMO_PERSON_ID
-    ]
-    assert len(parent_rels) == 2, (
-        f"expected demo-self to have 2 seeded parents; got {len(parent_rels)}: {parent_rels}"
-    )
-    result: dict[str, str] = {}
-    for r in parent_rels:
-        parent = people_by_id.get(r["person1_id"])
-        assert parent, f"parent {r['person1_id']} not in tree"
-        gender = parent.get("gender")
-        assert gender in ("m", "f"), f"demo-parent {parent['id']} has invalid gender: {gender!r}"
-        result[gender] = parent["id"]
-    assert set(result) == {"m", "f"}, f"demo-self lacks one parent gender: {result}"
-    return result
-
-
-def _open_profile(page: Page, person_id: str) -> ProfilePanel:
-    """Navigate к profile через full page load.
-
-    init.js:898 hash route — **one-shot** at page load (нет hashchange
-    listener). Если в одном тесте уже был открыт другой профиль, простой
-    `goto("/#/p/Y")` или мутация `location.hash` НЕ перезапустит init.js
-    + не подтянет свежий DATA cache.
-
-    Решение: navigate к "/" (clears state), потом goto к /#/p/{id} —
-    Playwright делает реальные навигации, init.js перезапускается, DATA
-    свежий, routed setTimeout(openProfile(pid)) открывает profile.
-    """
-    page.goto("/")
-    page.wait_for_load_state("domcontentloaded")
-    page.goto(f"/#/p/{person_id}")
-    page.wait_for_load_state("domcontentloaded")
-    panel = ProfilePanel(page)
-    panel.expect_visible()
-    # Sanity: section-title must contain THIS person's name, not stale demo-self.
-    title = page.locator("#tab-tree .section-title")
-    expect(title).not_to_have_text("", timeout=TIMEOUTS.pw_expect_ms)
-    return panel
-
-
-def _add_sibling_without_auto_parents(
-    page: Page,
-    *,
-    surname: str,
-    given: str,
-    birth: str = "",
-    gender: str | None = None,
-) -> AddRelativeModal:
-    """Open add-sibling modal, uncheck auto-parent чекбокс, fill, save, wait close."""
-    panel = ProfilePanel(page)
-    panel.click_add_sibling()
-
-    modal = AddRelativeModal(page)
-    modal.expect_visible()
-    # Native `#addRelSiblingShareParents` обёрнут `<label class="checkbox">`
-    # и visually-hidden; POM helper кликает по label (см. AddRelativeModal).
-    modal.uncheck_share_parents()
-
-    modal.fill_fio(surname=surname, given=given, birth=birth)
-    if gender:
-        modal.select_gender(gender)
-
-    with page.expect_response(f"**{API.PEOPLE}**") as resp:
-        modal.save()
-    assert resp.value.ok, (
-        f"POST /api/people failed: {resp.value.status} {resp.value.text()[:200]}"
-    )
-    expect(modal.overlay).not_to_be_visible()
-    return modal
-
-
-def _find_person_by_name(api: httpx.Client, *substrings: str) -> dict:
-    """Find a person whose name contains ALL given substrings. Asserts uniqueness."""
-    matches = [
-        p for p in _people(api)
-        if all(s in p["name"] for s in substrings)
-    ]
-    assert len(matches) == 1, (
-        f"expected exactly 1 person matching {substrings!r}; got {len(matches)}: "
-        f"{[p['name'] for p in matches]}"
-    )
-    return matches[0]
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -150,16 +48,17 @@ def test_sibling_parent_suggestion_prevents_duplicate(
     (нет нового person'а, у обеих сестёр один parent-edge на того же id).
     """
     api = tenant_client(owner_user)
-    parents = _demo_parents_of_self(api)
+    parents = demo_parents_of_self(api)
     demo_father_id = parents["m"]
 
-    people_before = _people(api)
+    people_before = people(api)
     count_before = len(people_before)
-    assert demo_father_id in {p["id"] for p in people_before}
+    assert demo_father_id in {p["id"] for p in people_before}, \
+        f"demo father {demo_father_id} not found in seed people"
 
     # 1. demo-self → add sibling без auto-parent (у Светланы 0 родителей)
-    _open_profile(owner_page, TestData.DEMO_PERSON_ID)
-    _add_sibling_without_auto_parents(
+    open_profile(owner_page, TestData.DEMO_PERSON_ID)
+    add_sibling_without_auto_parents(
         owner_page,
         surname="Тестовая",
         given="Светлана",
@@ -167,10 +66,10 @@ def test_sibling_parent_suggestion_prevents_duplicate(
         gender="f",
     )
 
-    svetlana = _find_person_by_name(api, "Светлана", "Тестовая")
+    svetlana = find_person_by_name(api, "Светлана", "Тестовая")
 
     # 2. Open Светлана → "+ родитель"
-    panel = _open_profile(owner_page, svetlana["id"])
+    panel = open_profile(owner_page, svetlana["id"])
     panel.click_add_parent()
 
     modal = AddRelativeModal(owner_page)
@@ -193,20 +92,22 @@ def test_sibling_parent_suggestion_prevents_duplicate(
     expect(modal.overlay).not_to_be_visible()
 
     # API assertion 1: ровно один новый person (Светлана), suggestion не создала второго
-    people_after = _people(api)
+    people_after = people(api)
     assert len(people_after) == count_before + 1, (
         f"unexpected new persons; before={count_before}, after={len(people_after)}"
     )
 
     # API assertion 2: оба ребёнка (demo-self, Светлана) ссылаются на ТОТ ЖЕ demo_father_id
-    rels = _relationships(api)
+    rels = relationships(api)
     father_edges = {
         r["person2_id"]: r
         for r in rels
         if r["type"] == "parent" and r["person1_id"] == demo_father_id
     }
-    assert TestData.DEMO_PERSON_ID in father_edges
-    assert svetlana["id"] in father_edges
+    assert TestData.DEMO_PERSON_ID in father_edges, \
+        f"demo-self missing from father's children: {sorted(father_edges)}"
+    assert svetlana["id"] in father_edges, \
+        f"Svetlana missing from father's children: {sorted(father_edges)}"
     # И нет «ivan-ivanov-2»-подобных дубликатов
     assert not any(p["id"].endswith("-2") for p in people_after), (
         f"found duplicate-suffix ids: {[p['id'] for p in people_after if p['id'].endswith('-2')]}"
@@ -224,18 +125,18 @@ def test_suggestion_filters_by_gender_for_mother_relationship(
     """Выбор пола `f` в форме → suggestion исключает demo-father (m) и
     показывает demo-mother (f)."""
     api = tenant_client(owner_user)
-    parents = _demo_parents_of_self(api)
+    parents = demo_parents_of_self(api)
 
     # Add sibling без auto-parent
-    _open_profile(owner_page, TestData.DEMO_PERSON_ID)
-    _add_sibling_without_auto_parents(
+    open_profile(owner_page, TestData.DEMO_PERSON_ID)
+    add_sibling_without_auto_parents(
         owner_page, surname="Тестовая", given="Светлана", gender="f"
     )
 
-    svetlana = _find_person_by_name(api, "Светлана", "Тестовая")
+    svetlana = find_person_by_name(api, "Светлана", "Тестовая")
 
     # Open Светлана → add parent
-    panel = _open_profile(owner_page, svetlana["id"])
+    panel = open_profile(owner_page, svetlana["id"])
     panel.click_add_parent()
     modal = AddRelativeModal(owner_page)
     modal.expect_visible()
@@ -265,7 +166,7 @@ def test_no_suggestion_when_no_siblings(
     # demo-self уже имеет 2 demo-parents в seed — без siblings они
     # значимы как доступный пул кандидатов, но фронт обязан игнорировать
     # их (нет sibling-bridge → нет suggestion).
-    _demo_parents_of_self(api)  # sanity: seed правильно собрался
+    demo_parents_of_self(api)  # sanity: seed правильно собрался
 
     r = api.post(
         API.PEOPLE,
@@ -279,7 +180,7 @@ def test_no_suggestion_when_no_siblings(
     r.raise_for_status()
     lonely_id = r.json()["id"]
 
-    panel = _open_profile(owner_page, lonely_id)
+    panel = open_profile(owner_page, lonely_id)
     panel.click_add_parent()
     modal = AddRelativeModal(owner_page)
     modal.expect_visible()
@@ -309,7 +210,7 @@ def test_no_suggestion_when_siblings_have_no_parents(
         "type": "sibling", "person1_id": "lone_a", "person2_id": "lone_b"
     }).raise_for_status()
 
-    panel = _open_profile(owner_page, "lone_a")
+    panel = open_profile(owner_page, "lone_a")
     panel.click_add_parent()
     modal = AddRelativeModal(owner_page)
     modal.expect_visible()
@@ -326,9 +227,9 @@ def test_no_suggestion_when_max_parents_already(
     кнопка +parent скрывается до открытия модалки, так что этот guard-rail
     лучше проверять на уровне профиля.)"""
     api = tenant_client(owner_user)
-    _demo_parents_of_self(api)  # sanity
+    demo_parents_of_self(api)  # sanity
 
-    panel = _open_profile(owner_page, TestData.DEMO_PERSON_ID)
+    panel = open_profile(owner_page, TestData.DEMO_PERSON_ID)
     # +parent button locator (внутри ProfilePanel.add_relative_button)
     # должна отсутствовать или быть hidden у demo-self (2 parents already).
     parents_add_btn = panel.add_relative_button(t(FamilyGroups.PARENTS))
@@ -351,21 +252,21 @@ def test_user_ignores_suggestion_creates_new_person(
     юзер всегда может создать нового человека.
     """
     api = tenant_client(owner_user)
-    parents = _demo_parents_of_self(api)
+    parents = demo_parents_of_self(api)
     demo_father_id = parents["m"]
 
     # Add sibling без auto-parent
-    _open_profile(owner_page, TestData.DEMO_PERSON_ID)
-    _add_sibling_without_auto_parents(
+    open_profile(owner_page, TestData.DEMO_PERSON_ID)
+    add_sibling_without_auto_parents(
         owner_page, surname="Тестовая", given="Светлана", gender="f"
     )
-    svetlana = _find_person_by_name(api, "Светлана", "Тестовая")
+    svetlana = find_person_by_name(api, "Светлана", "Тестовая")
 
-    count_before_add_father = len(_people(api))
+    count_before_add_father = len(people(api))
 
     # Open Светлана → add parent → SUGGESTION visible BUT юзер не кликает,
     # вводит ФИО руками и жмёт Save
-    panel = _open_profile(owner_page, svetlana["id"])
+    panel = open_profile(owner_page, svetlana["id"])
     panel.click_add_parent()
     modal = AddRelativeModal(owner_page)
     modal.expect_visible()
@@ -376,29 +277,35 @@ def test_user_ignores_suggestion_creates_new_person(
 
     with owner_page.expect_response(f"**{API.PEOPLE}**") as resp:
         modal.save()
-    assert resp.value.ok
+    assert resp.value.ok, \
+        f"POST /api/people failed: {resp.value.status} {resp.value.text()[:200]}"
     expect(modal.overlay).not_to_be_visible()
 
     # New legit person created → +1
-    people_after = _people(api)
-    assert len(people_after) == count_before_add_father + 1
+    people_after = people(api)
+    assert len(people_after) == count_before_add_father + 1, \
+        f"expected +1 person; before={count_before_add_father}, after={len(people_after)}"
     # demo-self's father unchanged
-    rels = _relationships(api)
+    rels = relationships(api)
     self_fathers = [
         r["person1_id"] for r in rels
         if r["type"] == "parent" and r["person2_id"] == TestData.DEMO_PERSON_ID
     ]
-    assert demo_father_id in self_fathers
+    assert demo_father_id in self_fathers, \
+        f"demo father {demo_father_id} lost from demo-self parents: {self_fathers}"
     # Светлана's father = Иннокентий (новый), не demo-father
     sv_father_rels = [
         r for r in rels
         if r["type"] == "parent" and r["person2_id"] == svetlana["id"]
     ]
-    assert len(sv_father_rels) == 1
+    assert len(sv_father_rels) == 1, \
+        f"Svetlana must have exactly 1 parent rel, got {len(sv_father_rels)}"
     new_father_id = sv_father_rels[0]["person1_id"]
-    assert new_father_id != demo_father_id
+    assert new_father_id != demo_father_id, \
+        "new father must differ from demo father (user ignored suggestion)"
     new_father = next(p for p in people_after if p["id"] == new_father_id)
-    assert "Иннокентий" in new_father["name"]
+    assert "Иннокентий" in new_father["name"], \
+        f"new father name missing 'Иннокентий': {new_father['name']!r}"
 
 
 def test_suggestion_click_does_not_create_new_person(
@@ -410,16 +317,16 @@ def test_suggestion_click_does_not_create_new_person(
     закрытием модалки видим только POST /relationships, ни одного /people.
     """
     api = tenant_client(owner_user)
-    parents = _demo_parents_of_self(api)
+    parents = demo_parents_of_self(api)
     demo_father_id = parents["m"]
 
-    _open_profile(owner_page, TestData.DEMO_PERSON_ID)
-    _add_sibling_without_auto_parents(
+    open_profile(owner_page, TestData.DEMO_PERSON_ID)
+    add_sibling_without_auto_parents(
         owner_page, surname="Тестовая", given="Светлана", gender="f"
     )
-    svetlana = _find_person_by_name(api, "Светлана", "Тестовая")
+    svetlana = find_person_by_name(api, "Светлана", "Тестовая")
 
-    panel = _open_profile(owner_page, svetlana["id"])
+    panel = open_profile(owner_page, svetlana["id"])
     panel.click_add_parent()
     modal = AddRelativeModal(owner_page)
     modal.expect_visible()
@@ -462,27 +369,27 @@ def test_existing_sibling_auto_parent_checkbox_still_works(
     sibling получает обоих demo-parents через parent-relationships.
     """
     api = tenant_client(owner_user)
-    parents = _demo_parents_of_self(api)
+    parents = demo_parents_of_self(api)
 
-    panel = _open_profile(owner_page, TestData.DEMO_PERSON_ID)
+    panel = open_profile(owner_page, TestData.DEMO_PERSON_ID)
     panel.click_add_sibling()
     modal = AddRelativeModal(owner_page)
     modal.expect_visible()
 
     # Чекбокс ДОЛЖЕН быть checked by default — не трогаем
-    share_check = owner_page.locator("#addRelSiblingShareParents")
-    expect(share_check).to_be_checked()
+    expect(modal.share_parents_input).to_be_checked()
 
     modal.fill_fio(surname="Тестовая", given="Брат", birth="01.01.1985")
     modal.select_gender("m")
 
     with owner_page.expect_response(f"**{API.PEOPLE}**") as resp:
         modal.save()
-    assert resp.value.ok
+    assert resp.value.ok, \
+        f"POST /api/people failed: {resp.value.status} {resp.value.text()[:200]}"
     expect(modal.overlay).not_to_be_visible()
 
-    brat = _find_person_by_name(api, "Брат", "Тестовая")
-    rels = _relationships(api)
+    brat = find_person_by_name(api, "Брат", "Тестовая")
+    rels = relationships(api)
     brat_parents = {
         r["person1_id"] for r in rels
         if r["type"] == "parent" and r["person2_id"] == brat["id"]
@@ -512,18 +419,18 @@ def test_suggestion_click_shows_error_on_backend_422(
     Симулируем 422 через page.route интерцепцию POST /api/relationships.
     """
     api = tenant_client(owner_user)
-    parents = _demo_parents_of_self(api)
+    parents = demo_parents_of_self(api)
     demo_father_id = parents["m"]
 
-    _open_profile(owner_page, TestData.DEMO_PERSON_ID)
-    _add_sibling_without_auto_parents(
+    open_profile(owner_page, TestData.DEMO_PERSON_ID)
+    add_sibling_without_auto_parents(
         owner_page, surname="Тестовая", given="Светлана", gender="f"
     )
-    svetlana = _find_person_by_name(api, "Светлана", "Тестовая")
+    svetlana = find_person_by_name(api, "Светлана", "Тестовая")
 
-    rels_before = _relationships(api)
+    rels_before = relationships(api)
 
-    panel = _open_profile(owner_page, svetlana["id"])
+    panel = open_profile(owner_page, svetlana["id"])
     panel.click_add_parent()
     modal = AddRelativeModal(owner_page)
     modal.expect_visible()
@@ -554,7 +461,7 @@ def test_suggestion_click_shows_error_on_backend_422(
         owner_page.unroute(f"**{API.RELATIONSHIPS}*")
 
     # Граф не должен был измениться
-    rels_after = _relationships(api)
+    rels_after = relationships(api)
     assert len(rels_after) == len(rels_before), (
         f"relationships count changed despite 422; "
         f"before={len(rels_before)}, after={len(rels_after)}"

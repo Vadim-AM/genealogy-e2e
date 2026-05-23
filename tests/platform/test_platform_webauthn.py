@@ -28,14 +28,16 @@ from tests.pages.platform_dashboard_page import PlatformDashboardPage
 def test_webauthn_list_403_for_non_super(owner_user, tenant_client):
     """TC-PA-WEBAUTHN-1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.WEBAUTHN_LIST)
-    assert r.status_code == 403
+    assert r.status_code == 403, \
+        f"expected 403, got {r.status_code}"
 
 
 def test_webauthn_list_initially_empty(superadmin_user, tenant_client):
     """TC-PA-WEBAUTHN-2: свежий superadmin без зарегистрированных credentials → []."""
     r = tenant_client(superadmin_user).get(API.WEBAUTHN_LIST)
     r.raise_for_status()
-    assert r.json()["items"] == []
+    assert r.json()["items"] == [], \
+        f"items: expected empty list, got {r.json()['items']!r}"
 
 
 def test_webauthn_register_begin_returns_challenge_and_rp(superadmin_user, tenant_client):
@@ -47,15 +49,18 @@ def test_webauthn_register_begin_returns_challenge_and_rp(superadmin_user, tenan
     for key in ("challenge", "rp", "user", "pubKeyCredParams"):
         assert key in data, f"WebAuthn option {key!r} missing: {sorted(data)}"
     assert "id" in data["rp"], f"rp.id missing: {data['rp']}"
-    assert "name" in data["rp"]
+    assert "name" in data["rp"], \
+        f"rp.name missing: {data['rp']}"
 
 
 def test_webauthn_authenticate_begin_404_without_credentials(superadmin_user, tenant_client):
     """TC-PA-WEBAUTHN-4: authenticate/begin → 404 (no_webauthn_credentials),
     если у юзера ничего не зарегистрировано. Hard 404, не silent fallback."""
     r = tenant_client(superadmin_user).post(API.WEBAUTHN_AUTH_BEGIN)
-    assert r.status_code == 404
-    assert "no_webauthn_credentials" in r.text
+    assert r.status_code == 404, \
+        f"expected 404, got {r.status_code}"
+    assert "no_webauthn_credentials" in r.text, \
+        f"expected 'no_webauthn_credentials' in response: {r.text[:200]}"
 
 
 def test_webauthn_register_complete_400_without_challenge(superadmin_user, tenant_client):
@@ -64,7 +69,8 @@ def test_webauthn_register_complete_400_without_challenge(superadmin_user, tenan
         API.WEBAUTHN_REGISTER_COMPLETE,
         json={"credential": {}, "label": "Test"},
     )
-    assert r.status_code == 400
+    assert r.status_code == 400, \
+        f"expected 400, got {r.status_code}"
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -156,14 +162,16 @@ def test_webauthn_full_register_via_ui(
         label = "VirtualE2EKey"
         result = page.evaluate(f"() => webauthnRegister({label!r})")
         assert result.get("status") == "ok", f"webauthnRegister returned: {result}"
-        assert result.get("label") == label
+        assert result.get("label") == label, \
+            f"label: expected {label!r}, got {result.get('label')!r}"
 
         # Подтверждаем через API: credential появился
         r = tenant_client(superadmin_user).get(API.WEBAUTHN_LIST)
         r.raise_for_status()
         items = r.json()["items"]
         assert len(items) == 1, f"expected 1 credential, got {len(items)}"
-        assert items[0]["label"] == label
+        assert items[0]["label"] == label, \
+            f"credential label: expected {label!r}, got {items[0]['label']!r}"
     finally:
         ctx.close()
 
@@ -186,8 +194,10 @@ def test_webauthn_register_then_authenticate_via_ui(
 
         # Authenticate
         auth_result = page.evaluate("() => webauthnAuthenticate()")
-        assert auth_result.get("status") == "ok"
-        assert "valid_until" in auth_result
+        assert auth_result.get("status") == "ok", \
+            f"status: expected 'ok', got {auth_result.get('status')!r}"
+        assert "valid_until" in auth_result, \
+            f"valid_until missing from auth result: {sorted(auth_result)}"
     finally:
         ctx.close()
 
@@ -211,5 +221,7 @@ def test_setup_modal_has_webauthn_button_first(
     dashboard = PlatformDashboardPage(page)
     # Проверяем что элемент существует в DOM (visible проверять нельзя —
     # модалка скрыта пока не сработает 403 mfa_setup_required).
-    assert dashboard.mfa_setup_webauthn_btn.count() == 1
-    assert dashboard.mfa_verify_webauthn_btn.count() == 1
+    assert dashboard.mfa_setup_webauthn_btn.count() == 1, \
+        f"mfa_setup_webauthn_btn: expected 1 in DOM, got {dashboard.mfa_setup_webauthn_btn.count()}"
+    assert dashboard.mfa_verify_webauthn_btn.count() == 1, \
+        f"mfa_verify_webauthn_btn: expected 1 in DOM, got {dashboard.mfa_verify_webauthn_btn.count()}"

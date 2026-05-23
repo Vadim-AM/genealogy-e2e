@@ -11,7 +11,7 @@ from __future__ import annotations
 from playwright.sync_api import Page
 
 from tests.api_paths import API
-from tests.messages import Onboarding, t
+from tests.pages.confirm_dialog import ConfirmDialog
 
 
 def test_owner_clears_demo_relatives(owner_page: Page, owner_user, tenant_client):
@@ -23,11 +23,11 @@ def test_owner_clears_demo_relatives(owner_page: Page, owner_user, tenant_client
 
     owner_page.goto("/owner")
     owner_page.wait_for_load_state("domcontentloaded")
+    dialog = ConfirmDialog(owner_page)
     with owner_page.expect_response("**/api/onboarding/clear-demo"):
         owner_page.locator("#clearDemo").click()
-        owner_page.locator(".confirm-dialog").get_by_role(
-            "button", name=t(Onboarding.CLEAR_DEMO_CONFIRM), exact=True
-        ).click()
+        dialog.expect_visible()
+        dialog.confirm()
 
     after = api.get(API.TREE).json()["people"]
     assert len(after) < len(before), \
@@ -43,11 +43,11 @@ def test_owner_keeps_demo_as_template(owner_page: Page, owner_user, tenant_clien
 
     owner_page.goto("/owner")
     owner_page.wait_for_load_state("domcontentloaded")
+    dialog = ConfirmDialog(owner_page)
     with owner_page.expect_response("**/api/onboarding/keep-demo"):
         owner_page.locator("#keepDemo").click()
-        owner_page.locator(".confirm-dialog").get_by_role(
-            "button", name=t(Onboarding.KEEP_DEMO_CONFIRM), exact=True
-        ).click()
+        dialog.expect_visible()
+        dialog.confirm()
 
     after = api.get(API.TREE).json()["people"]
     assert len(after) == len(before), \

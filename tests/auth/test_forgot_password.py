@@ -16,11 +16,14 @@ from __future__ import annotations
 import httpx
 from playwright.sync_api import Page, expect
 
+from tests.helpers.auth.auth_ui import auth_name
+
 from tests.api_paths import API
 from tests.constants import make_email
 from tests.messages import TestData
 from tests.pages.forgot_password_page import ForgotPasswordPage, ResetPasswordPage
 from tests.pages.login_page import LoginPage
+from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
@@ -64,7 +67,7 @@ def test_forgot_password_full_flow_user_logs_in_with_new_password(
     # Новый пароль — успех. После login redirect на / + indicator authed.
     login.login(owner_user.email, _NEW_PASSWORD)
     page.wait_for_url("**/")
-    expect(page.locator("#authIndicator .auth-name")).to_have_text(
+    expect(auth_name(page)).to_have_text(
         TestData.DEFAULT_FULL_NAME
     )
 
@@ -93,7 +96,7 @@ def test_forgot_password_unknown_email_shows_silent_success_message(
         params={"to": unknown_email},
         timeout=TIMEOUTS.api_short,
     )
-    assert r.status_code == 404, "unknown email must not trigger a reset send"
+    expect_response(r, label="unknown email: no reset sent").status(404)
 
 
 def test_reset_password_token_used_once_then_invalid_via_ui(
