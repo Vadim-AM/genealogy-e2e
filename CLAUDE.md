@@ -505,7 +505,7 @@ gated by `IS_TESTING` **and** a shared-secret token (commit `4a3f326`,
 `INV-TEST-001/002/003`). Every `/api/_test/*` call must carry
 `X-Test-Token: <GENEALOGY_TEST_TOKEN>`; the suite injects it automatically
 via the httpx monkey-patch in `tests/_fixtures/patch.py` using
-`TestConfig.TEST_TOKEN_DEFAULT` (override with `E2E_TEST_TOKEN`). The backend
+`settings.test_token` from `tests/settings.py` (env `E2E_TEST_TOKEN`). The backend
 must boot with the **same** value in `GENEALOGY_TEST_TOKEN` or the endpoints
 fail-closed (`503` no token → `401` no header → `403` wrong token):
 

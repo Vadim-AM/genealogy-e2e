@@ -2,101 +2,93 @@
 
 UI / browser end-to-end test suite for [Genealogy Engine](https://github.com/Vadim-AM/Genealogy).
 
-Drives a real Chromium against the live FastAPI backend. Maps 1:1 to test
-cases in the upstream `docs/test-plan.md` and `docs/qa-first-touch-funnel.md`.
+Drives a real Chromium against a live FastAPI backend. Maps 1:1 to test
+cases in the upstream `docs/test-plan.md`.
 
-## What this repo does NOT contain
+## Quick start (local dev)
 
-The backend itself — including the `/api/_test/*` instrumentation endpoints
-that the suite relies on (DB reset, mock-AI install, MockSender peek). Those
-live in the upstream `genealogy` repo under `backend/app/_test_endpoints.py`,
-gated by `IS_TESTING=1`.
-
-## Run mode 1: local dev
-
-You already have the backend running on `:8642` (or any port).
+Requires PostgreSQL, the upstream backend, and Chromium.
 
 ```bash
-# 1. Start the backend with test instrumentation (in the genealogy repo):
-cd /path/to/genealogy/backend
-GENEALOGY_TESTING=1 GENEALOGY_ADMIN_PASSWORD=test_admin_password \
+# 0. Postgres (via Docker / Colima)
+docker run -d --name genealogy-e2e-pg \
+  -e POSTGRES_USER=genealogy -e POSTGRES_PASSWORD=genealogy \
+  -e POSTGRES_DB=genealogy_test -p 5432:5432 postgres:16-alpine \
+  -c max_locks_per_transaction=4096 -c max_connections=200
+
+# 1. Boot test-instrumented backend (in the upstream repo)
+cd /path/to/Vadim-AM/Genealogy/backend
+GENEALOGY_TESTING=1 \
+  GENEALOGY_ADMIN_PASSWORD=test_admin_password \
+  GENEALOGY_TEST_TOKEN=e2e-test-token-default-2026 \
+  GENEALOGY_PUBLIC_URL=http://127.0.0.1:8642 \
+  WEBAUTHN_RP_ID=localhost \
+  WEBAUTHN_ORIGIN=http://localhost:8642 \
   EMAIL_PROVIDER=mock FREE_SIGNUP_LIMIT=1000 \
   PLATFORM_SUPERADMIN_EMAILS=super@e2e.example.com \
-  uvicorn app.main:app --port 8642 &
+  ANTHROPIC_API_KEY=sk-test-stub \
+  GENEALOGY_TENANTS_ROOT=/tmp/genealogy-e2e-tenants \
+  GENEALOGY_TRUST_FORWARDED_FOR=1 \
+  GENEALOGY_DOCS_ENABLED=1 \
+  DATABASE_URL='postgresql+psycopg://genealogy:genealogy@localhost:5432/genealogy_test' \
+  uvicorn app.main:app --host 127.0.0.1 --port 8642 &
 
-# 2. Set up this repo:
+# 2. Set up this repo
 cd /path/to/genealogy-e2e
-python3 -m venv .venv
-source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 playwright install chromium
 
-# 3. Run:
-E2E_BACKEND_URL=http://127.0.0.1:8642 pytest tests/ -v
+# 3. Run (two passes)
+export E2E_BACKEND_URL=http://127.0.0.1:8642 E2E_TIMEOUT_MULTIPLIER=1.5
+pytest tests/ -m "not serial" -n 4 --dist load -v   # parallel pass
+pytest tests/ -m serial -p no:xdist -v               # serial pass
 ```
 
 Useful invocations:
 
 ```bash
-pytest tests/test_smoke.py            # smoke check
-pytest tests/ -m smoke                # only @pytest.mark.smoke tests
-pytest tests/ -k "owner"              # name filter
-pytest tests/ --headed --slowmo=300   # watch the browser
-pytest tests/ --tracing=retain-on-failure  # capture traces
-pytest tests/ -n 4                    # parallel (pytest-xdist)
+pytest tests/ -m auth              # single domain
+pytest tests/test_smoke.py         # smoke only
+pytest tests/ --headed --slowmo=300  # watch the browser
+pytest tests/ -k "owner"           # name filter
 ```
-
-## Run mode 2: Docker (CI / clean env)
-
-```bash
-# 1. Pull backend image built in the upstream PR
-export BACKEND_IMAGE=ghcr.io/vadim-am/genealogy-backend:test-<sha>
-
-# 2. Build e2e image and run the suite
-docker compose up --build --abort-on-container-exit e2e
-```
-
-Test artifacts (traces, screenshots, videos for failures) land in
-`./test-results/`.
 
 ## Layout
 
 ```
-genealogy-e2e/
-├── tests/
-│   ├── conftest.py             # fixtures: signup_via_api, owner_page, etc.
-│   ├── pages/                  # POM (one class per page/component)
-│   ├── fixtures/               # static JSON used by tests (AI mock, GEDCOM)
-│   ├── test_smoke.py           # canary, runs first
-│   ├── test_landing.py         # F-LND-* funnel
-│   ├── test_signup_flow.py     # signup + email verify
-│   ├── test_login_flow.py      # login + forgot-password
-│   ├── test_first_visit.py     # tree render after login
-│   ├── test_tree_navigation.py # tabs, F5-routing
-│   ├── test_profile.py         # person profile rendering
-│   ├── test_owner_ui.py        # /owner — settings, invites, export
-│   ├── test_admin_ui.py        # /admin — legacy admin password
-│   ├── test_invite_accept.py   # invite acceptance flow
-│   ├── test_waitlist.py        # /wait
-│   ├── test_legal_pages.py     # /privacy, /terms render HTML
-│   ├── test_versioning.py      # footer version comes from API
-│   ├── test_platform_dashboard.py  # superadmin metrics
-│   ├── test_logout.py
-│   ├── test_enrichment_flow.py     # ★ Найти больше (mocked AI)
-│   ├── test_regressions.py     # closed BUG-* tickets
-│   └── test_edge_cases.py
-├── docker/
-│   └── Dockerfile.e2e
-├── docker-compose.yml          # backend (image) + e2e (built locally)
-├── pytest.ini
-├── requirements.txt
-└── .github/workflows/
-    └── pr-check.yml            # boots upstream uvicorn locally, runs full suite
+tests/
+  _fixtures/        # global fixtures (auth, server, clients)
+  _data/            # test data (GEDCOM, JPEG, device descriptors)
+  helpers/          # domain-organized helper functions
+    auth/ tree/ admin/ security/ enrichment/ ui/
+  pages/            # Page Objects (21 classes)
+  settings.py       # Pydantic env config (validated at collection)
+  response.py       # fluent expect_response(r).status(200).json_has(...)
+  step.py           # step() context manager for flow logging
+  api_paths.py      # API endpoint constants
+  constants.py      # credentials, email helpers
+  messages.py       # locale-aware UI string catalogue
+  timeouts.py       # timeout categories + E2E_TIMEOUT_MULTIPLIER
+  auth/             # 15 test files (44 tests)
+  tree/             # 13 test files (45 tests)
+  platform/         # 9 test files (83 tests)
+  admin/            # 5 test files (28 tests)
+  security/         # 10 test files (30 tests)
+  enrichment/       # 4 test files (12 tests)
+  ui/               # 11 test files (60 tests)
+  test_smoke.py     # canary
+  test_regressions.py  # closed BUG-* tickets
+  test_api_coverage.py # OpenAPI coverage gate
+  test_api_invariants.py # backend-only contract tests
 ```
+
+Domain markers (`auth`, `tree`, etc.) are auto-applied by file path.
 
 ## Cross-repo contract
 
-The suite assumes the backend exposes:
+The suite assumes the backend exposes test endpoints (gated by
+`GENEALOGY_TEST_TOKEN`):
 
 | Endpoint                            | Purpose                                               |
 |-------------------------------------|-------------------------------------------------------|
@@ -105,16 +97,15 @@ The suite assumes the backend exposes:
 | `GET  /api/_test/last-email?to=...` | latest MockSender mail for a recipient                |
 | `POST /api/_test/install-mock-ai`   | swap enrichment.ai_client for the supplied fixture    |
 | `POST /api/_test/uninstall-mock-ai` | restore real ai_client                                |
-
-Plus the standard product endpoints (`/api/account/*`, `/api/tree`, etc.).
+| `POST /api/_test/set-platform-setting` | toggle platform flags (AI search, etc.)            |
 
 ## When to update this repo
 
-- A test in `docs/test-plan.md` becomes feasible to automate → add a test here.
-- A `BUG-XXX` ticket gets closed → flip the `pytest.mark.xfail` into a
-  regular regression assertion (`test_regressions.py`).
-- A test starts failing because the upstream renamed a route or selector →
-  update the POM, not the assertion. The assertion is the contract.
+- A test in `docs/test-plan.md` becomes feasible to automate — add a test.
+- A `BUG-XXX` ticket gets closed — add a regression test in
+  `test_regressions.py` (no xfail — green or not in the suite).
+- A test fails because the upstream renamed a route or selector —
+  update the POM or `api_paths.py`, not the assertion.
 
 ## License
 

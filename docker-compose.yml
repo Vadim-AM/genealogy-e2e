@@ -11,18 +11,40 @@
 # `backend` image tag to whatever the upstream PR built.
 
 services:
+  db:
+    image: postgres:16-alpine
+    command: ["-c", "max_locks_per_transaction=4096", "-c", "max_connections=200"]
+    environment:
+      POSTGRES_USER: genealogy
+      POSTGRES_PASSWORD: genealogy
+      POSTGRES_DB: genealogy_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U genealogy -d genealogy_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
   backend:
     # Override via `BACKEND_IMAGE` env var. Default to the latest test image.
     image: ${BACKEND_IMAGE:-ghcr.io/vadim-am/genealogy-backend:test-latest}
     environment:
       GENEALOGY_TESTING: "1"
       GENEALOGY_ADMIN_PASSWORD: test_admin_password
+      GENEALOGY_TEST_TOKEN: e2e-test-token-default-2026
+      GENEALOGY_PUBLIC_URL: http://backend:8642
+      WEBAUTHN_RP_ID: localhost
+      WEBAUTHN_ORIGIN: http://backend:8642
       EMAIL_PROVIDER: mock
       FREE_SIGNUP_LIMIT: "1000"
       PLATFORM_SUPERADMIN_EMAILS: super@e2e.example.com
       ANTHROPIC_API_KEY: sk-test-stub
-      GENEALOGY_PUBLIC_URL: http://backend:8642
-      GENEALOGY_CORS_ORIGINS: http://backend:8642
+      GENEALOGY_TENANTS_ROOT: /tmp/genealogy-e2e-tenants
+      GENEALOGY_TRUST_FORWARDED_FOR: "1"
+      GENEALOGY_DOCS_ENABLED: "1"
+      DATABASE_URL: postgresql+psycopg://genealogy:genealogy@db:5432/genealogy_test
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8642/api/health').read()"]
       interval: 2s
