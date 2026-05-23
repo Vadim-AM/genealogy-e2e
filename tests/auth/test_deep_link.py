@@ -27,7 +27,7 @@ def test_deep_link_to_demo_self_preserves_auth(owner_page: Page):
     # The tab title is overwritten with the opened person's name (profile.js
     # hoists the name into `#tab-tree .section-title`).
     expect(owner_page.locator("#tab-tree .section-title")).not_to_have_text("")
-    expect(owner_page.locator(".profile-page")).to_be_visible()
+    expect(owner_page.locator('[data-testid="profile-page"]')).to_be_visible()
 
     # AUTH state must end up authenticated (BUG-AUTH-001 regression).
     wait_for_auth_state(owner_page, expected=True)

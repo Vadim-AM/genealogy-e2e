@@ -2,11 +2,13 @@
 
 `tenant_client(user)` eliminates copy-pasted cookies+slug+timeout boilerplate
 on every API call. `auth_context_factory(user)` builds Playwright contexts
-with cookies + tenant header + tour-flag seed.
+with cookies + tenant header + tour-flag seed + Playwright tracing (saved on
+failure as Allure attachment).
 """
 
 from __future__ import annotations
 
+import allure
 import httpx
 import pytest
 
@@ -50,7 +52,7 @@ def tenant_client(uvicorn_server: str):
 
 
 @pytest.fixture
-def auth_context_factory(browser, uvicorn_server: str):
+def auth_context_factory(request, browser, uvicorn_server: str, tmp_path):
     """Factory to build a Playwright BrowserContext with cookies + tenant header.
 
     `localStorage` flags pre-seeded to silence the optional editor tour
@@ -58,6 +60,10 @@ def auth_context_factory(browser, uvicorn_server: str):
     via `onboarding-complete` in `signup_via_api` — there is no defensive
     DOM removal anymore. If the tour appears, the test fails loud — that
     means `onboarding-complete` is broken upstream.
+
+    Playwright tracing is started on every context. On teardown the trace
+    is saved and attached to Allure on failure, or silently discarded on
+    success.
     """
 
     created_contexts = []
@@ -87,18 +93,39 @@ def auth_context_factory(browser, uvicorn_server: str):
             "localStorage.setItem('genealogy_cookie_consent_ts', String(Date.now())); "
             "} catch (e) {}"
         )
+        ctx.tracing.start(screenshots=True, snapshots=True, sources=True)
         created_contexts.append(ctx)
         return ctx
 
     yield _make
-    for ctx in created_contexts:
+
+    failed = getattr(getattr(request.node, "rep_call", None), "failed", False)
+    for i, ctx in enumerate(created_contexts):
+        if failed:
+            trace_path = tmp_path / f"trace-{i}.zip"
+            try:
+                ctx.tracing.stop(path=str(trace_path))
+            except Exception:
+                trace_path = None
+            if trace_path and trace_path.exists():
+                allure.attach.file(
+                    str(trace_path),
+                    name=f"playwright-trace-{i}.zip",
+                    extension="zip",
+                )
+        else:
+            try:
+                ctx.tracing.stop()
+            except Exception:
+                pass
         ctx.close()
 
 
 @pytest.fixture
-def owner_page(auth_context_factory, owner_user: AuthUser):
+def owner_page(request, auth_context_factory, owner_user: AuthUser):
     """Authenticated browser page in owner_user's tenant."""
     ctx = auth_context_factory(owner_user)
     page = ctx.new_page()
+    request.node._pw_page = page
     yield page
     page.close()

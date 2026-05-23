@@ -14,8 +14,8 @@ class SharePage:
 
     def __init__(self, page: Page):
         self.page = page
-        self.person_name = page.locator(".share-name")
-        self.error = page.locator(".share-error")
+        self.person_name = page.locator('[data-testid="share-name"]')
+        self.error = page.locator('[data-testid="share-error"]')
         self.edit_button = page.locator('[data-action="profile-edit"]')
 
     def expect_person_visible(self, name_substring: str) -> None:

@@ -99,7 +99,7 @@ def test_user_relogins_via_form_lands_in_same_tenant(
 
     # После login UI редиректит к / — ждём пока indicator снова authed.
     owner_page.wait_for_url("**/")
-    expect(auth_indicator(owner_page).locator(".auth-name")).to_have_text(
+    expect(auth_indicator(owner_page).locator('[data-testid="auth-user-name"]')).to_have_text(
         TestData.DEFAULT_FULL_NAME
     )
 
@@ -107,6 +107,6 @@ def test_user_relogins_via_form_lands_in_same_tenant(
     # `demo-self.name = full_name`. Если бы redirect занёс в чужой tenant
     # (или fresh tenant без seed), demo-self бы не было либо name был бы
     # другим. orbit-card.first читаем — это центральный subject.
-    orbit_center = owner_page.locator(".orbit-center-card")
+    orbit_center = owner_page.locator('[data-testid="orbit-center-card"]')
     expect(orbit_center).to_be_visible()
     expect(orbit_center).to_contain_text(TestData.DEFAULT_FULL_NAME)

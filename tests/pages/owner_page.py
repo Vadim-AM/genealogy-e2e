@@ -49,7 +49,7 @@ class OwnerPage(BasePage):
         self.import_summary = self.import_root.locator("[data-gedcom-summary]")
         self.import_error = self.import_root.locator("[data-gedcom-error]")
         # confirmDialog overlay live на body — не внутри import_root
-        self.confirm_dialog = page.locator(".confirm-dialog-backdrop")
+        self.confirm_dialog = page.locator('[data-testid="confirm-dialog-backdrop"]')
         self.confirm_dialog_confirm = self.confirm_dialog.locator('[data-act="confirm"]')
         self.confirm_dialog_cancel = self.confirm_dialog.locator('[data-act="cancel"]')
         self.confirm_dialog_ok = self.confirm_dialog.locator('[data-act="ok"]')  # alertDialog

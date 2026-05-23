@@ -17,4 +17,4 @@ def enrich_button(page: Page):
 
 
 def consent_dialog(page: Page):
-    return page.locator(".confirm-dialog").first
+    return page.locator('[data-testid="confirm-dialog"]').first

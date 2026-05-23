@@ -45,7 +45,7 @@ class PersonEditor:
         self.btn_delete = self.container.locator('[data-action="delete"]')
 
         # Inline warning (date-validity, etc.)
-        self.warning = self.container.locator(".editor-warning")
+        self.warning = self.container.locator('[data-testid="editor-warning"]')
 
     def fill_fio(self, *, surname: str, given: str, patronymic: str = "") -> None:
         self.surname.fill(surname)
@@ -55,8 +55,8 @@ class PersonEditor:
     def select_dropdown(self, field: str, value: str) -> None:
         """Pick a value in the customSelect for the given field."""
         custom = custom_select_for(self.page, field)
-        custom.locator(".custom-select-trigger").click()
-        custom.locator(f".custom-select-option[data-value='{value}']").click()
+        custom.locator('[data-testid="custom-select-trigger"]').click()
+        custom.locator(f'[data-testid="custom-select-option"][data-value="{value}"]').click()
 
     def save(self) -> None:
         self.btn_save.click()
@@ -90,10 +90,10 @@ class AddRelativeModal:
 
     def __init__(self, page: Page):
         self.page = page
-        self.overlay = page.locator(".add-rel-modal-overlay")
-        self.container = self.overlay.locator(".add-rel-modal")
+        self.overlay = page.locator('[data-testid="add-rel-overlay"]')
+        self.container = self.overlay.locator('[data-testid="add-rel-modal"]')
         self.title = self.container.locator("#add-rel-title")
-        self.btn_close = self.container.locator(".add-rel-close")
+        self.btn_close = self.container.locator('[data-testid="add-rel-close"]')
 
         # Fields
         self.surname = self.container.locator("#addRelSurname")
@@ -117,13 +117,13 @@ class AddRelativeModal:
         self.suggest_block = self.container.locator("[data-suggest-block]")
         # Graph-card scoped по классу — `data-action="pick-existing"` теперь
         # общий с dropdown-строками (см. FEATURE-PARENT-SEARCH-001).
-        self.suggest_cards = self.container.locator(".add-rel-suggest-card")
-        self.suggest_divider = self.container.locator(".add-rel-suggest-divider")
+        self.suggest_cards = self.container.locator('[data-testid="add-rel-suggest-card"]')
+        self.suggest_divider = self.container.locator('[data-testid="add-rel-suggest-divider"]')
 
         # FEATURE-PARENT-SEARCH-001: inline-autocomplete dropdown + linked-chip.
         self.dropdown = self.container.locator("#addRelExistingResults")
-        self.dropdown_rows = self.dropdown.locator(".add-rel-existing-row")
-        self.linked_chip = self.container.locator(".add-rel-linked-chip")
+        self.dropdown_rows = self.dropdown.locator('[data-testid="add-rel-existing-row"]')
+        self.linked_chip = self.container.locator('[data-testid="add-rel-linked-chip"]')
         self.btn_unlink = self.linked_chip.locator(
             '[data-action="unlink-existing"]'
         )
@@ -174,10 +174,10 @@ class AddRelativeModal:
         sibling — same pattern as PersonEditor.select_dropdown().
         """
         custom = self.container.locator(
-            "div.custom-select:has(+ select#addRelGender)"
+            '[data-testid="custom-select"]:has(+ select#addRelGender)'
         )
-        custom.locator(".custom-select-trigger").click()
-        custom.locator(f".custom-select-option[data-value='{value}']").click()
+        custom.locator('[data-testid="custom-select-trigger"]').click()
+        custom.locator(f'[data-testid="custom-select-option"][data-value="{value}"]').click()
 
     # ──────────────────────────────────────────────────────────────────
     # Sibling-share-parents checkbox (custom-wrapped `<label class="checkbox">`)
@@ -217,7 +217,7 @@ class AddRelativeModal:
         → `data-person-id` (один контракт с dropdown-строками).
         """
         return self.container.locator(
-            f'.add-rel-suggest-card[data-person-id="{person_id}"]'
+            f'[data-testid="add-rel-suggest-card"][data-person-id="{person_id}"]'
         )
 
     def click_suggestion(self, person_id: str) -> None:
@@ -269,7 +269,7 @@ class AddRelativeModal:
     def row_by_person_id(self, person_id: str) -> "Locator":
         """Locator for a dropdown row by the linked person's id."""
         return self.dropdown.locator(
-            f'.add-rel-existing-row[data-person-id="{person_id}"]'
+            f'[data-testid="add-rel-existing-row"][data-person-id="{person_id}"]'
         )
 
     def pick_existing(self, person_id: str) -> None:

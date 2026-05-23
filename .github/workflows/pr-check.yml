@@ -171,12 +171,13 @@ jobs:
           E2E_TIMEOUT_MULTIPLIER: "1.5"
         run: pytest tests/ -m serial -p no:xdist -v --tb=short
 
-      - name: Upload uvicorn log + Playwright traces on failure
-        if: failure()
+      - name: Upload test artifacts (traces, allure, logs)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-failure-${{ github.run_id }}
+          name: e2e-results-${{ github.run_id }}
           path: |
             uvicorn.log
             test-results/
+            allure-results/
           retention-days: 7

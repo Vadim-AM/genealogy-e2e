@@ -23,11 +23,11 @@ class PhotosBlock:
 
     def __init__(self, page: Page):
         self.page = page
-        self.container = page.locator(".photos-block")
+        self.container = page.locator('[data-testid="photos-block"]')
         self.add_btn = page.locator("#photoAddBtn")
         self.file_input = page.locator("#photoFileInput")
         self.grid = page.locator("#photoGrid")
-        self.thumbs = self.grid.locator(".photo-thumb")
+        self.thumbs = self.grid.locator('[data-testid="photo-thumb"]')
 
     def thumb_count(self) -> int:
         return self.thumbs.count()
@@ -35,7 +35,7 @@ class PhotosBlock:
     def remove_last_thumb(self) -> Locator:
         """Return the `.photo-remove` locator on the last thumb (caller
         should click it inside an expect_response context)."""
-        return self.thumbs.last.locator(".photo-remove")
+        return self.thumbs.last.locator('[data-testid="photo-remove"]')
 
     def expect_thumb_count(self, n: int) -> None:
         expect(self.thumbs).to_have_count(n)

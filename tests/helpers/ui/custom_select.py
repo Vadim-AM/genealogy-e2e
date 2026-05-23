@@ -7,5 +7,5 @@ from playwright.sync_api import Page
 
 def custom_select_for(page: Page, field: str):
     return page.locator(
-        f"div.custom-select:has(+ select[data-field='{field}'])"
+        f'[data-testid="custom-select"]:has(+ select[data-field="{field}"])'
     )

@@ -78,10 +78,10 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
     page.wait_for_load_state("domcontentloaded")
 
     # User clicks по центральной orbit-card → opens demo-self profile.
-    center = page.locator(".orbit-center-card")
+    center = page.locator('[data-testid="orbit-center-card"]')
     expect(center).to_be_visible()
     center.click()
-    profile = page.locator(".profile-page")
+    profile = page.locator('[data-testid="profile-page"]')
     expect(profile).to_be_visible()
 
     # 1. Disabled-кнопка с маркером «скоро».

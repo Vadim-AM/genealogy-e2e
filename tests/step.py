@@ -1,7 +1,8 @@
-"""Step-level logging for multi-step test flows.
+"""Step-level logging + Allure reporting for multi-step test flows.
 
-Wraps logical phases of a test or fixture with structured log output.
-On failure, the log shows which step was reached before the crash.
+Wraps logical phases of a test or fixture with structured log output
+and ``allure.step()`` blocks — steps render as collapsible items in the
+Allure report with pass/fail status and timing.
 
     with step("signup owner"):
         ...
@@ -14,16 +15,19 @@ import logging
 from contextlib import contextmanager
 from typing import Iterator
 
+import allure
+
 _log = logging.getLogger("e2e.step")
 
 
 @contextmanager
 def step(title: str) -> Iterator[None]:
-    _log.info(">>> %s", title)
+    _log.info("STEP → %s", title)
     try:
-        yield
+        with allure.step(title):
+            yield
     except Exception:
-        _log.error("!!! FAILED: %s", title, exc_info=True)
+        _log.info("STEP ✗ %s", title)
         raise
     else:
-        _log.info("<<< %s", title)
+        _log.info("STEP ✓ %s", title)

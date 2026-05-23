@@ -322,7 +322,9 @@ with step("verify email"):
 ```
 
 On CI, step output shows which phase failed — no more guessing from a
-bare traceback. Use for logical phases (3-6 per helper), not per-line.
+bare traceback. Steps also render as collapsible blocks in the Allure
+report with pass/fail status and timing. Use for logical phases (3-6 per
+helper), not per-line.
 
 ### 18. Shared utilities live in POMs, not in test files
 

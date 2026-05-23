@@ -23,8 +23,8 @@ class ConfirmDialog:
 
     def __init__(self, page: Page):
         self.page = page
-        self.container = page.locator(".confirm-dialog").first
-        self.backdrop = page.locator(".confirm-dialog-backdrop").first
+        self.container = page.locator('[data-testid="confirm-dialog"]').first
+        self.backdrop = page.locator('[data-testid="confirm-dialog-backdrop"]').first
 
     def expect_visible(self) -> None:
         expect(self.container).to_be_visible()

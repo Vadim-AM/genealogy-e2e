@@ -28,7 +28,7 @@ class SourcesBlock:
         self.search = page.locator("#sourceSearchInput")
         self.btn_link = page.locator("#linkSourceBtn")
         self.list = page.locator("#personSourcesList")
-        self.items = self.list.locator(".sources-item")
+        self.items = self.list.locator('[data-testid="source-item"]')
 
     def create_and_link(self, *, name: str) -> None:
         """Type a new source name and click Привязать. With no dropdown
@@ -39,7 +39,7 @@ class SourcesBlock:
 
     def expect_attached(self, name: str) -> None:
         expect(self.items).to_have_count(1)
-        expect(self.items.locator(".sources-item-name")).to_contain_text(name)
+        expect(self.items.locator('[data-testid="source-item-name"]')).to_contain_text(name)
 
     def unlink_first(self) -> None:
-        self.items.locator(".sources-item-remove").first.click()
+        self.items.locator('[data-testid="source-item-remove"]').first.click()

@@ -87,7 +87,7 @@ def test_custom_select_opens_on_arrow_down_keyboard(owner_page: Page):
     wrapper.focus()
     owner_page.keyboard.press("ArrowDown")
     # После открытия dropdown options становятся visible.
-    dropdown = wrapper.locator(".custom-select-dropdown")
+    dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')
     expect(dropdown).to_be_visible()
 
 
@@ -99,7 +99,7 @@ def test_custom_select_closes_on_escape_keyboard(owner_page: Page):
     wrapper = custom_select_for(owner_page, "gender")
     wrapper.focus()
     owner_page.keyboard.press("ArrowDown")
-    dropdown = wrapper.locator(".custom-select-dropdown")
+    dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')
     expect(dropdown).to_be_visible()
 
     owner_page.keyboard.press("Escape")
@@ -183,14 +183,14 @@ def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page):
     owner_page.goto("/")
     owner_page.wait_for_load_state("domcontentloaded")
 
-    sources_ornament = owner_page.locator("#tab-sources .footer-ornament")
-    timeline_ornament = owner_page.locator("#tab-timeline .footer-ornament")
+    sources_ornament = owner_page.locator('#tab-sources [data-testid="footer-ornament"]')
+    timeline_ornament = owner_page.locator('#tab-timeline [data-testid="footer-ornament"]')
     assert sources_ornament.count() == 1, (
-        f"#tab-sources должен содержать ровно один .footer-ornament; "
+        f"#tab-sources должен содержать ровно один footer-ornament; "
         f"got {sources_ornament.count()}"
     )
     assert timeline_ornament.count() == 1, (
-        f"#tab-timeline должен содержать ровно один .footer-ornament; "
+        f"#tab-timeline должен содержать ровно один footer-ornament; "
         f"got {timeline_ornament.count()}"
     )
     # Три bullet'а как design-decision (· · · — index.html:164,183).
@@ -204,13 +204,13 @@ def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page):
 
 def test_timeline_river_filters_render_five_branches(owner_page: Page):
     """TC-12.02: после переключения на Timeline tab — 5 кнопок-фильтров
-    (`.river-filter-btn`): Все / По матери / По отцу / Другие / История.
+    (`[data-testid="river-filter-btn"]`): Все / По матери / По отцу / Другие / История.
     Default active = «Все» (data-branch=all).
     """
     tree = TreePage(owner_page).goto()
     tree.switch_tab("timeline")
 
-    filters = owner_page.locator("#riverFilters .river-filter-btn")
+    filters = owner_page.locator('#riverFilters button[data-testid^="river-filter"]')
     expect(filters).to_have_count(5)
 
     expected_branches = ["all", "maternal", "paternal", "other", "historical"]
@@ -299,7 +299,7 @@ def test_custom_select_arrow_down_then_enter_selects_option(owner_page: Page):
     wrapper = custom_select_for(owner_page, "gender")
     wrapper.focus()
     owner_page.keyboard.press("ArrowDown")
-    dropdown = wrapper.locator(".custom-select-dropdown")
+    dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')
     expect(dropdown).to_be_visible()
 
     # ArrowDown ещё раз — переход на следующий option (если уже не последний).
@@ -383,7 +383,7 @@ def test_confirm_dialog_backdrop_click_cancels(owner_page: Page):
 
 
 def test_timeline_river_filter_click_switches_active(owner_page: Page):
-    """TC-12.02 (extension): click `.river-filter-btn[data-branch=maternal]`
+    """TC-12.02 (extension): click `[data-testid="river-filter-btn"][data-branch=maternal]`
     → active class переходит с дефолтного `all` на `maternal`.
     Контракт: только одна кнопка active в каждый момент.
     """
@@ -391,10 +391,8 @@ def test_timeline_river_filter_click_switches_active(owner_page: Page):
     wait_for_authed_shell(owner_page)
     tree.switch_tab("timeline")
 
-    all_btn = owner_page.locator('#riverFilters .river-filter-btn[data-branch="all"]')
-    maternal_btn = owner_page.locator(
-        '#riverFilters .river-filter-btn[data-branch="maternal"]'
-    )
+    all_btn = owner_page.locator('[data-testid="river-filter-all"]')
+    maternal_btn = owner_page.locator('[data-testid="river-filter-maternal"]')
     expect(all_btn).to_have_class(re.compile(r"\bactive\b"))
 
     maternal_btn.click()
@@ -478,8 +476,8 @@ def test_about_contact_box_shows_placeholder_when_contacts_empty(owner_page: Pag
     tree.switch_tab("about")
 
     # Default seed (после reset_state): contact_text и contact_email пустые.
-    contact_text_p = owner_page.locator(".contact-box [data-config-text='contact_text']")
-    contact_email_a = owner_page.locator(".contact-box [data-config-text='contact_email']")
+    contact_text_p = owner_page.locator('[data-testid="contact-text"]')
+    contact_email_a = owner_page.locator('[data-testid="contact-email"]')
     assert (contact_text_p.text_content() or "").strip() == "", \
         f"expected empty contact_text on default seed; got {contact_text_p.text_content()!r}"
     assert (contact_email_a.text_content() or "").strip() == "", \
@@ -502,7 +500,7 @@ def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page)
 
     # Найдём не-центральную карту (родитель / ребёнок).
     target_card = owner_page.locator(
-        "#treeContainer .orbit-card[data-person-id]:not(.orbit-center-card)"
+        '#treeContainer [data-testid="orbit-card"][data-person-id]:not([data-testid="orbit-center-card"])'
     ).first
     expect(target_card).to_be_visible()
     target_pid = target_card.get_attribute("data-person-id")
@@ -512,6 +510,6 @@ def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page)
 
     # После re-center центральная карта меняется на target_pid.
     new_center = owner_page.locator(
-        f".orbit-zone-center .orbit-center-card[data-person-id='{target_pid}']"
+        f'.orbit-zone-center [data-testid="orbit-center-card"][data-person-id=\'{target_pid}\']'
     )
     expect(new_center).to_be_visible()

@@ -43,15 +43,14 @@ class ProfilePanel:
 
     def __init__(self, page: Page):
         self.page = page
-        self.container = page.locator(".profile-page")
-        self.title = page.locator("#tab-tree .section-title")
+        self.container = page.locator('[data-testid="profile-page"]')
+        self.title = page.locator('[data-testid="profile-section-title"]')
 
         # Action buttons via accessible role + name from the catalogue.
         # Robust to onclick→data-action refactors and locale changes.
         self.btn_edit = page.get_by_role("button", name=t(Buttons.EDIT), exact=False)
         self.btn_enrich = page.get_by_role("button", name=t(Buttons.ENRICH), exact=False)
-        # Back: `← назад к дереву` — class is the most stable handle.
-        self.btn_back = page.locator(".profile-back")
+        self.btn_back = page.locator('[data-testid="profile-back"]')
 
         self.history_block = page.locator("#profileAiHistory")
         self.accepted_facts_block = page.locator("#profileAiAccepted")
@@ -80,9 +79,9 @@ class ProfilePanel:
         Substring match on label so «Супруг(а)» / «Супруг» both work.
         """
         return (
-            self.page.locator(".profile-family-group")
+            self.page.locator('[data-testid="profile-family-group"]')
             .filter(has_text=group_label)
-            .locator(".profile-rel-add")
+            .locator('[data-testid="profile-rel-add"]')
         )
 
     def click_add_sibling(self) -> None:
@@ -114,7 +113,7 @@ class ProfilePanel:
     def click_family_link(self, group_label: str, name_substring: str) -> None:
         """Click a relative's name link inside a family group."""
         group = (
-            self.page.locator(".profile-family-group")
+            self.page.locator('[data-testid="profile-family-group"]')
             .filter(has_text=group_label)
         )
         group.locator(

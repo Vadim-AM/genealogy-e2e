@@ -30,4 +30,4 @@ def test_footer_version_matches_api_app_version(page: Page, base_url: str):
     api_version = httpx.get(f"{base_url}/api/site/config").json()["app_version"]
     page.goto("/")
     page.wait_for_load_state("domcontentloaded")
-    expect(page.locator(".footer-version").first).to_have_text(f"v{api_version}")
+    expect(page.locator('[data-testid="footer-version"]').first).to_have_text(f"v{api_version}")

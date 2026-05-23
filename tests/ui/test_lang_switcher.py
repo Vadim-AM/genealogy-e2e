@@ -21,7 +21,7 @@ from playwright.sync_api import Page, expect
 
 
 def test_lang_switcher_containers_are_hidden_when_only_one_language(page: Page):
-    """TC-19.*-disabled: `.lang-switcher` контейнеры (в header и footer)
+    """TC-19.*-disabled: `[data-testid="lang-switcher"]` контейнеры (в header и footer)
     пустые и display:none пока `_LOCALE_PUBLIC_RELEASE=false`.
     Lang-switcher.js при langs.length<=1 устанавливает
     `target.style.display = 'none'` и `innerHTML = ''`.
@@ -35,18 +35,18 @@ def test_lang_switcher_containers_are_hidden_when_only_one_language(page: Page):
     page.goto("/")
     page.wait_for_load_state("domcontentloaded")
 
-    containers = page.locator(".lang-switcher").all()
-    assert containers, "не найдено ни одного .lang-switcher container на /"
+    containers = page.locator('[data-testid="lang-switcher"]').all()
+    assert containers, 'не найдено ни одного [data-testid="lang-switcher"] container на /'
 
     for idx, container in enumerate(containers):
         inner_html = container.evaluate("(el) => el.innerHTML.trim()")
         display = container.evaluate("(el) => getComputedStyle(el).display")
         assert inner_html == "", (
-            f".lang-switcher[{idx}] должен быть пустым при "
+            f'[data-testid="lang-switcher"][{idx}] должен быть пустым при '
             f"_LOCALE_PUBLIC_RELEASE=false; innerHTML={inner_html[:80]!r}"
         )
         assert display == "none", (
-            f".lang-switcher[{idx}] должен быть display:none пока "
+            f'[data-testid="lang-switcher"][{idx}] должен быть display:none пока '
             f"мультиязычность не включена; computed display={display!r}"
         )
 

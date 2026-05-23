@@ -13,7 +13,7 @@ from playwright.sync_api import Locator, Page, expect
 
 def custom_select_for(page: Page, field: str) -> Locator:
     """Return the custom-select wrapper for a native select[data-field]."""
-    return page.locator(f"div.custom-select:has(+ select[data-field='{field}'])")
+    return page.locator(f'[data-testid="custom-select"]:has(+ select[data-field="{field}"])')
 
 
 def wait_for_authed_shell(page: Page) -> None:
@@ -36,7 +36,7 @@ def wait_for_authed_shell(page: Page) -> None:
     or an internal flag — keeps this robust to refactors (Rule 13).
     """
     expect(
-        page.locator("#treeContainer .orbit-card").first
+        page.locator('#treeContainer [data-testid="orbit-card"]').first
     ).to_be_visible()
 
 

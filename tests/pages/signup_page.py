@@ -34,7 +34,7 @@ class SignupPage(BasePage):
         self.agree = self.agree_terms
         self.submit_btn = page.locator("#signupBtn")
         self.password_toggle = page.locator("#pwToggle")
-        self.password_strength = page.locator(".pw-meter")
+        self.password_strength = page.locator('[data-testid="signup-pw-meter"]')
         self.signup_msg = page.locator("#signupMsg")
 
     def fill_required(

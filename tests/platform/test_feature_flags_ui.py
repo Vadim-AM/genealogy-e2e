@@ -57,7 +57,7 @@ def test_feature_flags_has_five_groups(auth_context_factory, superadmin_user):
     page.goto("/platform/dashboard")
     expect(page.locator("#feature_flags_section")).to_be_visible()
 
-    groups = page.locator(".ff-group")
+    groups = page.locator('[data-testid="ff-group"]')
     assert groups.count() == 5, \
         f"Ожидали 5 групп Feature Flags, нашли {groups.count()}"
 
@@ -68,7 +68,7 @@ def test_feature_flags_has_five_groups(auth_context_factory, superadmin_user):
         "Обслуживание",  # Wave-9 локализовал "Maintenance" → RU
         "Безопасность / алерты",
     }
-    found_titles = {h.inner_text().strip() for h in page.locator(".ff-group-title").all()}
+    found_titles = {h.inner_text().strip() for h in page.locator('[data-testid="ff-group-title"]').all()}
     missing = expected_titles - found_titles
     assert not missing, \
         f"Не найдены группы: {missing}. Все: {found_titles}"
@@ -81,7 +81,7 @@ def test_feature_flags_have_tooltips(auth_context_factory, superadmin_user):
     page.goto("/platform/dashboard")
     expect(page.locator("#feature_flags_section")).to_be_visible()
 
-    helps = page.locator("#feature_flags_section .ff-help")
+    helps = page.locator('#feature_flags_section [data-testid="ff-help"]')
     assert helps.count() >= 8, \
         f"Ожидали ≥8 tooltip элементов (по числу флагов), нашли {helps.count()}"
 

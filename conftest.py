@@ -1,21 +1,24 @@
 """Root pytest config.
 
-Two responsibilities only:
+Responsibilities:
 
 1. Register fixture plugins (broken out by topic in `tests/_fixtures/`).
 2. Apply the suite's domain-marker convention by file path: tests under
    `tests/<domain>/` automatically pick up `@pytest.mark.<domain>`.
+3. Attach Playwright screenshot on test failure (Allure report).
 
 Fixture content lives in `tests/_fixtures/`:
-  - `patch.py`    — httpx monkey-patch + Playwright `expect()` default
-  - `server.py`   — base_url / health gate / reset / AI-mock install
-  - `users.py`    — AuthUser + signup / login / invite factories
-  - `clients.py`  — tenant_client / auth_context_factory / owner_page
-  - `utils.py`    — soft_check
+  - `patch.py`           — httpx monkey-patch + Playwright `expect()` default
+  - `server.py`          — base_url / health gate / reset / AI-mock install
+  - `users.py`           — AuthUser + signup / login / invite factories
+  - `clients.py`         — tenant_client / auth_context_factory / owner_page
+  - `utils.py`           — soft_check
+  - `allure_support.py`  — Allure environment.properties
 """
 
 from __future__ import annotations
 
+import allure
 import pytest
 
 
@@ -31,7 +34,27 @@ pytest_plugins = (
     "tests._fixtures.users",
     "tests._fixtures.clients",
     "tests._fixtures.utils",
+    "tests._fixtures.allure_support",
 )
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    report = outcome.get_result()
+    setattr(item, f"rep_{report.when}", report)
+
+    if report.when == "call" and report.failed:
+        page = getattr(item, "_pw_page", None)
+        if page is not None and not page.is_closed():
+            try:
+                allure.attach(
+                    page.screenshot(),
+                    name="screenshot",
+                    attachment_type=allure.attachment_type.PNG,
+                )
+            except Exception:
+                pass
 
 _DOMAIN_MARKERS = frozenset({
     "auth", "tree", "platform", "admin",

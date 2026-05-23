@@ -31,7 +31,7 @@ def open_profile(page: Page, person_id: str) -> ProfilePanel:
     panel = ProfilePanel(page)
     panel.expect_visible()
     # Sanity: section-title must contain THIS person's name, not stale demo-self.
-    title = page.locator("#tab-tree .section-title")
+    title = page.locator('[data-testid="profile-section-title"]')
     expect(title).not_to_have_text("", timeout=TIMEOUTS.pw_expect_ms)
     return panel
 
@@ -51,7 +51,7 @@ def search_and_open_profile(owner_page: Page, query: str) -> ProfilePanel:
     `DATA.people` populated через `loadData()` -> `/api/tree` после mount;
     guard через `expect_response` (CSP блокирует string-`wait_for_function`).
     Search-click переключает orbit, не открывает profile напрямую --
-    нужен дополнительный click по `.orbit-center-card` (это естественный
+    нужен дополнительный click по `[data-testid="orbit-center-card"]` (это естественный
     пользовательский путь: «нашёл -> перешёл на него в дереве -> открыл
     карточку»).
     """
@@ -62,7 +62,7 @@ def search_and_open_profile(owner_page: Page, query: str) -> ProfilePanel:
         tree.search_input.fill(query)
         expect(tree.search_results.first).to_be_visible()
         tree.search_results.first.click()
-        center_card = owner_page.locator(".orbit-center-card")
+        center_card = owner_page.locator('[data-testid="orbit-center-card"]')
         expect(center_card).to_contain_text(query)
         center_card.click()
         panel = ProfilePanel(owner_page)
@@ -83,12 +83,12 @@ def search_and_orbit(owner_page: Page, query: str) -> None:
     tree.search_input.fill(query)
     expect(tree.search_results.first).to_be_visible()
     tree.search_results.first.click()
-    expect(owner_page.locator(".orbit-center-card")).to_be_visible()
+    expect(owner_page.locator('[data-testid="orbit-center-card"]')).to_be_visible()
 
 
 def click_family_link(panel: ProfilePanel, group_label: str, name_substring: str) -> None:
     """Click `<a data-action="open-profile">name</a>` внутри указанной family group."""
-    group = panel.container.locator(".profile-family-group", has_text=group_label)
+    group = panel.container.locator('[data-testid="profile-family-group"]', has_text=group_label)
     expect(group).to_be_visible()
     link = group.locator('a[data-action="open-profile"]').filter(has_text=name_substring).first
     expect(link).to_be_visible()

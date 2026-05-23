@@ -79,22 +79,22 @@ def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
     """TC-RESPONSIVE-1 (375): label consent-чекбокса не обрезается.
 
     Wave-9 (май 2026): privacy/cross-border объединены с `terms_accepted`,
-    в форме остался один `.signup-agree` чекбокс. Должен укладываться в 375px.
+    в форме остался один `[data-testid="signup-agree-group"]` чекбокс. Должен укладываться в 375px.
     """
     mobile_page.goto("/signup")
     mobile_page.wait_for_load_state("domcontentloaded")
 
-    agree_rows = mobile_page.locator(".signup-agree")
+    agree_rows = mobile_page.locator('[data-testid="signup-agree-group"]')
     expect(agree_rows.first).to_be_visible()
     count = agree_rows.count()
-    assert count >= 1, f"Ожидали ≥1 .signup-agree блок, нашли {count}"
+    assert count >= 1, f'Ожидали ≥1 [data-testid="signup-agree-group"] блок, нашли {count}'
 
     for i in range(count):
         row = agree_rows.nth(i)
         box = row.bounding_box()
-        assert box is not None, f".signup-agree[{i}] not visible"
+        assert box is not None, f'[data-testid="signup-agree-group"][{i}] not visible'
         assert (box["x"] + box["width"]) <= 375, (
-            f".signup-agree[{i}] row overflows iPhone SE width: "
+            f'[data-testid="signup-agree-group"][{i}] row overflows iPhone SE width: '
             f"right_edge={box['x'] + box['width']} > 375"
         )
 

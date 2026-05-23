@@ -11,7 +11,7 @@ def auth_indicator(page: Page):
 
 def auth_name(page: Page):
     """The `.auth-name` span inside the auth indicator (authenticated user's display name)."""
-    return auth_indicator(page).locator(".auth-name")
+    return auth_indicator(page).locator('[data-testid="auth-user-name"]')
 
 
 def logout_link(page: Page):

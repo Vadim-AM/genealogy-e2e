@@ -49,11 +49,11 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
 
     accepted = panel.accepted_facts_block
     expect(accepted).to_be_visible()
-    chips = accepted.locator(".profile-ai-chip")
+    chips = accepted.locator('[data-testid="profile-ai-chip"]')
     # Accepting the hypothesis writes its claim + reasoning as 2 chips.
     expect(chips).to_have_count(2)
 
-    chips.first.locator(".profile-ai-chip-revert").click()
+    chips.first.locator('[data-testid="profile-ai-chip-revert"]').click()
     # revert opens a prompt for an optional reason — confirm it.
     owner_page.get_by_role(
         "button", name=t(Enrichment.REVERT_OK), exact=True
