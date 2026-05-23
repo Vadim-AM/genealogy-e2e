@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import re
 
+import allure
 import httpx
 import pytest
 from playwright.sync_api import Page, expect
@@ -36,6 +37,7 @@ from tests.timeouts import TIMEOUTS
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Флаги: секция Feature Flags видна на дашборде")
 def test_dashboard_has_feature_flags_section(auth_context_factory, superadmin_user):
     """TC-N6: на /platform/dashboard есть секция Feature Flags."""
     ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
@@ -50,6 +52,7 @@ def test_dashboard_has_feature_flags_section(auth_context_factory, superadmin_us
     expect(section).to_be_visible()
 
 
+@allure.title("Флаги: секция содержит ровно 5 групп с заголовками")
 def test_feature_flags_has_five_groups(auth_context_factory, superadmin_user):
     """TC-N6: секция содержит 5 групп с заголовками."""
     ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
@@ -74,6 +77,7 @@ def test_feature_flags_has_five_groups(auth_context_factory, superadmin_user):
         f"Не найдены группы: {missing}. Все: {found_titles}"
 
 
+@allure.title("Флаги: каждый переключатель имеет tooltip с описанием")
 def test_feature_flags_have_tooltips(auth_context_factory, superadmin_user):
     """TC-N6: каждый флаг имеет ⓘ tooltip с описанием (атрибут title)."""
     ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
@@ -100,6 +104,7 @@ def test_feature_flags_have_tooltips(auth_context_factory, superadmin_user):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Флаги: toggle AI-поиска виден с атрибутом data-flag")
 def test_ai_search_toggle_visible(auth_context_factory, superadmin_user):
     """TC-N6: toggle #ff_enable_ai_search присутствует в группе AI."""
     ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
@@ -116,6 +121,7 @@ def test_ai_search_toggle_visible(auth_context_factory, superadmin_user):
     )
 
 
+@allure.title("Флаги: toggle AI-поиска отражает значение False из БД")
 def test_ai_search_toggle_reflects_db_value_when_off(
     auth_context_factory, superadmin_user, uvicorn_server: str
 ):
@@ -162,6 +168,7 @@ def test_ai_search_toggle_reflects_db_value_when_off(
     )
 
 
+@allure.title("Флаги: клик по toggle добавляет класс .dirty на строку")
 def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_user):
     """TC-N6: при клике на toggle строка получает класс .dirty."""
     ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
@@ -195,6 +202,7 @@ def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_u
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Флаги: PATCH настроек сохраняет значение в БД")
 def test_patch_settings_writes_to_platformsettings_db(superadmin_user, tenant_client):
     """TC-N6 + A8: PATCH /api/platform/settings меняет значение в БД
     (`PlatformSettings.enable_ai_search`).
@@ -227,6 +235,7 @@ def test_patch_settings_writes_to_platformsettings_db(superadmin_user, tenant_cl
     api.patch(API.PLATFORM_SETTINGS, json={"enable_ai_search": initial_db}).raise_for_status()
 
 
+@allure.title("Флаги: некорректный llm_provider отклоняется с 400")
 def test_patch_settings_validates_llm_provider_enum(superadmin_user, tenant_client):
     """TC-A8: некорректное llm_provider (не из enum) должно вернуть 400 с
     detail, упоминающим один из канонических provider'ов."""

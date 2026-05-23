@@ -5,6 +5,7 @@ Covers: F-FV-1..6 при первом заходе owner'а в свой tenant.
 
 from __future__ import annotations
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
@@ -17,6 +18,7 @@ from tests.pages.tree_page import TreePage
 DEMO_SEED_RING_CARDS = 2
 
 
+@allure.title("Первый визит отображает дерево с демо-данными")
 def test_first_visit_renders_tree_with_demo_seed(owner_page: Page):
     """F-FV-1, F-FV-2: owner visits / and orbit-view renders the demo ring.
 
@@ -29,6 +31,7 @@ def test_first_visit_renders_tree_with_demo_seed(owner_page: Page):
     tree.expect_tree_rendered(min_cards=DEMO_SEED_RING_CARDS)
 
 
+@allure.title("Авторизованному пользователю видны навигационные вкладки")
 def test_first_visit_shows_authed_tabs(owner_page: Page):
     """F-FV-4: основные навигационные вкладки видны.
 
@@ -44,6 +47,7 @@ def test_first_visit_shows_authed_tabs(owner_page: Page):
     expect(tree.tab_about).to_be_visible()
 
 
+@allure.title("Поле поиска отображается в шапке после входа")
 def test_first_visit_search_input_visible(owner_page: Page):
     """F-FV-5: search input is in the header for authed users."""
     owner_page.goto("/")
@@ -51,6 +55,7 @@ def test_first_visit_search_input_visible(owner_page: Page):
     expect(owner_page.locator("#headerSearch")).to_be_visible()
 
 
+@allure.title("Кнопка повтора тура видна на главной после входа")
 def test_first_visit_tour_replay_button_visible(owner_page: Page):
     """F-FV-6: '?' tour replay button is visible."""
     owner_page.goto("/")
@@ -58,6 +63,7 @@ def test_first_visit_tour_replay_button_visible(owner_page: Page):
     expect(owner_page.locator("#tourReplayBtn")).to_be_visible()
 
 
+@allure.title("Эндпоинт /me возвращает slug тенанта после авторизации")
 def test_me_endpoint_returns_tenant_after_login(owner_user, tenant_client):
     """F-FV-1 backend check: /api/account/me returns user + tenant slug."""
     api = tenant_client(owner_user)

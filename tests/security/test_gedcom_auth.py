@@ -7,11 +7,14 @@ owner для photos и GEDCOM"). Now plain regression — auth_v2 owner
 
 from __future__ import annotations
 
+import allure
+
 from tests.api_paths import API
 from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
+@allure.title("GEDCOM: владелец экспортирует дерево через auth_v2")
 def test_owner_can_export_gedcom_via_auth_v2(owner_user, tenant_client):
     """INV-GEDCOM-001 (export): auth_v2 owner получает 200 + GEDCOM body."""
     api = tenant_client(owner_user)
@@ -25,6 +28,7 @@ def test_owner_can_export_gedcom_via_auth_v2(owner_user, tenant_client):
     )
 
 
+@allure.title("GEDCOM: владелец импортирует файл через auth_v2")
 def test_owner_can_import_gedcom_via_auth_v2(owner_user, tenant_client):
     """INV-GEDCOM-001 (import): auth_v2 owner может POST GEDCOM."""
     api = tenant_client(owner_user)

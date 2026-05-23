@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.constants import unique_email
@@ -28,6 +29,7 @@ from tests.messages import Waitlist, t
 _IS_OPEN = re.compile(r"\bis-open\b")
 
 
+@allure.title("Модалка листа ожидания открывается с email пользователя")
 def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page):
     """TC-22.04 (open): backend → waitlist_required → модалка открывается,
     title «Сейчас принимаем не всех», email юзера встроен в #waitlistBody2.
@@ -50,6 +52,7 @@ def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page):
     expect(page.locator("#waitlistBody2")).to_contain_text(t(Waitlist.WAITLIST_KEYWORD))
 
 
+@allure.title("Кнопка 'Понятно' в модалке ожидания ведёт на главную")
 def test_waitlist_modal_ok_button_redirects_to_landing(page: Page):
     """TC-22.04 (close-ok): click «Понятно» → закрывает модалку и
     делает redirect на / (signup.html:407: location.href = '/').
@@ -65,6 +68,7 @@ def test_waitlist_modal_ok_button_redirects_to_landing(page: Page):
     page.wait_for_url(re.compile(r"/$"))
 
 
+@allure.title("Esc закрывает модалку ожидания без перенаправления")
 def test_waitlist_modal_esc_closes_without_redirect(page: Page):
     """TC-22.05: Esc убирает класс .is-open, но НЕ делает redirect —
     юзер остаётся на /signup. Это сознательное решение (signup.html:411):
@@ -86,6 +90,7 @@ def test_waitlist_modal_esc_closes_without_redirect(page: Page):
     )
 
 
+@allure.title("Модалка показывает ссылку /wait при неуспешной авто-подписке")
 def test_waitlist_modal_shows_wait_link_when_auto_subscribe_failed(page: Page):
     """TC-22.04 (fallback): когда backend не смог auto-subscribe
     (waitlist_subscribed=false), модалка показывает CTA на /wait

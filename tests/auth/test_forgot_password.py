@@ -13,6 +13,7 @@ empty-password validation, login form readiness, success copy.
 
 from __future__ import annotations
 
+import allure
 import httpx
 from playwright.sync_api import Page, expect
 
@@ -30,6 +31,7 @@ from tests.timeouts import TIMEOUTS
 _NEW_PASSWORD = "Brand_New_Password_2026"
 
 
+@allure.title("Сброс пароля: полный путь от запроса до входа с новым паролем")
 def test_forgot_password_full_flow_user_logs_in_with_new_password(
     page: Page, owner_user, read_email_token,
 ):
@@ -72,6 +74,7 @@ def test_forgot_password_full_flow_user_logs_in_with_new_password(
     )
 
 
+@allure.title("Запрос сброса для неизвестного email показывает тот же успех")
 def test_forgot_password_unknown_email_shows_silent_success_message(
     page: Page, base_url: str,
 ):
@@ -99,6 +102,7 @@ def test_forgot_password_unknown_email_shows_silent_success_message(
     expect_response(r, label="unknown email: no reset sent").status(404)
 
 
+@allure.title("Повторное открытие ссылки сброса пароля показывает ошибку")
 def test_reset_password_token_used_once_then_invalid_via_ui(
     page: Page, owner_user, read_email_token,
 ):
@@ -127,6 +131,7 @@ def test_reset_password_token_used_once_then_invalid_via_ui(
     rp2.expect_error_message()
 
 
+@allure.title("Пустое поле email не отправляет запрос на сброс пароля")
 def test_forgot_password_empty_field_shows_inline_error_no_request(
     page: Page,
 ):

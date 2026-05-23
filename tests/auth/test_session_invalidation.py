@@ -16,10 +16,13 @@
 
 from __future__ import annotations
 
+import allure
+
 from tests.constants import unique_email
 from tests.helpers.auth.session_helpers import NEW_PASSWORD, me_status, trigger_password_reset
 
 
+@allure.title("Сброс пароля инвалидирует текущую активную сессию")
 def test_password_reset_invalidates_active_session(
     signup_via_api, read_email_token, base_url: str,
 ):
@@ -48,6 +51,7 @@ def test_password_reset_invalidates_active_session(
     )
 
 
+@allure.title("Сброс пароля отзывает сессии на всех устройствах")
 def test_password_reset_invalidates_all_devices_sessions(
     signup_via_api, login_existing, read_email_token, base_url: str,
 ):

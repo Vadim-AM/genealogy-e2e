@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import time
 
+import allure
 import httpx
 
 from tests.api_paths import API
@@ -24,6 +25,7 @@ from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
+@allure.title("AI-обогащение: mock-результат содержит архивные подсказки")
 def test_enrichment_endpoint_returns_mocked_output(
     owner_user, grant_ai_consent, tenant_client,
 ):
@@ -61,6 +63,7 @@ def test_enrichment_endpoint_returns_mocked_output(
         f"mock fixture not applied — got real output? archive_suggestions: {archive_suggestions[:1]}"
 
 
+@allure.title("AI-обогащение: история возвращает dict с ключом items")
 def test_enrichment_history_endpoint_returns_items_dict(
     owner_user, grant_ai_consent, tenant_client,
 ):
@@ -90,6 +93,7 @@ def test_enrichment_history_endpoint_returns_items_dict(
     )
 
 
+@allure.title("AI-обогащение: первый запуск не упирается в квоту (429)")
 def test_enrichment_first_run_does_not_hit_quota(
     owner_user, grant_ai_consent, tenant_client,
 ):

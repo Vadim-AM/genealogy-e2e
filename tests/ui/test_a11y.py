@@ -22,10 +22,13 @@ from __future__ import annotations
 import pytest
 from playwright.sync_api import Page, expect
 
+import allure
+
 from tests.pages.signup_page import SignupPage
 from tests.timeouts import TIMEOUTS
 
 
+@allure.title("A11y: поле пароля получает aria-invalid при ошибке сервера")
 def test_signup_short_password_sets_aria_invalid(page: Page):
     """A-SU-3: server returns 422 на short password → JS handler ставит
     `aria-invalid="true"` на password input.
@@ -64,6 +67,7 @@ def test_signup_short_password_sets_aria_invalid(page: Page):
     )
 
 
+@allure.title("A11y: honeypot-поле скрыто от скринридера (aria-hidden)")
 def test_signup_honeypot_is_aria_hidden(page: Page):
     """A-SU-4: honeypot input has `aria-hidden="true"` (or its wrapper).
 

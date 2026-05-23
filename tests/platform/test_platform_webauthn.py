@@ -16,6 +16,8 @@ Hard rules: hard assert, single canonical field, no skip-fallback.
 
 from __future__ import annotations
 
+import allure
+
 from tests.api_paths import API
 from tests.pages.platform_dashboard_page import PlatformDashboardPage
 
@@ -25,6 +27,7 @@ from tests.pages.platform_dashboard_page import PlatformDashboardPage
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("WebAuthn: список ключей недоступен обычному владельцу")
 def test_webauthn_list_403_for_non_super(owner_user, tenant_client):
     """TC-PA-WEBAUTHN-1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.WEBAUTHN_LIST)
@@ -32,6 +35,7 @@ def test_webauthn_list_403_for_non_super(owner_user, tenant_client):
         f"expected 403, got {r.status_code}"
 
 
+@allure.title("WebAuthn: список ключей пуст у нового суперадмина")
 def test_webauthn_list_initially_empty(superadmin_user, tenant_client):
     """TC-PA-WEBAUTHN-2: свежий superadmin без зарегистрированных credentials → []."""
     r = tenant_client(superadmin_user).get(API.WEBAUTHN_LIST)
@@ -40,6 +44,7 @@ def test_webauthn_list_initially_empty(superadmin_user, tenant_client):
         f"items: expected empty list, got {r.json()['items']!r}"
 
 
+@allure.title("WebAuthn: начало регистрации возвращает challenge и rp")
 def test_webauthn_register_begin_returns_challenge_and_rp(superadmin_user, tenant_client):
     """TC-PA-WEBAUTHN-3: register/begin отдаёт challenge + rp.id (контракт WebAuthn)."""
     r = tenant_client(superadmin_user).post(API.WEBAUTHN_REGISTER_BEGIN)
@@ -53,6 +58,7 @@ def test_webauthn_register_begin_returns_challenge_and_rp(superadmin_user, tenan
         f"rp.name missing: {data['rp']}"
 
 
+@allure.title("WebAuthn: аутентификация без ключей возвращает 404")
 def test_webauthn_authenticate_begin_404_without_credentials(superadmin_user, tenant_client):
     """TC-PA-WEBAUTHN-4: authenticate/begin → 404 (no_webauthn_credentials),
     если у юзера ничего не зарегистрировано. Hard 404, не silent fallback."""
@@ -63,6 +69,7 @@ def test_webauthn_authenticate_begin_404_without_credentials(superadmin_user, te
         f"expected 'no_webauthn_credentials' in response: {r.text[:200]}"
 
 
+@allure.title("WebAuthn: завершение регистрации без challenge — 400")
 def test_webauthn_register_complete_400_without_challenge(superadmin_user, tenant_client):
     """TC-PA-WEBAUTHN-5: complete без предшествующего begin → 400 (no_pending_challenge)."""
     r = tenant_client(superadmin_user).post(
@@ -133,6 +140,7 @@ def _add_virtual_authenticator(page) -> str:
     return result["authenticatorId"]
 
 
+@allure.title("WebAuthn: полный цикл регистрации ключа через UI")
 def test_webauthn_full_register_via_ui(
     browser, superadmin_user, tenant_client, base_url: str,
 ):
@@ -176,6 +184,7 @@ def test_webauthn_full_register_via_ui(
         ctx.close()
 
 
+@allure.title("WebAuthn: регистрация и аутентификация в одной сессии")
 def test_webauthn_register_then_authenticate_via_ui(
     browser, superadmin_user, base_url: str,
 ):
@@ -207,6 +216,7 @@ def test_webauthn_register_then_authenticate_via_ui(
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("WebAuthn: кнопка TouchID присутствует в setup-модалке")
 def test_setup_modal_has_webauthn_button_first(
     auth_context_factory, superadmin_user
 ):

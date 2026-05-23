@@ -19,10 +19,13 @@ from __future__ import annotations
 
 import httpx
 
+import allure
+
 from tests.messages import PII
 from tests.timeouts import TIMEOUTS
 
 
+@allure.title("Приватность: constants.js не содержит ФИО владельца")
 def test_constants_js_no_owner_pii(base_url: str):
     """`/js/constants.js` (public static mount) не содержит owner PII.
 
@@ -42,6 +45,7 @@ def test_constants_js_no_owner_pii(base_url: str):
         )
 
 
+@allure.title("Приватность: index.html не содержит PII в inline-скриптах")
 def test_index_html_no_owner_pii_in_inline_scripts(base_url: str):
     """`/` (anonymous landing) inline scripts must not contain owner PII.
 
@@ -59,6 +63,7 @@ def test_index_html_no_owner_pii_in_inline_scripts(base_url: str):
         )
 
 
+@allure.title("Приватность: constants.js не содержит координат миграций")
 def test_constants_js_has_no_geo_coordinates(base_url: str):
     """Sanity check: hardcoded migration coordinates removed.
 
@@ -84,6 +89,7 @@ def test_constants_js_has_no_geo_coordinates(base_url: str):
 _CONSTANTS_JS_MAX_BYTES = 5 * 1024
 
 
+@allure.title("Приватность: размер constants.js не превышает 5 КБ")
 def test_constants_js_size_bounded(base_url: str):
     """`/js/constants.js` is small — guard against re-inlining of
     owner data of any shape (catches future PII without enumerating

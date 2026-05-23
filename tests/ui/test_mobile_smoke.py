@@ -17,6 +17,8 @@ from typing import Iterator
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Page, expect
 
+import allure
+
 from tests._data.devices.descriptors import DEVICE_DESCRIPTORS
 from tests.api_paths import API
 from tests.pages.signup_page import SignupPage
@@ -62,6 +64,7 @@ def mobile_page(mobile_context: BrowserContext) -> Iterator[Page]:
 # ─────────────────────────────────────────────────────────────────
 
 
+@allure.title("Мобильный: лендинг показывает древо без горизонтального скролла")
 def test_landing_loads_and_shows_demo_tree_on_mobile(mobile_page: Page):
     """TC-MOBILE-1: лендинг рендерится, treeContainer виден, нет horizontal scroll."""
     mobile_page.goto("/")
@@ -76,6 +79,7 @@ def test_landing_loads_and_shows_demo_tree_on_mobile(mobile_page: Page):
     assert sw <= cw + 4, f"horizontal scroll: scrollWidth={sw}, clientWidth={cw}"
 
 
+@allure.title("Мобильный: вкладки Древо и О проекте кликабельны")
 def test_landing_tabs_clickable_on_mobile(mobile_page: Page):
     """TC-MOBILE-2: гостевые вкладки (Древо + О проекте) кликаются и
     переключаются. На мобайле tap-target 44×44 — проверяем visible +
@@ -99,6 +103,7 @@ def test_landing_tabs_clickable_on_mobile(mobile_page: Page):
         )
 
 
+@allure.title("Мобильный: бета-карточка с CTA видна гостю в About")
 def test_about_beta_card_visible_for_guest_on_mobile(mobile_page: Page):
     """TC-MOBILE-3 (P1.2.3): на мобайле в About-вкладке гость видит beta-card
     с CTA на /wait. Пр authenticated — не видит."""
@@ -115,6 +120,7 @@ def test_about_beta_card_visible_for_guest_on_mobile(mobile_page: Page):
     expect(cta).to_be_visible()
 
 
+@allure.title("Мобильный: форма регистрации заполняется и отправляется")
 def test_signup_form_submittable_on_mobile(
     mobile_page: Page, base_url: str
 ):
@@ -154,6 +160,7 @@ def test_signup_form_submittable_on_mobile(
     expect(mobile_page).to_have_title(__import__("re").compile(r".+"))
 
 
+@allure.title("Мобильный: форма вейтлиста на /wait работает на тачскрине")
 def test_wait_form_submittable_on_mobile(mobile_page: Page):
     """TC-MOBILE-5: /wait — основной CTA для guest'ов в бета-режиме.
     Форма должна быть полностью функциональной на тачскрине."""

@@ -13,6 +13,8 @@ pre-wired с base_url + cookies + slug header. Никаких raw httpx-
 
 from __future__ import annotations
 
+import allure
+
 from tests._data.payloads.tree import parent_rel, person_payload
 from tests.api_paths import API
 from tests.constants import unique_email
@@ -25,6 +27,7 @@ from tests.response import expect_response
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Бэкенд отклоняет дату смерти раньше даты рождения")
 def test_patch_person_death_before_birth_is_422(owner_user, tenant_client):
     """INV-DOMAIN-001: backend rejects death year < birth year.
 
@@ -38,6 +41,7 @@ def test_patch_person_death_before_birth_is_422(owner_user, tenant_client):
     expect_response(r, label="death before birth").status(400, 422)
 
 
+@allure.title("Бэкенд отклоняет рождение родителя позже ребёнка")
 def test_patch_parent_birth_after_child_is_422(signup_via_api, tenant_client):
     """INV-DOMAIN-004: parent.birth must precede child.birth (>= ~14y).
 
@@ -59,6 +63,7 @@ def test_patch_parent_birth_after_child_is_422(signup_via_api, tenant_client):
     expect_response(r, label="parent birth after child").status(400, 422)
 
 
+@allure.title("Бэкенд отклоняет непарсируемую дату рождения")
 def test_patch_person_garbage_birth_is_422(owner_user, tenant_client):
     """INV-DATE-001: birth='foobar' (non-parseable) must be rejected.
 
@@ -78,6 +83,7 @@ def test_patch_person_garbage_birth_is_422(owner_user, tenant_client):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Бэкенд отклоняет третьего родителя у ребёнка")
 def test_third_parent_relationship_is_rejected(signup_via_api, tenant_client):
     """INV-DOMAIN-002: backend should reject >2 parents per child.
 
@@ -102,6 +108,7 @@ def test_third_parent_relationship_is_rejected(signup_via_api, tenant_client):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Бэкенд отклоняет цикл в графе родительских связей")
 def test_parent_cycle_is_rejected(signup_via_api, tenant_client):
     """INV-DOMAIN-003: A parent of B + B parent of A → backend rejects 2nd.
 
@@ -124,6 +131,7 @@ def test_parent_cycle_is_rejected(signup_via_api, tenant_client):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Корневой субъект нельзя перевести в ветку demo")
 def test_subject_cannot_be_demoted_to_demo_branch(owner_user, tenant_client):
     """INV-DOMAIN-005: root subject can't have branch=demo.
 
@@ -139,6 +147,7 @@ def test_subject_cannot_be_demoted_to_demo_branch(owner_user, tenant_client):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Удаление персоны со связями не вызывает ошибку 500")
 def test_delete_non_root_person_with_relationship_does_not_500(
     signup_via_api, tenant_client,
 ):
@@ -167,6 +176,7 @@ def test_delete_non_root_person_with_relationship_does_not_500(
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Связь с несуществующей персоной возвращает 404, не 500")
 def test_relationship_with_orphan_person_id_returns_404_not_500(
     signup_via_api, tenant_client,
 ):
@@ -192,6 +202,7 @@ def test_relationship_with_orphan_person_id_returns_404_not_500(
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Бэкенд отклоняет слишком длинные заметки (50 КБ)")
 def test_patch_person_huge_notes_is_rejected(owner_user, tenant_client):
     """INV-DATA-001: notes > reasonable bound (e.g. 10K) must be rejected.
 
@@ -205,6 +216,7 @@ def test_patch_person_huge_notes_is_rejected(owner_user, tenant_client):
     expect_response(r, label="50KB notes rejected").status(400, 413, 422)
 
 
+@allure.title("Бэкенд отклоняет слишком длинную фамилию (5000 символов)")
 def test_patch_person_huge_surname_is_rejected(owner_user, tenant_client):
     """INV-DATA-001: surname > reasonable bound (e.g. 100) must be rejected.
 

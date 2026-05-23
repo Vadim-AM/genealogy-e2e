@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import pytest
 
+import allure
+
 from tests.api_paths import API
 
 
@@ -20,6 +22,7 @@ _MALICIOUS_IDS = [
 
 
 @pytest.mark.parametrize("malicious_id", _MALICIOUS_IDS)
+@allure.title("Безопасность: вредоносный person ID возвращает 400/404, не 500")
 def test_malicious_person_id_returns_404_not_500(
     owner_user, tenant_client, malicious_id: str,
 ):

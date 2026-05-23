@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import allure
 import httpx
 import pytest
 
@@ -26,6 +27,7 @@ _TENANT_A_VALUE = "Семья A — приватное"
 _TENANT_B_VALUE = "Семья B — другое"
 
 
+@allure.title("Мультитенант: тенант B не видит site_name тенанта A")
 def test_tenant_b_sees_default_not_tenant_a_value(signup_via_api, tenant_client):
     """TC-MT-1 step 6 (read-isolation): B GET до своего PATCH видит default, не A."""
     user_a = signup_via_api(email=unique_email("mt-default-a"))
@@ -44,6 +46,7 @@ def test_tenant_b_sees_default_not_tenant_a_value(signup_via_api, tenant_client)
     )
 
 
+@allure.title("Мультитенант: PATCH в тенанте B не затирает данные A")
 def test_tenant_b_patch_does_not_overwrite_tenant_a(signup_via_api, tenant_client):
     """TC-MT-1 steps 5–7 (write-isolation): PATCH в B не затирает A.
 
@@ -68,6 +71,7 @@ def test_tenant_b_patch_does_not_overwrite_tenant_a(signup_via_api, tenant_clien
     )
 
 
+@allure.title("Мультитенант: анонимный запрос не утекает site_name тенанта")
 def test_anonymous_site_config_does_not_leak_tenant_value(
     signup_via_api, tenant_client, base_url: str,
 ):

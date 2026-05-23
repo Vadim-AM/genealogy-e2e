@@ -7,6 +7,7 @@ for the source record itself (a source has no dedicated edit UI).
 
 from __future__ import annotations
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
@@ -17,6 +18,7 @@ from tests.pages.sources_block import SourcesBlock
 from tests.response import expect_response
 
 
+@allure.title("Владелец привязывает источник к персоне и отвязывает обратно")
 def test_owner_attaches_and_unlinks_a_source(
     owner_page: Page, owner_user, tenant_client,
 ):
@@ -49,6 +51,7 @@ def test_owner_attaches_and_unlinks_a_source(
     assert not after.json(), f"source still linked after unlink: {after.json()}"
 
 
+@allure.title("Жизненный цикл источника: создание, переименование, удаление")
 def test_source_record_crud_lifecycle(owner_user, tenant_client):
     """Backend lifecycle for a source record itself — there is no
     dedicated UI to edit or delete a source, so this is an invariant

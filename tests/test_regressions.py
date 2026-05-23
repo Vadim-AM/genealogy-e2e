@@ -18,12 +18,15 @@ from __future__ import annotations
 
 from playwright.sync_api import Page
 
+import allure
+
 from tests.api_paths import API
 from tests.constants import make_email
 from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
+@allure.title("Регрессия: auth_v2 владелец читает историю обогащения")
 def test_bug_auth_001_authv2_owner_reads_enrichment(
     owner_user, grant_ai_consent, tenant_client,
 ):
@@ -41,6 +44,7 @@ def test_bug_auth_001_authv2_owner_reads_enrichment(
         expect_response(r, label=f"GET {path}").status(200, 204)
 
 
+@allure.title("Регрессия: аналитика page_view не падает с 500")
 def test_bug_auth_002_pageview_platform_session_no_500(owner_user, tenant_client):
     """TC-BUG-AUTH-002: /api/analytics/log with PlatformSession cookie returns 204.
 
@@ -55,6 +59,7 @@ def test_bug_auth_002_pageview_platform_session_no_500(owner_user, tenant_client
     expect_response(r, label="BUG-AUTH-002 analytics log").status(200)
 
 
+@allure.title("Регрессия: /signup не запрашивает /api/csrf-token (404)")
 def test_bug_csrf_001_console_clean_on_signup(page: Page):
     """TC-BUG-CSRF-001: opening /signup → no 404 on /api/csrf-token in console."""
     bad_404: list[str] = []
@@ -69,6 +74,7 @@ def test_bug_csrf_001_console_clean_on_signup(page: Page):
     assert not bad_404, f"BUG-CSRF-001 regression: {bad_404}"
 
 
+@allure.title("Регрессия: site_config изолирован между тенантами")
 def test_bug_mt_001_site_config_is_per_tenant(signup_via_api, tenant_client):
     """BUG-MT-001 regression: PATCH /api/site/config in tenant A must NOT affect tenant B.
 
@@ -91,6 +97,7 @@ def test_bug_mt_001_site_config_is_per_tenant(signup_via_api, tenant_client):
         "BUG-MT-001: tenant A's config leaked into tenant B"
 
 
+@allure.title("Регрессия: повторный запрос обогащения не даёт 409")
 def test_bug_auth_003_sse_reconnect_recovers(
     owner_user, grant_ai_consent, tenant_client,
 ):

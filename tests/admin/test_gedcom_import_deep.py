@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
+import allure
+
 from tests._data.gedcom.samples import (
     GEDCOM_CYRILLIC_EDGE,
     GEDCOM_MINIMAL_INDI,
@@ -42,6 +44,7 @@ from tests.pages.owner_page import OwnerPage
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("GEDCOM: импорт 3 поколений и навигация по семейным связям")
 def test_user_imports_three_generation_family_and_navigates_via_ui(
     owner_page: Page, owner_user,
 ):
@@ -118,6 +121,7 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("GEDCOM: кириллица с буквой ё сохраняется без искажений")
 def test_user_imports_cyrillic_data_renders_without_mojibake_via_ui(
     owner_page: Page, owner_user,
 ):
@@ -153,6 +157,7 @@ def test_user_imports_cyrillic_data_renders_without_mojibake_via_ui(
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("GEDCOM: минимальный INDI (только имя и пол) не ломает профиль")
 def test_user_imports_minimal_indi_profile_renders_without_crash(
     owner_page: Page, owner_user,
 ):
@@ -198,6 +203,7 @@ def test_user_imports_minimal_indi_profile_renders_without_crash(
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("GEDCOM: NOTE из файла отображается как биография в профиле")
 def test_user_imports_indi_with_note_renders_biography_in_profile_story(
     owner_page: Page, owner_user,
 ):
@@ -229,6 +235,7 @@ def test_user_imports_indi_with_note_renders_biography_in_profile_story(
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("GEDCOM: пол M/F определяет подписи «отец»/«мать» в орбите")
 def test_user_imports_male_and_female_show_correct_relation_label_in_orbit(
     owner_page: Page, owner_user,
 ):
@@ -261,6 +268,7 @@ def test_user_imports_male_and_female_show_correct_relation_label_in_orbit(
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("GEDCOM: повторный импорт того же файла не дублирует персон")
 def test_user_reimports_same_file_does_not_duplicate_persons(
     owner_page: Page, owner_user,
 ):

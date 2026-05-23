@@ -11,10 +11,13 @@ GDPR compliance.
 
 from __future__ import annotations
 
+import allure
+
 from tests.api_paths import API
 from tests.response import expect_response
 
 
+@allure.title("AI-согласие: обогащение без consent отклоняется (403)")
 def test_post_enrich_without_consent_is_forbidden(
     signup_via_api, tenant_client,
 ):

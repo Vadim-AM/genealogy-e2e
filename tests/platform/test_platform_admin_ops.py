@@ -8,6 +8,7 @@ opens the 5-minute step-up window.
 
 from __future__ import annotations
 
+import allure
 import httpx
 import pyotp
 
@@ -17,6 +18,7 @@ from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
+@allure.title("Админ: суперадмин видит список тенантов и свой в нём")
 def test_admin_tenant_listing(superadmin_user, tenant_client):
     """Superadmin lists all tenants and looks one up by slug."""
     api = tenant_client(superadmin_user)
@@ -31,6 +33,7 @@ def test_admin_tenant_listing(superadmin_user, tenant_client):
     expect_response(one, label="GET admin/tenant by slug").status_ok().json_eq("slug", superadmin_user.slug)
 
 
+@allure.title("Вейтлист: подписка, пометка и удаление через админку")
 def test_admin_waitlist_lifecycle(superadmin_user, tenant_client, base_url):
     """A waitlist subscriber appears for superadmin, can be marked
     contacted (PATCH) and removed (DELETE)."""
@@ -52,6 +55,7 @@ def test_admin_waitlist_lifecycle(superadmin_user, tenant_client, base_url):
         "deleted subscriber still listed"
 
 
+@allure.title("Вейтлист платформы: подписчик виден суперадмину")
 def test_platform_waitlist_listing(superadmin_user, tenant_client, base_url):
     """GET /api/platform/waitlist lists waitlist subscribers for the
     superadmin. (BUG-WAITLIST-PG-002 — UnboundExecutionError — fixed
@@ -69,6 +73,7 @@ def test_platform_waitlist_listing(superadmin_user, tenant_client, base_url):
         f"subscribed email not in platform waitlist: {items}"
 
 
+@allure.title("Бэкапы и напоминания: список снимков и отправка нуджей")
 def test_platform_backups_and_nudges(superadmin_user, tenant_client):
     """GET /api/platform/backups lists snapshots; POST send-onboarding-nudges
     reports how many nudges were sent."""
@@ -80,6 +85,7 @@ def test_platform_backups_and_nudges(superadmin_user, tenant_client):
     expect_response(nudges, label="POST nudges").status_ok().json_has("sent_count")
 
 
+@allure.title("Оверрайд тенанта: установка, чтение и удаление переопределения")
 def test_tenant_override_lifecycle(superadmin_user, tenant_client):
     """Superadmin sets a tier override on a tenant, reads it back, deletes
     it. tenant-override POST/DELETE are step-up-gated — a fresh
@@ -108,6 +114,7 @@ def test_tenant_override_lifecycle(superadmin_user, tenant_client):
         "deleted override must be gone"
 
 
+@allure.title("Вейтлист: инвайт подписчика возвращает статус invited")
 def test_platform_waitlist_invite_promotes_subscriber(
     superadmin_user, tenant_client, base_url,
 ):

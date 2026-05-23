@@ -8,11 +8,14 @@ the anonymous /share/{token} page works with no tenant context at all.
 
 from __future__ import annotations
 
+import allure
+
 from tests.api_paths import API
 from tests.messages import TestData
 from tests.pages.share_page import SharePage
 
 
+@allure.title("Публичная ссылка: аноним видит карточку, после отзыва -- нет")
 def test_owner_shares_card_anon_views_then_revoke_kills_link(
     owner_user, tenant_client, browser,
 ):
@@ -57,6 +60,7 @@ def test_owner_shares_card_anon_views_then_revoke_kills_link(
         anon.close()
 
 
+@allure.title("Список шаринг-ссылок не содержит секретных токенов")
 def test_share_list_never_leaks_tokens(owner_user, tenant_client):
     """Security invariant: GET /api/share/list returns the owner's shares
     but never the token url — tokens must not reach logs."""

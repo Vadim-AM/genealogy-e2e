@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import re
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.helpers.tree.photos import upload_jpeg
@@ -31,6 +32,7 @@ from tests.pages.photos_block import PhotosBlock
 from tests.pages.profile_panel import open_editor_for
 
 
+@allure.title("Блок фото отображается в редакторе с кнопкой добавления")
 def test_photos_block_renders_inside_editor(owner_page: Page):
     """TC-08.01 (precondition): `.photos-block` есть в editor'е,
     содержит file-input + label-кнопку «Добавить фото» + drag-drop zone.
@@ -53,6 +55,7 @@ def test_photos_block_renders_inside_editor(owner_page: Page):
     )
 
 
+@allure.title("Загрузка фото добавляет миниатюру в сетку")
 def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page):
     """TC-08.02: set_input_files с JPEG → POST /api/admin/upload-photo
     → backend отвечает path → JS добавляет в #photoGrid новый
@@ -74,6 +77,7 @@ def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page):
     photos.expect_thumb_count(initial_thumbs + 1)
 
 
+@allure.title("Удаление фото убирает миниатюру из сетки")
 def test_photo_remove_button_drops_thumb_from_grid(owner_page: Page):
     """TC-08.11: после upload click `.photo-remove` → PATCH
     /api/admin/people/{id} (photos без удалённой) → JS перерендеривает

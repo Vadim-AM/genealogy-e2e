@@ -14,6 +14,7 @@ UI получит `data-invite-url` surface, заменить `api.post` на UI
 
 from __future__ import annotations
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.helpers.auth.auth_ui import auth_name
@@ -24,6 +25,7 @@ from tests.messages import Invite, TestData, t
 from tests.pages.invite_accept_page import InviteAcceptPage
 
 
+@allure.title("Приглашённый видит успех с именем древа на странице принятия")
 def test_invitee_lands_on_accept_page_sees_success_with_tenant_name(
     auth_context_factory, owner_user, signup_via_api, tenant_client,
 ):
@@ -62,6 +64,7 @@ def test_invitee_lands_on_accept_page_sees_success_with_tenant_name(
     page.close()
 
 
+@allure.title("Клик 'Открыть древо' ведёт на главную с авторизацией")
 def test_invitee_clicks_open_tree_lands_on_tree_with_authed_indicator(
     auth_context_factory, owner_user, signup_via_api, tenant_client,
 ):
@@ -93,6 +96,7 @@ def test_invitee_clicks_open_tree_lands_on_tree_with_authed_indicator(
     page.close()
 
 
+@allure.title("Владелец открывает своё приглашение и видит предупреждение")
 def test_owner_opens_own_invite_sees_warning_with_display_name(
     owner_page: Page, owner_user, tenant_client,
 ):
@@ -127,6 +131,7 @@ def test_owner_opens_own_invite_sees_warning_with_display_name(
     )
 
 
+@allure.title("Неавторизованный видит ссылки входа/регистрации с токеном")
 def test_anonymous_invitee_sees_login_links_with_token_in_next(
     page: Page, owner_user, tenant_client,
 ):
@@ -164,6 +169,7 @@ def test_anonymous_invitee_sees_login_links_with_token_in_next(
     )
 
 
+@allure.title("Email-приглашение работает как magic-link без логина")
 def test_anonymous_emailed_invite_is_magic_link_auto_accepted(
     page: Page, owner_user, tenant_client,
 ):

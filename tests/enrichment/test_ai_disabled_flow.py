@@ -20,6 +20,7 @@ API часть (TC-N3, TC-N4) — backend invariant без UI surface: router-le
 
 from __future__ import annotations
 
+import allure
 import httpx
 import pytest
 from playwright.sync_api import Page, expect
@@ -50,6 +51,7 @@ def ai_search_disabled(uvicorn_server: str):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("AI выключен: кнопка обогащения disabled с подсказкой «скоро»")
 def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
     owner_page: Page, owner_user,
 ):
@@ -117,6 +119,7 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("AI выключен: /api/config/features возвращает ai_search_enabled=false")
 def test_features_endpoint_public_returns_ai_disabled_flag(uvicorn_server: str):
     """TC-N3: /api/config/features public (no auth) и при ENABLE_AI_SEARCH=0
     возвращает `ai_search_enabled=false`. Frontend читает это на bootstrap.
@@ -158,6 +161,7 @@ def test_features_endpoint_public_returns_ai_disabled_flag(uvicorn_server: str):
         ("GET",  "/api/enrich/health/api-key"),                    # noqa: drift
     ],
 )
+@allure.title("AI выключен: все /api/enrich/* эндпоинты возвращают 503")
 def test_enrich_endpoint_returns_503_when_ai_disabled(
     uvicorn_server: str, method: str, path: str
 ):
@@ -173,6 +177,7 @@ def test_enrich_endpoint_returns_503_when_ai_disabled(
     )
 
 
+@allure.title("AI выключен: главная страница запрашивает /api/config/features")
 def test_features_endpoint_fires_on_main_page_bootstrap(page: Page, base_url: str):
     """TC-N3: при загрузке `/` frontend дёргает /api/config/features
     (bootstrap `window.__features`). Без этого UI не знает про disabled

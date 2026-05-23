@@ -19,10 +19,13 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
+import allure
+
 from tests.helpers.enrichment.enrichment_ui import consent_dialog, enrich_button, open_demo_self
 from tests.messages import AiConsent, t
 
 
+@allure.title("AI-согласие: первый клик показывает модалку с Anthropic и политикой")
 def test_first_enrich_click_renders_consent_modal_with_legal_content(
     owner_page: Page,
 ):
@@ -51,6 +54,7 @@ def test_first_enrich_click_renders_consent_modal_with_legal_content(
     expect(dialog.get_by_role("button", name=t(AiConsent.DECLINE_LABEL))).to_be_visible()
 
 
+@allure.title("AI-согласие: отказ закрывает модалку и блокирует запрос")
 def test_consent_decline_closes_modal_and_blocks_enrich_post(owner_page: Page):
     """TC-AI-1 (negative): Cancel в consent modal — modal закрывается, и
     POST /api/enrich/* не уходит ни до, ни после клика.
@@ -83,6 +87,7 @@ def test_consent_decline_closes_modal_and_blocks_enrich_post(owner_page: Page):
     )
 
 
+@allure.title("AI-согласие: повторный клик после отказа снова показывает модалку")
 def test_consent_re_click_after_decline_re_renders_modal(owner_page: Page):
     """Compliance: second click «★» **после** Decline должен снова показать
     consent modal — не silent fail (тогда юзер не знает что enrich

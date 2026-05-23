@@ -11,6 +11,8 @@ import re
 import httpx
 import pytest
 
+import allure
+
 from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
@@ -33,6 +35,7 @@ from tests.timeouts import TIMEOUTS
         "/api/platform/metrics",
     ],
 )
+@allure.title("Безопасность: аноним получает 401 на закрытом endpoint")
 def test_anonymous_get_returns_401_on_private_endpoints(base_url: str, endpoint: str):
     """TC-SEC-1: GET <private> без cookies → 401.
 
@@ -43,6 +46,7 @@ def test_anonymous_get_returns_401_on_private_endpoints(base_url: str, endpoint:
     expect_response(r, label=f"GET {endpoint}").status(401)
 
 
+@allure.title("Безопасность: /api/tree публично доступен гостю (200)")
 def test_anonymous_get_tree_returns_200_minimal_showcase(base_url: str):
     """TC-SEC-1 inverse: /api/tree IS public — guest sees the showcase tree."""
     r = httpx.get(f"{base_url}/api/tree", timeout=TIMEOUTS.api_request)
@@ -61,6 +65,7 @@ REQUIRED_HEADERS = {
 }
 
 
+@allure.title("Заголовки: nosniff, X-Frame-Options, Referrer-Policy")
 def test_security_headers_present_on_api_responses(base_url: str):
     """TC-SEC-2: required security headers on every response.
 
@@ -78,6 +83,7 @@ def test_security_headers_present_on_api_responses(base_url: str):
             f"{header}: expected {expected!r}, got {actual!r}"
 
 
+@allure.title("CSP: script-src-attr 'none' запрещает inline-обработчики")
 def test_csp_header_disables_inline_event_handlers(base_url: str):
     """TC-SEC-2 / BUG-SEC-002: CSP must include `script-src-attr 'none'`
     so inline `onclick=` event handlers cannot execute (XSS hardening)."""
@@ -95,6 +101,7 @@ def test_csp_header_disables_inline_event_handlers(base_url: str):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("CSP: в HTML лендинга нет inline on*= атрибутов")
 def test_landing_html_has_no_inline_event_handlers(base_url: str):
     """TC-CSP-2: served `/` HTML doesn't contain any `on<ident>=` attribute.
 
@@ -123,6 +130,7 @@ def test_landing_html_has_no_inline_event_handlers(base_url: str):
     )
 
 
+@allure.title("HSTS: заголовок отсутствует при работе по HTTP")
 def test_hsts_header_only_on_https(base_url: str):
     """TC-SEC-2: HSTS is conditional on the request being HTTPS.
 

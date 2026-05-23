@@ -10,6 +10,7 @@ header'е сбрасывает session, и при повторном /login во
 
 from __future__ import annotations
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.helpers.auth.auth_ui import auth_indicator, auth_name, logout_link, login_link
@@ -18,6 +19,7 @@ from tests.pages.base import wait_for_authed_shell
 from tests.pages.login_page import LoginPage
 
 
+@allure.title("Клик 'Выйти' переключает индикатор в гостевой режим")
 def test_owner_clicks_logout_link_and_indicator_switches_to_guest(
     owner_page: Page, owner_user,
 ):
@@ -61,6 +63,7 @@ def test_owner_clicks_logout_link_and_indicator_switches_to_guest(
     expect(owner_page.locator('[data-tab="timeline"]')).to_be_hidden()
 
 
+@allure.title("Повторный вход после выхода возвращает в тот же тенант")
 def test_user_relogins_via_form_lands_in_same_tenant(
     owner_page: Page, owner_user,
 ):

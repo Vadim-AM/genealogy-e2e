@@ -23,10 +23,13 @@ import pytest
 
 from tests.api_paths import API
 from tests.constants import unique_email
+import allure
+
 from tests.helpers.ui.i18n_checks import has_cyrillic
 from tests.timeouts import TIMEOUTS
 
 
+@allure.title("i18n: ошибка входа с неверным паролем приходит на русском")
 def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
     """Login с несуществующим email → response detail должен быть на русском."""
     with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
@@ -48,6 +51,7 @@ def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
     )
 
 
+@allure.title("i18n: ошибка валидации при регистрации приходит на русском")
 def test_signup_validation_error_detail_in_russian(uvicorn_server: str):
     """Signup с слишком коротким паролем → 422 с detail на русском."""
     with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:

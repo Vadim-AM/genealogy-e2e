@@ -6,12 +6,14 @@ of truth in `js/init.js:286`), not be hardcoded in HTML.
 
 from __future__ import annotations
 
+import allure
 import httpx
 from playwright.sync_api import Page, expect
 
 from tests.response import expect_response
 
 
+@allure.title("Конфиг сайта содержит непустую версию приложения")
 def test_site_config_exposes_app_version(base_url: str):
     """`/api/site/config` returns a non-empty `app_version` string."""
     r = httpx.get(f"{base_url}/api/site/config")
@@ -21,6 +23,7 @@ def test_site_config_exposes_app_version(base_url: str):
         f"app_version must be a non-empty string: {version!r}"
 
 
+@allure.title("Версия в футере совпадает с версией из API")
 def test_footer_version_matches_api_app_version(page: Page, base_url: str):
     """TC-BUG-VER-001: footer version equals `/api/site/config.app_version`.
 

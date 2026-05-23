@@ -8,11 +8,14 @@ from __future__ import annotations
 import pytest
 from playwright.sync_api import Page, expect
 
+import allure
+
 from tests.api_paths import API
 from tests.messages import PII, Brand, t
 from tests.pages.tree_page import TreePage
 
 
+@allure.title("Лендинг: заголовок страницы содержит название бренда")
 def test_landing_title_has_brand(page: Page):
     """F-LND-2: title contains a brand fragment.
 
@@ -27,6 +30,7 @@ def test_landing_title_has_brand(page: Page):
     expect(page).to_have_title(pattern)
 
 
+@allure.title("Лендинг: нет JS-ошибок в консоли при загрузке")
 def test_landing_no_console_errors(page: Page):
     """N-1: no JS exceptions on landing; only allowlisted 401-on-anon network errors.
 
@@ -59,6 +63,7 @@ def test_landing_no_console_errors(page: Page):
     assert not bad_responses, f"unexpected network errors: {bad_responses}"
 
 
+@allure.title("Лендинг: гость видит вкладки Древо и О проекте")
 def test_landing_has_main_tabs(page: Page):
     """U-LND-1: guest-visible tabs are present.
 
@@ -71,6 +76,7 @@ def test_landing_has_main_tabs(page: Page):
     expect(tree.tab_about).to_be_visible()
 
 
+@allure.title("Лендинг: на главной нет персональных данных владельца")
 def test_landing_no_personal_owner_data(page: Page):
     """C-LND-3: public landing must not leak owner family names (PII).
 
@@ -86,6 +92,7 @@ def test_landing_no_personal_owner_data(page: Page):
         assert needle not in body, f"PII leak: '{needle}' visible on /"
 
 
+@allure.title("Лендинг: CSS/JS-ресурсы загружаются без ошибок")
 def test_static_assets_load(page: Page):
     """F-LND-5: critical CSS/JS bundles return 200."""
     statuses: dict[str, int] = {}

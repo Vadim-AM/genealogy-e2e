@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.messages import TestData
@@ -14,6 +15,7 @@ from tests.pages.base import wait_for_authed_shell
 from tests.pages.tree_page import TreePage
 
 
+@allure.title("Переключение вкладок обновляет активный класс и контент")
 def test_switch_between_tabs(owner_page: Page):
     """F-FV-4: switching tabs updates active class + content.
 
@@ -35,6 +37,7 @@ def test_switch_between_tabs(owner_page: Page):
         expect(owner_page.locator(f"#tab-{tab_name}.active")).to_be_visible()
 
 
+@allure.title("Поиск по дереву находит демо-персону по имени")
 def test_search_returns_results_for_seeded_person(owner_page: Page):
     """F-FV-5: typing a seeded person's name surfaces matching results.
 
@@ -48,6 +51,7 @@ def test_search_returns_results_for_seeded_person(owner_page: Page):
     expect(tree.search_results.first).to_be_visible()
 
 
+@allure.title("Обновление страницы F5 сохраняет открытый профиль персоны")
 def test_f5_keeps_profile_open(owner_page: Page):
     """TC-E2E-002: F5 on a profile URL keeps the profile route, не выкидывает в дерево."""
     profile_hash = f"#/p/{TestData.DEMO_PERSON_ID}"
@@ -62,6 +66,7 @@ def test_f5_keeps_profile_open(owner_page: Page):
     assert profile_hash in owner_page.url, f"hash dropped after F5: {owner_page.url}"
 
 
+@allure.title("Возврат к дереву из профиля по клику на вкладку")
 def test_back_to_tree_from_profile(owner_page: Page):
     """F-PR-4: returning to tree from profile via tab click."""
     from tests.pages.profile_panel import ProfilePanel

@@ -13,6 +13,7 @@ Was xfail until upstream commit `77bc643` ("fix(ops/auth): /healthz
 
 from __future__ import annotations
 
+import allure
 import httpx
 import pytest
 
@@ -20,6 +21,7 @@ from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
+@allure.title("Ops: стандартные k8s-пробы /healthz и /readyz отвечают 200")
 @pytest.mark.parametrize("path", ["/healthz", "/readyz"])
 def test_standard_probe_paths_return_200(base_url: str, path: str):
     """k8s/reverse-proxy liveness probes — 200 OK."""

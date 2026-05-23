@@ -21,6 +21,7 @@ from __future__ import annotations
 import inspect
 import re
 
+import allure
 import httpx
 
 from tests.api_paths import API
@@ -89,6 +90,7 @@ def _backend_api_paths(base_url: str) -> set[str]:
     }
 
 
+@allure.title("Покрытие: все backend API-пути известны каталогу тестов")
 def test_every_backend_api_path_is_known(base_url: str):
     """Every backend `/api/*` endpoint is in the `API` catalogue or `KNOWN_GAPS`.
 
@@ -109,6 +111,7 @@ def test_every_backend_api_path_is_known(base_url: str):
     )
 
 
+@allure.title("Покрытие: KNOWN_GAPS не содержит устаревших записей")
 def test_known_gaps_not_stale(base_url: str):
     """`KNOWN_GAPS` must not rot.
 

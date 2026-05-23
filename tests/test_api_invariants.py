@@ -13,6 +13,8 @@ import base64
 
 import httpx
 
+import allure
+
 from tests.api_paths import API
 from tests.messages import TestData
 from tests.response import expect_response
@@ -25,6 +27,7 @@ _PNG_1PX = base64.b64decode(
 )
 
 
+@allure.title("API: my-tenants содержит собственный тенант владельца")
 def test_my_tenants_lists_the_owners_tenant(owner_user, tenant_client):
     """GET /api/account/my-tenants lists the tenants the user belongs to
     — at minimum their own."""
@@ -36,6 +39,7 @@ def test_my_tenants_lists_the_owners_tenant(owner_user, tenant_client):
         f"own tenant {owner_user.slug} missing from my-tenants: {items}"
 
 
+@allure.title("API: переключение на свой тенант проходит успешно")
 def test_switch_tenant_to_own_tenant_succeeds(owner_user, tenant_client):
     """POST /api/account/switch-tenant to the user's own tenant keeps the
     session scoped there."""
@@ -44,6 +48,7 @@ def test_switch_tenant_to_own_tenant_succeeds(owner_user, tenant_client):
     expect_response(r, label="switch-tenant").status_ok().json_eq("tenant_slug", owner_user.slug)
 
 
+@allure.title("API: cookie-consent сохраняется и читается обратно")
 def test_cookie_consent_round_trips(owner_user, tenant_client):
     """POST then GET /api/account/me/cookie-consent returns the same level
     — server-side consent persists for multi-device sync."""
@@ -56,12 +61,14 @@ def test_cookie_consent_round_trips(owner_user, tenant_client):
     expect_response(got, label="cookie-consent get").status_ok().json_eq("level", "necessary")
 
 
+@allure.title("API: /api/config публичен и содержит site_name")
 def test_config_is_public_and_carries_site_name(base_url):
     """GET /api/config is public (no auth) and exposes tenant branding."""
     r = httpx.get(f"{base_url}{API.CONFIG}", timeout=TIMEOUTS.api_request)
     expect_response(r, label="config").status_ok().json_has("site_name")
 
 
+@allure.title("API: retention-offer выдаёт 50%-скидку при применении")
 def test_retention_offer_status_and_apply(owner_user, tenant_client):
     """GET retention-offer-status returns a boolean `show`; POST apply
     grants a 50%-off retention coupon."""
@@ -76,6 +83,7 @@ def test_retention_offer_status_and_apply(owner_user, tenant_client):
     assert applied.json()["coupon_code"], "apply must return a coupon code"
 
 
+@allure.title("API: телеметрия принимается, GDPR-удаление стирает её")
 def test_telemetry_event_then_gdpr_erasure(owner_user, tenant_client):
     """POST a telemetry event is accepted; DELETE /api/account/me/telemetry
     purges the user's events (GDPR Art. 17 erasure)."""
@@ -92,6 +100,7 @@ def test_telemetry_event_then_gdpr_erasure(owner_user, tenant_client):
     expect_response(erased, label="GDPR erasure").status_ok().json_has("deleted")
 
 
+@allure.title("API: сброс onboarding идемпотентен (два вызова подряд)")
 def test_onboarding_reset_is_idempotent(owner_user, tenant_client):
     """POST /api/account/onboarding-reset clears the onboarding flag and
     can be called twice without error."""
@@ -101,6 +110,7 @@ def test_onboarding_reset_is_idempotent(owner_user, tenant_client):
     expect_response(api.post(API.ONBOARDING_RESET), label="onboarding-reset idempotent").status_ok()
 
 
+@allure.title("API: поддельный токен смены email отклоняется (400)")
 def test_confirm_email_change_rejects_garbage_token(owner_user, tenant_client):
     """POST /api/account/confirm-email-change with an invalid token is
     rejected — a bad token must never change an email."""
@@ -109,6 +119,7 @@ def test_confirm_email_change_rejects_garbage_token(owner_user, tenant_client):
     expect_response(r, label="confirm-email-change garbage token").status(400)
 
 
+@allure.title("API: Postmark webhook без подписи отклоняется (401)")
 def test_postmark_webhook_rejects_unsigned(base_url):
     """POST /api/notifications/postmark-webhook without the signature
     header is rejected — inbound webhooks must be authenticated."""
@@ -117,6 +128,7 @@ def test_postmark_webhook_rejects_unsigned(base_url):
     expect_response(r, label="unsigned postmark webhook").status(401)
 
 
+@allure.title("API: Resend webhook без подписи отклоняется (401)")
 def test_resend_webhook_rejects_unsigned(base_url):
     """POST /api/notifications/resend-webhook without the svix signature
     is rejected."""
@@ -125,6 +137,7 @@ def test_resend_webhook_rejects_unsigned(base_url):
     expect_response(r, label="unsigned resend webhook").status(401)
 
 
+@allure.title("API: удаление связи убирает ребро из дерева")
 def test_relationship_delete_removes_the_edge(owner_user, tenant_client):
     """DELETE /api/relationships/{id} removes a family edge — the demo
     tree seeds relationships; deleting one drops the count."""
@@ -141,6 +154,7 @@ def test_relationship_delete_removes_the_edge(owner_user, tenant_client):
         f"relationship must be gone: {len(before)} → {len(after)}"
 
 
+@allure.title("API: отмена подписки на бесплатном тарифе отклоняется (400)")
 def test_subscription_current_and_cancel(owner_user, tenant_client):
     """GET /api/subscription/current reports the tenant's tier; POST
     cancel on a free tenant (no paid subscription) is rejected 400 —
@@ -157,6 +171,7 @@ def test_subscription_current_and_cancel(owner_user, tenant_client):
     expect_response(cancelled, label="cancel without subscription").status(400)
 
 
+@allure.title("API: владелец отзывает выданное приглашение")
 def test_invite_revoke(owner_user, tenant_client, create_invite):
     """Owner issues a tenant invite, then revokes it by token —
     DELETE /api/account/tenant/invites/{token} reports it revoked."""
@@ -173,6 +188,7 @@ def test_invite_revoke(owner_user, tenant_client, create_invite):
     expect_response(revoked, label="invite revoke").status_ok().json_eq("status", "revoked")
 
 
+@allure.title("API: загрузка фото и установка подписи к нему")
 def test_photo_upload_and_caption(owner_user, tenant_client):
     """Owner uploads a photo to a person, then sets its caption — the
     upload links a Photo row and PATCH updates its caption."""
@@ -189,6 +205,7 @@ def test_photo_upload_and_caption(owner_user, tenant_client):
     expect_response(patched, label="photo caption").status_ok().json_eq("caption", "Тестовая подпись")
 
 
+@allure.title("API: checkout без платёжного провайдера даёт pending")
 def test_subscription_checkout_pending_without_payment_provider(
     owner_user, tenant_client,
 ):
@@ -200,6 +217,7 @@ def test_subscription_checkout_pending_without_payment_provider(
     expect_response(r, label="subscription checkout").status_ok().json_eq("status", "pending_payment_provider")
 
 
+@allure.title("API: персона находится по display_slug")
 def test_person_by_display_slug_resolves(owner_user, tenant_client):
     """A person created with a display_slug is resolvable by that slug —
     GET /api/people/by-display-slug/{slug} returns the same person."""
@@ -215,6 +233,7 @@ def test_person_by_display_slug_resolves(owner_user, tenant_client):
     expect_response(resolved, label="by-display-slug").status_ok().json_eq("id", pid)
 
 
+@allure.title("API: удалённый тенант восстанавливается в grace-период")
 def test_tenant_delete_then_restore(
     owner_user, tenant_client, login_existing, base_url,
 ):
@@ -237,6 +256,7 @@ def test_tenant_delete_then_restore(
     expect_response(restored, label="tenant restore").status_ok().json_eq("status", "restored")
 
 
+@allure.title("API: создание локации и её появление в списке")
 def test_locations_create_then_list(owner_user, tenant_client):
     """POST /api/locations creates a location; GET lists it back."""
     api = tenant_client(owner_user)

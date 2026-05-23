@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import time
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
@@ -21,6 +22,7 @@ from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
+@allure.title("AI-обогащение: принятие гипотезы и откат через UI")
 def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
     owner_page: Page, owner_user, grant_ai_consent,
 ):
@@ -61,6 +63,7 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
     expect(chips).to_have_count(0)
 
 
+@allure.title("AI-обогащение: кэш отдаёт результат, health, фидбек и письма принимаются")
 def test_enrichment_cache_and_health_invariants(
     owner_user, grant_ai_consent, tenant_client,
 ):

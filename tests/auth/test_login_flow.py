@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 
+import allure
 import httpx
 
 from tests.timeouts import TIMEOUTS
@@ -17,12 +18,14 @@ from tests.pages.login_page import LoginPage
 from tests.response import expect_response
 
 
+@allure.title("Форма логина содержит поля email, пароль и кнопку входа")
 def test_login_form_renders(page: Page):
     """F-LG-1, X-LG-1..4: /login renders email + password + submit."""
     login = LoginPage(page).goto()
     login.expect_visible_form()
 
 
+@allure.title("Вход с правильным паролем выдаёт сессию и доступ к /me")
 def test_login_with_correct_credentials_succeeds(
     page: Page, base_url: str, owner_user
 ):
@@ -43,6 +46,7 @@ def test_login_with_correct_credentials_succeeds(
         f"/me tenant slug: expected {owner_user.slug!r}, got {me.json()['tenant']['slug']!r}"
 
 
+@allure.title("Неверный пароль показывает ошибку на странице логина")
 def test_login_with_wrong_password_shows_error(page: Page, owner_user):
     """S-LG-1: wrong credentials → visible inline error, no redirect away from /login."""
     login = LoginPage(page).goto()
@@ -52,6 +56,7 @@ def test_login_with_wrong_password_shows_error(page: Page, owner_user):
     expect(page).to_have_url(re.compile(r"/login"))
 
 
+@allure.title("Ошибки для неизвестного email и неверного пароля одинаковы")
 def test_login_unknown_email_returns_same_error_as_wrong_password(
     page: Page, owner_user
 ):
@@ -82,6 +87,7 @@ def test_login_unknown_email_returns_same_error_as_wrong_password(
     )
 
 
+@allure.title("Страница логина содержит ссылки на регистрацию и сброс пароля")
 def test_login_links_to_signup_and_forgot(page: Page):
     """X-LG-1, X-LG-2: signup and forgot-password links visible on /login."""
     page.goto("/login")

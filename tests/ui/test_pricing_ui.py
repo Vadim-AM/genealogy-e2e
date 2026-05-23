@@ -28,6 +28,8 @@ import re
 import httpx
 from playwright.sync_api import Page, expect
 
+import allure
+
 from tests.api_paths import API
 from tests.pages.pricing_page import PricingPage
 from tests.response import expect_response
@@ -39,6 +41,7 @@ from tests.timeouts import TIMEOUTS
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Тарифы API: /api/tiers/public возвращает 4 тарифа")
 def test_public_tiers_endpoint_returns_four_paid_tiers(uvicorn_server: str):
     """TC-N2: GET /api/tiers/public должен отдавать 4 publik-тарифа в ₽."""
     r = httpx.get(f"{uvicorn_server}{API.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request)
@@ -57,6 +60,7 @@ def test_public_tiers_endpoint_returns_four_paid_tiers(uvicorn_server: str):
     assert not forbidden, f"На публичной странице утекли служебные тарифы: {forbidden}"
 
 
+@allure.title("Тарифы API: у каждого тарифа есть название и цена в ₽")
 def test_public_tiers_have_display_name_and_numeric_prices(uvicorn_server: str):
     """TC-N1: каждый тариф имеет непустой `display_name` и числовые цены
     `price_rub_month` / `price_rub_year` (>= 0, год >= месяц).
@@ -88,6 +92,7 @@ def test_public_tiers_have_display_name_and_numeric_prices(uvicorn_server: str):
     )
 
 
+@allure.title("Тарифы API: тарифы отсортированы по возрастанию цены")
 def test_public_tiers_sorted_by_price_ascending(uvicorn_server: str):
     """TC-N1: тарифы отсортированы по цене (free → pro)."""
     body = httpx.get(f"{uvicorn_server}{API.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request).json()
@@ -101,6 +106,7 @@ def test_public_tiers_sorted_by_price_ascending(uvicorn_server: str):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Тарифы: страница /pricing.html загружается как HTML")
 def test_pricing_page_loads_html(page: Page):
     """TC-N1: GET /pricing.html → 200 + text/html."""
     r = page.goto("/pricing.html")
@@ -110,6 +116,7 @@ def test_pricing_page_loads_html(page: Page):
     assert "text/html" in ct, f"content-type={ct!r}"
 
 
+@allure.title("Тарифы: на странице отображаются 4 карточки тарифов")
 def test_pricing_renders_four_cards(page: Page):
     """TC-N1: на /pricing рендерится 4 карточки (после JS-fetch в /api/tiers/public).
 
@@ -122,6 +129,7 @@ def test_pricing_renders_four_cards(page: Page):
     pricing.expect_cards_visible()
 
 
+@allure.title("Тарифы: каждая карточка имеет уникальный заголовок")
 def test_pricing_cards_have_non_empty_headings(page: Page):
     """TC-N1: каждая карточка имеет non-empty `<h2>` (название тарифа).
 
@@ -142,6 +150,7 @@ def test_pricing_cards_have_non_empty_headings(page: Page):
     )
 
 
+@allure.title("Тарифы: на странице присутствует символ рубля ₽")
 def test_pricing_cards_show_rub_symbol(page: Page):
     """TC-N1: на странице должен быть символ ₽."""
     page.goto("/pricing.html")
@@ -152,6 +161,7 @@ def test_pricing_cards_show_rub_symbol(page: Page):
         "Символа ₽ нет в HTML — pricing форматирование сломано"
 
 
+@allure.title("Тарифы: карточка Исследователь выделена как featured")
 def test_pricing_researcher_card_is_featured_by_position(
     page: Page, uvicorn_server: str,
 ):
@@ -189,6 +199,7 @@ def test_pricing_researcher_card_is_featured_by_position(
     expect(researcher_card).to_have_class(re.compile(r"\bfeatured\b"))
 
 
+@allure.title("Тарифы: нет JS-ошибок в консоли на /pricing")
 def test_pricing_no_console_errors(page: Page):
     """TC-N1: на /pricing не должно быть JS exceptions."""
     errors: list[str] = []

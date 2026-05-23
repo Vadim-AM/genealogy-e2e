@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import re
 
+import allure
+
 from tests.api_paths import API
 from tests.pages.platform_dashboard_page import PlatformDashboardPage
 from tests.response import expect_response
@@ -32,12 +34,14 @@ from tests.response import expect_response
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Устройства: обычный владелец не имеет доступа (403)")
 def test_device_mix_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-1.1: regular owner получает 401/403 на device-mix."""
     r = tenant_client(owner_user).get(API.PLATFORM_DEVICE_MIX)
     expect_response(r, label="owner device-mix").status(403)
 
 
+@allure.title("Устройства: ответ содержит device, os, browser и конверсию")
 def test_device_mix_returns_canonical_shape(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-1.2: суперадмин получает 200 + ожидаемые поля.
 
@@ -60,18 +64,21 @@ def test_device_mix_returns_canonical_shape(superadmin_user, tenant_client):
         f"conversion_by_device must be list, got {type(data.get('conversion_by_device')).__name__}"
 
 
+@allure.title("Устройства: days=0 ограничивается снизу до 1")
 def test_device_mix_clamps_days_lower_bound(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-1.3: days=0 → period_days=1 (canonical clamp)."""
     r = tenant_client(superadmin_user).get(API.PLATFORM_DEVICE_MIX, params={"days": 0})
     expect_response(r, label="device-mix days=0").status_ok().json_eq("period_days", 1)
 
 
+@allure.title("Устройства: days=99999 ограничивается сверху до 365")
 def test_device_mix_clamps_days_upper_bound(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-1.4: days=99999 → period_days=365 (canonical clamp)."""
     r = tenant_client(superadmin_user).get(API.PLATFORM_DEVICE_MIX, params={"days": 99999})
     expect_response(r, label="device-mix days=99999").status_ok().json_eq("period_days", 365)
 
 
+@allure.title("Устройства GDPR: ответ не содержит session_id и IP")
 def test_device_mix_does_not_leak_pii(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-1.5: GDPR — endpoint не возвращает email/raw IP/session_id."""
     r = tenant_client(superadmin_user).get(API.PLATFORM_DEVICE_MIX, params={"days": 30})
@@ -87,12 +94,14 @@ def test_device_mix_does_not_leak_pii(superadmin_user, tenant_client):
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Тепловая карта: обычный владелец не имеет доступа (403)")
 def test_activity_heatmap_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-2.1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_ACTIVITY_HEATMAP)
     expect_response(r, label="owner heatmap").status(403)
 
 
+@allure.title("Тепловая карта: матрица имеет размер 7 дней x 24 часа")
 def test_activity_heatmap_returns_7x24_matrix(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-2.2: матрица 7 строк × 24 столбца."""
     r = tenant_client(superadmin_user).get(API.PLATFORM_ACTIVITY_HEATMAP)
@@ -103,6 +112,7 @@ def test_activity_heatmap_returns_7x24_matrix(superadmin_user, tenant_client):
         assert len(row) == 24, f"matrix row length: {len(row)} (expected 24 hours)"
 
 
+@allure.title("Тепловая карта: ответ содержит все канонические поля")
 def test_activity_heatmap_returns_canonical_fields(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-2.3: matrix, by_hour, by_weekday, top_hours, top_weekdays, coverage, tz_mode."""
     r = tenant_client(superadmin_user).get(API.PLATFORM_ACTIVITY_HEATMAP)
@@ -121,6 +131,7 @@ def test_activity_heatmap_returns_canonical_fields(superadmin_user, tenant_clien
         f"by_weekday: expected 7 entries, got {len(data['by_weekday'])}"
 
 
+@allure.title("Тепловая карта: некорректный tz_mode сбрасывается в utc")
 def test_activity_heatmap_invalid_tz_mode_falls_back_to_utc(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-2.4: tz_mode=garbage → utc (документированный fallback)."""
     r = tenant_client(superadmin_user).get(
@@ -129,6 +140,7 @@ def test_activity_heatmap_invalid_tz_mode_falls_back_to_utc(superadmin_user, ten
     expect_response(r, label="heatmap tz_mode=garbage").status_ok().json_eq("tz_mode", "utc")
 
 
+@allure.title("Тепловая карта: режим user_local возвращает валидные данные")
 def test_activity_heatmap_user_local_mode_accepted(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-2.5: tz_mode=user_local — другая ветка кода (zoneinfo lookup).
     Должна вернуть валидную matrix + coverage.
@@ -151,12 +163,14 @@ def test_activity_heatmap_user_local_mode_accepted(superadmin_user, tenant_clien
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Онлайн: обычный владелец не имеет доступа (403)")
 def test_online_now_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-3.1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_ONLINE_NOW)
     expect_response(r, label="owner online-now").status(403)
 
 
+@allure.title("Онлайн: суперадмин видит счётчики и себя в online_5m")
 def test_online_now_returns_canonical_shape(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-3.2: online_5m, online_1h (int), hourly_24h (24-list), as_of."""
     r = tenant_client(superadmin_user).get(API.PLATFORM_ONLINE_NOW)
@@ -174,12 +188,14 @@ def test_online_now_returns_canonical_shape(superadmin_user, tenant_client):
     assert data["online_5m"] >= 1, "superadmin session should count as online"
 
 
+@allure.title("Статистика сессий: обычный владелец не имеет доступа (403)")
 def test_session_stats_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-3.3: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_SESSION_STATS)
     expect_response(r, label="owner session-stats").status(403)
 
 
+@allure.title("Статистика сессий: ответ содержит медиану и bounce_rate")
 def test_session_stats_returns_canonical_shape(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-3.4: sessions_total, median_duration_s, p75_duration_s,
     median_pages, bounce_rate + by_device, by_utm_source, by_tier."""
@@ -202,12 +218,14 @@ def test_session_stats_returns_canonical_shape(superadmin_user, tenant_client):
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Ретеншен: обычный владелец не имеет доступа (403)")
 def test_retention_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-4.1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_RETENTION)
     expect_response(r, label="owner retention").status(403)
 
 
+@allure.title("Ретеншен: когортная таблица с бакетами [1,3,7,14,30]")
 def test_retention_returns_cohort_grid(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-4.2: weeks, buckets_days [1,3,7,14,30], cohorts list."""
     r = tenant_client(superadmin_user).get(API.PLATFORM_RETENTION, params={"weeks": 4})
@@ -221,18 +239,21 @@ def test_retention_returns_cohort_grid(superadmin_user, tenant_client):
         f"buckets_days: expected [1, 3, 7, 14, 30], got {data['buckets_days']}"
 
 
+@allure.title("Ретеншен: weeks=999 ограничивается сверху до 26")
 def test_retention_clamps_weeks_to_max_26(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-4.3: weeks=999 → 26 (canonical clamp)."""
     r = tenant_client(superadmin_user).get(API.PLATFORM_RETENTION, params={"weeks": 999})
     expect_response(r, label="retention weeks=999").status_ok().json_eq("weeks", 26)
 
 
+@allure.title("Time-to-aha: обычный владелец не имеет доступа (403)")
 def test_time_to_aha_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-4.4: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_TIME_TO_AHA)
     expect_response(r, label="owner time-to-aha").status(403)
 
 
+@allure.title("Time-to-aha: перцентили P25-P95 и 6 бакетов гистограммы")
 def test_time_to_aha_returns_percentiles_and_buckets(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-4.5: P25/P50/P75/P95 + 6-bucket histogram."""
     r = tenant_client(superadmin_user).get(API.PLATFORM_TIME_TO_AHA, params={"days": 90})
@@ -249,6 +270,7 @@ def test_time_to_aha_returns_percentiles_and_buckets(superadmin_user, tenant_cli
         assert b in data["buckets"], f"bucket {b!r} missing"
 
 
+@allure.title("Воронка: каждый шаг содержит users и drop_rate")
 def test_funnel_detail_returns_step_metrics(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-4.6: каждый step имеет users, drop_to_next,
     drop_rate_to_next, median_gap_to_next_s."""
@@ -268,12 +290,14 @@ def test_funnel_detail_returns_step_metrics(superadmin_user, tenant_client):
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Алерты: обычный владелец не имеет доступа (403)")
 def test_alerts_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-6.1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_ALERTS)
     expect_response(r, label="owner alerts").status(403)
 
 
+@allure.title("Алерты: на свежей БД есть алерт о бэкапе")
 def test_alerts_returns_items_list(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-6.2: items: list + as_of timestamp."""
     r = tenant_client(superadmin_user).get(API.PLATFORM_ALERTS)
@@ -294,6 +318,7 @@ def test_alerts_returns_items_list(superadmin_user, tenant_client):
         f"expected one of {backup_alerts} on fresh test DB, got: {ids}"
 
 
+@allure.title("Алерты: каждый элемент содержит severity, title, message")
 def test_alerts_each_item_has_severity_title_message(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-6.3: контракт каждого элемента."""
     r = tenant_client(superadmin_user).get(API.PLATFORM_ALERTS)
@@ -306,12 +331,14 @@ def test_alerts_each_item_has_severity_title_message(superadmin_user, tenant_cli
             f"unexpected severity: {it['severity']!r}"
 
 
+@allure.title("Здоровье платформы: обычный владелец не имеет доступа (403)")
 def test_health_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-6.4: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_HEALTH)
     expect_response(r, label="owner health").status(403)
 
 
+@allure.title("Здоровье платформы: метрики нагрузки и free_cap_fill_ratio")
 def test_health_returns_canonical_metrics(superadmin_user, tenant_client):
     """TC-PA-ANALYTICS-6.5: events_last_hour, usage_cents_last_day,
     active_users, free_cap, free_cap_fill_ratio (+ optional last_backup)."""
@@ -332,6 +359,7 @@ def test_health_returns_canonical_metrics(superadmin_user, tenant_client):
 # ─────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Дашборд: все 9 виджетов Phase 1 присутствуют в DOM")
 def test_dashboard_renders_phase1_widgets(
     auth_context_factory, superadmin_user, soft_check
 ):

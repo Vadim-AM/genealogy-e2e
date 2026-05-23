@@ -18,6 +18,8 @@ import pytest
 
 from playwright.sync_api import Page, Route, expect
 
+import allure
+
 from tests.messages import AboutTab, Placeholders, TestData, t
 from tests.pages.base import custom_select_for, wait_for_authed_shell
 from tests.pages.confirm_dialog import ConfirmDialog
@@ -31,6 +33,7 @@ from tests.pages.tree_page import TreePage
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Древо: минимапа видна авторизованному пользователю")
 def test_minimap_visible_on_tree_tab_for_authed_owner(owner_page: Page):
     """TC-04.05: `#minimap.visible` на desktop когда auth user открыл
     tree tab. Минимап скрыт для guest (init.js:369-370) и при open
@@ -50,6 +53,7 @@ def test_minimap_visible_on_tree_tab_for_authed_owner(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Древо: легенда веток скрыта при менее чем 3 поколениях")
 def test_branch_legend_is_hidden_when_tree_has_less_than_3_generations(
     owner_page: Page,
 ):
@@ -72,6 +76,7 @@ def _open_editor(owner_page: Page, person_id: str = TestData.DEMO_PERSON_ID) -> 
     return open_editor_for(owner_page, person_id)
 
 
+@allure.title("Редактор: ArrowDown открывает выпадающий список пола")
 def test_custom_select_opens_on_arrow_down_keyboard(owner_page: Page):
     """TC-25.06: focus на trigger custom-select + ArrowDown открывает
     dropdown. Проверяем для gender select в person-editor.
@@ -91,6 +96,7 @@ def test_custom_select_opens_on_arrow_down_keyboard(owner_page: Page):
     expect(dropdown).to_be_visible()
 
 
+@allure.title("Редактор: Escape закрывает выпадающий список")
 def test_custom_select_closes_on_escape_keyboard(owner_page: Page):
     """TC-25.06 (продолжение): Esc после открытия закрывает dropdown.
     select.js:122 — `else if (e.key === 'Escape')` закрытие.
@@ -111,6 +117,7 @@ def test_custom_select_closes_on_escape_keyboard(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Диалог подтверждения: Escape отменяет удаление персоны")
 def test_confirm_dialog_escape_cancels(owner_page: Page):
     """TC-20.02 (Esc): открываем confirmDialog через delete-flow на
     non-root persona (TestData.DELETABLE_PERSON_ID = "demo-grandpa"),
@@ -149,6 +156,7 @@ def test_confirm_dialog_escape_cancels(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Профиль: кнопка добавления родителей скрыта при двух имеющихся")
 def test_add_parent_button_hidden_when_two_parents_exist(owner_page: Page):
     """TC-05.06: demo seed имеет subject + 2 родителя → кнопка
     «+ Родители» (`.profile-family-group:has-text(Родители) .profile-rel-add`)
@@ -175,6 +183,7 @@ def test_add_parent_button_hidden_when_two_parents_exist(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Вкладки Sources и Timeline содержат декоративный футер-орнамент")
 def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page):
     """TC-04.07: Каждый из tab-sources / tab-timeline содержит
     `.footer-ornament` с тремя bullet-точками. Это design-system
@@ -202,6 +211,7 @@ def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Таймлайн: отображаются 5 кнопок-фильтров по веткам")
 def test_timeline_river_filters_render_five_branches(owner_page: Page):
     """TC-12.02: после переключения на Timeline tab — 5 кнопок-фильтров
     (`[data-testid="river-filter-btn"]`): Все / По матери / По отцу / Другие / История.
@@ -232,6 +242,7 @@ def test_timeline_river_filters_render_five_branches(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("О проекте: placeholder виден когда about_text не заполнен")
 def test_about_tab_shows_placeholder_when_about_text_is_empty(owner_page: Page):
     """TC-13.05: на чистом demo seed about_text не заполнен →
     `[data-config-empty="about_text"]` блок visible с дефолтным
@@ -247,6 +258,7 @@ def test_about_tab_shows_placeholder_when_about_text_is_empty(owner_page: Page):
     expect(placeholder).to_contain_text(t(AboutTab.FAMILY_TREE_KEYWORD))
 
 
+@allure.title("Родственник: при 409-конфликте модалка остаётся открытой")
 def test_add_relative_shows_error_on_409_conflict(owner_page: Page):
     """TC-09.10: при попытке создать дубликат person backend возвращает
     409 Conflict. UI должен показать error (#addRelError) и НЕ
@@ -289,6 +301,7 @@ def test_add_relative_shows_error_on_409_conflict(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Редактор: стрелки + Enter выбирают опцию в выпадающем списке")
 def test_custom_select_arrow_down_then_enter_selects_option(owner_page: Page):
     """TC-25.06 (extension): ArrowDown открывает dropdown и фокусирует
     первый option; повторный ArrowDown переходит к следующему; Enter
@@ -322,6 +335,7 @@ def test_custom_select_arrow_down_then_enter_selects_option(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Диалог подтверждения: Enter подтверждает удаление")
 def test_confirm_dialog_enter_confirms_delete(owner_page: Page):
     """TC-20.02 (Enter): Enter в открытом confirmDialog → resolve(true)
     → backend получает DELETE. confirm-dialog.js:138 — `Enter → cleanup(true)`.
@@ -343,6 +357,7 @@ def test_confirm_dialog_enter_confirms_delete(owner_page: Page):
         dialog.confirm()
 
 
+@allure.title("Диалог подтверждения: клик по фону отменяет удаление")
 def test_confirm_dialog_backdrop_click_cancels(owner_page: Page):
     """TC-20.02 (backdrop): click на overlay вне `.confirm-dialog`
     закрывает с resolve(false). Backend не получает DELETE.
@@ -382,6 +397,7 @@ def test_confirm_dialog_backdrop_click_cancels(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Таймлайн: клик по фильтру переключает активную ветку")
 def test_timeline_river_filter_click_switches_active(owner_page: Page):
     """TC-12.02 (extension): click `[data-testid="river-filter-btn"][data-branch=maternal]`
     → active class переходит с дефолтного `all` на `maternal`.
@@ -405,6 +421,7 @@ def test_timeline_river_filter_click_switches_active(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Источники: поле поиска и фильтр-кнопки присутствуют")
 def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page):
     """TC-11.02 (structural): после переключения на sources tab UI
     содержит search input (#evidenceSearch) с placeholder «Поиск...»
@@ -432,6 +449,7 @@ def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Древо: минимапа скрыта на мобильном viewport (375px)")
 def test_minimap_hidden_on_mobile_viewport(owner_page: Page):
     """TC-04.06: media-query `@media (max-width: 720px) { .minimap {
     display:none !important; } }` (css/inline.css). Меняем viewport
@@ -458,6 +476,7 @@ def test_minimap_hidden_on_mobile_viewport(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("О проекте: placeholder контактов виден при пустых данных")
 def test_about_contact_box_shows_placeholder_when_contacts_empty(owner_page: Page):
     """TC-13.04 (negative): default seed → contact_text + contact_email пустые
     → `#contactBoxPlaceholder` (auth-only подсказка owner'у) показывается.
@@ -488,6 +507,7 @@ def test_about_contact_box_shows_placeholder_when_contacts_empty(owner_page: Pag
     expect(placeholder).to_be_visible()
 
 
+@allure.title("Древо: клик по карточке орбиты центрирует на персону")
 def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page):
     """TC-04.08 / TC-05.01: click на не-центральную orbit-card →
     orbitNavigateTo(pid) → дерево перерендеривается так что

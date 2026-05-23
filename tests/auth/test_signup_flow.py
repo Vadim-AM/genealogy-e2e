@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 
+import allure
 import httpx
 import pytest
 from playwright.sync_api import Page, expect
@@ -18,6 +19,7 @@ from tests.pages.verify_page import VerifyPage
 from tests.response import expect_response
 
 
+@allure.title("Форма регистрации содержит обязательные поля и honeypot")
 def test_signup_form_has_required_inputs(page: Page, soft_check):
     """F-SU-1, X-SU-1..11: required inputs + autocomplete + honeypot tabindex."""
     signup = SignupPage(page).goto()
@@ -25,6 +27,7 @@ def test_signup_form_has_required_inputs(page: Page, soft_check):
     signup.soft_check_form_basics(soft_check)
 
 
+@allure.title("Успешная регистрация отправляет письмо с токеном верификации")
 def test_signup_happy_path_sends_verification_email(page: Page, base_url: str):
     """F-SU-1, F-EV-1: submit form → backend sends verification email."""
     email = make_email("happy")
@@ -47,6 +50,7 @@ def test_signup_happy_path_sends_verification_email(page: Page, base_url: str):
         f"no verification token in email: {r.json()!r}"
 
 
+@allure.title("Подтверждение email автоматически авторизует пользователя")
 def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str):
     """TC-FLOW-1.1: POST /api/account/verify-email sets a session cookie in
     the response so the user is logged in immediately — no extra login step.
@@ -91,6 +95,7 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str):
         f"/me slug mismatch: expected {body['tenant_slug']!r}, got {me.json()['tenant']['slug']!r}"
 
 
+@allure.title("После верификации email создаётся тенант для пользователя")
 def test_signup_then_verify_creates_tenant(page: Page, base_url: str):
     """F-EV-4: after verify, login succeeds and tenant_slug is returned."""
     email = make_email("verify")
@@ -118,6 +123,7 @@ def test_signup_then_verify_creates_tenant(page: Page, base_url: str):
     assert me.json()["tenant_slug"], f"no tenant_slug in login response: {me.json()}"
 
 
+@allure.title("Заполненный honeypot даёт тихий 200 без отправки письма")
 def test_honeypot_field_silently_succeeds(page: Page, base_url: str):
     """S-SU-4: filling honeypot 'website' → silent 200, no email captured.
 
@@ -146,6 +152,7 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str):
     expect_response(r, label="honeypot: no email sent").status(404)
 
 
+@allure.title("Одноразовый email отклоняется с ошибкой в поле ввода")
 def test_disposable_email_rejected_inline(page: Page, base_url: str):
     """S-SU-5: disposable email — inline error visible, no email sent.
 
@@ -172,6 +179,7 @@ def test_disposable_email_rejected_inline(page: Page, base_url: str):
     expect_response(r, label="disposable: no email sent").status(404)
 
 
+@allure.title("Слишком короткий пароль не проходит валидацию формы")
 def test_password_too_short_rejected_inline(page: Page, base_url: str):
     """S-SU-8: password < 8 chars — HTML5 validity blocks submit, no email sent."""
     email = make_email("shortpw")

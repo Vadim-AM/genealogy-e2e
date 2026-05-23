@@ -11,10 +11,13 @@ from __future__ import annotations
 import httpx
 from playwright.sync_api import Page, expect
 
+import allure
+
 from tests.api_paths import API
 from tests.timeouts import TIMEOUTS
 
 
+@allure.title("Edge: переход по несуществующему профилю не ломает UI")
 def test_f5_on_nonexistent_profile_id_does_not_crash(owner_page: Page):
     """TC-EDGE-004: F5 on /#/p/<unknown> shows tree, no JS crash."""
     owner_page.goto("/#/p/nonexistent_xyz_123")
@@ -22,6 +25,7 @@ def test_f5_on_nonexistent_profile_id_does_not_crash(owner_page: Page):
     expect(owner_page.locator('[data-tab="tree"]')).to_be_visible()
 
 
+@allure.title("Edge: персона с единственным полем name корректно читается")
 def test_old_person_with_only_name_field_renders(owner_user, tenant_client):
     """TC-EDGE-001: a person record with only `name` (no surname/given) — accessible.
 
@@ -46,6 +50,7 @@ def test_old_person_with_only_name_field_renders(owner_user, tenant_client):
     assert "Иван" in name, f"name not preserved: {name!r}"
 
 
+@allure.title("Edge: /api/health доступен без авторизации и отдаёт ok")
 def test_health_endpoint_does_not_require_auth(base_url: str):
     """Smoke: /api/health is public (no auth), reports status ok.
 
