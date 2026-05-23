@@ -23,30 +23,17 @@ Field semantics — pick the smallest one that fits the operation:
   - `api_long`    (30s) — exports / bulk operations
   - `health_gate` (30s) — subprocess /api/health bootstrap window
   - `enrichment_poll` (30s) — background job completion
+  - `polling_interval` (0.3s) — sleep between httpx-poll retries
+  - `pw_action_ms` (10_000ms) — Playwright `wait_for_*` action timeout
+  - `pw_provision_ms` (15_000ms) — Playwright `expect()` window for the
+    verify-email → provision_tenant round-trip (slow under `-n auto` load)
 """
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 
-
-def _multiplier() -> float:
-    """Read `E2E_TIMEOUT_MULTIPLIER` (default 1.0) — applied to ALL timeouts.
-
-    Set >1 in CI/Docker/slow networks; <1 only when debugging locally with
-    deliberately tight budgets (rare).
-    """
-    raw = os.environ.get("E2E_TIMEOUT_MULTIPLIER", "1.0")
-    try:
-        value = float(raw)
-    except ValueError as exc:
-        raise ValueError(
-            f"E2E_TIMEOUT_MULTIPLIER must be a positive float, got {raw!r}"
-        ) from exc
-    if value <= 0:
-        raise ValueError(f"E2E_TIMEOUT_MULTIPLIER must be positive, got {value}")
-    return value
+from tests.settings import settings
 
 
 @dataclass(frozen=True)
@@ -56,19 +43,31 @@ class _Timeouts:
     api_long: float
     health_gate: float
     enrichment_poll: float
+    # Sleep between retries in custom httpx polling loops (seconds).
+    polling_interval: float
     # Playwright `expect()` auto-wait window in MILLISECONDS.
     pw_expect_ms: int
+    # Playwright `wait_for_load_state` / `wait_for_selector` window (ms).
+    pw_action_ms: int
+    # Playwright `expect()` window for the verify-email → provision_tenant
+    # round-trip — CREATE SCHEMA + create_all + alembic stamp run under a
+    # session-level advisory lock; under `-n auto` parallel load (many
+    # xdist workers contending) it exceeds the default `pw_expect_ms`.
+    pw_provision_ms: int
 
 
 def _build() -> _Timeouts:
-    m = _multiplier()
+    m = settings.timeout_multiplier
     return _Timeouts(
         api_short=5.0 * m,
         api_request=10.0 * m,
         api_long=30.0 * m,
         health_gate=30.0 * m,
         enrichment_poll=30.0 * m,
+        polling_interval=0.3 * m,
         pw_expect_ms=int(5_000 * m),
+        pw_action_ms=int(10_000 * m),
+        pw_provision_ms=int(15_000 * m),
     )
 
 

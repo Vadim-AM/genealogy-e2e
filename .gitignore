@@ -224,3 +224,7 @@ __marimo__/
 test-results/
 playwright-report/
 playwright/.cache/
+
+# Allure reporting
+allure-results/
+allure-report/

@@ -29,14 +29,38 @@ class API:
     RESET_PASSWORD = "/api/account/reset-password"
     ACCOUNT_ME = "/api/account/me"
     ACCOUNT_AI_CONSENT = "/api/account/me/ai-consent"
+    ACCOUNT_EMAIL = "/api/account/me/email"
     ONBOARDING_COMPLETE = "/api/account/onboarding-complete"
     DELETE_TENANT = "/api/account/delete-tenant"
+    MY_TENANTS = "/api/account/my-tenants"
+    SWITCH_TENANT = "/api/account/switch-tenant"
+    RESTORE_TENANT = "/api/account/restore-tenant"
+    ONBOARDING_RESET = "/api/account/onboarding-reset"
+    CONFIRM_EMAIL_CHANGE = "/api/account/confirm-email-change"
+    COOKIE_CONSENT = "/api/account/me/cookie-consent"
+    ACCOUNT_TELEMETRY = "/api/account/me/telemetry"
 
-    # ── auth_v2 (also used as legacy/auth ping) ─────────────────
-    AUTH_ME = "/api/auth/me"
+    # ── Retention / telemetry / config / locations ───────────────
+    RETENTION_OFFER_STATUS = "/api/tenant/retention-offer-status"
+    RETENTION_OFFER_APPLY = "/api/tenant/retention-offer/apply"
+    TELEMETRY_EVENTS = "/api/telemetry/events"
+    CONFIG = "/api/config"
+    LOCATIONS = "/api/locations"
+
+    @staticmethod
+    def relationship(rel_id: str) -> str:
+        return f"/api/relationships/{rel_id}"
+
+    # ── Email webhooks (inbound, HMAC-signed) ────────────────────
+    WEBHOOK_POSTMARK = "/api/notifications/postmark-webhook"
+    WEBHOOK_RESEND = "/api/notifications/resend-webhook"
 
     # ── Tenant management (invites) ──────────────────────────────
     TENANT_INVITES = "/api/account/tenant/invites"
+
+    @staticmethod
+    def tenant_invite(token: str) -> str:
+        return f"/api/account/tenant/invites/{token}"
 
     @staticmethod
     def tenant_invite_accept(token: str) -> str:
@@ -52,6 +76,10 @@ class API:
     def person(pid: str) -> str:
         return f"/api/people/{pid}"
 
+    @staticmethod
+    def person_by_slug(slug: str) -> str:
+        return f"/api/people/by-display-slug/{slug}"
+
     # ── Enrichment (★ Найти больше) ──────────────────────────────
     @staticmethod
     def enrich(pid: str) -> str:
@@ -65,19 +93,130 @@ class API:
     def enrich_jobs(job_id: str) -> str:
         return f"/api/enrich/jobs/{job_id}"
 
+    @staticmethod
+    def enrich_acceptances(pid: str) -> str:
+        return f"/api/enrich/{pid}/acceptances"
+
+    @staticmethod
+    def enrich_accept(pid: str) -> str:
+        return f"/api/enrich/{pid}/accept"
+
+    @staticmethod
+    def enrich_revert(acceptance_id: int) -> str:
+        return f"/api/enrich/acceptances/{acceptance_id}/revert"
+
+    @staticmethod
+    def enrich_stream(job_id: str) -> str:
+        return f"/api/enrich/jobs/{job_id}/stream"
+
+    @staticmethod
+    def enrich_cache(enrichment_id: int) -> str:
+        return f"/api/enrich/cache/{enrichment_id}"
+
+    @staticmethod
+    def enrich_feedback(pid: str) -> str:
+        return f"/api/enrich/{pid}/feedback"
+
+    ENRICH_HEALTH_API_KEY = "/api/enrich/health/api-key"
+    ENRICH_LETTERS_SENT = "/api/enrich/letters/sent"
+
     # ── Photos ───────────────────────────────────────────────────
     TIMELINE_GEO = "/api/timeline-geo"
 
+    # ── Analytics ────────────────────────────────────────────────
+    ANALYTICS_LOG = "/api/analytics/log"
+
+    # ── Subscription / tenant export ─────────────────────────────
+    SUBSCRIPTION_USAGE_LEGACY = "/api/subscription/usage"
+    SUBSCRIPTION_CURRENT = "/api/subscription/current"
+    SUBSCRIPTION_CANCEL = "/api/subscription/cancel"
+    SUBSCRIPTION_CHECKOUT = "/api/subscription/checkout"
+    TENANT_EXPORT = "/api/tenant/export"
+
     # ── Health / ops ─────────────────────────────────────────────
     HEALTH = "/api/health"
+    CONFIG_FEATURES = "/api/config/features"
+
+    # ── Public pricing ───────────────────────────────────────────
+    TIERS_PUBLIC = "/api/tiers/public"
+
+    # ── Waitlist ─────────────────────────────────────────────────
+    # Exercised via the UI journey in tests/ui/test_waitlist.py (form
+    # submit) — kept here so the coverage gate counts it as covered.
+    WAITLIST_SUBSCRIBE = "/api/waitlist/subscribe"
+
+    # ── Onboarding (demo data) ───────────────────────────────────
+    ONBOARDING_CLEAR_DEMO = "/api/onboarding/clear-demo"
+    ONBOARDING_KEEP_DEMO = "/api/onboarding/keep-demo"
+
+    # ── Sources (historical references) ──────────────────────────
+    SOURCES = "/api/sources"
+    PERSON_SOURCES = "/api/person-sources"
+
+    @staticmethod
+    def source(source_id: str) -> str:
+        return f"/api/sources/{source_id}"
+
+    @staticmethod
+    def person_sources(person_id: str) -> str:
+        return f"/api/people/{person_id}/sources"
+
+    @staticmethod
+    def person_source_link(link_id: int) -> str:
+        return f"/api/person-sources/{link_id}"
+
+    # ── Sharing (public read-only links) ─────────────────────────
+    SHARE_CREATE = "/api/share/create"
+    SHARE_LIST = "/api/share/list"
+
+    @staticmethod
+    def share(share_id: int) -> str:
+        return f"/api/share/{share_id}"
+
+    @staticmethod
+    def share_view(token: str) -> str:
+        return f"/api/share/view/{token}"
+
+    # ── Legacy admin (password-gated, pre-auth_v2) ───────────────
+    ADMIN_LOGIN = "/api/admin/login"
 
     # ── Admin (legacy gates — auth_v2 миграция в процессе) ───────
     ADMIN_EXPORT_GEDCOM = "/api/admin/export-gedcom"
     ADMIN_IMPORT_GEDCOM = "/api/admin/import-gedcom"
-    ADMIN_INVITES = "/api/admin/invites"
+    ADMIN_IMPORT_GEDCOM_CONFIRM = "/api/admin/import-gedcom/confirm"
+    UPLOAD_PHOTO = "/api/admin/upload-photo"
+    ADMIN_TENANTS = "/api/admin/tenants"
 
-    # ── Subscription ─────────────────────────────────────────────
-    SUBSCRIPTION_USAGE = "/api/account/me/subscription"
+    @staticmethod
+    def photo(photo_id: str) -> str:
+        return f"/api/admin/photos/{photo_id}"
+    ADMIN_WAITLIST = "/api/admin/waitlist"
+
+    @staticmethod
+    def admin_tenant(slug: str) -> str:
+        return f"/api/admin/tenants/{slug}"
+
+    @staticmethod
+    def admin_waitlist_item(subscriber_id: int) -> str:
+        return f"/api/admin/waitlist/{subscriber_id}"
+
+    # ── Platform ops (superadmin) ────────────────────────────────
+    PLATFORM_WAITLIST = "/api/platform/waitlist"
+    PLATFORM_BACKUPS = "/api/platform/backups"
+    PLATFORM_NUDGES = "/api/platform/send-onboarding-nudges"
+    PLATFORM_TENANT_OVERRIDE = "/api/platform/tenant-override"
+
+    @staticmethod
+    def tenant_overrides(slug: str) -> str:
+        return f"/api/platform/tenant-overrides/{slug}"
+
+    @staticmethod
+    def tenant_override_field(slug: str, field: str) -> str:
+        return f"/api/platform/tenant-override/{slug}/{field}"
+
+    @staticmethod
+    def platform_waitlist_invite(subscriber_id: int) -> str:
+        return f"/api/platform/waitlist/{subscriber_id}/invite"
 
     # ── Test infra (gated by GENEALOGY_TEST_TOKEN env) ──────────
     TEST_RESET = "/api/_test/reset"
@@ -85,6 +224,7 @@ class API:
     TEST_LAST_EMAIL = "/api/_test/last-email"
     TEST_INSTALL_MOCK_AI = "/api/_test/install-mock-ai"
     TEST_UNINSTALL_MOCK_AI = "/api/_test/uninstall-mock-ai"
+    TEST_SET_PLATFORM_SETTING = "/api/_test/set-platform-setting"
 
     # ── Platform superadmin (PR-1..10) ───────────────────────────
     PLATFORM_METRICS = "/api/platform/metrics"
@@ -109,6 +249,16 @@ class API:
     PLATFORM_CLEANUP_DELETED = "/api/platform/cleanup-deleted"
     PLATFORM_TIER_CONFIG = "/api/platform/tier-config"
     PLATFORM_SETTINGS = "/api/platform/settings"
+
+    # ── User MFA (account-level 2FA) ─────────────────────────────
+    USER_MFA_SETUP = "/api/account/mfa/setup"
+    USER_MFA_VERIFY = "/api/account/mfa/verify"
+    USER_MFA_DISABLE = "/api/account/mfa/disable"
+    USER_MFA_STATUS = "/api/account/mfa/status"
+    USER_MFA_STEP_UP = "/api/account/mfa/step-up"
+    USER_MFA_RECOVERY_COUNT = "/api/account/mfa/recovery-codes/count"
+    USER_MFA_RECOVERY_REGEN = "/api/account/mfa/recovery-codes/regenerate"
+    USER_MFA_RECOVERY_REDEEM = "/api/account/mfa/recovery-redeem"
 
     # ── Platform MFA (PR-7..10) ──────────────────────────────────
     MFA_SETUP = "/api/platform/mfa/setup"

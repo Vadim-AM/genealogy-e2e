@@ -18,7 +18,20 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Two passes: parallel (`-m "not serial" -n 2`, ~80% of tests, no
+    # per-test reset → no wedge) + serial (`-m serial -p no:xdist`,
+    # superadmin/platform/timing). Parallel pass collapses the old ~36-min
+    # single-thread wall-clock; serial pass is the long pole (timing tests
+    # are sequential by nature). 25 мин keeps margin without hiding
+    # regressions; revisit if the parallel pass dominates.
+    timeout-minutes: 25
+    # Upstream dev is PostgreSQL-only since PR-B7 (SQLite codepath retired).
+    # Postgres is booted as a `docker run` STEP, not a `services:` block:
+    # the parallel pass has no per-test reset, so tenant schemas accumulate
+    # and the serial pass's first `/api/_test/reset` DROPs them all in one
+    # transaction → needs `max_locks_per_transaction` well above the
+    # default 64. GH `services:` can't pass server CMD args; a run-step
+    # can, and it mirrors CLAUDE.md "Running locally" exactly.
     steps:
       - name: Checkout genealogy-e2e
         uses: actions/checkout@v4
@@ -48,10 +61,39 @@ jobs:
           # python-dotenv is imported by app.config; install if not pinned upstream.
           pip install python-dotenv
 
-      - name: Install e2e deps + Chromium
+      - name: Install e2e deps
+        run: pip install -r requirements.txt
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          # Key on requirements.txt — bumping playwright pin invalidates cache.
+          key: ${{ runner.os }}-playwright-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Chromium (when cache miss)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: playwright install --with-deps chromium
+
+      - name: Install Chromium system deps (always — apt packages aren't cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: playwright install-deps chromium
+
+      - name: Start Postgres (run-step for max_locks CMD control)
         run: |
-          pip install -r requirements.txt
-          playwright install --with-deps chromium
+          docker run -d --name e2e-pg \
+            -e POSTGRES_USER=genealogy -e POSTGRES_PASSWORD=genealogy \
+            -e POSTGRES_DB=genealogy_test -p 5432:5432 postgres:16-alpine \
+            -c max_locks_per_transaction=4096 -c max_connections=200
+          for i in $(seq 1 30); do
+            docker exec e2e-pg pg_isready -U genealogy -d genealogy_test \
+              && { echo "postgres up after ${i}s"; exit 0; }
+            sleep 1
+          done
+          echo "::error::postgres did not become ready in 30s"; exit 1
 
       - name: Start test-instrumented backend
         run: |
@@ -67,11 +109,19 @@ jobs:
           PLATFORM_SUPERADMIN_EMAILS=super@e2e.example.com \
           ANTHROPIC_API_KEY=sk-test-stub \
           GENEALOGY_TENANTS_ROOT="$RUNNER_TEMP/tenants" \
-          PLATFORM_DB_PATH="$RUNNER_TEMP/platform.db" \
-          GENEALOGY_DB_PATH="$RUNNER_TEMP/genealogy.db" \
+          GENEALOGY_TRUST_FORWARDED_FOR=1 \
+          GENEALOGY_DOCS_ENABLED=1 \
+          DATABASE_URL='postgresql+psycopg://genealogy:genealogy@localhost:5432/genealogy_test' \
           nohup uvicorn app.main:app --host 127.0.0.1 --port 8642 \
             --log-level warning > "$GITHUB_WORKSPACE/uvicorn.log" 2>&1 &
           echo "uvicorn PID=$!"
+
+      - name: Lint test files for rule drift
+        # CLAUDE.md rules #5 (no hardcoded timeouts) / #9 (no raw URL strings).
+        # Catches regressions before they accumulate; whitelist a line with
+        # `# noqa: drift` for genuinely legitimate uses (e.g. router-shape
+        # parametrize in test_ai_disabled_flow.py).
+        run: python scripts/check_drift.py
 
       - name: Wait for backend /api/health
         run: |
@@ -87,19 +137,47 @@ jobs:
           cat uvicorn.log
           exit 1
 
-      - name: Run e2e suite
+      # Two passes against the one shared backend. Parallel pass: tenant-
+      # scoped/independent tests, isolated by unique tenant+identity, no
+      # per-test global reset (a single session baseline reset only) — this
+      # is what removes the O(n) wedge and lets xdist actually work. Serial
+      # pass: state-mutators (superadmin/platform, global AI flag, timing),
+      # single-worker, per-test reset preserved. `serial` is auto-applied
+      # in conftest (fixture-based). Pass 2's first per-test reset also
+      # clears the tenants Pass 1 accumulated.
+      - name: Run e2e suite — parallel (tenant-scoped, not serial)
         env:
           E2E_BACKEND_URL: http://127.0.0.1:8642
           # CI-class hardware is variable — give every timeout 1.5× margin.
           E2E_TIMEOUT_MULTIPLIER: "1.5"
-        run: pytest tests/ -v --tb=short
+        # `-n 2`, NOT `-n auto` and NOT `-n 4`: `auto` = one worker per
+        # logical CPU → on any host it over-subscribes (many Chromium + one
+        # shared backend) and flakes random light tests (non-deterministic,
+        # observed 2026-05-19). `-n 4` was verified clean only on a
+        # high-core dev Mac — UNVERIFIED on GitHub-hosted runners (their
+        # CPU/RAM is not knowable from here). `-n 2` is the conservative
+        # no-oversubscription floor for unknown-but-modest CI hardware;
+        # still a large win over single-thread. Determinism on the real
+        # runner must be EARNED by repeated workflow_dispatch runs, not
+        # assumed — raise only if those prove headroom.
+        run: pytest tests/ -m "not serial" -n 2 --dist load -v --tb=short
 
-      - name: Upload uvicorn log + Playwright traces on failure
-        if: failure()
+      - name: Run e2e suite — serial (state-mutators, single worker)
+        # Run regardless of the parallel pass result so we get the full
+        # signal from both buckets (job still goes red if either failed).
+        if: success() || failure()
+        env:
+          E2E_BACKEND_URL: http://127.0.0.1:8642
+          E2E_TIMEOUT_MULTIPLIER: "1.5"
+        run: pytest tests/ -m serial -p no:xdist -v --tb=short
+
+      - name: Upload test artifacts (traces, allure, logs)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-failure-${{ github.run_id }}
+          name: e2e-results-${{ github.run_id }}
           path: |
             uvicorn.log
             test-results/
+            allure-results/
           retention-days: 7

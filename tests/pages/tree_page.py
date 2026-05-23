@@ -1,7 +1,7 @@
 """POM for / (index.html) — public family tree.
 
 Selectors verified against js/views/orbit.js + js/search.js (28.04 review):
-- Orbit cards: `.orbit-card`
+- Orbit cards: `[data-testid="orbit-card"]`
 - Search results: `#personSearchResults > .nav-search-result`
 """
 
@@ -30,18 +30,26 @@ class TreePage(BasePage):
         self.search_input = page.locator("#personSearch")
         self.search_results_container = page.locator("#personSearchResults")
         self.search_results = self.search_results_container.locator(
-            ".nav-search-result[data-action='search-navigate']"
+            '[data-testid="search-result-item"]'
         )
         self.tree_container = page.locator("#treeContainer")
-        self.orbit_cards = self.tree_container.locator(".orbit-card")
+        self.orbit_cards = self.tree_container.locator('[data-testid="orbit-card"]')
         self.minimap = page.locator("#minimap")
+        self.branch_legend = page.locator("#branchLegend")
         self.auth_indicator = page.locator("#authIndicator")
         self.tour_replay_btn = page.locator("#tourReplayBtn")
 
-    def switch_to(self, tab_name: str) -> "TreePage":
-        """tab_name: 'tree' | 'map' | 'sources' | 'timeline' | 'about'."""
+    def switch_tab(self, tab_name: str) -> "TreePage":
+        """Click a tab and wait for the page to settle.
+
+        tab_name: 'tree' | 'map' | 'sources' | 'timeline' | 'about'.
+        """
         self.page.locator(f'[data-tab="{tab_name}"]').click()
+        self.page.wait_for_load_state("domcontentloaded")
         return self
+
+    # backward-compat alias (used by existing tests)
+    switch_to = switch_tab
 
     def expect_tree_rendered(self, *, min_cards: int = 1) -> None:
         """Tree is rendered when at least `min_cards` orbit cards are present.

@@ -14,7 +14,28 @@ from __future__ import annotations
 
 from playwright.sync_api import Locator, Page, expect
 
-from tests.messages import Buttons, FamilyGroups, t
+from tests.messages import Buttons, FamilyGroups, TestData, t
+
+
+def open_editor_for(
+    page: "Page",
+    person_id: str = TestData.DEMO_PERSON_ID,
+) -> "PersonEditor":
+    """Navigate to a person's profile and switch to edit mode.
+
+    Returns the ready-to-use PersonEditor. Shared helper — replaces the
+    copy-pasted `_open_editor` that lived in three test files.
+    """
+    from tests.pages.person_editor import PersonEditor
+
+    page.goto(f"/#/p/{person_id}")
+    page.wait_for_load_state("domcontentloaded")
+    panel = ProfilePanel(page)
+    panel.expect_visible()
+    panel.open_editor()
+    editor = PersonEditor(page)
+    editor.expect_visible()
+    return editor
 
 
 class ProfilePanel:
@@ -22,15 +43,14 @@ class ProfilePanel:
 
     def __init__(self, page: Page):
         self.page = page
-        self.container = page.locator(".profile-page")
-        self.title = page.locator("#tab-tree .section-title")
+        self.container = page.locator('[data-testid="profile-page"]')
+        self.title = page.locator('[data-testid="profile-section-title"]')
 
         # Action buttons via accessible role + name from the catalogue.
         # Robust to onclick→data-action refactors and locale changes.
         self.btn_edit = page.get_by_role("button", name=t(Buttons.EDIT), exact=False)
         self.btn_enrich = page.get_by_role("button", name=t(Buttons.ENRICH), exact=False)
-        # Back: `← назад к дереву` — class is the most stable handle.
-        self.btn_back = page.locator(".profile-back")
+        self.btn_back = page.locator('[data-testid="profile-back"]')
 
         self.history_block = page.locator("#profileAiHistory")
         self.accepted_facts_block = page.locator("#profileAiAccepted")
@@ -59,9 +79,9 @@ class ProfilePanel:
         Substring match on label so «Супруг(а)» / «Супруг» both work.
         """
         return (
-            self.page.locator(".profile-family-group")
+            self.page.locator('[data-testid="profile-family-group"]')
             .filter(has_text=group_label)
-            .locator(".profile-rel-add")
+            .locator('[data-testid="profile-rel-add"]')
         )
 
     def click_add_sibling(self) -> None:
@@ -76,3 +96,27 @@ class ProfilePanel:
     def click_add_parent(self) -> None:
         """Note: visible only when fewer than 2 parents exist (RELATIVE_LIMITS)."""
         self.add_relative_button(t(FamilyGroups.PARENTS)).click()
+
+    # ──────────────────────────────────────────────────────────────────
+    # Navigation
+    # ──────────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def navigate_to(page: Page, person_id: str) -> "ProfilePanel":
+        """Go to a person's profile page and wait for it to render."""
+        page.goto(f"/#/p/{person_id}")
+        page.wait_for_load_state("domcontentloaded")
+        panel = ProfilePanel(page)
+        panel.expect_visible()
+        return panel
+
+    def click_family_link(self, group_label: str, name_substring: str) -> None:
+        """Click a relative's name link inside a family group."""
+        group = (
+            self.page.locator('[data-testid="profile-family-group"]')
+            .filter(has_text=group_label)
+        )
+        group.locator(
+            f'a[data-action="open-profile"]'
+        ).filter(has_text=name_substring).click()
+        expect(self.container).to_be_visible()
