@@ -49,8 +49,7 @@ def test_audit_log_invalid_since_iso_returns_400(superadmin_user, tenant_client)
     r = tenant_client(superadmin_user).get(
         API.PLATFORM_AUDIT_LOG, params={"since_iso": "not-a-date"},
     )
-    assert r.status_code == 400, \
-        f"invalid since_iso should be 400, got {r.status_code}"
+    expect_response(r, label="audit-log invalid since_iso").status(400)
 
 
 def test_settings_patch_writes_audit_entry(superadmin_user, tenant_client):
@@ -63,7 +62,7 @@ def test_settings_patch_writes_audit_entry(superadmin_user, tenant_client):
     api.patch(API.PLATFORM_SETTINGS, json={"soft_warn_threshold": new_value}).raise_for_status()
 
     r = api.get(API.PLATFORM_AUDIT_LOG, params={"action": "settings_patch", "limit": 5})
-    r.raise_for_status()
+    expect_response(r, label="audit-log settings_patch").status_ok()
     items = r.json()["items"]
     assert len(items) >= 1, "settings_patch audit entry not created after PATCH"
     latest = items[0]
@@ -85,7 +84,7 @@ def test_audit_log_ip_hash_is_hex_not_raw_ip(superadmin_user, tenant_client):
     api.patch(API.PLATFORM_SETTINGS, json={"soft_warn_threshold": 0.85}).raise_for_status()
 
     r = api.get(API.PLATFORM_AUDIT_LOG, params={"limit": 1})
-    r.raise_for_status()
+    expect_response(r, label="audit-log ip_hash").status_ok()
     items = r.json()["items"]
     assert len(items) == 1, (
         f"expected exactly 1 audit item with limit=1, got {len(items)}"
@@ -106,7 +105,7 @@ def test_audit_log_filters_by_action(superadmin_user, tenant_client):
     api.patch(API.PLATFORM_SETTINGS, json={"soft_warn_threshold": 0.9}).raise_for_status()
 
     r = api.get(API.PLATFORM_AUDIT_LOG, params={"action": "settings_patch", "limit": 20})
-    r.raise_for_status()
+    expect_response(r, label="audit-log filter by action").status_ok()
     items = r.json()["items"]
     for it in items:
         assert it["action"] == "settings_patch", \
