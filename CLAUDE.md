@@ -104,10 +104,17 @@ English locale yet — costs one minute, prevents future hunt.
 ### 5. No hardcoded timeouts — and all config via `tests/settings.py`
 
 Every timeout routes through `tests/timeouts.py`. All environment config
-(`E2E_BACKEND_URL`, `E2E_TIMEOUT_MULTIPLIER`, `E2E_TEST_TOKEN`,
-`E2E_LOCALE`) validates at collection time via Pydantic in
-`tests/settings.py`. Invalid env → immediate `pytest.exit` with a clear
-message before any fixture runs.
+validates at collection time via Pydantic in `tests/settings.py`:
+
+| Env var | Required | Default |
+|---------|----------|---------|
+| `E2E_BACKEND_URL` | **yes** | (none — must set) |
+| `E2E_TIMEOUT_MULTIPLIER` | no | `1.0` |
+| `E2E_TEST_TOKEN` | no | `e2e-test-token-default-2026` |
+| `E2E_LOCALE` | no | `ru` |
+
+Invalid or missing required env → immediate `pytest.exit` with a Pydantic
+error before any fixture runs.
 
 **Categories** (pick the smallest one that fits):
 - `api_short` (5s) — fire-and-forget admin/test endpoints.
@@ -419,9 +426,8 @@ docker run -d --name genealogy-e2e-pg \
   -c max_locks_per_transaction=4096 -c max_connections=200
 # wait: docker exec genealogy-e2e-pg pg_isready -U genealogy -d genealogy_test
 
-# 1. Boot test-instrumented backend (in upstream repo). This env block is
-#    the canonical one — keep it in lockstep with .github/workflows/pr-check.yml.
-cd /path/to/genealogy/backend
+# 1. Boot test-instrumented backend (canonical env — matches pr-check.yml)
+cd /path/to/Vadim-AM/Genealogy/backend
 GENEALOGY_TESTING=1 \
   GENEALOGY_ADMIN_PASSWORD=test_admin_password \
   GENEALOGY_TEST_TOKEN=e2e-test-token-default-2026 \
@@ -436,33 +442,14 @@ GENEALOGY_TESTING=1 \
   GENEALOGY_DOCS_ENABLED=1 \
   DATABASE_URL='postgresql+psycopg://genealogy:genealogy@localhost:5432/genealogy_test' \
   uvicorn app.main:app --host 127.0.0.1 --port 8642 &
-# NB: GENEALOGY_TRUST_FORWARDED_FOR=1 — config flag of OUR test instance
-# (same one prod uses behind Caddy; NOT a product change). Without the
-# per-test global reset the parallel pass no longer clears the
-# programmatic rate-limit `_buckets`, and the login throttle
-# (`login:<ip>`, 10/60s) is intentionally ON in test mode (documented
-# brute-force invariant — do NOT disable it). All xdist workers share
-# 127.0.0.1 → shared bucket → false 429s. With this flag the suite's
-# httpx monkey-patch (tests/_fixtures/patch.py) injects a per-test
-# synthetic X-Forwarded-For so each logical client gets its own bucket —
-# the throttle stays real per-identity, the suite stays green. See
-# UPSTREAM-REPORT (2026-05-19) for the full root-cause.
+# GENEALOGY_TRUST_FORWARDED_FOR=1 enables per-client synthetic
+# X-Forwarded-For in the httpx patch — prevents 429s under xdist.
 
-# 2. Run suite — TWO passes (E2E_TIMEOUT_MULTIPLIER=1.5 mirrors CI;
-#    drop it on fast metal). Do NOT `pytest tests/` in one shot: a single
-#    backend can't sustain ~300 sequential tenant provisions and wedges.
+# 2. Run suite — TWO passes (don't run in one shot: wedges at ~300 tenants)
 cd /path/to/genealogy-e2e
 export E2E_BACKEND_URL=http://127.0.0.1:8642 E2E_TIMEOUT_MULTIPLIER=1.5
-# parallel pass — tenant-scoped, no per-test reset, the fast bulk.
-# Bounded worker count, NOT `-n auto` (auto = one worker per logical CPU
-# → over-subscribes any host, flakes random light tests). `-n 4` here is
-# for a high-core dev machine where it was verified clean; CI deliberately
-# uses a lower `-n 2` (see pr-check.yml — GitHub-runner specs are unknown
-# and modest, so the no-oversubscription floor is the safe default there).
-# Pick a value ≤ your physical cores; raise only if proven flake-free.
-pytest tests/ -m "not serial" -n 4 --dist load -v
-# serial pass — state-mutators, single worker, per-test reset kept:
-pytest tests/ -m serial -p no:xdist -v
+pytest tests/ -m "not serial" -n 4 --dist load -v   # parallel (243 tests)
+pytest tests/ -m serial -p no:xdist -v               # serial  (120 tests)
 ```
 
 Iterating on one area? `pytest -m auth -m "not serial" -n 4` etc.
@@ -495,8 +482,8 @@ full block above before triaging failures as regressions.
 - `signup_via_api` — factory if you need a custom user (different email/name).
 - `soft_check` — yields `playwright.sync_api.expect` for `expect.soft(...)`
   multi-fact smoke blocks.
-- `reset_state` (autouse) — calls `/api/_test/reset` between every test:
-  wipes platform DB rows, tenants/, MockSender, slowapi rate-limit, site_config.
+- `reset_state` (autouse, **serial pass only**) — calls `/api/_test/reset`
+  between serial tests; parallel pass skips it (isolation via unique tenants).
 
 ## Backend test endpoints (upstream)
 
@@ -550,6 +537,20 @@ already cost a near-lost rewrite.
 - Commit messages: imperative subject; the body explains the *why* (the
   *what* is already in the diff). Add a `Co-Authored-By` trailer when
   Claude wrote the commit.
+
+## Quick reference: where to put new code
+
+| I need to add... | Put it in... |
+|------------------|-------------|
+| A new test | `tests/<domain>/test_<feature>.py` |
+| A helper function | `tests/helpers/<domain>/<topic>.py` |
+| A Page Object | `tests/pages/<page_name>.py` |
+| Test data (GEDCOM, JSON, bytes) | `tests/_data/<topic>/` |
+| A global fixture | `tests/_fixtures/<topic>.py` |
+| A domain fixture | `tests/<domain>/conftest.py` |
+| A UI string | `tests/messages.py` (class + `t()`) |
+| An API path | `tests/api_paths.py` (class `API`) |
+| An env var | `tests/settings.py` (Pydantic field) |
 
 ## When in doubt
 
