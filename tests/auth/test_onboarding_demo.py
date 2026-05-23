@@ -8,12 +8,14 @@ mutually-exclusive choices are exercised independently.
 
 from __future__ import annotations
 
+import allure
 from playwright.sync_api import Page
 
 from tests.api_paths import API
 from tests.pages.confirm_dialog import ConfirmDialog
 
 
+@allure.title("Владелец удаляет демо-родственников из дерева")
 def test_owner_clears_demo_relatives(owner_page: Page, owner_user, tenant_client):
     """Owner opens settings → 'Стереть демо-родственников' → confirms →
     the demo people are removed from the tree."""
@@ -34,6 +36,7 @@ def test_owner_clears_demo_relatives(owner_page: Page, owner_user, tenant_client
         f"demo relatives must be gone: {len(before)} → {len(after)}"
 
 
+@allure.title("Владелец сохраняет демо-данные как шаблон для дерева")
 def test_owner_keeps_demo_as_template(owner_page: Page, owner_user, tenant_client):
     """Owner opens settings → 'Использовать как шаблон' → confirms →
     the tree structure stays (people are kept, not deleted)."""

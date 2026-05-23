@@ -12,11 +12,14 @@ setup и пока не автоматизируется.
 
 from __future__ import annotations
 
+import allure
+
 from tests.api_paths import API
 from tests.constants import unique_email
 from tests.response import expect_response
 
 
+@allure.title("GDPR: удаление тенанта инвалидирует сессию владельца")
 def test_delete_tenant_invalidates_owner_session(
     signup_via_api, tenant_client,
 ):

@@ -17,6 +17,7 @@ graph-aware suggestion в add-relative-modal).
 
 from __future__ import annotations
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
@@ -38,6 +39,7 @@ from tests.pages.profile_panel import ProfilePanel
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Подсказка родителя для сестры предотвращает дубликат")
 def test_sibling_parent_suggestion_prevents_duplicate(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -119,6 +121,7 @@ def test_sibling_parent_suggestion_prevents_duplicate(
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Подсказки родителей фильтруются по выбранному полу")
 def test_suggestion_filters_by_gender_for_mother_relationship(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -152,6 +155,7 @@ def test_suggestion_filters_by_gender_for_mother_relationship(
     expect(modal.suggestion_card_by_id(parents["f"])).to_have_count(0)
 
 
+@allure.title("Подсказки отсутствуют у персоны без братьев и сестёр")
 def test_no_suggestion_when_no_siblings(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -188,6 +192,7 @@ def test_no_suggestion_when_no_siblings(
     modal.expect_no_suggestions()
 
 
+@allure.title("Подсказки пусты когда у сиблингов нет родителей")
 def test_no_suggestion_when_siblings_have_no_parents(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -217,6 +222,7 @@ def test_no_suggestion_when_siblings_have_no_parents(
     modal.expect_no_suggestions()
 
 
+@allure.title("Кнопка '+ родитель' скрыта при достижении лимита в 2 родителя")
 def test_no_suggestion_when_max_parents_already(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -241,6 +247,7 @@ def test_no_suggestion_when_max_parents_already(
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Игнорирование подсказки создаёт нового человека вручную")
 def test_user_ignores_suggestion_creates_new_person(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -308,6 +315,7 @@ def test_user_ignores_suggestion_creates_new_person(
         f"new father name missing 'Иннокентий': {new_father['name']!r}"
 
 
+@allure.title("Клик по подсказке привязывает существующего, не создаёт нового")
 def test_suggestion_click_does_not_create_new_person(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -359,6 +367,7 @@ def test_suggestion_click_does_not_create_new_person(
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Чекбокс 'Те же родители' привязывает обоих родителей к сиблингу")
 def test_existing_sibling_auto_parent_checkbox_still_works(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -409,6 +418,7 @@ def test_existing_sibling_auto_parent_checkbox_still_works(
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Ошибка 422 при привязке подсказки оставляет модалку открытой")
 def test_suggestion_click_shows_error_on_backend_422(
     owner_page: Page, owner_user, tenant_client
 ):

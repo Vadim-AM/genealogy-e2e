@@ -25,6 +25,7 @@ xfail после полного XPASS-прогона на upstream/dev `7dcd427`
 
 from __future__ import annotations
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.helpers.tree.tree_api import people_count, seed_person
@@ -39,6 +40,7 @@ from tests.pages.profile_panel import ProfilePanel
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Привязка существующего сиблинга создаёт только связь, не персону")
 def test_link_existing_sibling_creates_only_relationship(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -111,6 +113,7 @@ def test_link_existing_sibling_creates_only_relationship(
     )
 
 
+@allure.title("Отвязка возвращает форму в режим создания нового человека")
 def test_unlink_existing_returns_to_create_mode(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -161,6 +164,7 @@ def test_unlink_existing_returns_to_create_mode(
     )
 
 
+@allure.title("Автоподсказка исключает текущую персону из списка")
 def test_dropdown_excludes_self(owner_page: Page, owner_user, tenant_client):
     """Self-exclusion (validate_self_loop): ввод подстроки имени самого
     currentPerson'а → его строки нет в dropdown'е, даже если он
@@ -184,6 +188,7 @@ def test_dropdown_excludes_self(owner_page: Page, owner_user, tenant_client):
     ).not_to_be_visible()
 
 
+@allure.title("Стрелка вниз и Enter выбирают кандидата из автоподсказки")
 def test_keyboard_arrow_down_enter_picks_first_candidate(
     owner_page: Page, owner_user, tenant_client
 ):
@@ -218,6 +223,7 @@ def test_keyboard_arrow_down_enter_picks_first_candidate(
     modal.expect_linked_to(existing_id)
 
 
+@allure.title("Esc закрывает выпадающий список, но не модалку добавления")
 def test_escape_closes_dropdown_keeps_modal(
     owner_page: Page, owner_user, tenant_client
 ):

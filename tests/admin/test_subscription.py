@@ -6,6 +6,7 @@ period_end, soft_warn, exhausted} in /api/subscription/usage.
 
 from __future__ import annotations
 
+import allure
 import httpx
 
 from tests.api_paths import API
@@ -25,6 +26,7 @@ REQUIRED_KEYS = {
 }
 
 
+@allure.title("Подписка: free-тариф показывает лимит 3 и 0 использованных")
 def test_subscription_usage_shape_for_free_owner(owner_user, tenant_client):
     """TC-AI-2: /api/subscription/usage returns the canonical free-tier shape."""
     api = tenant_client(owner_user)
@@ -47,6 +49,7 @@ def test_subscription_usage_shape_for_free_owner(owner_user, tenant_client):
         f"new owner must not have soft_warn, got {data['soft_warn']!r}"
 
 
+@allure.title("Подписка: анонимный запрос к usage возвращает 401")
 def test_subscription_usage_requires_auth(base_url: str):
     """Anonymous request to /api/subscription/usage → 401."""
     r = httpx.get(f"{base_url}{API.SUBSCRIPTION_USAGE_LEGACY}", timeout=TIMEOUTS.api_request)

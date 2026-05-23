@@ -6,6 +6,7 @@ opens → fills FIO → saves → new person appears in /api/tree.
 
 from __future__ import annotations
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
@@ -14,6 +15,7 @@ from tests.pages.person_editor import AddRelativeModal
 from tests.pages.profile_panel import ProfilePanel
 
 
+@allure.title("Добавление брата/сестры через профиль создаёт персону и связь")
 def test_add_sibling_via_profile_creates_person_and_relationship(
     owner_page: Page, owner_user, tenant_client,
 ):

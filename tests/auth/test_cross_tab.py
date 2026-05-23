@@ -6,9 +6,12 @@ the session for tab 1 — a subsequent /api/account/me call returns 401.
 
 from __future__ import annotations
 
+import allure
+
 from tests.api_paths import API
 
 
+@allure.title("Выход в одной вкладке инвалидирует сессию в другой")
 def test_logout_invalidates_session_across_tabs(owner_user, tenant_client):
     """TC-CROSS-1: logout in one tab → /me 401 from another tab's cookies.
 

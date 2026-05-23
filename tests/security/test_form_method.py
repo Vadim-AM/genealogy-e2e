@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
+import allure
+
 from tests.api_paths import API
 from tests.constants import TestConfig, unique_email
 from tests.messages import Buttons, t
@@ -26,6 +28,7 @@ def _is_submit_request(url: str, expected_path: str) -> bool:
     return expected_path in url
 
 
+@allure.title("Формы: регистрация отправляется методом POST, не GET")
 def test_signup_form_submits_via_post(page: Page):
     """Submit signup form → request method MUST be POST."""
     page.goto("/signup")
@@ -49,6 +52,7 @@ def test_signup_form_submits_via_post(page: Page):
     expect(page.locator("#signupForm")).to_have_attribute("method", "post")
 
 
+@allure.title("Формы: вход отправляется методом POST, не GET")
 def test_login_form_submits_via_post(page: Page):
     """Submit login form → request method MUST be POST."""
     page.goto("/login")
@@ -67,6 +71,7 @@ def test_login_form_submits_via_post(page: Page):
     expect(page.locator("#loginForm")).to_have_attribute("method", "post")
 
 
+@allure.title("Формы: сброс пароля имеет method=post")
 def test_reset_password_form_method_is_post(page: Page):
     """Reset-password form structural check (method="post").
 

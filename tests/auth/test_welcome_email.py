@@ -18,6 +18,7 @@ URL **захардкожен** на prod-домен в `notifications/templates.
 
 from __future__ import annotations
 
+import allure
 import httpx
 import pytest
 
@@ -26,6 +27,7 @@ from tests.constants import unique_email
 from tests.timeouts import TIMEOUTS
 
 
+@allure.title("Welcome-письмо содержит URL из GENEALOGY_PUBLIC_URL, не прод")
 def test_welcome_email_uses_public_url_env_not_hardcoded_prod(
     signup_via_api, uvicorn_server: str,
 ):

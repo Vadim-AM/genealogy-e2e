@@ -33,6 +33,8 @@ from __future__ import annotations
 import httpx
 import pytest
 
+import allure
+
 from tests.api_paths import API
 from tests.constants import TestConfig, unique_email
 from tests.helpers.security.timing import ITERATIONS, RATIO_THRESHOLD, measure
@@ -48,6 +50,7 @@ from tests.timeouts import TIMEOUTS
 pytestmark = pytest.mark.slow
 
 
+@allure.title("Timing: signup не выдаёт существование аккаунта по времени")
 def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_api):
     """TC-SEC-3: signup p50 latency for existing ≈ new email (ratio < 3×).
 
@@ -94,6 +97,7 @@ def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_ap
     )
 
 
+@allure.title("Timing: login не выдаёт существование аккаунта по времени")
 def test_login_no_timing_account_enumeration(uvicorn_server: str, signup_via_api):
     """TC-SEC-4: login p50 latency for wrong-password ≈ non-existent (ratio < 3×).
 

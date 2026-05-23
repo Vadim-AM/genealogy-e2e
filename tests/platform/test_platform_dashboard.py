@@ -6,10 +6,13 @@ Superadmin = email in PLATFORM_SUPERADMIN_EMAILS env. Suite ships
 
 from __future__ import annotations
 
+import allure
+
 from tests.api_paths import API
 from tests.pages.platform_dashboard_page import PlatformDashboardPage
 
 
+@allure.title("Дашборд платформы: страница открывается для суперадмина")
 def test_platform_dashboard_loads_for_superadmin(
     auth_context_factory, superadmin_user,
 ):
@@ -26,6 +29,7 @@ def test_platform_dashboard_loads_for_superadmin(
         f"/platform/dashboard returned {response.status} (regression)"
 
 
+@allure.title("Дашборд платформы: карточки метрик отображаются")
 def test_platform_metrics_visible(auth_context_factory, superadmin_user, soft_check):
     """TC-PA-2: metrics cards rendered."""
     ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
@@ -37,6 +41,7 @@ def test_platform_metrics_visible(auth_context_factory, superadmin_user, soft_ch
     dashboard.soft_check_metrics_loaded(soft_check)
 
 
+@allure.title("Метрики платформы: обычный владелец получает 403")
 def test_platform_metrics_endpoint_403_for_non_super(owner_user, tenant_client):
     """TC-PA-3: regular owner gets 401 or 403 on /api/platform/metrics."""
     r = tenant_client(owner_user).get(API.PLATFORM_METRICS)
@@ -44,6 +49,7 @@ def test_platform_metrics_endpoint_403_for_non_super(owner_user, tenant_client):
         f"non-superadmin reached platform metrics: {r.status_code} {r.text[:200]}"
 
 
+@allure.title("Метрики платформы: суперадмин получает данные с полями")
 def test_platform_metrics_endpoint_200_for_super(superadmin_user, tenant_client):
     """TC-PA-4: superadmin gets 200 on /api/platform/metrics with the canonical
     field names.

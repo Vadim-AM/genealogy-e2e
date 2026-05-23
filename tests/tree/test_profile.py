@@ -11,12 +11,14 @@ is rewritten with concrete selectors (Wave 2).
 
 from __future__ import annotations
 
+import allure
 import pytest
 
 from tests.api_paths import API
 from tests.response import expect_response
 
 
+@allure.title("Каноническое имя собирается из фамилии, имени и отчества")
 def test_canonical_name_assembled_from_split_fields(owner_user, tenant_client):
     """TC-E2E-003: PATCH /api/people with surname/given_name/patronymic
     auto-composes canonical `name`."""

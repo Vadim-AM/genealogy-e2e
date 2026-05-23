@@ -14,6 +14,7 @@ Default conftest viewport — 1440×900 (desktop). Этот файл созда�
 
 from __future__ import annotations
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.messages import TestData
@@ -24,6 +25,7 @@ from tests.messages import TestData
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Адаптив 375px: регистрация без горизонтального скролла")
 def test_signup_card_no_horizontal_scroll_on_iphone_se(mobile_page: Page):
     """TC-RESPONSIVE-1 (375): signup не вызывает горизонтальный скролл.
 
@@ -48,6 +50,7 @@ def test_signup_card_no_horizontal_scroll_on_iphone_se(mobile_page: Page):
     )
 
 
+@allure.title("Адаптив 375px: иконка показа пароля видна и кликабельна")
 def test_signup_password_eye_toggle_visible_on_iphone_se(mobile_page: Page):
     """TC-RESPONSIVE-1 (375): #pwToggle (eye SVG) виден справа от поля пароля.
 
@@ -73,6 +76,7 @@ def test_signup_password_eye_toggle_visible_on_iphone_se(mobile_page: Page):
     )
 
 
+@allure.title("Адаптив 375px: чекбокс согласия не выходит за экран")
 def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
     mobile_page: Page,
 ):
@@ -104,6 +108,7 @@ def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Адаптив 768px: все вкладки видны на iPad portrait")
 def test_all_authed_tabs_visible_on_ipad_portrait(tablet_owner_page: Page, soft_check):
     """TC-RESPONSIVE-1 (768): все основные tabs видны без обрезаний.
 

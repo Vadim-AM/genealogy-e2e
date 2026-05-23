@@ -16,17 +16,21 @@ from __future__ import annotations
 
 from playwright.sync_api import Page
 
+import allure
+
 from tests.constants import unique_email
 from tests.messages import PII
 from tests.pages.wait_page import WaitPage
 
 
+@allure.title("Вейтлист: форма подписки отображается на /wait")
 def test_wait_page_renders_form(page: Page):
     """F-WAIT-1: /wait → form visible."""
     wait = WaitPage(page).goto()
     wait.expect_visible_form()
 
 
+@allure.title("Вейтлист: отправка email успешно добавляет в очередь")
 def test_wait_submit_email_success(page: Page):
     """F-WAIT-2: submit → success message.
 
@@ -44,6 +48,7 @@ def test_wait_submit_email_success(page: Page):
     wait.expect_success()
 
 
+@allure.title("Вейтлист: на /wait нет персональных данных владельца")
 def test_wait_no_owner_personal_data(page: Page):
     """BUG-COPY-001: /wait must not mention owner family names (PII)."""
     page.goto("/wait")
@@ -53,6 +58,7 @@ def test_wait_no_owner_personal_data(page: Page):
         assert needle not in body, f"BUG-COPY-001 regression: '{needle}' on /wait"
 
 
+@allure.title("Вейтлист: невалидный email блокируется HTML5-проверкой")
 def test_wait_submit_invalid_email_blocks_html5_validity(page: Page):
     """F-WAIT-3: invalid email — input fails HTML5 validity (form does not submit).
 
@@ -68,6 +74,7 @@ def test_wait_submit_invalid_email_blocks_html5_validity(page: Page):
         "no result text should appear when submission was blocked client-side"
 
 
+@allure.title("Вейтлист: повторная подписка возвращает already_subscribed")
 def test_wait_duplicate_email_idempotent_status_field(page: Page):
     """F-WAIT-4: re-submitting an already-subscribed email — idempotent contract.
 

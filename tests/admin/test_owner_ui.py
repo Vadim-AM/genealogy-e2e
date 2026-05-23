@@ -13,6 +13,7 @@ from __future__ import annotations
 import io
 import zipfile
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
@@ -22,6 +23,7 @@ from tests.response import expect_response
 from tests.timeouts import TIMEOUTS
 
 
+@allure.title("Админка владельца: вкладка настроек содержит поля ввода")
 def test_owner_settings_tab_has_inputs(owner_page: Page):
     """F-OU-2: settings tab has site_name input and save button."""
     owner = OwnerPage(owner_page).goto()
@@ -31,6 +33,7 @@ def test_owner_settings_tab_has_inputs(owner_page: Page):
     expect(owner.cfg_save).to_be_visible()
 
 
+@allure.title("Админка владельца: сохранение site_name попадает в бэкенд")
 def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_client):
     """F-OU-2: save site_name → backend reflects the new value via /api/site/config.
 
@@ -56,6 +59,7 @@ def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_clien
     expect_response(r, label="GET site/config").status_ok().json_eq("site_name", new_name)
 
 
+@allure.title("Экспорт: GEDCOM содержит заголовок 5.5.1 и SOUR проекта")
 def test_owner_export_gedcom_returns_valid_dump(owner_user, tenant_client):
     """F-OU-4 / TC-EXPORT-1: GEDCOM export returns a 5.5.1-shaped text dump
     with attachment Content-Disposition and the canonical SOUR identifier."""
@@ -80,6 +84,7 @@ def test_owner_export_gedcom_returns_valid_dump(owner_user, tenant_client):
         f"GEDCOM line 1 must identify the source app: {head[1]!r}"
 
 
+@allure.title("Экспорт: ZIP содержит people.json и MANIFEST.txt")
 def test_owner_export_zip_contains_manifest_and_people(owner_user, tenant_client):
     """F-OU-4 / TC-EXPORT-1: ZIP export carries application/zip with magic-bytes
     `50 4b 03 04` and includes people.json + MANIFEST.txt."""

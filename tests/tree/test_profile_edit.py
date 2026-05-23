@@ -7,6 +7,7 @@ edit→save→persist round-trip.
 
 from __future__ import annotations
 
+import allure
 import pytest
 from playwright.sync_api import Page, expect
 
@@ -21,6 +22,7 @@ from tests.pages.profile_panel import open_editor_for
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Редактор: девичья фамилия видна только для женского пола")
 def test_maiden_name_visible_only_for_female_gender(owner_page: Page):
     """TC-EDITOR-1: `maiden_name` field is hidden for gender=m, visible for f.
     Switching back to m clears the previously typed value (no orphan data)."""
@@ -46,6 +48,7 @@ def test_maiden_name_visible_only_for_female_gender(owner_page: Page):
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Кнопка 'Удалить' открывает диалог подтверждения с предупреждением")
 def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tenant_client):
     """TC-EDITOR-2: clicking «Удалить» triggers a custom `confirmDialog()`
     whose text mentions «Удалить» + irreversibility + «связанные источники
@@ -100,6 +103,7 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tena
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Редактирование описания через UI сохраняется в бэкенде")
 def test_owner_edits_demo_self_summary_through_ui(
     owner_page: Page, owner_user, tenant_client,
 ):
@@ -135,6 +139,7 @@ def test_owner_edits_demo_self_summary_through_ui(
 # ─────────────────────────────────────────────────────────────────────────
 
 
+@allure.title("Кнопка удаления скрыта для корневой персоны дерева")
 def test_delete_button_hidden_for_root_subject(owner_page):
     """Editor открытый на корневой subject-карточке не должен показывать
     кнопку «Удалить» — её удаление приводит к потере якоря пространства.

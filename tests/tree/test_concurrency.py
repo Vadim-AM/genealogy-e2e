@@ -9,11 +9,14 @@ mismatch) — отдельная история, требует точной к�
 
 from __future__ import annotations
 
+import allure
+
 from tests.api_paths import API
 from tests.messages import TestData
 from tests.response import expect_response
 
 
+@allure.title("GET персоны возвращает ETag для контроля конкурентности")
 def test_get_person_returns_etag_for_concurrency(owner_user, tenant_client):
     """INV-EDIT-001: GET /api/people/{id} returns an ETag header.
 

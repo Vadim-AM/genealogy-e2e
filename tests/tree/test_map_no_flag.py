@@ -25,11 +25,13 @@ hidden state.
 
 from __future__ import annotations
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.pages.tree_page import TreePage
 
 
+@allure.title("Вкладка 'Карта' скрыта по умолчанию до включения фичи")
 def test_map_tab_is_hidden_by_default(owner_page: Page):
     """TC-10.02 (Wave-9): map tab `<button data-tab="map">` has `hidden`
     attribute → not visible in tab strip until feature ships.

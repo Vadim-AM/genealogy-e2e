@@ -13,12 +13,14 @@ dev on 28.04. Now a regular regression — keep tests strict.
 
 from __future__ import annotations
 
+import allure
 from playwright.sync_api import Page, expect
 
 from tests.helpers.auth.auth_ui import wait_for_auth_state
 from tests.messages import TestData
 
 
+@allure.title("Прямая ссылка на персону сохраняет авторизацию")
 def test_deep_link_to_demo_self_preserves_auth(owner_page: Page):
     """TC-AUTH-1: open /#/p/demo-self directly, expect the authed UI to settle."""
     owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
@@ -33,6 +35,7 @@ def test_deep_link_to_demo_self_preserves_auth(owner_page: Page):
     wait_for_auth_state(owner_page, expected=True)
 
 
+@allure.title("Ссылка на несуществующую персону не сбрасывает авторизацию")
 def test_deep_link_to_unknown_id_keeps_auth(owner_page: Page):
     """A deep link to a non-existent person must NOT log the user out.
 

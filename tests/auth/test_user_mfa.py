@@ -11,6 +11,7 @@ A second backend-invariant test covers the recovery-code lifecycle
 
 from __future__ import annotations
 
+import allure
 import pyotp
 from playwright.sync_api import Page, expect
 
@@ -20,6 +21,7 @@ from tests.messages import Mfa, t
 from tests.pages.mfa_settings import MfaSettings
 
 
+@allure.title("Владелец включает и затем отключает двухфакторную аутентификацию")
 def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user):
     """Owner opens Security settings → enables 2FA with a TOTP code →
     acknowledges recovery codes → status shows on; disables via step-up
@@ -38,6 +40,7 @@ def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user):
     expect(mfa.status_text).to_contain_text(t(Mfa.STATUS_OFF))
 
 
+@allure.title("Код восстановления 2FA можно использовать только один раз")
 def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client):
     """Backend invariant: recovery codes are one-time. Enable 2FA,
     regenerate to obtain the codes, redeem one → the unused count drops,

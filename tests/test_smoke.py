@@ -7,6 +7,7 @@ before bothering with the rest.
 
 from __future__ import annotations
 
+import allure
 import pytest
 from playwright.sync_api import Page, expect
 
@@ -17,6 +18,7 @@ from tests.pages.wait_page import WaitPage
 
 
 @pytest.mark.smoke
+@allure.title("Smoke: главная страница загружается и показывает заголовок")
 def test_landing_loads(page: Page, base_url: str):
     """F-LND-1/2: GET / → 200, HTML, title contains brand."""
     tree = TreePage(page).goto()
@@ -25,6 +27,7 @@ def test_landing_loads(page: Page, base_url: str):
 
 
 @pytest.mark.smoke
+@allure.title("Smoke: форма регистрации отображается со всеми полями")
 def test_signup_form_visible(page: Page):
     """F-SU-1: /signup renders form with required inputs."""
     signup = SignupPage(page).goto()
@@ -32,6 +35,7 @@ def test_signup_form_visible(page: Page):
 
 
 @pytest.mark.smoke
+@allure.title("Smoke: форма вейтлиста отображается на /wait")
 def test_wait_form_visible(page: Page):
     """C-LND-1 + waitlist scope: /wait renders form."""
     wait = WaitPage(page).goto()
@@ -39,6 +43,7 @@ def test_wait_form_visible(page: Page):
 
 
 @pytest.mark.smoke
+@allure.title("Smoke: /api/health доступен через браузер и отвечает 200")
 def test_health_endpoint_via_browser(page: Page):
     """Sanity: even page.goto sees the live FastAPI subprocess."""
     response = page.goto(API.HEALTH)
