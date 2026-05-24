@@ -1,8 +1,4 @@
-"""Legal pages — TC-BUG-LEGAL-001 регрессия.
-
-/privacy and /terms must render rendered HTML, not raw markdown. Closed
-in commit f3a9d48 per docs/test-plan.md — guard against regression.
-"""
+"""Legal pages — TC-BUG-LEGAL-001 регрессия."""
 
 from __future__ import annotations
 
@@ -14,6 +10,7 @@ import httpx
 import pytest
 from playwright.sync_api import Page, expect
 
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
 from pages.tree_page import TreePage
@@ -29,19 +26,19 @@ def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: st
     """TC-BUG-LEGAL-001: privacy/terms must be rendered HTML."""
     with step("действие: загрузить юридическую страницу"):
         response = page.goto(path)
-        assert response is not None, f"page.goto({path}) returned None (navigation failed)"
-        assert response.status == HTTPStatus.OK, f"{path}: expected 200, got {response.status}"
+        should.not_none(response, ErrMsg.page_navigation_failed)
+        should.be_equal(response.status, HTTPStatus.OK, ErrMsg.status_mismatch)
         content_type = (response.headers.get("content-type") or "").lower()
-        assert "text/html" in content_type, f"{path} content-type={content_type!r}, expected text/html"
+        should.contain(content_type, "text/html", ErrMsg.content_type_not_html)
 
     with step("проверка: заголовок и headings присутствуют"):
         # Документ должен иметь непустой title (сырой .md его не устанавливает).
         title = page.title()
-        assert title and title.strip(), f"{path} has empty title"
+        should.be_true(title and title.strip(), ErrMsg.empty_page_title)
 
         # Должен быть хотя бы один <h1>/<h2> в отрисованном DOM.
         h1_count = page.locator("h1, h2").count()
-        assert h1_count > 0, f"{path} has no <h1>/<h2> headings — looks like raw markdown"
+        should.greater(h1_count, 0, ErrMsg.no_headings_found)
 
     with step("проверка: нет сырых markdown-маркеров"):
         # Тело НЕ должно содержать литеральных markdown-маркеров вроде '# '
@@ -49,7 +46,7 @@ def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: st
         body_text = page.locator("body").text_content() or ""
         lines = body_text.split("\n")
         md_marker_lines = [ln for ln in lines if ln.strip().startswith(("# ", "## ", "### "))]
-        assert not md_marker_lines, f"{path} leaks raw markdown lines: {md_marker_lines[:3]}"
+        should.be_empty(md_marker_lines, ErrMsg.raw_markdown_lines)
 
 
 @pytest.mark.parametrize("path", ["/privacy", "/terms"])
@@ -64,12 +61,7 @@ def test_legal_has_no_unrendered_markdown_links(page: Page, path: str) -> None:
         import re
         body = page.locator("body").text_content() or ""
         md_links = re.findall(r"\[[^\]]+\]\([^\)]+\)", body)
-        assert not md_links, f"{path} has unrendered MD links: {md_links[:3]}"
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# TC-24.03 — Footer-ссылки на /privacy и /terms видны и открываются в новой вкладке
-# ─────────────────────────────────────────────────────────────────────────
+        should.be_empty(md_links, ErrMsg.raw_markdown_links)
 
 
 @pytest.mark.parametrize("href", ["/privacy", "/terms"])
@@ -77,11 +69,7 @@ def test_legal_has_no_unrendered_markdown_links(page: Page, path: str) -> None:
 def test_landing_footer_legal_link_is_visible_and_target_blank(
     page: Page, href: str, anon_pages: PageFactory,
 ) -> None:
-    """TC-24.03: footer на / содержит link на /privacy и /terms; target=_blank
-    чтобы юзер не терял состояние tree/orbit при чтении legal text.
-
-    Селектор по href — устойчив к смене label'ов и i18n.
-    """
+    """TC-24.03: footer на / содержит link на /privacy и /terms; target=_blank."""
     with step("действие: открыть главную и найти ссылку"):
         _ = anon_pages.navigate_to(TreePage)
         link = page.locator(f"a[href='{href}']").first
@@ -89,10 +77,7 @@ def test_landing_footer_legal_link_is_visible_and_target_blank(
 
     with step("проверка: ссылка открывается в новой вкладке"):
         target = link.get_attribute("target")
-        assert target == "_blank", (
-            f"footer link {href} должен иметь target=_blank, чтобы не терять "
-            f"состояние страницы; got target={target!r}"
-        )
+        should.be_equal(target, "_blank", ErrMsg.link_target_wrong)
 
 
 @pytest.mark.parametrize("href", ["/privacy", "/terms"])
@@ -100,16 +85,11 @@ def test_landing_footer_legal_link_is_visible_and_target_blank(
 def test_landing_footer_legal_link_resolves_to_200(
     base_url: str, href: str,
 ) -> None:
-    """TC-24.03: переход по footer-link реально возвращает 200 + HTML
-    (защита от битой ссылки). httpx — открывать новую tab через
-    Playwright ради этого избыточно.
-    """
+    """TC-24.03: переход по footer-link реально возвращает 200 + HTML."""
     with step("действие: запросить юридическую страницу"):
         response = httpx.get(f"{base_url}{href}", follow_redirects=True)
 
     with step("проверка: 200 и content-type text/html"):
         expect_response(response, label=f"footer link {href}").status(HTTPStatus.OK)
         content_type = (response.headers.get("content-type") or "").lower()
-        assert "text/html" in content_type, (
-            f"footer link {href} content-type={content_type!r}, expected text/html"
-        )
+        should.contain(content_type, "text/html", ErrMsg.content_type_not_html)

@@ -1,13 +1,4 @@
-"""User 2FA journey — owner enables account 2FA, then disables it.
-
-The product has no login-time TOTP prompt (2FA gates critical ops via a
-step-up window, not login), so the journey is: open Security settings →
-enable with a TOTP code → acknowledge recovery codes → status shows "on"
-→ disable via a step-up code → status shows "off".
-
-A second backend-invariant test covers the recovery-code lifecycle
-(regenerate / count / redeem) — one-time semantics, no dedicated UI.
-"""
+"""User 2FA journey — включение и отключение двухфакторной аутентификации."""
 
 from __future__ import annotations
 
@@ -19,6 +10,7 @@ import pyotp
 from playwright.sync_api import Page, expect
 
 from api import routes
+from assertions.base import should
 from config.constants import make_email
 from framework.response import expect_response
 from framework.step import step
@@ -32,9 +24,7 @@ if TYPE_CHECKING:
 
 @allure.title("Владелец включает и затем отключает двухфакторную аутентификацию")
 def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user, pages: PageFactory) -> None:
-    """Owner opens Security settings → enables 2FA with a TOTP code →
-    acknowledges recovery codes → status shows on; disables via step-up
-    → status shows off."""
+    """Owner включает 2FA через TOTP → статус on → отключает → статус off."""
     with step("подготовка: открытие вкладки безопасности, статус выключен"):
         _ = pages.navigate_to(OwnerPage)
         mfa = MfaSettings(owner_page).open_tab()
@@ -52,9 +42,7 @@ def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user, pages: Pa
 
 @allure.title("Код восстановления 2FA можно использовать только один раз")
 def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client) -> None:
-    """Backend invariant: recovery codes are one-time. Enable 2FA,
-    regenerate to obtain the codes, redeem one → the unused count drops,
-    re-redeeming the same code → 401."""
+    """Recovery codes одноразовые: redeem → count--, повторный redeem → 401."""
     with step("подготовка: signup и включение 2FA"):
         user = signup_via_api(email=make_email("mfa-recovery"))
         api = tenant_client(user)
@@ -73,14 +61,13 @@ def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client) -> 
             api.post(routes.USER_MFA_RECOVERY_REGEN), label="user MFA regen",
         ).status_ok().data
         codes = regen_data["codes"]
-        assert len(codes) == 10, f"expected 10 recovery codes, got {len(codes)}"
+        should.have_length(codes, 10, ErrMsg.recovery_code_count_wrong)
 
         count_data = expect_response(
             api.get(routes.USER_MFA_RECOVERY_COUNT), label="user MFA recovery count",
         ).status_ok().data
         count_before = count_data["unused"]
-        assert count_before == 10, \
-            f"fresh regenerate should yield 10 codes, got {count_before}"
+        should.be_equal(count_before, 10, ErrMsg.recovery_code_count_wrong)
 
     with step("действие: использование кода и проверка декремента"):
         expect_response(
@@ -91,8 +78,7 @@ def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client) -> 
             api.get(routes.USER_MFA_RECOVERY_COUNT), label="user MFA recovery count after",
         ).status_ok().data
         count_after = count_after_data["unused"]
-        assert count_after == 9, \
-            f"redeeming a code must decrement the count: {count_before}→{count_after}"
+        should.be_equal(count_after, 9, ErrMsg.recovery_code_not_decremented)
 
     with step("проверка: повторное использование того же кода — 401"):
         again = api.post(routes.USER_MFA_RECOVERY_REDEEM, json={"code": codes[0]})

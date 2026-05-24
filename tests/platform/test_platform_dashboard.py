@@ -1,8 +1,4 @@
-"""Platform superadmin dashboard — TC-PA-* metrics, tenants table, free-license-grant.
-
-Superadmin = email in PLATFORM_SUPERADMIN_EMAILS env. Suite ships
-`super@e2e.example.com` as the canonical superadmin.
-"""
+"""Platform superadmin dashboard — TC-PA-* metrics, tenants table, free-license-grant."""
 
 from __future__ import annotations
 
@@ -11,29 +7,26 @@ from http import HTTPStatus
 import allure
 
 from api import routes
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
 from pages.platform_dashboard_page import PlatformDashboardPage
+from src.texts import ErrMsg
 
 
 @allure.title("Дашборд платформы: страница открывается для суперадмина")
 def test_platform_dashboard_loads_for_superadmin(
     auth_context_factory, superadmin_user,
 ) -> None:
-    """TC-PA-1: superadmin can open /platform/dashboard.
-
-    404 = unimplemented page (regression). superadmin UI is a Stage 1
-    deliverable per docs/test-plan.md.
-    """
+    """TC-PA-1: superadmin can open /platform/dashboard."""
     with step("подготовка: создаём контекст суперадмина"):
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
 
     with step("проверка: дашборд отвечает 200"):
         response = page.goto("/platform/dashboard")
-        assert response is not None, "page.goto('/platform/dashboard') returned None"
-        assert response.status == HTTPStatus.OK, \
-            f"/platform/dashboard returned {response.status} (regression)"
+        should.not_none(response, ErrMsg.platform_navigation_failed)
+        should.be_equal(response.status, HTTPStatus.OK, ErrMsg.status_mismatch)
 
 
 @allure.title("Дашборд платформы: карточки метрик отображаются")
@@ -61,13 +54,7 @@ def test_platform_metrics_endpoint_403_for_non_super(owner_user, tenant_client) 
 
 @allure.title("Метрики платформы: ответ содержит tenants_active и signups_total")
 def test_platform_metrics_endpoint_200_for_super(superadmin_user, tenant_client) -> None:
-    """TC-PA-4: superadmin gets 200 on /api/platform/metrics with the canonical
-    field names.
-
-    Field names verified against `platform_admin.py:136-137`: `tenants_active`,
-    `signups_total`. Strict-equality on schema (the keys must exist) — if
-    backend renames, the test fails loud.
-    """
+    """TC-PA-4: superadmin gets 200 on /api/platform/metrics with the canonical."""
     with step("действие: запрашиваем метрики платформы"):
         r = tenant_client(superadmin_user).get(routes.PLATFORM_METRICS)
         r.raise_for_status()
@@ -75,5 +62,5 @@ def test_platform_metrics_endpoint_200_for_super(superadmin_user, tenant_client)
 
     with step("проверка: tenants_active и signups_total — целые числа"):
         for key in ("tenants_active", "signups_total"):
-            assert key in data, f"metric {key!r} missing from response: {list(data)}"
-            assert isinstance(data[key], int), f"{key} must be int, got {type(data[key])}"
+            should.be_in(key, data, ErrMsg.metric_key_missing)
+            should.be_instance(data[key], int, ErrMsg.metric_type_wrong)

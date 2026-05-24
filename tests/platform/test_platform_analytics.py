@@ -1,22 +1,4 @@
-"""Platform superadmin analytics — TC-PA-ANALYTICS-* (Phase 1, PR-1..6).
-
-Покрывает endpoint'ы:
-  • PR-1 GET /api/platform/device-mix
-  • PR-2 GET /api/platform/activity-heatmap
-  • PR-3 GET /api/platform/online-now
-  • PR-3 GET /api/platform/session-stats
-  • PR-4 GET /api/platform/retention
-  • PR-4 GET /api/platform/time-to-aha
-  • PR-4 GET /api/platform/funnel-detail
-  • PR-6 GET /api/platform/alerts
-  • PR-6 GET /api/platform/health
-
-Hard rules (CLAUDE.md):
-- Single canonical field name. Если backend переименует — тест fail'ит loud.
-- Hard expect / assert. Никаких OR-fallback'ов в проверках.
-- Нет skip-fallback. Если endpoint вернул 404 — это регрессия, fail.
-- Нет timeout-overrides — дефолт из monkey-patch.
-"""
+"""Platform superadmin analytics — TC-PA-ANALYTICS-* (Phase 1, PR-1..6)."""
 
 from __future__ import annotations
 
@@ -26,13 +8,11 @@ from http import HTTPStatus
 import allure
 
 from api import routes
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
 from pages.platform_dashboard_page import PlatformDashboardPage
-
-# ─────────────────────────────────────────────────────────────────────
-# PR-1 — device-mix
-# ─────────────────────────────────────────────────────────────────────
+from src.texts import ErrMsg
 
 
 @allure.title("Устройства: обычный владелец не имеет доступа (403)")
@@ -44,12 +24,7 @@ def test_device_mix_403_for_non_super(owner_user, tenant_client) -> None:
 
 @allure.title("Устройства: ответ содержит device, os, browser и конверсию")
 def test_device_mix_returns_canonical_shape(superadmin_user, tenant_client) -> None:
-    """TC-PA-ANALYTICS-1.2: суперадмин получает 200 + ожидаемые поля.
-
-    Контракт (platform_admin.py:device_mix):
-      period_days, events_total, device, os, browser, conversion_by_device.
-    Strict-equality на schema — backend rename → тест fail'ит loud.
-    """
+    """TC-PA-ANALYTICS-1.2: суперадмин получает 200 + ожидаемые поля."""
     with step("действие: запрашиваем device-mix за 30 дней"):
         r = tenant_client(superadmin_user).get(routes.PLATFORM_DEVICE_MIX, params={"days": 30})
         expect_response(r, label="device-mix shape").status_ok()
@@ -57,15 +32,11 @@ def test_device_mix_returns_canonical_shape(superadmin_user, tenant_client) -> N
 
     with step("проверка: все канонические поля присутствуют и типы верны"):
         for key in ("period_days", "events_total", "device", "os", "browser", "conversion_by_device"):
-            assert key in data, f"field {key!r} missing: {sorted(data)}"
-        assert data["period_days"] == 30, \
-            f"period_days: expected 30, got {data.get('period_days')}"
-        assert isinstance(data["events_total"], int), \
-            f"events_total must be int, got {type(data.get('events_total')).__name__}"
-        assert isinstance(data["device"], dict), \
-            f"device must be dict, got {type(data.get('device')).__name__}"
-        assert isinstance(data["conversion_by_device"], list), \
-            f"conversion_by_device must be list, got {type(data.get('conversion_by_device')).__name__}"
+            should.be_in(key, data, ErrMsg.metric_key_missing)
+        should.be_equal(data["period_days"], 30, ErrMsg.response_field_wrong)
+        should.be_instance(data["events_total"], int, ErrMsg.metric_type_wrong)
+        should.be_instance(data["device"], dict, ErrMsg.metric_type_wrong)
+        should.be_instance(data["conversion_by_device"], list, ErrMsg.metric_type_wrong)
 
 
 @allure.title("Устройства: days=0 ограничивается снизу до 1")
@@ -91,14 +62,8 @@ def test_device_mix_does_not_leak_pii(superadmin_user, tenant_client) -> None:
         body = r.text
 
     with step("проверка: нет session_id и raw IP в ответе"):
-        assert "session_id" not in body, "session_id leaked in device-mix response"
-        assert not re.search(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", body), \
-            "raw IPv4 address leaked in device-mix response"
-
-
-# ─────────────────────────────────────────────────────────────────────
-# PR-2 — activity-heatmap
-# ─────────────────────────────────────────────────────────────────────
+        should.not_contain(body, "session_id", ErrMsg.session_id_leaked)
+        should.be_false(re.search(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", body), ErrMsg.ipv4_leaked)
 
 
 @allure.title("Тепловая карта: обычный владелец не имеет доступа (403)")
@@ -117,9 +82,9 @@ def test_activity_heatmap_returns_7x24_matrix(superadmin_user, tenant_client) ->
         matrix = r.json()["matrix"]
 
     with step("проверка: матрица 7x24"):
-        assert len(matrix) == 7, f"matrix rows: {len(matrix)} (expected 7 weekdays)"
+        should.have_length(matrix, 7, ErrMsg.matrix_dimensions_wrong)
         for row in matrix:
-            assert len(row) == 24, f"matrix row length: {len(row)} (expected 24 hours)"
+            should.have_length(row, 24, ErrMsg.matrix_dimensions_wrong)
 
 
 @allure.title("Тепловая карта: ответ содержит все канонические поля")
@@ -135,13 +100,10 @@ def test_activity_heatmap_returns_canonical_fields(superadmin_user, tenant_clien
             "period_days", "tz_mode", "events_total", "matrix",
             "by_hour", "by_weekday", "top_hours", "top_weekdays", "coverage",
         ):
-            assert key in data, f"field {key!r} missing: {sorted(data)}"
-        assert data["tz_mode"] == "utc", \
-            f"tz_mode: expected 'utc', got {data['tz_mode']!r}"
-        assert len(data["by_hour"]) == 24, \
-            f"by_hour: expected 24 entries, got {len(data['by_hour'])}"
-        assert len(data["by_weekday"]) == 7, \
-            f"by_weekday: expected 7 entries, got {len(data['by_weekday'])}"
+            should.be_in(key, data, ErrMsg.metric_key_missing)
+        should.be_equal(data["tz_mode"], "utc", ErrMsg.response_field_wrong)
+        should.have_length(data["by_hour"], 24, ErrMsg.count_mismatch)
+        should.have_length(data["by_weekday"], 7, ErrMsg.count_mismatch)
 
 
 @allure.title("Тепловая карта: некорректный tz_mode сбрасывается в utc")
@@ -155,9 +117,7 @@ def test_activity_heatmap_invalid_tz_mode_falls_back_to_utc(superadmin_user, ten
 
 @allure.title("Тепловая карта: режим user_local возвращает валидные данные")
 def test_activity_heatmap_user_local_mode_accepted(superadmin_user, tenant_client) -> None:
-    """TC-PA-ANALYTICS-2.5: tz_mode=user_local — другая ветка кода (zoneinfo lookup).
-    Должна вернуть валидную matrix + coverage.
-    """
+    """TC-PA-ANALYTICS-2.5: tz_mode=user_local — другая ветка кода (zoneinfo lookup)."""
     with step("действие: запрашиваем тепловую карту в режиме user_local"):
         r = tenant_client(superadmin_user).get(
             routes.PLATFORM_ACTIVITY_HEATMAP, params={"tz_mode": "user_local"},
@@ -166,17 +126,9 @@ def test_activity_heatmap_user_local_mode_accepted(superadmin_user, tenant_clien
         data = r.json()
 
     with step("проверка: tz_mode=user_local и coverage в допустимом диапазоне"):
-        assert data["tz_mode"] == "user_local", \
-            f"tz_mode: expected 'user_local', got {data['tz_mode']!r}"
-        assert isinstance(data["coverage"], (int, float)), \
-            f"coverage must be int or float, got {type(data['coverage']).__name__}"
-        assert 0.0 <= data["coverage"] <= 1.0, \
-            f"coverage must be in [0.0, 1.0], got {data['coverage']}"
-
-
-# ─────────────────────────────────────────────────────────────────────
-# PR-3 — online-now + session-stats
-# ─────────────────────────────────────────────────────────────────────
+        should.be_equal(data["tz_mode"], "user_local", ErrMsg.response_field_wrong)
+        should.be_true(isinstance(data["coverage"], (int, float)), ErrMsg.metric_type_wrong)
+        should.be_true(0.0 <= data["coverage"] <= 1.0, ErrMsg.coverage_out_of_range)
 
 
 @allure.title("Онлайн: обычный владелец не имеет доступа (403)")
@@ -196,14 +148,11 @@ def test_online_now_returns_canonical_shape(superadmin_user, tenant_client) -> N
 
     with step("проверка: канонические поля, типы и superadmin в online_5m"):
         for key in ("online_5m", "online_1h", "hourly_24h", "as_of"):
-            assert key in data, f"field {key!r} missing: {sorted(data)}"
-        assert isinstance(data["online_5m"], int), \
-            f"online_5m must be int, got {type(data['online_5m']).__name__}"
-        assert isinstance(data["online_1h"], int), \
-            f"online_1h must be int, got {type(data['online_1h']).__name__}"
-        assert len(data["hourly_24h"]) == 24, \
-            f"hourly_24h: expected 24 entries, got {len(data['hourly_24h'])}"
-        assert data["online_5m"] >= 1, "superadmin session should count as online"
+            should.be_in(key, data, ErrMsg.metric_key_missing)
+        should.be_instance(data["online_5m"], int, ErrMsg.metric_type_wrong)
+        should.be_instance(data["online_1h"], int, ErrMsg.metric_type_wrong)
+        should.have_length(data["hourly_24h"], 24, ErrMsg.count_mismatch)
+        should.greater_or_equal(data["online_5m"], 1, ErrMsg.metric_key_missing)
 
 
 @allure.title("Статистика сессий: обычный владелец не имеет доступа (403)")
@@ -215,8 +164,7 @@ def test_session_stats_403_for_non_super(owner_user, tenant_client) -> None:
 
 @allure.title("Статистика сессий: ответ содержит медиану и bounce_rate")
 def test_session_stats_returns_canonical_shape(superadmin_user, tenant_client) -> None:
-    """TC-PA-ANALYTICS-3.4: sessions_total, median_duration_s, p75_duration_s,
-    median_pages, bounce_rate + by_device, by_utm_source, by_tier."""
+    """TC-PA-ANALYTICS-3.4: sessions_total, median_duration_s, p75_duration_s,."""
     with step("действие: запрашиваем session-stats"):
         r = tenant_client(superadmin_user).get(routes.PLATFORM_SESSION_STATS)
         expect_response(r, label="session-stats shape").status_ok()
@@ -227,16 +175,9 @@ def test_session_stats_returns_canonical_shape(superadmin_user, tenant_client) -
             "sessions_total", "median_duration_s", "p75_duration_s",
             "median_pages", "bounce_rate", "by_device", "by_utm_source", "by_tier",
         ):
-            assert key in data, f"field {key!r} missing: {sorted(data)}"
-        assert isinstance(data["sessions_total"], int), \
-            f"sessions_total must be int, got {type(data['sessions_total']).__name__}"
-        assert 0.0 <= data["bounce_rate"] <= 1.0, \
-            f"bounce_rate must be in [0.0, 1.0], got {data['bounce_rate']}"
-
-
-# ─────────────────────────────────────────────────────────────────────
-# PR-4 — retention + time-to-aha + funnel-detail
-# ─────────────────────────────────────────────────────────────────────
+            should.be_in(key, data, ErrMsg.metric_key_missing)
+        should.be_instance(data["sessions_total"], int, ErrMsg.metric_type_wrong)
+        should.be_true(0.0 <= data["bounce_rate"] <= 1.0, ErrMsg.bounce_rate_out_of_range)
 
 
 @allure.title("Ретеншен: обычный владелец не имеет доступа (403)")
@@ -256,11 +197,9 @@ def test_retention_returns_cohort_grid(superadmin_user, tenant_client) -> None:
 
     with step("проверка: weeks=4 и канонические buckets_days"):
         for key in ("weeks", "buckets_days", "cohorts"):
-            assert key in data, f"field {key!r} missing: {sorted(data)}"
-        assert data["weeks"] == 4, \
-            f"weeks: expected 4, got {data['weeks']}"
-        assert data["buckets_days"] == [1, 3, 7, 14, 30], \
-            f"buckets_days: expected [1, 3, 7, 14, 30], got {data['buckets_days']}"
+            should.be_in(key, data, ErrMsg.metric_key_missing)
+        should.be_equal(data["weeks"], 4, ErrMsg.response_field_wrong)
+        should.be_equal(data["buckets_days"], [1, 3, 7, 14, 30], ErrMsg.retention_buckets_wrong)
 
 
 @allure.title("Ретеншен: weeks=999 ограничивается сверху до 26")
@@ -290,34 +229,26 @@ def test_time_to_aha_returns_percentiles_and_buckets(superadmin_user, tenant_cli
             "period_days", "target_event", "signups_total", "reached_target",
             "p25_hours", "p50_hours", "p75_hours", "p95_hours", "buckets",
         ):
-            assert key in data, f"field {key!r} missing: {sorted(data)}"
-        assert data["target_event"] == "enrichment_started", \
-            f"target_event: expected 'enrichment_started', got {data['target_event']!r}"
+            should.be_in(key, data, ErrMsg.metric_key_missing)
+        should.be_equal(data["target_event"], "enrichment_started", ErrMsg.response_field_wrong)
         for b in ("0-1h", "1-4h", "4-24h", "1-3d", "3-7d", "7d+"):
-            assert b in data["buckets"], f"bucket {b!r} missing"
+            should.be_in(b, data["buckets"], ErrMsg.metric_key_missing)
 
 
 @allure.title("Воронка: каждый шаг содержит users и drop_rate")
 def test_funnel_detail_returns_step_metrics(superadmin_user, tenant_client) -> None:
-    """TC-PA-ANALYTICS-4.6: каждый step имеет users, drop_to_next,
-    drop_rate_to_next, median_gap_to_next_s."""
+    """TC-PA-ANALYTICS-4.6: каждый step имеет users, drop_to_next,."""
     with step("действие: запрашиваем funnel-detail за 30 дней"):
         r = tenant_client(superadmin_user).get(routes.PLATFORM_FUNNEL_DETAIL, params={"days": 30})
         expect_response(r, label="funnel-detail").status_ok()
         data = r.json()
 
     with step("проверка: минимум 9 шагов с каноническими полями"):
-        assert "steps" in data, f"steps missing: {sorted(data)}"
-        assert len(data["steps"]) >= 9, \
-            f"funnel must include all 9 canonical events, got {len(data['steps'])}"
+        should.be_in("steps", data, ErrMsg.metric_key_missing)
+        should.greater_or_equal(len(data["steps"]), 9, ErrMsg.funnel_steps_wrong)
         for s in data["steps"]:
             for key in ("event", "users", "drop_to_next", "drop_rate_to_next", "median_gap_to_next_s"):
-                assert key in s, f"step field {key!r} missing: {sorted(s)}"
-
-
-# ─────────────────────────────────────────────────────────────────────
-# PR-6 — alerts + health
-# ─────────────────────────────────────────────────────────────────────
+                should.be_in(key, s, ErrMsg.metric_key_missing)
 
 
 @allure.title("Алерты: обычный владелец не имеет доступа (403)")
@@ -336,15 +267,12 @@ def test_alerts_returns_items_list(superadmin_user, tenant_client) -> None:
         data = r.json()
 
     with step("проверка: items, as_of и backup-алерт на свежей БД"):
-        assert "items" in data, f"items missing: {sorted(data)}"
-        assert "as_of" in data, \
-            f"as_of missing from response: {sorted(data)}"
-        assert isinstance(data["items"], list), \
-            f"items must be list, got {type(data['items']).__name__}"
+        should.be_in("items", data, ErrMsg.metric_key_missing)
+        should.be_in("as_of", data, ErrMsg.metric_key_missing)
+        should.be_instance(data["items"], list, ErrMsg.metric_type_wrong)
         ids = {it["id"] for it in data["items"]}
         backup_alerts = {"backup_never", "backup_overdue"}
-        assert ids & backup_alerts, \
-            f"expected one of {backup_alerts} on fresh test DB, got: {ids}"
+        should.be_true(ids & backup_alerts, ErrMsg.backup_alert_missing)
 
 
 @allure.title("Алерты: каждый элемент содержит severity, title, message")
@@ -358,9 +286,8 @@ def test_alerts_each_item_has_severity_title_message(superadmin_user, tenant_cli
     with step("проверка: каждый элемент содержит id, severity, title, message"):
         for it in items:
             for key in ("id", "severity", "title", "message"):
-                assert key in it, f"alert field {key!r} missing: {sorted(it)}"
-            assert it["severity"] in ("info", "warning", "critical"), \
-                f"unexpected severity: {it['severity']!r}"
+                should.be_in(key, it, ErrMsg.metric_key_missing)
+            should.be_in(it["severity"], ("info", "warning", "critical"), ErrMsg.alert_severity_wrong)
 
 
 @allure.title("Здоровье платформы: обычный владелец не имеет доступа (403)")
@@ -372,8 +299,7 @@ def test_health_403_for_non_super(owner_user, tenant_client) -> None:
 
 @allure.title("Здоровье платформы: метрики нагрузки и free_cap_fill_ratio")
 def test_health_returns_canonical_metrics(superadmin_user, tenant_client) -> None:
-    """TC-PA-ANALYTICS-6.5: events_last_hour, usage_cents_last_day,
-    active_users, free_cap, free_cap_fill_ratio (+ optional last_backup)."""
+    """TC-PA-ANALYTICS-6.5: events_last_hour, usage_cents_last_day,."""
     with step("действие: запрашиваем health-метрики"):
         r = tenant_client(superadmin_user).get(routes.PLATFORM_HEALTH)
         expect_response(r, label="health metrics").status_ok()
@@ -384,23 +310,15 @@ def test_health_returns_canonical_metrics(superadmin_user, tenant_client) -> Non
             "events_last_hour", "usage_cents_last_day", "active_users",
             "free_cap", "free_cap_fill_ratio",
         ):
-            assert key in data, f"field {key!r} missing: {sorted(data)}"
-        assert 0.0 <= data["free_cap_fill_ratio"] <= 1.0, \
-            f"free_cap_fill_ratio must be in [0.0, 1.0], got {data['free_cap_fill_ratio']}"
-
-
-# ─────────────────────────────────────────────────────────────────────
-# UI smoke — все 9 виджетов на месте после bootstrap
-# ─────────────────────────────────────────────────────────────────────
+            should.be_in(key, data, ErrMsg.metric_key_missing)
+        should.be_true(0.0 <= data["free_cap_fill_ratio"] <= 1.0, ErrMsg.fill_ratio_out_of_range)
 
 
 @allure.title("Дашборд: все 9 виджетов Phase 1 присутствуют в DOM")
 def test_dashboard_renders_phase1_widgets(
     auth_context_factory, superadmin_user, soft_check
 ) -> None:
-    """TC-PA-ANALYTICS-UI-1: все Phase 1 виджеты присутствуют в DOM
-    после загрузки страницы. Smoke-чек на 9 локаторов через soft_check.
-    """
+    """TC-PA-ANALYTICS-UI-1: все Phase 1 виджеты присутствуют в DOM."""
     with step("подготовка: открываем дашборд суперадмина"):
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()

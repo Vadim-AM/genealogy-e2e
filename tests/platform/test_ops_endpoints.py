@@ -1,15 +1,4 @@
-"""INV-OPS-001: standard liveness/readiness probes must respond.
-
-Reverse proxies (nginx, Traefik), Kubernetes liveness/readiness
-checks обращаются к стандартным путям `/healthz`, `/readyz`. Backend
-сейчас отвечает на оба + аутентичный `/api/health` остаётся.
-
-Was xfail until upstream commit `77bc643` ("fix(ops/auth): /healthz
-/readyz aliases"). Now plain regression-trail.
-
-`/health` (без `z`) намеренно не aliased — kubernetes/traefik convention
-именно `/healthz`, `/health` slot оставляем за продуктовыми endpoints.
-"""
+"""INV-OPS-001: standard liveness/readiness probes must respond."""
 
 from __future__ import annotations
 

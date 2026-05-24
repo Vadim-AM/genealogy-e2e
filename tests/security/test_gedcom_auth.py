@@ -1,9 +1,4 @@
-"""INV-GEDCOM-001: GEDCOM endpoints not migrated to auth_v2.
-
-Was xfail until upstream commit `17d11b1` ("fix(auth): bridge auth_v2
-owner для photos и GEDCOM"). Now plain regression — auth_v2 owner
-может export/import без legacy admin password.
-"""
+"""INV-GEDCOM-001: GEDCOM endpoints not migrated to auth_v2."""
 
 from __future__ import annotations
 
@@ -12,9 +7,11 @@ from http import HTTPStatus
 import allure
 
 from api import routes
+from assertions.base import should
 from config.timeouts import TIMEOUTS
 from framework.response import expect_response
 from framework.step import step
+from src.texts import ErrMsg
 
 
 @allure.title("GEDCOM: владелец экспортирует дерево через auth_v2")
@@ -29,9 +26,7 @@ def test_owner_can_export_gedcom_via_auth_v2(owner_user, tenant_client) -> None:
         # GEDCOM-формат начинается с '0 HEAD'. Response charset=utf-8
         # (см. test_owner_ui::test_owner_export_gedcom_returns_valid_dump),
         # так что r.text — корректно декодированная строка.
-        assert "0 HEAD" in r.text[:200], (
-            f"response is not a GEDCOM file: starts with {r.text[:80]!r}"
-        )
+        should.contain(r.text[:200], "0 HEAD", ErrMsg.gedcom_header_missing)
 
 
 @allure.title("GEDCOM: владелец импортирует файл через auth_v2")

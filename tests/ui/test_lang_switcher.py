@@ -1,19 +1,4 @@
-"""TC-19.* — Lang switcher до раскатки публичной локализации СКРЫТ.
-
-Контракт (Vadim 2026-05-02 решение в js/i18n/index.js:22):
-`_LOCALE_PUBLIC_RELEASE = false` → setLang() — no-op,
-getAvailableLangs() возвращает только ['ru'], lang-switcher container
-рендерится с `display:none` (`js/components/lang-switcher.js:32`).
-
-Этот тест — pin текущего design decision. Когда EN-локализация будет
-включена (commit `_LOCALE_PUBLIC_RELEASE = true`) — тест начнёт fail'ить,
-и нужно будет переписать на positive проверки TC-19.01..03 (switcher
-показывает кнопки РУС/EN, click меняет язык, localStorage genealogy_lang
-persist).
-
-Связано с BUG-008 (deferred): public pages не локализуются в EN.
-Закрытие BUG-008 = включение этого feature flag + перевод signup/login.
-"""
+"""TC-19.* — Lang switcher до раскатки публичной локализации СКРЫТ."""
 
 from __future__ import annotations
 
@@ -21,8 +6,10 @@ from typing import TYPE_CHECKING
 
 import allure
 
+from assertions.base import should
 from framework.step import step
 from pages.tree_page import TreePage
+from src.texts import ErrMsg
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
@@ -32,63 +19,35 @@ if TYPE_CHECKING:
 
 @allure.title("Язык: переключатель языка скрыт пока доступен только RU")
 def test_lang_switcher_containers_are_hidden_when_only_one_language(page: Page, anon_pages: PageFactory) -> None:
-    """TC-19.*-disabled: `[data-testid="lang-switcher"]` контейнеры (в header и footer)
-    пустые и display:none пока `_LOCALE_PUBLIC_RELEASE=false`.
-    Lang-switcher.js при langs.length<=1 устанавливает
-    `target.style.display = 'none'` и `innerHTML = ''`.
-
-    Ловит и баг с дублированным id="langSwitcher" — HTML невалидный
-    (два элемента с одинаковым id), но lang-switcher должен иметь
-    target=один из них; реально initLangSwitcher вызывается дважды
-    (init.js + footer init), поэтому оба контейнера должны быть скрыты.
-    Селектор по классу — устойчив к этой особенности.
-    """
+    """TC-19.*-disabled: `[data-testid="lang-switcher"]` контейнеры (в header и footer)."""
     with step("действие: открыть главную и найти lang-switcher контейнеры"):
         _ = anon_pages.navigate_to(TreePage)
 
         containers = page.locator('[data-testid="lang-switcher"]').all()  # no semantic: switcher container, no role
-        assert containers, 'не найдено ни одного [data-testid="lang-switcher"] container на /'
+        should.be_true(containers, ErrMsg.element_not_visible)
 
     with step("проверка: все контейнеры пусты и скрыты"):
         for idx, container in enumerate(containers):
             inner_html = container.evaluate("(el) => el.innerHTML.trim()")
             display = container.evaluate("(el) => getComputedStyle(el).display")
-            assert inner_html == "", (
-                f'[data-testid="lang-switcher"][{idx}] должен быть пустым при '
-                f"_LOCALE_PUBLIC_RELEASE=false; innerHTML={inner_html[:80]!r}"
-            )
-            assert display == "none", (
-                f'[data-testid="lang-switcher"][{idx}] должен быть display:none пока '
-                f"мультиязычность не включена; computed display={display!r}"
-            )
+            should.be_equal(inner_html, "", ErrMsg.lang_switcher_not_empty)
+            should.be_equal(display, "none", ErrMsg.lang_switcher_not_hidden)
 
 
 @allure.title("Язык: атрибут html lang всегда равен ru")
 def test_html_lang_attribute_is_ru(page: Page, anon_pages: PageFactory) -> None:
-    """initLang() форс-резолвит в 'ru' (igноривает localStorage / navigator).
-    Это контракт: пока локализация отложена, документ всегда RU.
-    """
+    """initLang() форс-резолвит в 'ru' (igноривает localStorage / navigator)."""
     with step("действие: открыть главную"):
         _ = anon_pages.navigate_to(TreePage)
 
     with step("проверка: html lang равен ru"):
         html_lang = page.evaluate("() => document.documentElement.lang")
-        assert html_lang == "ru", (
-            f"document.documentElement.lang должен быть 'ru' пока "
-            f"_LOCALE_PUBLIC_RELEASE=false; got {html_lang!r}"
-        )
+        should.be_equal(html_lang, "ru", ErrMsg.html_lang_wrong)
 
 
 @allure.title("Язык: localStorage с en не переключает UI на английский")
 def test_localstorage_genealogy_lang_seed_does_not_change_active_lang(page: Page, anon_pages: PageFactory) -> None:
-    """setLang() — no-op при отключённой локализации. Pre-seed
-    `localStorage.genealogy_lang='en'` не должен переключить UI на EN.
-
-    Pin'ит решение Vadim 2026-05-02: пока EN-словарь не отрелижен публично,
-    ни одна точка входа (localStorage / navigator.language / config) не
-    должна включать EN — иначе пользователь увидит частично-переведённую
-    версию (BUG-008).
-    """
+    """setLang() — no-op при отключённой локализации. Pre-seed."""
     with step("подготовка: засеять localStorage с en"):
         # Pre-seed localStorage ДО навигации, через init script
         page.add_init_script("try { localStorage.setItem('genealogy_lang', 'en'); } catch (e) {}")
@@ -98,7 +57,4 @@ def test_localstorage_genealogy_lang_seed_does_not_change_active_lang(page: Page
 
     with step("проверка: язык остался ru"):
         html_lang = page.evaluate("() => document.documentElement.lang")
-        assert html_lang == "ru", (
-            f"localStorage.genealogy_lang='en' не должен переключать lang пока "
-            f"_LOCALE_PUBLIC_RELEASE=false; got {html_lang!r}"
-        )
+        should.be_equal(html_lang, "ru", ErrMsg.html_lang_wrong)

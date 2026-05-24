@@ -1,9 +1,4 @@
-"""Smoke tests — verify the e2e infrastructure boots and basic pages render.
-
-These are the canary for the whole suite: if these fail, conftest fixtures
-(uvicorn subprocess, AI mock, reset endpoint, Page Objects) need fixing
-before bothering with the rest.
-"""
+"""Smoke tests — verify the e2e infrastructure boots and basic pages render."""
 
 from __future__ import annotations
 
@@ -15,6 +10,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from api import routes
+from assertions.base import should
 from framework.step import step
 from pages.signup_page import SignupPage
 from pages.tree_page import TreePage
@@ -67,7 +63,5 @@ def test_health_endpoint_via_browser(page: Page) -> None:
         response = page.goto(routes.HEALTH)
 
     with step("проверка: endpoint доступен и отвечает 200"):
-        assert response is not None, "page.goto(/api/health) returned None"
-        assert response.status == HTTPStatus.OK, (
-            f"/api/health returned {response.status}, backend may be down"  # noqa: drift
-        )
+        should.not_none(response, ErrMsg.page_navigation_failed)
+        should.be_equal(response.status, HTTPStatus.OK, ErrMsg.health_status_wrong)  # noqa: drift

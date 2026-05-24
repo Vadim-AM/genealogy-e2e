@@ -1,9 +1,4 @@
-"""Sources journey — attach a historical reference to a person.
-
-Owner opens the demo-self editor, creates+links a source in the
-sources-block, sees it attached, unlinks it. Plus a backend lifecycle
-for the source record itself (a source has no dedicated edit UI).
-"""
+"""Sources: привязка/отвязка источника к персоне + CRUD lifecycle."""
 
 from __future__ import annotations
 
@@ -13,6 +8,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from api import routes, site_api
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
 from models.site import SourceResponse
@@ -26,8 +22,7 @@ from src.texts import ErrMsg, TestData
 def test_owner_attaches_and_unlinks_a_source(
     owner_page: Page, owner_user, tenant_client,
 ) -> None:
-    """Owner opens the person editor → creates and links a source →
-    it shows attached → unlinks it → it's gone, and the backend agrees."""
+    """Привязать источник → виден в UI и API → отвязать → нет."""
     with step("подготовка: открыть редактор персоны"):
         pid = TestData.DEMO_PERSON_ID
         api = tenant_client(owner_user)
@@ -46,8 +41,7 @@ def test_owner_attaches_and_unlinks_a_source(
     with step("проверка: источник привязан в бэкенде"):
         linked = api.get(routes.person_sources(pid))
         linked_sources = expect_response(linked, label="GET person-sources").status_ok().list_schema(SourceResponse)
-        assert any(s.name == src_name for s in linked_sources), \
-            f"source not linked backend-side: {[s.name for s in linked_sources]}"
+        should.any_match(linked_sources, lambda s: s.name == src_name, ErrMsg.source_not_linked)
 
     with step("действие: отвязать источник"):
         with owner_page.expect_response("**/api/person-sources/**"):
@@ -59,14 +53,12 @@ def test_owner_attaches_and_unlinks_a_source(
         after_sources = expect_response(
             after, label="GET person-sources after unlink",
         ).status_ok().list_schema(SourceResponse)
-        assert not after_sources, f"source still linked after unlink: {[s.name for s in after_sources]}"
+        should.be_empty(after_sources, ErrMsg.source_still_linked)
 
 
 @allure.title("Жизненный цикл источника: создание, переименование, удаление")
 def test_source_record_crud_lifecycle(owner_user, tenant_client) -> None:
-    """Backend lifecycle for a source record itself — there is no
-    dedicated UI to edit or delete a source, so this is an invariant
-    check: create → rename via PATCH → delete → gone from the list."""
+    """Create → PATCH rename → DELETE → отсутствует в списке."""
     with step("действие: создать источник"):
         api = tenant_client(owner_user)
 
@@ -76,8 +68,7 @@ def test_source_record_crud_lifecycle(owner_user, tenant_client) -> None:
     with step("действие: переименовать источник"):
         patched = api.patch(routes.source(sid), json={"name": TestData.SOURCE_NAME_PATCHED})
         patched_src = expect_response(patched, label="PATCH source").status_ok().schema(SourceResponse)
-        assert patched_src.name == TestData.SOURCE_NAME_PATCHED, \
-            f"patched name: expected {TestData.SOURCE_NAME_PATCHED!r}, got {patched_src.name!r}"
+        should.be_equal(patched_src.name, TestData.SOURCE_NAME_PATCHED, ErrMsg.source_name_wrong)
 
     with step("действие: удалить источник"):
         deleted = api.delete(routes.source(sid))
@@ -85,5 +76,4 @@ def test_source_record_crud_lifecycle(owner_user, tenant_client) -> None:
 
     with step("проверка: источник отсутствует в списке"):
         sources = site_api.get_sources(api)
-        assert not any(s.id == sid for s in sources), \
-            "deleted source still appears in GET /api/sources"
+        should.be_false(any(s.id == sid for s in sources), ErrMsg.source_not_deleted)

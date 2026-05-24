@@ -51,6 +51,22 @@ grep -rn "timeout=" tests/ --include="test_*.py" | grep -v "TIMEOUTS\|# noqa\|\"
 # Rule 20: navigate_to() без захвата результата
 grep -rn "pages.navigate_to\|anon_pages.navigate_to" tests/ --include="test_*.py" | grep -v "= " | head -10
 
+# Rule 34: голые assert в тестах (должно быть 0)
+grep -rn "^\s*assert " tests/ --include="test_*.py" | grep -v "\"\"\"" | wc -l
+
+# Rule 34: inline строки в should.* (должны быть через ErrMsg)
+grep -rn "should\.\w*(.*\"" tests/ --include="test_*.py" | grep -v "ErrMsg\|\"\"\"" | head -10
+
+# Rule 36: длинные docstrings (>2 строки)
+python3 -c "
+import re, pathlib
+for f in sorted(pathlib.Path('tests').rglob('test_*.py')):
+    text = f.read_text()
+    for m in re.finditer(r'\"\"\"(.+?)\"\"\"', text, re.DOTALL):
+        lines = m.group().count(chr(10))
+        if lines > 2: print(f'{f}: docstring {lines+1} lines')
+" | head -10
+
 # Rule 25: assert в Page Objects (кроме precondition)
 grep -rn "^\s*assert " tests/pages/ --include="*.py" | grep -v "# precondition" | head -10
 

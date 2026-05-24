@@ -1,8 +1,4 @@
-"""Security boundary tests — TC-SEC-1, TC-SEC-2.
-
-Verifies the public/private surface separation and the security HTTP headers
-required for the beta launch.
-"""
+"""Security boundary tests — TC-SEC-1, TC-SEC-2."""
 
 from __future__ import annotations
 
@@ -14,12 +10,10 @@ import httpx
 import pytest
 
 from api import routes
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
-
-# ─────────────────────────────────────────────────────────────────────────
-# TC-SEC-1: Аноним → 401 на закрытых endpoints
-# ─────────────────────────────────────────────────────────────────────────
+from src.texts import ErrMsg
 
 
 # `/api/admin/invites` удалён: legacy admin-поверхность убрана в
@@ -37,11 +31,7 @@ from framework.step import step
 )
 @allure.title("Безопасность: аноним получает 401 на закрытом endpoint")
 def test_anonymous_get_returns_401_on_private_endpoints(base_url: str, endpoint: str) -> None:
-    """TC-SEC-1: GET <private> без cookies → 401.
-
-    Public surface is allowed (e.g. `/api/tree` returns 200 with the demo
-    showcase) — those are tested separately in `test_landing.py`.
-    """
+    """TC-SEC-1: GET <private> без cookies → 401."""
     with step(f"действие: анонимный GET {endpoint}"):
         r = httpx.get(f"{base_url}{endpoint}")
 
@@ -56,11 +46,6 @@ def test_anonymous_get_tree_returns_200_minimal_showcase(base_url: str) -> None:
     expect_response(r, label="GET /api/tree (public)").status(HTTPStatus.OK)
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# TC-SEC-2: Заголовки безопасности
-# ─────────────────────────────────────────────────────────────────────────
-
-
 REQUIRED_HEADERS = {
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
@@ -70,12 +55,7 @@ REQUIRED_HEADERS = {
 
 @allure.title("Заголовки: nosniff, X-Frame-Options, Referrer-Policy")
 def test_security_headers_present_on_api_responses(base_url: str) -> None:
-    """TC-SEC-2: required security headers on every response.
-
-    Picks `/api/account/me` (anonymous → 401) — headers must be set on every
-    response, including error ones, so attackers cannot get a privileged
-    response without protection.
-    """
+    """TC-SEC-2: required security headers on every response."""
     with step("действие: запросить /api/account/me (заголовки на любом ответе)"):
         r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}")
         # Состояние авторизации неважно — проверяем заголовки, не тело.
@@ -84,41 +64,26 @@ def test_security_headers_present_on_api_responses(base_url: str) -> None:
     with step("проверка: nosniff, X-Frame-Options, Referrer-Policy"):
         for header, expected in REQUIRED_HEADERS.items():
             actual = headers.get(header)
-            assert actual == expected, \
-                f"{header}: expected {expected!r}, got {actual!r}"
+            should.be_equal(actual, expected, ErrMsg.security_header_wrong)
 
 
 @allure.title("CSP: script-src-attr 'none' запрещает inline-обработчики")
 def test_csp_header_disables_inline_event_handlers(base_url: str) -> None:
-    """TC-SEC-2 / BUG-SEC-002: CSP must include `script-src-attr 'none'`
-    so inline `onclick=` event handlers cannot execute (XSS hardening)."""
+    """TC-SEC-2 / BUG-SEC-002: CSP must include `script-src-attr 'none'`."""
     with step("действие: запросить /api/account/me и извлечь CSP"):
         r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}")
         csp = r.headers.get("content-security-policy", "")
 
     with step("проверка: CSP содержит script-src-attr 'none'"):
-        assert csp, "Content-Security-Policy header missing"
+        should.be_true(csp, ErrMsg.csp_missing)
         # Ищем директиву — 'none' в кавычках может быть или не быть в
         # зависимости от сериализации. Regex толерантен к кавычкам / пробелам.
-        assert re.search(r"script-src-attr\s+'none'", csp), \
-            f"CSP missing `script-src-attr 'none'`: {csp[:200]}"
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# TC-CSP-2 / BUG-CSP-001: inline event handlers в отдаваемом HTML
-# ─────────────────────────────────────────────────────────────────────────
+        should.be_true(re.search(r"script-src-attr\s+'none'", csp), ErrMsg.csp_directive_missing)
 
 
 @allure.title("CSP: в HTML лендинга нет inline on*= атрибутов")
 def test_landing_html_has_no_inline_event_handlers(base_url: str) -> None:
-    """TC-CSP-2: served `/` HTML doesn't contain any `on<ident>=` attribute.
-
-    CSP header alone не достаточно: оно блокирует только runtime (handler
-    не выполнится), но HTML с inline `onload=` всё равно ломает функцию
-    (например, fonts.css media=print → media=all переключение). Тест
-    ловит **факт** наличия inline event handlers в shipped HTML — это
-    регрессия BUG-SEC-002 sweep.
-    """
+    """TC-CSP-2: served `/` HTML doesn't contain any `on<ident>=` attribute."""
     with step("действие: загрузить HTML лендинга"):
         r = httpx.get(f"{base_url}/")
         expect_response(r, label="GET /").status_ok()
@@ -130,29 +95,15 @@ def test_landing_html_has_no_inline_event_handlers(base_url: str) -> None:
         # т.к. у них `=` после `name`, а не после подстроки `on*`.
         pattern = re.compile(r'\s(on[a-z]+)\s*=', re.IGNORECASE)
         matches = pattern.findall(html)
-        unique = sorted(set(m.lower() for m in matches))
-
-        assert not matches, (
-            f"inline event handlers found in /: {unique}. CSP `script-src-attr "
-            f"'none'` blocks them at runtime, but the HTML still ships them — "
-            f"this is a BUG-SEC-002 sweep regression. Use addEventListener "
-            f"instead of inline `on*=` attributes."
-        )
+        should.be_empty(matches, ErrMsg.inline_handlers_found)
 
 
 @allure.title("HSTS: заголовок отсутствует при работе по HTTP")
 def test_hsts_header_only_on_https(base_url: str) -> None:
-    """TC-SEC-2: HSTS is conditional on the request being HTTPS.
-
-    Local dev runs over HTTP; the header MUST NOT appear here (otherwise
-    it would lock browsers into a stale config). On HTTPS deploys the
-    header is added by `security_headers` middleware.
-    """
+    """TC-SEC-2: HSTS is conditional on the request being HTTPS."""
     with step("подготовка: проверяем что тест запущен по HTTP"):
-        assert base_url.startswith("http://"), \
-            "this test assumes local dev (HTTP); HTTPS path is verified by deployment smoke"
+        should.be_true(base_url.startswith("http://"), ErrMsg.base_url_not_http)
 
     with step("проверка: HSTS-заголовок отсутствует"):
         r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}")
-        assert "strict-transport-security" not in {k.lower() for k in r.headers}, \
-            "HSTS must not be sent on HTTP responses (only HTTPS)"
+        should.be_false("strict-transport-security" in {k.lower() for k in r.headers}, ErrMsg.hsts_on_http)

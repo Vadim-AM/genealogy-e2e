@@ -51,12 +51,6 @@ line-length = 120
 select = ["E", "F", "W", "I", "UP", "ANN", "B", "SIM", "TCH", "RUF"]
 external = ["drift"]
 ignore = [
-    "ANN001",   # MR 2: enable when type hints are added
-    "ANN002",   # MR 2: enable when type hints are added
-    "ANN003",   # MR 2: enable when type hints are added
-    "ANN201",   # MR 2: enable when type hints are added
-    "ANN202",   # MR 2: enable when type hints are added
-    "ANN204",   # MR 2: enable when type hints are added
     "ANN401",
     "RUF001",   # Cyrillic — false positive for Russian project
     "RUF002",   # Cyrillic — false positive for Russian project
@@ -65,7 +59,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["api", "config", "framework", "models", "fixtures", "pages", "helpers", "test_data", "src", "tests"]
+known-first-party = ["api", "assertions", "config", "framework", "models", "fixtures", "pages", "helpers", "test_data", "src", "tests"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/test_*.py" = ["ANN201"]
@@ -73,7 +67,5 @@ known-first-party = ["api", "config", "framework", "models", "fixtures", "pages"
 
 [tool.mypy]
 python_version = "3.12"
-check_untyped_defs = false  # MR 2: enable after type hints + fluent-chain POM
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = false  # MR 2: enable after type hints added

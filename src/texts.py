@@ -288,10 +288,147 @@ class ErrMsg:
     # Session / auth
     session_should_be_valid = "Сессия должна быть валидна"
     session_should_be_expired = "Сессия должна быть невалидна"
+    login_response_not_ok = "Ответ на логин не ok"
+    login_cookie_missing = "Session cookie не установлена после логина"
+    login_slug_mismatch = "Slug тенанта в /me не совпадает после логина"
+    login_error_texts_differ = "Тексты ошибок входа отличаются — возможна утечка enumeration"
+    signup_response_not_ok = "Ответ на signup не ok"
+    verify_token_missing = "Токен верификации не найден в теле письма"
+    verify_auto_login_missing = "Ответ verify-email не содержит auto_login=true"
+    verify_slug_missing = "Ответ verify-email не содержит tenant_slug"
+    verify_cookie_missing = "Session cookie не установлена после verify-email"
+    verify_slug_mismatch = "Slug тенанта в /me не совпадает после верификации"
+    tenant_slug_missing = "Ответ login не содержит tenant_slug"
+    password_validity_expected_false = "HTML5 minlength validation должна отклонить пароль"
+    forgot_response_not_ok = "Ответ на forgot-password не ok"
+    reset_response_not_ok = "Ответ на reset-password не ok"
+    empty_email_triggered_request = "Пустой email не должен вызывать сетевой запрос"
+    invite_href_wrong = "Ссылка open-tree должна указывать на /"
+    invite_token_missing_in_href = "Ссылка не содержит invite-token"
+    display_name_not_in_message = "display_name не найден в тексте предупреждения"
+    slug_leaked_in_message = "Slug утёк в тексте сообщения"
+    change_email_token_missing = "Токен подтверждения смены email не отправлен"
+    cross_tab_slug_mismatch = "Сессия должна принадлежать ожидаемому тенанту"
+    session_not_invalidated = "Сессия не инвалидирована после сброса пароля"
+    session_should_be_active = "Сессия должна быть активна"
+    welcome_email_missing_host = "Welcome-email не содержит host из GENEALOGY_PUBLIC_URL"
+    welcome_email_hardcoded_prod = "Welcome-email содержит hardcoded prod-домен"
+    recovery_code_count_wrong = "Количество кодов восстановления не совпадает"
+    recovery_code_not_decremented = "Использование кода не уменьшило счётчик"
+    me_slug_mismatch = "Slug тенанта в /me не совпадает"
+    demo_seed_required = "Свежий тенант содержит демо-данные"
+    demo_not_cleared = "Демо-данные должны быть удалены"
+    demo_not_preserved = "Демо-данные должны быть сохранены"
+    reserved_slug_assigned = "Зарезервированный slug назначен как тенант"
+    signup_url_not_preserved = "URL должен остаться /signup после Esc"
+    consent_provider_missing = "Текст consent должен упоминать провайдера"
+    consent_policy_missing = "Текст consent должен содержать ссылку на политику"
+    consent_data_missing = "Текст consent должен перечислять передаваемые данные"
+    decline_should_block_post = "Отказ от consent не должен вызывать POST /api/enrich/*"
+    enrichment_output_none = "Результат enrichment job не должен быть None"
+    enrichment_mock_not_applied = "Mock fixture не применён — получен реальный output"
+    enrichment_history_not_list = "history.items должен быть list"
+    enrichment_not_429 = "Первый enrichment не должен возвращать 429"
+    enrichment_id_missing = "Enrichment job не завершился вовремя"
+    enrichment_cache_id_mismatch = "enrichment_id в кэше не совпадает"
 
     # API response
     status_mismatch = "HTTP статус не совпадает"
     response_field_wrong = "Поле ответа не совпадает"
+    response_not_ok = "Ответ API не успешен"
+
+    # Playwright response
+    pw_response_not_ok = "Playwright response не 2xx"
+    pw_response_status_wrong = "Playwright response status не совпадает"
+
+    # Tree / people
+    person_not_in_tree = "Персона не найдена в дереве"
+    tree_count_wrong = "Количество персон в дереве не совпадает"
+    demo_father_not_in_seed = "Демо-отец отсутствует в seed-данных"
+    duplicate_person_found = "Обнаружен дубликат персоны"
+    person_count_wrong = "Количество персон не совпадает"
+    relationship_count_wrong = "Количество связей не совпадает"
+    parent_link_missing = "Связь с родителем отсутствует"
+    father_not_linked = "Отец не привязан к ребёнку"
+    mother_not_linked = "Мать не привязана к ребёнку"
+    new_father_must_differ = "Новый отец должен отличаться от демо-отца"
+    people_post_not_expected = "POST /api/people не должен был произойти"
+    canonical_name_wrong = "Каноническое имя не содержит ожидаемый фрагмент"
+
+    # Concurrency
+    etag_missing = "ETag header отсутствует в ответе"
+
+    # Domain invariants
+    delete_500_crash = "DELETE вернул 500 — cascade не обработан"
+
+    # Profile edit
+    confirm_text_wrong = "Текст диалога подтверждения не содержит ожидаемую фразу"
+    delete_sent_on_dismiss = "DELETE отправлен после отмены диалога подтверждения"
+    person_deleted_after_dismiss = "Персона удалена после отмены диалога"
+    summary_not_persisted = "Описание не сохранено в бэкенде"
+
+    # Photos
+    photo_label_for_wrong = "label#photoAddBtn должен иметь for=photoFileInput"
+    photo_input_count_wrong = "Ожидаем ровно один #photoFileInput"
+    photo_accept_wrong = "accept-фильтр должен содержать image"
+
+    # Sharing
+    share_url_wrong = "URL ссылки шаринга не содержит /share/ сегмент"
+    share_not_in_list = "Созданная share-ссылка не найдена в списке"
+    share_token_leaked = "GET /api/share/list выдал секретный token url"
+    share_url_missing = "Ответ create не содержит URL шаринга"
+    share_list_empty = "Список шаринг-ссылок пуст"
+
+    # Sources
+    source_not_linked = "Источник не привязан к персоне"
+    source_still_linked = "Источник всё ещё привязан после отвязки"
+    source_name_wrong = "Имя источника не совпадает"
+    source_not_deleted = "Удалённый источник всё ещё в списке"
+
+    # Navigation
+    hash_dropped_after_f5 = "Hash профиля потерян после F5"
+
+    # Versioning
+    app_version_empty = "app_version должен быть непустой строкой"
+
+    # GEDCOM
+    gedcom_export_failed = "Экспорт GEDCOM не удался"
+    gedcom_header_missing = "GEDCOM header отсутствует"
+    gedcom_skipped_missing = "DONE-сводка не содержит счётчик пропущенных"
+    gedcom_round_trip_leaked = "Round-trip создал новые персоны"
+    gedcom_new_person_missing = "Новая персона не найдена в дереве после импорта"
+    gedcom_no_post_expected = "POST на import-gedcom не ожидался"
+    gedcom_phantom_dates = "Минимальный INDI не должен содержать фантомные даты"
+
+    # Owner UI
+    save_config_failed = "Сохранение /api/site/config не удалось"
+    site_name_wrong = "site_name не совпадает с ожидаемым"
+    gedcom_content_type_wrong = "GEDCOM content-type неверный"
+    gedcom_charset_wrong = "GEDCOM charset должен быть utf-8"
+    gedcom_disposition_wrong = "GEDCOM должен скачиваться как attachment"
+    gedcom_filename_wrong = "GEDCOM filename должен заканчиваться на .ged"
+    gedcom_line_wrong = "Строка GEDCOM не совпадает с ожидаемой"
+    zip_content_type_wrong = "Экспорт должен возвращать ZIP"
+    zip_magic_wrong = "ZIP magic bytes не совпадают"
+    zip_file_missing = "Файл отсутствует в ZIP-архиве"
+
+    # Site config / multitenant
+    tenant_value_leaked = "Значение тенанта утекло в другой тенант"
+    tenant_value_corrupted = "Значение тенанта перезаписано другим тенантом"
+    anon_value_leaked = "Анонимный запрос выдал приватное значение тенанта"
+
+    # Subscription
+    usage_keys_missing = "Обязательные ключи отсутствуют в ответе usage"
+    usage_tier_wrong = "Тариф нового владельца должен быть free"
+    usage_limit_wrong = "Лимит free-тарифа не совпадает"
+    usage_used_wrong = "Использовано должно быть 0 для нового владельца"
+    usage_remaining_wrong = "Остаток не совпадает с ожидаемым"
+    usage_exhausted_wrong = "Флаг exhausted не совпадает"
+    usage_soft_warn_wrong = "Флаг soft_warn не совпадает"
+
+    # Seed / setup
+    tenant_no_demo_people = "Тенант не содержит демо-персон"
+    payload_sanity = "Sanity-проверка тестового payload не прошла"
 
 
 # ─────────────────────────────────────────────────────────────────────────

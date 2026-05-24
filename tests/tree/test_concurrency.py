@@ -1,28 +1,19 @@
-"""INV-EDIT-001: lost update на concurrent PATCH.
-
-Защита через optimistic concurrency: GET возвращает `ETag`, PATCH
-принимает `If-Match`. Run security 28.04 night: ни ETag, ни If-Match
-не реализованы. Этот тест проверяет MINIMAL контракт — наличие ETag
-header в GET response. Полный optimistic-concurrency тест (412 на
-mismatch) — отдельная история, требует точной координации.
-"""
+"""INV-EDIT-001: наличие ETag header для контроля конкурентности."""
 
 from __future__ import annotations
 
 import allure
 
 from api import routes
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
-from src.texts import TestData
+from src.texts import ErrMsg, TestData
 
 
 @allure.title("GET персоны возвращает ETag для контроля конкурентности")
 def test_get_person_returns_etag_for_concurrency(owner_user, tenant_client) -> None:
-    """INV-EDIT-001: GET /api/people/{id} returns an ETag header.
-
-    Was xfail until upstream batch-6/7. Now regular regression.
-    """
+    """GET /api/people/{id} возвращает ETag header."""
     with step("действие: GET person"):
         api = tenant_client(owner_user)
         r = api.get(routes.person(TestData.DEMO_PERSON_ID))
@@ -30,7 +21,4 @@ def test_get_person_returns_etag_for_concurrency(owner_user, tenant_client) -> N
 
     with step("проверка: ETag header присутствует"):
         etag = r.headers.get("etag")
-        assert etag, (
-            "INV-EDIT-001: GET person missing ETag header. Concurrent "
-            "PATCH ведут к lost update без conflict-signal'а."
-        )
+        should.be_true(etag, ErrMsg.etag_missing)

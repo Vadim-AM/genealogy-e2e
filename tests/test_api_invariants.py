@@ -1,11 +1,4 @@
-"""Backend invariants for endpoints with no user-facing UI journey.
-
-The suite is journey-first: a feature is covered by a browser journey.
-These endpoints are server-to-server or backend-only (tenant ops,
-retention, telemetry, config, email webhooks, slug lookup) — there is no
-UI a user clicks, so each test pins a MEANINGFUL backend invariant, not
-a bare status code.
-"""
+"""Backend invariants for endpoints with no user-facing UI journey."""
 
 from __future__ import annotations
 
@@ -16,11 +9,12 @@ import allure
 import httpx
 
 from api import auth_api, platform_api, relationship_api, routes
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
 from models.person import LocationResponse, PersonResponse
 from models.site import RetentionOfferApply, RetentionOfferStatus, SubscriptionResponse
-from src.texts import TestData
+from src.texts import ErrMsg, TestData
 
 # Minimal valid 1×1 transparent PNG — for the photo-upload invariant.
 _PNG_1PX = base64.b64decode(
@@ -31,22 +25,19 @@ _PNG_1PX = base64.b64decode(
 
 @allure.title("API: my-tenants содержит собственный тенант владельца")
 def test_my_tenants_lists_the_owners_tenant(owner_user, tenant_client) -> None:
-    """GET /api/account/my-tenants lists the tenants the user belongs to
-    — at minimum their own."""
+    """GET /api/account/my-tenants lists the tenants the user belongs to."""
     with step("действие: запросить my-tenants"):
         api = tenant_client(owner_user)
         r = api.get(routes.MY_TENANTS)
         items = expect_response(r, label="my-tenants").status_ok().data
 
     with step("проверка: собственный тенант в списке"):
-        assert any(it["slug"] == owner_user.slug for it in items), \
-            f"own tenant {owner_user.slug} missing from my-tenants: {items}"
+        should.any_match(items, lambda it: it["slug"] == owner_user.slug, ErrMsg.own_tenant_missing)
 
 
 @allure.title("API: переключение на свой тенант проходит успешно")
 def test_switch_tenant_to_own_tenant_succeeds(owner_user, tenant_client) -> None:
-    """POST /api/account/switch-tenant to the user's own tenant keeps the
-    session scoped there."""
+    """POST /api/account/switch-tenant to the user's own tenant keeps the."""
     with step("действие: switch-tenant на собственный тенант"):
         api = tenant_client(owner_user)
         r = api.post(routes.SWITCH_TENANT, json={"tenant_slug": owner_user.slug})
@@ -57,8 +48,7 @@ def test_switch_tenant_to_own_tenant_succeeds(owner_user, tenant_client) -> None
 
 @allure.title("API: cookie-consent сохраняется и читается обратно")
 def test_cookie_consent_round_trips(owner_user, tenant_client) -> None:
-    """POST then GET /api/account/me/cookie-consent returns the same level
-    — server-side consent persists for multi-device sync."""
+    """POST then GET /api/account/me/cookie-consent returns the same level."""
     with step("действие: записать cookie-consent level=necessary"):
         api = tenant_client(owner_user)
         expect_response(
@@ -80,35 +70,30 @@ def test_config_is_public_and_carries_site_name(base_url) -> None:
 
 @allure.title("API: retention-offer выдаёт 50%-скидку при применении")
 def test_retention_offer_status_and_apply(owner_user, tenant_client) -> None:
-    """GET retention-offer-status returns a boolean `show`; POST apply
-    grants a 50%-off retention coupon."""
+    """GET retention-offer-status returns a boolean `show`; POST apply."""
     with step("действие: запросить статус retention-offer"):
         api = tenant_client(owner_user)
         r_status = api.get(routes.RETENTION_OFFER_STATUS)
         status = expect_response(r_status, label="retention-offer-status").status_ok().schema(RetentionOfferStatus)
-        assert isinstance(status.show, bool), \
-            f"retention-offer show must be bool, got {type(status.show).__name__}"
+        should.be_instance(status.show, bool, ErrMsg.retention_show_type_wrong)
 
     with step("проверка: apply возвращает 50%-скидку с купоном"):
         r_apply = api.post(routes.RETENTION_OFFER_APPLY)
         applied = expect_response(r_apply, label="retention-offer-apply").status_ok().schema(RetentionOfferApply)
-        assert applied.discount_percent == 50, \
-            f"discount_percent: expected 50, got {applied.discount_percent!r}"
-        assert applied.coupon_code, "apply must return a coupon code"
+        should.be_equal(applied.discount_percent, 50, ErrMsg.response_field_wrong)
+        should.be_true(applied.coupon_code, ErrMsg.response_field_wrong)
 
 
 @allure.title("API: телеметрия принимается, GDPR-удаление стирает её")
 def test_telemetry_event_then_gdpr_erasure(owner_user, tenant_client) -> None:
-    """POST a telemetry event is accepted; DELETE /api/account/me/telemetry
-    purges the user's events (GDPR Art. 17 erasure)."""
+    """POST a telemetry event is accepted; DELETE /api/account/me/telemetry."""
     with step("действие: отправить телеметрию"):
         api = tenant_client(owner_user)
         telemetry = platform_api.post_telemetry(api, [
             {"event": "page_view", "props": {}, "ts": 0,
              "url": "/", "session_id": "e2e"},
         ])
-        assert telemetry.received >= 1, \
-            f"telemetry must accept >= 1 event, got {telemetry.received}"
+        should.greater_or_equal(telemetry.received, 1, ErrMsg.response_field_wrong)
 
     with step("проверка: GDPR-удаление стирает события"):
         erased = api.delete(routes.ACCOUNT_TELEMETRY)
@@ -117,8 +102,7 @@ def test_telemetry_event_then_gdpr_erasure(owner_user, tenant_client) -> None:
 
 @allure.title("API: сброс onboarding идемпотентен (два вызова подряд)")
 def test_onboarding_reset_is_idempotent(owner_user, tenant_client) -> None:
-    """POST /api/account/onboarding-reset clears the onboarding flag and
-    can be called twice without error."""
+    """POST /api/account/onboarding-reset clears the onboarding flag and."""
     with step("действие: первый вызов onboarding-reset"):
         api = tenant_client(owner_user)
         auth_api.onboarding_reset(api)
@@ -129,8 +113,7 @@ def test_onboarding_reset_is_idempotent(owner_user, tenant_client) -> None:
 
 @allure.title("API: поддельный токен смены email отклоняется (400)")
 def test_confirm_email_change_rejects_garbage_token(owner_user, tenant_client) -> None:
-    """POST /api/account/confirm-email-change with an invalid token is
-    rejected — a bad token must never change an email."""
+    """POST /api/account/confirm-email-change with an invalid token is."""
     api = tenant_client(owner_user)
     r = api.post(routes.CONFIRM_EMAIL_CHANGE, json={"token": "not-a-real-token"})
     expect_response(r, label="confirm-email-change garbage token").status(HTTPStatus.BAD_REQUEST)
@@ -138,8 +121,7 @@ def test_confirm_email_change_rejects_garbage_token(owner_user, tenant_client) -
 
 @allure.title("API: Postmark webhook без подписи отклоняется (401)")
 def test_postmark_webhook_rejects_unsigned(base_url) -> None:
-    """POST /api/notifications/postmark-webhook without the signature
-    header is rejected — inbound webhooks must be authenticated."""
+    """POST /api/notifications/postmark-webhook without the signature."""
     r = httpx.post(f"{base_url}{routes.WEBHOOK_POSTMARK}",
                    json={"RecordType": "Bounce"})
     expect_response(r, label="unsigned postmark webhook").status(HTTPStatus.UNAUTHORIZED)
@@ -147,8 +129,7 @@ def test_postmark_webhook_rejects_unsigned(base_url) -> None:
 
 @allure.title("API: Resend webhook без подписи отклоняется (401)")
 def test_resend_webhook_rejects_unsigned(base_url) -> None:
-    """POST /api/notifications/resend-webhook without the svix signature
-    is rejected."""
+    """POST /api/notifications/resend-webhook without the svix signature."""
     r = httpx.post(f"{base_url}{routes.WEBHOOK_RESEND}",
                    json={"type": "email.bounced"})
     expect_response(r, label="unsigned resend webhook").status(HTTPStatus.UNAUTHORIZED)
@@ -156,12 +137,11 @@ def test_resend_webhook_rejects_unsigned(base_url) -> None:
 
 @allure.title("API: удаление связи убирает ребро из дерева")
 def test_relationship_delete_removes_the_edge(owner_user, tenant_client) -> None:
-    """DELETE /api/relationships/{id} removes a family edge — the demo
-    tree seeds relationships; deleting one drops the count."""
+    """DELETE /api/relationships/{id} removes a family edge — the demo."""
     with step("подготовка: получить список связей"):
         api = tenant_client(owner_user)
         before = relationship_api.get_relationships(api)
-        assert before, "demo tenant must seed relationships"
+        should.not_empty(before, ErrMsg.demo_people_missing)
         rel_id = before[0].id
 
     with step("действие: удалить первую связь"):
@@ -169,25 +149,20 @@ def test_relationship_delete_removes_the_edge(owner_user, tenant_client) -> None
 
     with step("проверка: количество связей уменьшилось на 1"):
         after = relationship_api.get_relationships(api)
-        assert len(after) == len(before) - 1, \
-            f"relationship must be gone: {len(before)} → {len(after)}"
+        should.have_length(after, len(before) - 1, ErrMsg.relationship_not_removed)
 
 
 @allure.title("API: отмена подписки на бесплатном тарифе отклоняется (400)")
 def test_subscription_current_and_cancel(owner_user, tenant_client) -> None:
-    """GET /api/subscription/current reports the tenant's tier; POST
-    cancel on a free tenant (no paid subscription) is rejected 400 —
-    there is nothing to cancel."""
+    """GET /api/subscription/current reports the tenant's tier; POST."""
     with step("действие: получить текущую подписку"):
         api = tenant_client(owner_user)
         r = api.get(routes.SUBSCRIPTION_CURRENT)
         sub = expect_response(r, label="subscription current").status_ok().schema(SubscriptionResponse)
 
     with step("проверка: тариф free, подписка None, cancel отклоняется"):
-        assert sub.tenant["tier"] == "free", \
-            f"new tenant tier: expected 'free', got {sub.tenant['tier']!r}"
-        assert sub.subscription is None, \
-            f"new tenant subscription must be None, got {sub.subscription!r}"
+        should.be_equal(sub.tenant["tier"], "free", ErrMsg.response_field_wrong)
+        should.be_none(sub.subscription, ErrMsg.response_field_wrong)
 
         cancelled = api.post(routes.SUBSCRIPTION_CANCEL)
         expect_response(cancelled, label="cancel without subscription").status(HTTPStatus.BAD_REQUEST)
@@ -195,15 +170,14 @@ def test_subscription_current_and_cancel(owner_user, tenant_client) -> None:
 
 @allure.title("API: владелец отзывает выданное приглашение")
 def test_invite_revoke(owner_user, tenant_client, create_invite) -> None:
-    """Owner issues a tenant invite, then revokes it by token —
-    DELETE /api/account/tenant/invites/{token} reports it revoked."""
+    """Owner issues a tenant invite, then revokes it by token —."""
     with step("подготовка: создать приглашение и получить токен"):
         create_invite(owner_user, role="editor", name="Гость")
         api = tenant_client(owner_user)
         r = api.get(routes.TENANT_INVITES)
         raw = expect_response(r, label="tenant invites").status_ok().data
         items = raw if isinstance(raw, list) else raw["items"]
-        assert items, "issued invite must be pending"
+        should.not_empty(items, ErrMsg.item_not_found)
         token = items[0]["token"]
 
     with step("проверка: отзыв приглашения возвращает status=revoked"):
@@ -213,8 +187,7 @@ def test_invite_revoke(owner_user, tenant_client, create_invite) -> None:
 
 @allure.title("API: загрузка фото и установка подписи к нему")
 def test_photo_upload_and_caption(owner_user, tenant_client) -> None:
-    """Owner uploads a photo to a person, then sets its caption — the
-    upload links a Photo row and PATCH updates its caption."""
+    """Owner uploads a photo to a person, then sets its caption — the."""
     with step("действие: загрузить фото"):
         api = tenant_client(owner_user)
         uploaded = api.post(
@@ -234,9 +207,7 @@ def test_photo_upload_and_caption(owner_user, tenant_client) -> None:
 def test_subscription_checkout_pending_without_payment_provider(
     owner_user, tenant_client,
 ) -> None:
-    """POST /api/subscription/checkout for a paid tier resolves to a
-    `pending_payment_provider` status — no payment provider is wired in
-    test mode, but the endpoint handles it cleanly (no 500)."""
+    """POST /api/subscription/checkout for a paid tier resolves to a."""
     with step("действие: checkout на pro тариф"):
         api = tenant_client(owner_user)
         r = api.post(routes.SUBSCRIPTION_CHECKOUT, json={"tier": "pro"})
@@ -247,8 +218,7 @@ def test_subscription_checkout_pending_without_payment_provider(
 
 @allure.title("API: персона находится по display_slug")
 def test_person_by_display_slug_resolves(owner_user, tenant_client) -> None:
-    """A person created with a display_slug is resolvable by that slug —
-    GET /api/people/by-display-slug/{slug} returns the same person."""
+    """A person created with a display_slug is resolvable by that slug —."""
     with step("подготовка: создать персону с display_slug"):
         api = tenant_client(owner_user)
         slug = "e2e-slug-person"
@@ -266,8 +236,7 @@ def test_person_by_display_slug_resolves(owner_user, tenant_client) -> None:
 def test_tenant_delete_then_restore(
     owner_user, tenant_client, login_existing, base_url,
 ) -> None:
-    """Owner soft-deletes their tenant; after re-login (delete kills the
-    session) the tenant is restored within the 30-day grace period."""
+    """Owner soft-deletes their tenant; after re-login (delete kills the."""
     with step("действие: soft-delete тенанта"):
         api = tenant_client(owner_user)
         expect_response(
@@ -302,5 +271,4 @@ def test_locations_create_then_list(owner_user, tenant_client) -> None:
     with step("проверка: локация появилась в списке"):
         listed = api.get(routes.LOCATIONS)
         locations = expect_response(listed, label="list locations").status_ok().list_schema(LocationResponse)
-        assert any(item.id == loc.id for item in locations), \
-            "created location must appear in the list"
+        should.any_match(locations, lambda item: item.id == loc.id, ErrMsg.item_not_found)

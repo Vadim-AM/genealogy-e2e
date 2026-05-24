@@ -1,15 +1,4 @@
-"""Deep-link routing — TC-AUTH-1.
-
-Direct navigation to `/#/p/{id}` for an authenticated owner must:
-- preserve `window.AUTH.authenticated === true` after `/api/tree` finishes
-  loading (regression of BUG-AUTH-001 where loadData reset the flag);
-- render `.profile-page` for the requested person;
-- show the person's name in the tab section title.
-
-Was xfailed under BUG-AUTH-001 reopen until upstream commit `731fbc9`
-("fix(auth): expose AUTH on window + in-place resetAUTH") landed in
-dev on 28.04. Now a regular regression — keep tests strict.
-"""
+"""Deep-link routing — TC-AUTH-1."""
 
 from __future__ import annotations
 
@@ -23,29 +12,23 @@ from src.texts import ErrMsg, TestData
 
 @allure.title("Прямая ссылка на персону сохраняет авторизацию")
 def test_deep_link_to_demo_self_preserves_auth(owner_page: Page) -> None:
-    """TC-AUTH-1: open /#/p/demo-self directly, expect the authed UI to settle."""
+    """TC-AUTH-1: переход на /#/p/demo-self сохраняет авторизацию."""
     with step("действие: переход по прямой ссылке на персону"):
         owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
         owner_page.wait_for_load_state("domcontentloaded")
 
     with step("проверка: профиль отрисован и авторизация сохранена"):
-        # Заголовок вкладки перезаписывается именем открытой персоны (profile.js
-        # поднимает имя в `#tab-tree .section-title`).
         # no semantic: layout container
         expect(owner_page.locator("#tab-tree .section-title"), ErrMsg.wrong_text_content).not_to_have_text("")
         # no semantic: data-testid element, no role
         expect(owner_page.locator('[data-testid="profile-page"]'), ErrMsg.profile_not_visible).to_be_visible()
 
-        # AUTH-состояние должно остаться authenticated (регрессия BUG-AUTH-001).
         wait_for_auth_state(owner_page, expected=True)
 
 
 @allure.title("Ссылка на несуществующую персону не сбрасывает авторизацию")
 def test_deep_link_to_unknown_id_keeps_auth(owner_page: Page) -> None:
-    """A deep link to a non-existent person must NOT log the user out.
-
-    Tree tab remains visible (no JS crash); AUTH stays authenticated.
-    """
+    """Ссылка на несуществующую персону не сбрасывает авторизацию."""
     with step("действие: переход по ссылке на несуществующую персону"):
         owner_page.goto("/#/p/no-such-person")
         owner_page.wait_for_load_state("domcontentloaded")

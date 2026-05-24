@@ -1,14 +1,4 @@
-"""Platform step-up auth + CSP — TC-PA-STEPUP-* (PR-10).
-
-Покрывает:
-  • POST /api/platform/mfa/step-up — TOTP-method, audit, freshness.
-  • Critical action (free-license-grant, backup-snapshot, cleanup-deleted,
-    tenant-override) → 403 step_up_required без свежего step-up.
-  • Replay critical action после step-up → 200.
-  • CSP-headers и связанные security-headers на /platform/dashboard.
-
-Hard rules: hard assert, single canonical field.
-"""
+"""Platform step-up auth + CSP — TC-PA-STEPUP-* (PR-10)."""
 
 from __future__ import annotations
 
@@ -18,10 +8,12 @@ import allure
 import pyotp
 
 from api import mfa_api, platform_api, routes
+from assertions.base import should
 from config.constants import make_email
 from fixtures.users import setup_and_verify_mfa
 from framework.response import expect_response
 from framework.step import step
+from src.texts import ErrMsg
 
 
 @allure.title("Step-up: критичное действие без подтверждения — 403")
@@ -39,8 +31,7 @@ def test_grant_license_403_step_up_required_without_step_up(
             json={"email": make_email("stepup-target")},
         )
         expect_response(r, label="grant without step-up").status(HTTPStatus.FORBIDDEN)
-        assert "step_up_required" in r.text, \
-            f"expected 'step_up_required' in response: {r.text[:200]}"
+        should.contain(r.text, "step_up_required", ErrMsg.step_up_required_missing)
 
 
 @allure.title("Step-up: TOTP-подтверждение разблокирует выдачу лицензии")
@@ -105,14 +96,11 @@ def test_step_up_writes_audit_event(superadmin_user, tenant_client) -> None:
         audit = platform_api.get_audit_log(api, action="step_up_verified", limit=5)
 
     with step("проверка: запись step_up_verified с method=totp"):
-        assert len(audit.items) >= 1, \
-            f"expected at least 1 audit item, got {len(audit.items)}"
+        should.greater_or_equal(len(audit.items), 1, ErrMsg.step_up_audit_missing)
         first = audit.items[0]
-        assert first.action == "step_up_verified", \
-            f"action: expected 'step_up_verified', got {first.action!r}"
+        should.be_equal(first.action, "step_up_verified", ErrMsg.audit_action_wrong)
         payload = first.model_extra.get("payload", {})
-        assert payload.get("method") == "totp", \
-            f"method: expected 'totp', got {payload.get('method')!r}"
+        should.be_equal(payload.get("method"), "totp", ErrMsg.step_up_method_wrong)
 
 
 @allure.title("Step-up: резервный код работает как метод подтверждения")
@@ -130,11 +118,6 @@ def test_recovery_redeem_works_as_step_up_method(superadmin_user, tenant_client)
         expect_response(r, label="step-up recovery").status_ok().json_eq("status", "ok")
 
 
-# ─────────────────────────────────────────────────────────────────────
-# CSP / security headers на дашборде
-# ─────────────────────────────────────────────────────────────────────
-
-
 @allure.title("CSP: дашборд возвращает Content-Security-Policy заголовок")
 def test_dashboard_returns_csp_header(superadmin_user, tenant_client) -> None:
     """TC-PA-STEPUP-7: GET /platform/dashboard → Content-Security-Policy установлен."""
@@ -144,13 +127,13 @@ def test_dashboard_returns_csp_header(superadmin_user, tenant_client) -> None:
         csp = r.headers.get("content-security-policy", "")
 
     with step("проверка: CSP содержит канонические директивы"):
-        assert csp, "Content-Security-Policy header missing"
+        should.be_true(csp, ErrMsg.csp_missing)
         for directive in (
             "default-src 'self'",
             "frame-ancestors 'none'",
             "base-uri 'self'",
         ):
-            assert directive in csp, f"CSP missing directive: {directive!r} (got: {csp!r})"
+            should.contain(csp, directive, ErrMsg.csp_directive_missing)
 
 
 @allure.title("Безопасность: X-Frame-Options = DENY на дашборде")
@@ -161,8 +144,7 @@ def test_dashboard_returns_x_frame_options_deny(superadmin_user, tenant_client) 
         expect_response(r, label="GET dashboard").status_ok()
 
     with step("проверка: X-Frame-Options = DENY"):
-        assert r.headers.get("x-frame-options", "").upper() == "DENY", \
-            f"X-Frame-Options: expected 'DENY', got {r.headers.get('x-frame-options')!r}"
+        should.be_equal(r.headers.get("x-frame-options", "").upper(), "DENY", ErrMsg.security_header_wrong)
 
 
 @allure.title("Безопасность: Referrer-Policy = no-referrer на дашборде")
@@ -173,23 +155,17 @@ def test_dashboard_returns_referrer_policy_no_referrer(superadmin_user, tenant_c
         expect_response(r, label="GET dashboard").status_ok()
 
     with step("проверка: Referrer-Policy = no-referrer"):
-        assert r.headers.get("referrer-policy", "").lower() == "no-referrer", \
-            f"Referrer-Policy: expected 'no-referrer', got {r.headers.get('referrer-policy')!r}"
+        should.be_equal(r.headers.get("referrer-policy", "").lower(), "no-referrer", ErrMsg.security_header_wrong)
 
 
 @allure.title("Безопасность: Permissions-Policy разрешает WebAuthn")
 def test_dashboard_returns_permissions_policy_for_webauthn(superadmin_user, tenant_client) -> None:
-    """TC-PA-STEPUP-10: Permissions-Policy разрешает publickey-credentials.
-
-    Без этого WebAuthn-вызовы из JS блокируются современными браузерами.
-    """
+    """TC-PA-STEPUP-10: Permissions-Policy разрешает publickey-credentials."""
     with step("действие: запрашиваем дашборд"):
         r = tenant_client(superadmin_user).get("/platform/dashboard")
         expect_response(r, label="GET dashboard").status_ok()
         pp = r.headers.get("permissions-policy", "")
 
     with step("проверка: publickey-credentials-get и -create разрешены"):
-        assert "publickey-credentials-get" in pp, \
-            f"Permissions-Policy must allow webauthn get, got: {pp!r}"
-        assert "publickey-credentials-create" in pp, \
-            f"Permissions-Policy must allow webauthn create, got: {pp!r}"
+        should.contain(pp, "publickey-credentials-get", ErrMsg.permissions_policy_wrong)
+        should.contain(pp, "publickey-credentials-create", ErrMsg.permissions_policy_wrong)

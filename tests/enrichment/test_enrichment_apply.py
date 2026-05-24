@@ -1,9 +1,4 @@
-"""Enrichment-apply journey — accept an AI result into the card, revert it.
-
-Owner runs AI enrichment on the demo-self card (mock AI), accepts a
-hypothesis → it shows as a chip in the card → reverts it → the chip is
-gone.
-"""
+"""Enrichment-apply journey — принятие AI-гипотезы и откат через UI."""
 
 from __future__ import annotations
 
@@ -11,6 +6,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from api import enrichment_api, routes
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
 from models.enrichment import EnrichJobResponse
@@ -25,8 +21,7 @@ from src.texts import Enrichment, ErrMsg, TestData, t
 def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
     owner_page: Page, owner_user, grant_ai_consent,
 ) -> None:
-    """Owner runs AI enrichment, accepts a hypothesis → it appears as a
-    chip in the card; reverts it → the chip is gone."""
+    """Owner принимает AI-гипотезу → chip в карточке → откат → chip исчез."""
     with step("подготовка: consent и открытие профиля"):
         grant_ai_consent(owner_user)
 
@@ -36,7 +31,6 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
     with step("действие: запуск enrichment и принятие гипотезы"):
         panel.trigger_enrichment()
 
-        # First enrich click → GDPR consent confirmDialog → run it.
         dialog = ConfirmDialog(owner_page)
         dialog.expect_visible()
         dialog.confirm()
@@ -52,13 +46,12 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
         expect(accepted, ErrMsg.element_not_visible).to_be_visible()
         # no semantic: data-testid element, no role
         chips = accepted.locator('[data-testid="profile-ai-chip"]')
-        # Accepting the hypothesis writes its claim + reasoning as 2 chips.
         expect(chips, ErrMsg.wrong_count).to_have_count(2)
 
     with step("действие: откат принятой гипотезы"):
         # no semantic: data-testid element, no role
         chips.first.locator('[data-testid="profile-ai-chip-revert"]').click()
-        # revert opens a prompt for an optional reason — confirm it.
+        # no semantic: кнопка отката в prompt
         owner_page.get_by_role(
             "button", name=t(Enrichment.REVERT_OK), exact=True
         ).click()
@@ -71,10 +64,7 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
 def test_enrichment_cache_and_health_invariants(
     owner_user, grant_ai_consent, tenant_client,
 ) -> None:
-    """After an enrichment job finishes, its result is retrievable from
-    the cache by id, and the api-key health endpoint reports its
-    configuration. Neither has a dedicated UI — backend-invariant checks.
-    """
+    """Кэш отдаёт результат по id, health отвечает, feedback и letters принимаются."""
     with step("подготовка: consent и запуск enrichment job"):
         grant_ai_consent(owner_user)
         api = tenant_client(owner_user)
@@ -84,18 +74,16 @@ def test_enrichment_cache_and_health_invariants(
     with step("действие: polling до завершения job"):
         final = enrichment_api.poll_enrichment_job(api, started.job_id)
         enrichment_id = final.enrichment_id
-        assert enrichment_id is not None, "enrichment job did not finish in time"
+        should.not_none(enrichment_id, ErrMsg.enrichment_id_missing)
 
     with step("проверка: кэш, health, feedback и letters-sent"):
         cached = api.get(routes.enrich_cache(enrichment_id))
         cached_job = expect_response(cached, label="GET enrich cache").status_ok().schema(EnrichJobResponse)
-        assert cached_job.enrichment_id == enrichment_id, \
-            f"cache enrichment_id: expected {enrichment_id}, got {cached_job.enrichment_id}"
+        should.be_equal(cached_job.enrichment_id, enrichment_id, ErrMsg.enrichment_cache_id_mismatch)
 
         health = api.get(routes.ENRICH_HEALTH_API_KEY)
         expect_response(health, label="GET enrich health").status_ok().json_has("configured")
 
-        # Feedback + letter-sent telemetry — both keyed on the enrichment id.
         feedback = api.post(routes.enrich_feedback(TestData.DEMO_PERSON_ID), json={
             "enrichment_id": enrichment_id, "feedback_type": "overall", "thumb": "up",
         })

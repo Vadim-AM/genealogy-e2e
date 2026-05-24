@@ -1,7 +1,4 @@
-"""Login flow (этап 3 funnel).
-
-Covers: F-LG-1..4, X-LG-1..4, S-LG-1..2.
-"""
+"""Login flow — F-LG-1..4, X-LG-1..4, S-LG-1..2."""
 
 from __future__ import annotations
 
@@ -13,6 +10,7 @@ import httpx
 from playwright.sync_api import Page, expect
 
 from api import routes
+from assertions.base import should
 from config.timeouts import TIMEOUTS
 from framework.response import expect_response
 from framework.step import step
@@ -25,7 +23,7 @@ if TYPE_CHECKING:
 
 @allure.title("Форма логина содержит поля email, пароль и кнопку входа")
 def test_login_form_renders(anon_pages: PageFactory) -> None:
-    """F-LG-1, X-LG-1..4: /login renders email + password + submit."""
+    """F-LG-1, X-LG-1..4: /login рендерит email + password + submit."""
     login = anon_pages.navigate_to(LoginPage)
     login.expect_visible_form()
 
@@ -34,29 +32,28 @@ def test_login_form_renders(anon_pages: PageFactory) -> None:
 def test_login_with_correct_credentials_succeeds(
     page: Page, base_url: str, owner_user, anon_pages: PageFactory
 ) -> None:
-    """F-LG-1, F-LG-4: correct credentials → session cookie + /me returns tenant."""
+    """F-LG-1, F-LG-4: правильные credentials → session cookie + /me возвращает tenant."""
     with step("действие: вход с правильными credentials"):
         login = anon_pages.navigate_to(LoginPage)
 
         with page.expect_response("**/api/account/login") as resp_info:
             login.login(owner_user.email, owner_user.password)
-        assert resp_info.value.ok, f"login response not ok: {resp_info.value.status}"
+        should.playwright_ok(resp_info.value, ErrMsg.login_response_not_ok)
 
     with step("проверка: session cookie установлена"):
         cookies = {c["name"]: c["value"] for c in page.context.cookies()}
         session_cookie = cookies.get("platform_session") or cookies.get("session_id")
-        assert session_cookie, f"no platform_session/session_id cookie set after login: {cookies}"
+        should.be_true(session_cookie, ErrMsg.login_cookie_missing)
 
     with step("проверка: /me возвращает правильный tenant"):
         me = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", cookies=cookies)
         expect_response(me, label="/me after login").status_ok()
-        assert me.json()["tenant"]["slug"] == owner_user.slug, \
-            f"/me tenant slug: expected {owner_user.slug!r}, got {me.json()['tenant']['slug']!r}"
+        should.be_equal(me.json()["tenant"]["slug"], owner_user.slug, ErrMsg.login_slug_mismatch)
 
 
 @allure.title("Неверный пароль показывает ошибку на странице логина")
 def test_login_with_wrong_password_shows_error(page: Page, owner_user, anon_pages: PageFactory) -> None:
-    """S-LG-1: wrong credentials → visible inline error, no redirect away from /login."""
+    """S-LG-1: неверные credentials → inline error, без redirect с /login."""
     with step("действие: вход с неверным паролем"):
         login = anon_pages.navigate_to(LoginPage)
         login.login(owner_user.email, "wrong_password_xyz")
@@ -70,14 +67,7 @@ def test_login_with_wrong_password_shows_error(page: Page, owner_user, anon_page
 def test_login_unknown_email_returns_same_error_as_wrong_password(
     page: Page, owner_user, anon_pages: PageFactory
 ) -> None:
-    """S-LG-1, S-SU-2: unknown email vs wrong password — identical error text.
-
-    No reverse-engineerable signal that an account does/does-not exist.
-    """
-    # `to_be_visible` пройдёт, пока элемент ещё рендерит свой текст;
-    # под `-n auto` при параллельной нагрузке эта гонка даёт ложный пустой
-    # `text_content()`. Ждём непустой текст, чтобы сравнение было
-    # между двумя устоявшимися строками.
+    """S-LG-1, S-SU-2: unknown email vs wrong password — одинаковый текст ошибки."""
     _NON_EMPTY = re.compile(r"\S")
 
     with step("действие: вход с неверным паролем для известного email"):
@@ -95,15 +85,12 @@ def test_login_unknown_email_returns_same_error_as_wrong_password(
         msg_unknown = login_unknown.error_msg.text_content()
 
     with step("проверка: тексты ошибок идентичны (anti-enumeration)"):
-        assert msg_known == msg_unknown, (
-            f"login error texts differ — possible enumeration leak.\n"
-            f"  known:   {msg_known!r}\n  unknown: {msg_unknown!r}"
-        )
+        should.be_equal(msg_known, msg_unknown, ErrMsg.login_error_texts_differ)
 
 
 @allure.title("Страница логина содержит ссылки на регистрацию и сброс пароля")
 def test_login_links_to_signup_and_forgot(page: Page, anon_pages: PageFactory) -> None:
-    """X-LG-1, X-LG-2: signup and forgot-password links visible on /login."""
+    """X-LG-1, X-LG-2: ссылки на регистрацию и сброс пароля видны на /login."""
     with step("действие: переход на /login"):
         _ = anon_pages.navigate_to(LoginPage)
 

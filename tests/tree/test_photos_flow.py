@@ -1,23 +1,4 @@
-"""TC-08.01, TC-08.02, TC-08.11 — Photos UI flow в person-editor.
-
-Editor содержит блок `.photos-block` (рендерится `js/components/photos-block.js`):
-- `#photoFileInput` (input type=file, accept=image/*, visually-hidden) — file chooser
-- `#photoAddBtn` (label[for=photoFileInput]) — кнопка «Добавить фото»
-- `#photoUploadZone` — drag-drop зона
-- `#photoGrid` — рендер списка существующих фото; каждый thumb — `.photo-thumb`
-  с `data-photo-index`/`data-photo-id` и крестик `.photo-remove`
-
-Backend: POST /api/admin/upload-photo (multipart) → возвращает path,
-который JS добавляет в `currentPhotos[]` и перерендеривает grid. Hard-delete:
-PATCH /api/admin/people/{id} с `{photos: <без удалённой>}`.
-
-Backend-уровень покрыт `genealogy/backend/tests/test_photo_upload.py`
-(MIME валидация, EXIF orientation, storage cap, permissions). Здесь —
-UI flow: input file → thumb появился, крестик → thumb убран.
-
-Note: admin/people.js использует другой `renderPhotoBlock` с обёрткой
-`#photoManager` — это legacy /admin путь, не покрывается этим файлом.
-"""
+"""TC-08: Photos UI flow — upload, thumb, remove в person-editor."""
 
 from __future__ import annotations
 
@@ -28,6 +9,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from api import routes
+from assertions.base import should
 from framework.step import step
 from helpers.tree.photos import upload_jpeg
 from pages.photos_block import PhotosBlock
@@ -37,9 +19,7 @@ from src.texts import Buttons, ErrMsg, t
 
 @allure.title("Блок фото отображается в редакторе с кнопкой добавления")
 def test_photos_block_renders_inside_editor(owner_page: Page) -> None:
-    """TC-08.01 (precondition): `.photos-block` есть в editor'е,
-    содержит file-input + label-кнопку «Добавить фото» + drag-drop zone.
-    """
+    """Photos-block содержит file-input и кнопку добавления."""
     with step("действие: открытие редактора"):
         open_editor_for(owner_page)
         photos = PhotosBlock(owner_page)
@@ -48,25 +28,16 @@ def test_photos_block_renders_inside_editor(owner_page: Page) -> None:
         expect(photos.container, ErrMsg.photo_not_visible).to_be_visible()
         expect(photos.add_btn, ErrMsg.button_not_visible).to_be_visible()
         expect(photos.add_btn, ErrMsg.wrong_text_content).to_contain_text(t(Buttons.ADD))
-        assert photos.add_btn.get_attribute("for") == "photoFileInput", (
-            "label#photoAddBtn должен иметь for=photoFileInput для нативного "
-            "click-to-open-file-chooser flow"
-        )
+        should.be_equal(photos.add_btn.get_attribute("for"), "photoFileInput", ErrMsg.photo_label_for_wrong)
 
-        assert photos.file_input.count() == 1, "ожидаем ровно один #photoFileInput"
+        should.be_equal(photos.file_input.count(), 1, ErrMsg.photo_input_count_wrong)
         accept = photos.file_input.get_attribute("accept")
-        assert accept and "image" in accept, (
-            f"#photoFileInput accept должен фильтровать images; got accept={accept!r}"
-        )
+        should.be_true(accept and "image" in accept, ErrMsg.photo_accept_wrong)
 
 
 @allure.title("Загрузка фото добавляет миниатюру в сетку")
 def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page) -> None:
-    """TC-08.02: set_input_files с JPEG → POST /api/admin/upload-photo
-    → backend отвечает path → JS добавляет в #photoGrid новый
-    `.photo-thumb`. Перед upload — `<span>Нет фото</span>` placeholder
-    или пустой grid (в зависимости от seed).
-    """
+    """Upload JPEG через file-input добавляет thumb в grid."""
     with step("подготовка: открытие редактора и подсчёт миниатюр"):
         open_editor_for(owner_page)
         photos = PhotosBlock(owner_page)
@@ -83,10 +54,7 @@ def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page) -> 
 
 @allure.title("Удаление фото убирает миниатюру из сетки")
 def test_photo_remove_button_drops_thumb_from_grid(owner_page: Page) -> None:
-    """TC-08.11: после upload click `.photo-remove` → PATCH
-    /api/admin/people/{id} (photos без удалённой) → JS перерендеривает
-    grid — thumb count уменьшается обратно.
-    """
+    """Удаление thumb через .photo-remove уменьшает count обратно."""
     with step("подготовка: открыть редактор и загрузить фото"):
         open_editor_for(owner_page)
         photos = PhotosBlock(owner_page)
