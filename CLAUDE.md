@@ -284,7 +284,11 @@ The suite runs in two passes (see "Running locally"):
 
 `serial` is auto-applied in root `conftest.py` (fixture-based, precise):
 a test is serial iff it pulls `superadmin_user` **or** lives in
-`_SERIAL_FILES` (`test_ai_disabled_flow.py`, `test_security_timing.py`).
+`_SERIAL_FILES` (domain-qualified paths: `enrichment/test_ai_disabled_flow.py`,
+`security/test_security_timing.py`, `admin/test_gedcom_import_deep.py`,
+`admin/test_gedcom_import_ui.py`, `ui/test_mobile_smoke.py`,
+`auth/test_logout.py`, `enrichment/test_enrichment_apply.py`). A stale
+entry triggers a pytest warning at collection time.
 
 **The rule:** if a test mutates shared stand/backend state (platform
 settings, the global `enable_ai_search` flag, MFA/audit/feature-flags,
@@ -696,7 +700,7 @@ genealogy-e2e/
 │   ├── auth/, tree/, platform/, admin/, security/, enrichment/, ui/
 │   ├── test_smoke.py, test_regressions.py, test_api_coverage.py, test_api_invariants.py
 ├── conftest.py               # root: loads fixtures/* plugins + path→marker rule
-├── scripts/check_drift.py    # Lints rules #5/#9 against tests/ + pages/ + helpers/
+├── scripts/check_drift.py    # Lints rules #5/#8/#10 against tests/ + pages/ + helpers/
 ├── pyproject.toml            # deps, pytest config, ruff, mypy
 └── .github/workflows/pr-check.yml
 ```
@@ -708,10 +712,11 @@ with `pytest -m auth`, `pytest -m security`, etc. — no per-file marker lines.
 ## Drift enforcement
 
 `scripts/check_drift.py` lints `tests/`, `pages/`, and `helpers/`
-against rules #5 and #9 — runs in CI as a pre-pytest step. Catches
+against rules #5, #8, and #10 — runs in CI as a pre-pytest step. Catches
 `page.wait_for_timeout()`, hardcoded `time.sleep(N)`, `timeout=N` literals,
-and raw `'/api/...'` strings. Whitelist legitimate uses (e.g. router-shape
-parametrize lists) with a trailing `# noqa: drift` comment.
+raw `'/api/...'` strings, and raw `.json()` calls in test files (must use
+`.schema(Model)` or typed helpers). Docstring-aware: skips triple-quoted
+blocks. Whitelist legitimate uses with a trailing `# noqa: drift` comment.
 
 ## Running locally
 
@@ -787,10 +792,10 @@ full block above before triaging failures as regressions.
 ## Key fixtures
 
 - `owner_user` — fully signed-up + verified + onboarding-completed user via
-  `signup_via_api()`. Default email `owner@e2e.example.com`, default
-  `full_name="Тестовый Пользователь"` (also becomes the tenant's
-  `display_name` and the demo-self person's `name` — search/profile tests
-  rely on this).
+  `signup_via_api()`. Email is UUID-suffixed (`owner-<hex8>@e2e.example.com`)
+  for parallel isolation; default `full_name="Тестовый Пользователь"` (also
+  becomes the tenant's `display_name` and the demo-self person's `name` —
+  search/profile tests rely on this).
 - `superadmin_user` — same flow but with `super@e2e.example.com` (matches
   `PLATFORM_SUPERADMIN_EMAILS` env).
 - `owner_page` — Playwright `Page` inside an authenticated `BrowserContext`

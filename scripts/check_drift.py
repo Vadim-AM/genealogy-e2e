@@ -8,8 +8,8 @@ Catches violations of:
   - `timeout=N` literal — use `TIMEOUTS.api_*` / `TIMEOUTS.pw_*`
 - **Rule #8** (no raw `.json()` in tests):
   - `.json()` in test files — use `.schema(Model)` or typed API helper
-- **Rule #9** (no raw URL strings):
-  - `'/api/...'` literal — use `API.*` from `tests/api_paths.py`
+- **Rule #10** (no raw URL strings):
+  - `'/api/...'` literal — use `routes.*` from `api/routes.py`
 
 Whitelist a single line by appending `# noqa: drift`.
 
