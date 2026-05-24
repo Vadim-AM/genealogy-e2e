@@ -23,11 +23,31 @@ class PhotosBlock:
 
     def __init__(self, page: Page):
         self.page = page
-        self.container = page.locator('[data-testid="photos-block"]')  # no semantic: photo container, no ARIA
-        self.add_btn = page.locator("#photoAddBtn")  # no semantic: upload widget, no role
-        self.file_input = page.locator("#photoFileInput")  # no semantic: hidden file input, no label
-        self.grid = page.locator("#photoGrid")  # no semantic: photo container, no ARIA
-        self.thumbs = self.grid.locator('[data-testid="photo-thumb"]')  # no semantic: photo container, no ARIA
+
+    @property
+    def container(self) -> Locator:
+        """no semantic: photo container, no ARIA"""
+        return self.page.locator('[data-testid="photos-block"]')
+
+    @property
+    def add_btn(self) -> Locator:
+        """no semantic: upload widget, no role"""
+        return self.page.locator("#photoAddBtn")
+
+    @property
+    def file_input(self) -> Locator:
+        """no semantic: hidden file input, no label"""
+        return self.page.locator("#photoFileInput")
+
+    @property
+    def grid(self) -> Locator:
+        """no semantic: photo container, no ARIA"""
+        return self.page.locator("#photoGrid")
+
+    @property
+    def thumbs(self) -> Locator:
+        """no semantic: photo container, no ARIA"""
+        return self.grid.locator('[data-testid="photo-thumb"]')
 
     def thumb_count(self) -> int:
         """Return the current number of photo thumbnails."""

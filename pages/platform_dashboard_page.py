@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Self
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 from .base import BasePage
 
@@ -24,97 +24,374 @@ class PlatformDashboardPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        # ── Original metric cards (TC-PA-2 contract) ─────────────────
-        self.m_tenants = page.locator("#m_tenants")  # no semantic: metric cell, no ARIA
-        self.m_signups = page.locator("#m_signups")  # no semantic: metric cell, no ARIA
-        self.m_signups_7 = page.locator("#m_signups7")  # no semantic: metric cell, no ARIA
-        self.m_signups_30 = page.locator("#m_signups30")  # no semantic: metric cell, no ARIA
-        self.m_subs = page.locator("#m_subs")  # no semantic: metric cell, no ARIA
-        self.m_cap = page.locator("#m_cap")  # no semantic: metric cell, no ARIA
-        self.tenants_table = page.locator("#tenants_table")  # no semantic: data table, no ARIA role
-        self.acq_signup_table = page.locator("#acq_signup_table")  # no semantic: data table, no ARIA role
-        self.acq_waitlist_table = page.locator("#acq_waitlist_table")  # no semantic: data table, no ARIA role
-        self.grant_email = page.locator("#grant_email")  # no semantic: input without label
-        self.grant_btn = page.locator("#grant_btn")  # no semantic: button without accessible name
-        self.grant_msg = page.locator("#grant_msg")  # no semantic: status text, no ARIA
 
-        # ── PR-4 funnel-detail (replaces old textContent funnel) ─────
-        self.funnel_list = page.locator("#funnel_list")  # no semantic: widget container, no ARIA
+    # ── Original metric cards (TC-PA-2 contract) ─────────────────
 
-        # ── PR-1 device-mix ──────────────────────────────────────────
-        self.device_donut = page.locator("#donut_device")  # no semantic: chart element, no ARIA
-        self.os_donut = page.locator("#donut_os")  # no semantic: chart element, no ARIA
-        self.browser_donut = page.locator("#donut_browser")  # no semantic: chart element, no ARIA
-        self.device_legend = page.locator("#legend_device")  # no semantic: chart legend, no ARIA
-        self.conv_device_table = page.locator("#conv_device_table")  # no semantic: data table, no ARIA role
-        self.device_days_select = page.locator("#device_days")  # no semantic: select without label
+    @property
+    def m_tenants(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#m_tenants")
 
-        # ── PR-2 activity-heatmap ────────────────────────────────────
-        self.heatmap_table = page.locator("#heatmap_table")  # no semantic: data table, no ARIA role
-        self.heatmap_days = page.locator("#heatmap_days")  # no semantic: select without label
-        self.heatmap_tz = page.locator("#heatmap_tz")  # no semantic: select without label
-        self.heatmap_legend = page.locator("#heatmap_legend")  # no semantic: legend container, no ARIA
-        self.heatmap_top = page.locator("#heatmap_top")  # no semantic: summary container, no ARIA
+    @property
+    def m_signups(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#m_signups")
 
-        # ── PR-3 online + session stats ──────────────────────────────
-        self.online_5m = page.locator("#online_5m")  # no semantic: metric cell, no ARIA
-        self.online_1h = page.locator("#online_1h")  # no semantic: metric cell, no ARIA
-        self.online_spark = page.locator("#online_spark")  # no semantic: sparkline chart, no ARIA
-        self.ss_total = page.locator("#ss_total")  # no semantic: metric cell, no ARIA
-        self.ss_median = page.locator("#ss_median")  # no semantic: metric cell, no ARIA
-        self.ss_p75 = page.locator("#ss_p75")  # no semantic: metric cell, no ARIA
-        self.ss_pages = page.locator("#ss_pages")  # no semantic: metric cell, no ARIA
-        self.ss_bounce = page.locator("#ss_bounce")  # no semantic: metric cell, no ARIA
-        self.session_days = page.locator("#session_days")  # no semantic: select without label
+    @property
+    def m_signups_7(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#m_signups7")
 
-        # ── PR-4 retention + time-to-aha ─────────────────────────────
-        self.cohort_table = page.locator("#cohort_table")  # no semantic: data table, no ARIA role
-        self.retention_weeks = page.locator("#retention_weeks")  # no semantic: select without label
-        self.tta_p25 = page.locator("#tta_p25")  # no semantic: metric cell, no ARIA
-        self.tta_p50 = page.locator("#tta_p50")  # no semantic: metric cell, no ARIA
-        self.tta_p75 = page.locator("#tta_p75")  # no semantic: metric cell, no ARIA
-        self.tta_p95 = page.locator("#tta_p95")  # no semantic: metric cell, no ARIA
-        self.tta_hist = page.locator("#tta_hist")  # no semantic: chart element, no ARIA
-        self.tta_days = page.locator("#tta_days")  # no semantic: select without label
+    @property
+    def m_signups_30(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#m_signups30")
 
-        # ── PR-5 audit log ───────────────────────────────────────────
-        self.audit_table = page.locator("#audit_table")  # no semantic: data table, no ARIA role
-        self.audit_filter = page.locator("#audit_action_filter")  # no semantic: select without label
-        self.audit_reload = page.locator("#audit_reload")  # no semantic: button without accessible name
+    @property
+    def m_subs(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#m_subs")
 
-        # ── PR-6 alerts banner + health pills ────────────────────────
-        self.alerts_banner = page.locator("#alerts_banner")  # no semantic: alert container, no ARIA role
-        self.health_row = page.locator("#health_row")  # no semantic: status container, no ARIA
+    @property
+    def m_cap(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#m_cap")
 
-        # ── PR-7..9 MFA modals ───────────────────────────────────────
-        self.mfa_overlay = page.locator("#mfa_overlay")  # no semantic: overlay backdrop, no ARIA
-        self.mfa_setup_modal = page.locator("#mfa_modal_setup")  # no semantic: modal without role=dialog
-        self.mfa_verify_modal = page.locator("#mfa_modal_verify")  # no semantic: modal without role=dialog
-        self.mfa_recovery_modal = page.locator("#mfa_modal_recovery")  # no semantic: modal without role=dialog
-        self.mfa_codes_modal = page.locator("#mfa_modal_codes")  # no semantic: modal without role=dialog
-        self.mfa_setup_webauthn_btn = page.locator("#mfa_setup_webauthn")  # no semantic: button without accessible name
-        self.mfa_setup_uri = page.locator("#mfa_setup_uri")  # no semantic: URI display, no ARIA
-        self.mfa_setup_secret = page.locator("#mfa_setup_secret")  # no semantic: secret display, no ARIA
-        self.mfa_setup_code = page.locator("#mfa_setup_code")  # no semantic: TOTP input without label
-        self.mfa_setup_submit = page.locator("#mfa_setup_submit")  # no semantic: button without accessible name
-        # no semantic: button without accessible name
-        self.mfa_verify_webauthn_btn = page.locator("#mfa_verify_webauthn")
-        self.mfa_verify_code = page.locator("#mfa_verify_code")  # no semantic: TOTP input without label
-        self.mfa_verify_submit = page.locator("#mfa_verify_submit")  # no semantic: button without accessible name
-        self.mfa_use_recovery_btn = page.locator("#mfa_use_recovery")  # no semantic: button without accessible name
-        self.mfa_recovery_code_input = page.locator("#mfa_recovery_code")  # no semantic: recovery input without label
-        self.mfa_recovery_submit = page.locator("#mfa_recovery_submit")  # no semantic: button without accessible name
-        self.mfa_codes_list = page.locator("#mfa_codes_list")  # no semantic: code list container, no ARIA
-        self.mfa_codes_done = page.locator("#mfa_codes_done")  # no semantic: button without accessible name
+    @property
+    def tenants_table(self) -> Locator:
+        """no semantic: data table, no ARIA role"""
+        return self.page.locator("#tenants_table")
 
-        # ── PR-10 step-up modal ──────────────────────────────────────
-        self.stepup_modal = page.locator("#mfa_modal_stepup")  # no semantic: modal without role=dialog
-        self.stepup_webauthn_btn = page.locator("#stepup_webauthn")  # no semantic: button without accessible name
-        self.stepup_code = page.locator("#stepup_code")  # no semantic: TOTP input without label
-        self.stepup_submit_totp = page.locator("#stepup_submit_totp")  # no semantic: button without accessible name
-        self.stepup_cancel = page.locator("#stepup_cancel")  # no semantic: button without accessible name
+    @property
+    def acq_signup_table(self) -> Locator:
+        """no semantic: data table, no ARIA role"""
+        return self.page.locator("#acq_signup_table")
+
+    @property
+    def acq_waitlist_table(self) -> Locator:
+        """no semantic: data table, no ARIA role"""
+        return self.page.locator("#acq_waitlist_table")
+
+    @property
+    def grant_email(self) -> Locator:
+        """no semantic: input without label"""
+        return self.page.locator("#grant_email")
+
+    @property
+    def grant_btn(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#grant_btn")
+
+    @property
+    def grant_msg(self) -> Locator:
+        """no semantic: status text, no ARIA"""
+        return self.page.locator("#grant_msg")
+
+    # ── PR-4 funnel-detail (replaces old textContent funnel) ─────
+
+    @property
+    def funnel_list(self) -> Locator:
+        """no semantic: widget container, no ARIA"""
+        return self.page.locator("#funnel_list")
+
+    # ── PR-1 device-mix ──────────────────────────────────────────
+
+    @property
+    def device_donut(self) -> Locator:
+        """no semantic: chart element, no ARIA"""
+        return self.page.locator("#donut_device")
+
+    @property
+    def os_donut(self) -> Locator:
+        """no semantic: chart element, no ARIA"""
+        return self.page.locator("#donut_os")
+
+    @property
+    def browser_donut(self) -> Locator:
+        """no semantic: chart element, no ARIA"""
+        return self.page.locator("#donut_browser")
+
+    @property
+    def device_legend(self) -> Locator:
+        """no semantic: chart legend, no ARIA"""
+        return self.page.locator("#legend_device")
+
+    @property
+    def conv_device_table(self) -> Locator:
+        """no semantic: data table, no ARIA role"""
+        return self.page.locator("#conv_device_table")
+
+    @property
+    def device_days_select(self) -> Locator:
+        """no semantic: select without label"""
+        return self.page.locator("#device_days")
+
+    # ── PR-2 activity-heatmap ────────────────────────────────────
+
+    @property
+    def heatmap_table(self) -> Locator:
+        """no semantic: data table, no ARIA role"""
+        return self.page.locator("#heatmap_table")
+
+    @property
+    def heatmap_days(self) -> Locator:
+        """no semantic: select without label"""
+        return self.page.locator("#heatmap_days")
+
+    @property
+    def heatmap_tz(self) -> Locator:
+        """no semantic: select without label"""
+        return self.page.locator("#heatmap_tz")
+
+    @property
+    def heatmap_legend(self) -> Locator:
+        """no semantic: legend container, no ARIA"""
+        return self.page.locator("#heatmap_legend")
+
+    @property
+    def heatmap_top(self) -> Locator:
+        """no semantic: summary container, no ARIA"""
+        return self.page.locator("#heatmap_top")
+
+    # ── PR-3 online + session stats ──────────────────────────────
+
+    @property
+    def online_5m(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#online_5m")
+
+    @property
+    def online_1h(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#online_1h")
+
+    @property
+    def online_spark(self) -> Locator:
+        """no semantic: sparkline chart, no ARIA"""
+        return self.page.locator("#online_spark")
+
+    @property
+    def ss_total(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#ss_total")
+
+    @property
+    def ss_median(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#ss_median")
+
+    @property
+    def ss_p75(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#ss_p75")
+
+    @property
+    def ss_pages(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#ss_pages")
+
+    @property
+    def ss_bounce(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#ss_bounce")
+
+    @property
+    def session_days(self) -> Locator:
+        """no semantic: select without label"""
+        return self.page.locator("#session_days")
+
+    # ── PR-4 retention + time-to-aha ─────────────────────────────
+
+    @property
+    def cohort_table(self) -> Locator:
+        """no semantic: data table, no ARIA role"""
+        return self.page.locator("#cohort_table")
+
+    @property
+    def retention_weeks(self) -> Locator:
+        """no semantic: select without label"""
+        return self.page.locator("#retention_weeks")
+
+    @property
+    def tta_p25(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#tta_p25")
+
+    @property
+    def tta_p50(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#tta_p50")
+
+    @property
+    def tta_p75(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#tta_p75")
+
+    @property
+    def tta_p95(self) -> Locator:
+        """no semantic: metric cell, no ARIA"""
+        return self.page.locator("#tta_p95")
+
+    @property
+    def tta_hist(self) -> Locator:
+        """no semantic: chart element, no ARIA"""
+        return self.page.locator("#tta_hist")
+
+    @property
+    def tta_days(self) -> Locator:
+        """no semantic: select without label"""
+        return self.page.locator("#tta_days")
+
+    # ── PR-5 audit log ───────────────────────────────────────────
+
+    @property
+    def audit_table(self) -> Locator:
+        """no semantic: data table, no ARIA role"""
+        return self.page.locator("#audit_table")
+
+    @property
+    def audit_filter(self) -> Locator:
+        """no semantic: select without label"""
+        return self.page.locator("#audit_action_filter")
+
+    @property
+    def audit_reload(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#audit_reload")
+
+    # ── PR-6 alerts banner + health pills ────────────────────────
+
+    @property
+    def alerts_banner(self) -> Locator:
+        """no semantic: alert container, no ARIA role"""
+        return self.page.locator("#alerts_banner")
+
+    @property
+    def health_row(self) -> Locator:
+        """no semantic: status container, no ARIA"""
+        return self.page.locator("#health_row")
+
+    # ── PR-7..9 MFA modals ───────────────────────────────────────
+
+    @property
+    def mfa_overlay(self) -> Locator:
+        """no semantic: overlay backdrop, no ARIA"""
+        return self.page.locator("#mfa_overlay")
+
+    @property
+    def mfa_setup_modal(self) -> Locator:
+        """no semantic: modal without role=dialog"""
+        return self.page.locator("#mfa_modal_setup")
+
+    @property
+    def mfa_verify_modal(self) -> Locator:
+        """no semantic: modal without role=dialog"""
+        return self.page.locator("#mfa_modal_verify")
+
+    @property
+    def mfa_recovery_modal(self) -> Locator:
+        """no semantic: modal without role=dialog"""
+        return self.page.locator("#mfa_modal_recovery")
+
+    @property
+    def mfa_codes_modal(self) -> Locator:
+        """no semantic: modal without role=dialog"""
+        return self.page.locator("#mfa_modal_codes")
+
+    @property
+    def mfa_setup_webauthn_btn(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#mfa_setup_webauthn")
+
+    @property
+    def mfa_setup_uri(self) -> Locator:
+        """no semantic: URI display, no ARIA"""
+        return self.page.locator("#mfa_setup_uri")
+
+    @property
+    def mfa_setup_secret(self) -> Locator:
+        """no semantic: secret display, no ARIA"""
+        return self.page.locator("#mfa_setup_secret")
+
+    @property
+    def mfa_setup_code(self) -> Locator:
+        """no semantic: TOTP input without label"""
+        return self.page.locator("#mfa_setup_code")
+
+    @property
+    def mfa_setup_submit(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#mfa_setup_submit")
+
+    @property
+    def mfa_verify_webauthn_btn(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#mfa_verify_webauthn")
+
+    @property
+    def mfa_verify_code(self) -> Locator:
+        """no semantic: TOTP input without label"""
+        return self.page.locator("#mfa_verify_code")
+
+    @property
+    def mfa_verify_submit(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#mfa_verify_submit")
+
+    @property
+    def mfa_use_recovery_btn(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#mfa_use_recovery")
+
+    @property
+    def mfa_recovery_code_input(self) -> Locator:
+        """no semantic: recovery input without label"""
+        return self.page.locator("#mfa_recovery_code")
+
+    @property
+    def mfa_recovery_submit(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#mfa_recovery_submit")
+
+    @property
+    def mfa_codes_list(self) -> Locator:
+        """no semantic: code list container, no ARIA"""
+        return self.page.locator("#mfa_codes_list")
+
+    @property
+    def mfa_codes_done(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#mfa_codes_done")
+
+    # ── PR-10 step-up modal ──────────────────────────────────────
+
+    @property
+    def stepup_modal(self) -> Locator:
+        """no semantic: modal without role=dialog"""
+        return self.page.locator("#mfa_modal_stepup")
+
+    @property
+    def stepup_webauthn_btn(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#stepup_webauthn")
+
+    @property
+    def stepup_code(self) -> Locator:
+        """no semantic: TOTP input without label"""
+        return self.page.locator("#stepup_code")
+
+    @property
+    def stepup_submit_totp(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#stepup_submit_totp")
+
+    @property
+    def stepup_cancel(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#stepup_cancel")
 
     # ── Action helpers ───────────────────────────────────────────────
+
     def grant_free_license(self, email: str) -> Self:
         """Fill the grant email and click the grant button."""
         self.grant_email.fill(email)
@@ -127,10 +404,10 @@ class PlatformDashboardPage(BasePage):
             soft(loc).to_be_visible()
 
     def soft_check_phase1_widgets_present(self, soft) -> None:
-        """Smoke-чек что новые секции Phase 1 присутствуют в DOM.
+        """Smoke-check that new Phase 1 sections are present in the DOM.
 
-        Одна проверка, "все 9 виджетов на месте после bootstrap()".
-        Использует soft-assert (>=3 независимых факта).
+        One check: "all 9 widgets are present after bootstrap()".
+        Uses soft-assert (>=3 independent facts).
         """
         for loc in (
             self.device_donut,
@@ -151,5 +428,4 @@ class PlatformDashboardPage(BasePage):
 
     def expect_no_mfa_overlay(self) -> None:
         """Assert the MFA overlay is not showing."""
-        # Когда MFA пройден / отключён — overlay не должен иметь класс show
         expect(self.mfa_overlay).not_to_have_class("mfa-overlay show")

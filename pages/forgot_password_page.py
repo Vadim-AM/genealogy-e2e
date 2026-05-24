@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Self
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 from src.texts import Buttons, t
 
@@ -21,10 +21,26 @@ class ForgotPasswordPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self.form = page.locator("#fpForm")  # no semantic: form container
-        self.email = page.locator("#email")  # no semantic: no <label>
-        self.submit_btn = page.get_by_role("button", name=t(Buttons.SEND_RESET_LINK))
-        self.msg = page.get_by_role("status")
+
+    @property
+    def form(self) -> Locator:
+        """no semantic: form container"""
+        return self.page.locator("#fpForm")
+
+    @property
+    def email(self) -> Locator:
+        """no semantic: no <label>"""
+        return self.page.locator("#email")
+
+    @property
+    def submit_btn(self) -> Locator:
+        """Submit button for reset link request."""
+        return self.page.get_by_role("button", name=t(Buttons.SEND_RESET_LINK))
+
+    @property
+    def msg(self) -> Locator:
+        """Status message element."""
+        return self.page.get_by_role("status")
 
     def request_reset(self, email: str) -> Self:
         """Fill the email and submit the reset request."""
@@ -39,7 +55,7 @@ class ForgotPasswordPage(BasePage):
         expect(self.submit_btn).to_be_visible()
 
     def expect_success_message(self) -> None:
-        """`#msg.success` appears for any 2xx response — including the silent
+        """`#msg.success` appears for any 2xx response -- including the silent
         200 for unknown emails (anti-enumeration)."""
         import re
 
@@ -51,11 +67,31 @@ class ResetPasswordPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self.form = page.locator("#rpForm")  # no semantic: form container
-        self.password = page.locator("#password")  # no semantic: reset form, no label info
-        self.password2 = page.locator("#password2")  # no semantic: no label info
-        self.submit_btn = page.locator("#rpBtn")  # no semantic: button text varies by flow
-        self.msg = page.get_by_role("status")
+
+    @property
+    def form(self) -> Locator:
+        """no semantic: form container"""
+        return self.page.locator("#rpForm")
+
+    @property
+    def password(self) -> Locator:
+        """no semantic: reset form, no label info"""
+        return self.page.locator("#password")
+
+    @property
+    def password2(self) -> Locator:
+        """no semantic: no label info"""
+        return self.page.locator("#password2")
+
+    @property
+    def submit_btn(self) -> Locator:
+        """no semantic: button text varies by flow"""
+        return self.page.locator("#rpBtn")
+
+    @property
+    def msg(self) -> Locator:
+        """Status message element."""
+        return self.page.get_by_role("status")
 
     def open_with_token(self, token: str) -> Self:
         """Navigate to the reset page with the given token."""
@@ -76,7 +112,7 @@ class ResetPasswordPage(BasePage):
         expect(self.msg).to_have_class(re.compile(r"\bsuccess\b"))
 
     def expect_error_message(self) -> None:
-        """`#msg.error` — invalid/used token."""
+        """`#msg.error` -- invalid/used token."""
         import re
 
         expect(self.msg).to_have_class(re.compile(r"\berror\b"))

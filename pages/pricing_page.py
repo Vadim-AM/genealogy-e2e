@@ -19,8 +19,16 @@ class PricingPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self._cards = page.locator('[data-testid="pricing-card"], [data-testid="pricing-card-featured"]')
-        self.featured = page.locator('[data-testid="pricing-card-featured"]')
+
+    @property
+    def _cards(self) -> Locator:
+        """All pricing card locators."""
+        return self.page.locator('[data-testid="pricing-card"], [data-testid="pricing-card-featured"]')
+
+    @property
+    def featured(self) -> Locator:
+        """Featured pricing card locator."""
+        return self.page.locator('[data-testid="pricing-card-featured"]')
 
     def cards(self) -> Locator:
         """Return the locator for all pricing cards."""

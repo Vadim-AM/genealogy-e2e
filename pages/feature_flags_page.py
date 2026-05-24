@@ -21,18 +21,36 @@ class FeatureFlagsPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        # no semantic: layout container
-        self.section = page.locator("#feature_flags_section")
-        # no semantic: data-testid element, no role
-        self.groups = page.locator('[data-testid="ff-group"]')
-        # no semantic: data-testid element, no role
-        self.group_titles = page.locator('[data-testid="ff-group-title"]')
-        # no semantic: form input without label
-        self.ai_search_toggle = page.locator("#ff_enable_ai_search")
-        # no semantic: form input without label
-        self.beta_cap_input = page.locator("#set_beta_cap")
-        # no semantic: data-testid element, no role
-        self.help_icons = page.locator('#feature_flags_section [data-testid="ff-help"]')
+
+    @property
+    def section(self) -> Locator:
+        """no semantic: layout container"""
+        return self.page.locator("#feature_flags_section")
+
+    @property
+    def groups(self) -> Locator:
+        """no semantic: data-testid element, no role"""
+        return self.page.locator('[data-testid="ff-group"]')
+
+    @property
+    def group_titles(self) -> Locator:
+        """no semantic: data-testid element, no role"""
+        return self.page.locator('[data-testid="ff-group-title"]')
+
+    @property
+    def ai_search_toggle(self) -> Locator:
+        """no semantic: form input without label"""
+        return self.page.locator("#ff_enable_ai_search")
+
+    @property
+    def beta_cap_input(self) -> Locator:
+        """no semantic: form input without label"""
+        return self.page.locator("#set_beta_cap")
+
+    @property
+    def help_icons(self) -> Locator:
+        """no semantic: data-testid element, no role"""
+        return self.page.locator('#feature_flags_section [data-testid="ff-help"]')
 
     def expect_section_visible(self) -> None:
         """Assert the Feature Flags section is visible."""
