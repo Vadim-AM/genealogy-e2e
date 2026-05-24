@@ -20,16 +20,15 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core import api_paths as routes
-from tests._core.constants import TestConfig, unique_email
-from tests._core.err_msg import ErrMsg
-from tests._core.messages import Buttons, t
-from tests._core.step import step
-from tests.pages.login_page import LoginPage
-from tests.pages.signup_page import SignupPage
+from api import routes
+from config.constants import TestConfig, unique_email
+from framework.step import step
+from pages.login_page import LoginPage
+from pages.signup_page import SignupPage
+from src.texts import Buttons, ErrMsg, t
 
 if TYPE_CHECKING:
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 def _is_submit_request(url: str, expected_path: str) -> bool:

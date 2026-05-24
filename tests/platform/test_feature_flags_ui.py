@@ -28,12 +28,11 @@ import allure
 import httpx
 from playwright.sync_api import expect
 
-from tests._core import api_paths as routes
-from tests._core.err_msg import ErrMsg
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
-from tests.helpers.api import platform_api
+from api import platform_api, routes
+from config.timeouts import TIMEOUTS
+from framework.response import expect_response
+from framework.step import step
+from src.texts import ErrMsg
 
 # ─────────────────────────────────────────────────────────────────────────
 # Smoke-проверка разметки — структура секции рендерится

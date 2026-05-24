@@ -17,10 +17,10 @@ from __future__ import annotations
 import allure
 import httpx
 
-from tests._core import api_paths as routes
-from tests._core.constants import unique_email
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
+from api import routes
+from config.constants import unique_email
+from config.timeouts import TIMEOUTS
+from framework.step import step
 
 _TENANT_A_VALUE = "Семья A — приватное"
 _TENANT_B_VALUE = "Семья B — другое"

@@ -28,13 +28,12 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core import api_paths as routes
-from tests._core.err_msg import ErrMsg
-from tests._core.messages import LinkedChip, TestData, t
-from tests._core.step import step
-from tests.helpers.tree.tree_api import people_count, seed_person
-from tests.helpers.tree.tree_navigation import open_demo_self_profile
-from tests.pages.person_editor import AddRelativeModal
+from api import routes
+from framework.step import step
+from helpers.tree.tree_api import people_count, seed_person
+from helpers.tree.tree_navigation import open_demo_self_profile
+from pages.person_editor import AddRelativeModal
+from src.texts import ErrMsg, LinkedChip, TestData, t
 
 # ─────────────────────────────────────────────────────────────────────────
 # Acceptance tests

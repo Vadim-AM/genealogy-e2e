@@ -31,15 +31,15 @@ import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests._core import api_paths as routes
-from tests._core.err_msg import ErrMsg
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
-from tests.pages.pricing_page import PricingPage
+from api import routes
+from config.timeouts import TIMEOUTS
+from framework.response import expect_response
+from framework.step import step
+from pages.pricing_page import PricingPage
+from src.texts import ErrMsg
 
 if TYPE_CHECKING:
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 # ─────────────────────────────────────────────────────────────────────────
 # API-уровень — fast guards (без браузера)

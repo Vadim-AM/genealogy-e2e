@@ -19,10 +19,10 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core import api_paths as routes
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
+from api import routes
+from config.timeouts import TIMEOUTS
+from framework.response import expect_response
+from framework.step import step
 
 # ─────────────────────────────────────────────────────────────────────────
 # Data isolation

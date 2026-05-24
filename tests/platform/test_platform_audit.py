@@ -13,10 +13,9 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core import api_paths as routes
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests.helpers.api import platform_api
+from api import platform_api, routes
+from framework.response import expect_response
+from framework.step import step
 
 
 @allure.title("Аудит: журнал недоступен обычному владельцу")

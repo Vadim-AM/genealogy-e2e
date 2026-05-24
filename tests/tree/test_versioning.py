@@ -12,16 +12,16 @@ import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests._core import api_paths as routes
-from tests._core.err_msg import ErrMsg
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
-from tests._models.site import SiteConfigResponse
-from tests.pages.tree_page import TreePage
+from api import routes
+from config.timeouts import TIMEOUTS
+from framework.response import expect_response
+from framework.step import step
+from models.site import SiteConfigResponse
+from pages.tree_page import TreePage
+from src.texts import ErrMsg
 
 if TYPE_CHECKING:
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 @allure.title("Конфиг сайта содержит непустую версию приложения")

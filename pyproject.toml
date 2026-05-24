@@ -64,7 +64,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["tests"]
+known-first-party = ["api", "config", "framework", "models", "fixtures", "pages", "helpers", "test_data", "src", "tests"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/test_*.py" = ["ANN201"]

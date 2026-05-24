@@ -13,11 +13,10 @@ from __future__ import annotations
 
 import allure
 
-from tests._core import api_paths as routes
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._models.person import PersonResponse
-from tests.helpers.api import person_api
+from api import person_api, routes
+from framework.response import expect_response
+from framework.step import step
+from models.person import PersonResponse
 
 
 @allure.title("Каноническое имя собирается из фамилии, имени и отчества")

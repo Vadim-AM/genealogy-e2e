@@ -10,9 +10,9 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core import api_paths as routes
-from tests._core.step import step
-from tests.pages.platform_dashboard_page import PlatformDashboardPage
+from api import routes
+from framework.step import step
+from pages.platform_dashboard_page import PlatformDashboardPage
 
 
 @allure.title("Дашборд платформы: страница открывается для суперадмина")

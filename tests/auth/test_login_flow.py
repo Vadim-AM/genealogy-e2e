@@ -12,16 +12,15 @@ import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests._core import api_paths as routes
-from tests._core.err_msg import ErrMsg
-from tests._core.messages import Links, t
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
-from tests.pages.login_page import LoginPage
+from api import routes
+from config.timeouts import TIMEOUTS
+from framework.response import expect_response
+from framework.step import step
+from pages.login_page import LoginPage
+from src.texts import ErrMsg, Links, t
 
 if TYPE_CHECKING:
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 @allure.title("Форма логина содержит поля email, пароль и кнопку входа")

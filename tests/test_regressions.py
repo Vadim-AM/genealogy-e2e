@@ -21,18 +21,17 @@ from typing import TYPE_CHECKING
 
 import allure
 
-from tests._core import api_paths as routes
-from tests._core.constants import make_email
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
-from tests.helpers.api import person_api, site_api
-from tests.pages.signup_page import SignupPage
+from api import person_api, routes, site_api
+from config.constants import make_email
+from config.timeouts import TIMEOUTS
+from framework.response import expect_response
+from framework.step import step
+from pages.signup_page import SignupPage
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
 
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 @allure.title("Регрессия: auth_v2 владелец читает историю обогащения")
