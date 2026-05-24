@@ -10,7 +10,6 @@ from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
 from models.enrichment import EnrichJobResponse
-from pages.base import wait_for_authed_shell
 from pages.confirm_dialog import ConfirmDialog
 from pages.enrichment_modal import EnrichmentModal
 from pages.profile_panel import ProfilePanel
@@ -26,7 +25,7 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
         grant_ai_consent(owner_user)
 
         panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
-        wait_for_authed_shell(owner_page)
+        tree.expect_authed_state()
 
     with step("действие: запуск enrichment и принятие гипотезы"):
         panel.trigger_enrichment()

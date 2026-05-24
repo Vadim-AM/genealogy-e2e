@@ -12,7 +12,7 @@ from playwright.sync_api import Page, Route, expect
 from api import routes
 from assertions.base import should
 from framework.step import step
-from pages.base import custom_select_for, wait_for_authed_shell
+from pages.base import custom_select_for
 from pages.confirm_dialog import ConfirmDialog
 from pages.person_editor import AddRelativeModal
 from pages.profile_panel import ProfilePanel, open_editor_for
@@ -151,7 +151,7 @@ def test_about_tab_shows_placeholder_when_about_text_is_empty(pages: PageFactory
     """TC-13.05: на чистом demo seed about_text не заполнен →."""
     with step("действие: открыть вкладку About"):
         tree = pages.navigate_to(TreePage)
-        wait_for_authed_shell(tree.page)
+        tree.expect_authed_state()
         tree.switch_tab("about")
 
     with step("проверка: placeholder виден с текстом-подсказкой"):
@@ -257,7 +257,7 @@ def test_timeline_river_filter_click_switches_active(pages: PageFactory) -> None
     """TC-12.02 (extension): click `[data-testid="river-filter-btn"][data-branch=maternal]`."""
     with step("подготовка: переключиться на timeline"):
         tree = pages.navigate_to(TreePage)
-        wait_for_authed_shell(tree.page)
+        tree.expect_authed_state()
         tree.switch_tab("timeline")
 
     with step("действие: кликнуть по фильтру maternal"):
@@ -276,7 +276,7 @@ def test_sources_tab_renders_search_input_and_filter_buttons(pages: PageFactory)
     """TC-11.02 (structural): после переключения на sources tab UI."""
     with step("действие: переключиться на sources"):
         tree = pages.navigate_to(TreePage)
-        wait_for_authed_shell(tree.page)
+        tree.expect_authed_state()
         tree.switch_tab("sources")
 
     with step("проверка: поле поиска с placeholder"):
@@ -306,7 +306,7 @@ def test_about_contact_box_shows_placeholder_when_contacts_empty(pages: PageFact
     """TC-13.04 (negative): default seed → contact_text + contact_email пустые."""
     with step("действие: открыть вкладку About"):
         tree = pages.navigate_to(TreePage)
-        wait_for_authed_shell(tree.page)
+        tree.expect_authed_state()
         tree.switch_tab("about")
 
     with step("проверка: контактные данные пусты"):
