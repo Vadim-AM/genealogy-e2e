@@ -76,5 +76,6 @@ def test_share_list_never_leaks_tokens(owner_user, tenant_client):
         assert share_list.items, "the created share must appear in the list (empty list)"
         for item in share_list.items:
             extra = item.model_extra or {}
-            assert "url" not in extra, \
-                f"GET /api/share/list leaked a token url: {item}"
+            leaked_url = extra.get("url")
+            assert not leaked_url, \
+                f"GET /api/share/list leaked a token url: {leaked_url}"
