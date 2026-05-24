@@ -48,6 +48,40 @@ class TreePage(BasePage):
         self.tour_replay_btn = page.locator("#tourReplayBtn")  # no semantic: dynamically shown
         # no semantic: canvas card, no ARIA
         self.orbit_center = self.tree_container.locator('[data-testid="orbit-center-card"]')
+        # no semantic: auth UI elements, no ARIA roles
+        self.auth_user_name = self.auth_indicator.locator('[data-testid="auth-user-name"]')
+        self.logout_btn = self.auth_indicator.locator('a[data-action="logout"]')
+        self.login_link = page.locator('#authIndicator a[href="/login"]')
+
+    # ── Сценарные методы (auth state) ─────────────────────────────────
+
+    def expect_authed_state(self, display_name: str | None = None) -> None:
+        """Ожидает authed-shell и проверяет имя пользователя + logout-ссылку."""
+        with step("ожидание authed-состояния"):
+            expect(self.orbit_cards.first).to_be_visible()
+            if display_name:
+                expect(self.auth_user_name).to_have_text(display_name)
+            expect(self.logout_btn).to_be_visible()
+
+    def expect_guest_state(self) -> None:
+        """Проверяет гостевой режим: login видна, authed-вкладки скрыты."""
+        with step("проверка гостевого режима"):
+            expect(self.login_link).to_be_visible()
+            expect(self.auth_user_name).to_have_count(0)
+            expect(self.tab_map).to_be_hidden()
+            expect(self.tab_sources).to_be_hidden()
+            expect(self.tab_timeline).to_be_hidden()
+
+    def logout(self) -> None:
+        """Клик по «Выйти» с ожиданием POST /logout."""
+        from api import routes
+        with step("клик «Выйти»"):
+            with self.page.expect_response(
+                lambda r: routes.LOGOUT in r.url and r.request.method == "POST"
+            ):
+                self.logout_btn.click()
+
+    # ── Навигация к профилю ──────────────────────────────────────────
 
     def open_center_profile(self) -> ProfilePanel:
         """Клик по центральной orbit-карточке → открывает профиль demo-self."""
