@@ -85,8 +85,8 @@ def test_webauthn_full_register_via_ui(
     try:
         with step("подготовка: открываем дашборд и добавляем virtual authenticator"):
             page = ctx.new_page()
-            page.goto("/platform/dashboard")
-            page.wait_for_load_state("domcontentloaded")
+            dashboard = PlatformDashboardPage(page)
+            dashboard.goto_and_load()
             add_virtual_authenticator(page)
 
         with step("действие: вызываем webauthnRegister через JS"):
@@ -114,8 +114,8 @@ def test_webauthn_register_then_authenticate_via_ui(
     try:
         with step("подготовка: открываем дашборд и регистрируем ключ"):
             page = ctx.new_page()
-            page.goto("/platform/dashboard")
-            page.wait_for_load_state("domcontentloaded")
+            dashboard = PlatformDashboardPage(page)
+            dashboard.goto_and_load()
             add_virtual_authenticator(page)
             page.evaluate("() => webauthnRegister('AuthFlowKey')")
 
@@ -137,10 +137,9 @@ def test_setup_modal_has_webauthn_button_first(
     with step("подготовка: открываем дашборд суперадмина"):
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
-        page.goto("/platform/dashboard")
-        page.wait_for_load_state("domcontentloaded")
+        dashboard = PlatformDashboardPage(page)
+        dashboard.goto_and_load()
 
     with step("проверка: кнопки WebAuthn setup и verify присутствуют в DOM"):
-        dashboard = PlatformDashboardPage(page)
         should.be_equal(dashboard.mfa_setup_webauthn_btn.count(), 1, ErrMsg.webauthn_btn_missing)
         should.be_equal(dashboard.mfa_verify_webauthn_btn.count(), 1, ErrMsg.webauthn_btn_missing)

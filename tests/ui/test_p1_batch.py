@@ -116,59 +116,47 @@ def test_add_parent_button_hidden_when_two_parents_exist(owner_page: Page) -> No
 
 
 @allure.title("Вкладки Sources и Timeline содержат декоративный футер-орнамент")
-def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page, pages: PageFactory) -> None:
+def test_footer_ornament_present_in_sources_and_timeline_tabs(pages: PageFactory) -> None:
     """TC-04.07: Каждый из tab-sources / tab-timeline содержит."""
     with step("действие: загрузить главную"):
-        _ = pages.navigate_to(TreePage)
+        tree = pages.navigate_to(TreePage)
 
     with step("проверка: footer-ornament в sources и timeline"):
-        # no semantic: tab without role="tab"; decorative element
-        sources_ornament = owner_page.locator('#tab-sources [data-testid="footer-ornament"]')
-        # no semantic: decorative element
-        timeline_ornament = owner_page.locator('#tab-timeline [data-testid="footer-ornament"]')
-        should.be_equal(sources_ornament.count(), 1, ErrMsg.footer_ornament_wrong)
-        should.be_equal(timeline_ornament.count(), 1, ErrMsg.footer_ornament_wrong)
+        should.be_equal(tree.sources_footer_ornament.count(), 1, ErrMsg.footer_ornament_wrong)
+        should.be_equal(tree.timeline_footer_ornament.count(), 1, ErrMsg.footer_ornament_wrong)
         # Три bullet'а как design-decision (· · · — index.html:164,183).
-        expect(sources_ornament, ErrMsg.wrong_text_content).to_contain_text("•")
+        expect(tree.sources_footer_ornament, ErrMsg.wrong_text_content).to_contain_text("•")
 
 
 @allure.title("Таймлайн: отображаются 5 кнопок-фильтров по веткам")
-def test_timeline_river_filters_render_five_branches(owner_page: Page, pages: PageFactory) -> None:
+def test_timeline_river_filters_render_five_branches(pages: PageFactory) -> None:
     """TC-12.02: после переключения на Timeline tab — 5 кнопок-фильтров."""
     with step("действие: переключиться на timeline"):
         tree = pages.navigate_to(TreePage)
         tree.switch_tab("timeline")
 
     with step("проверка: 5 фильтров в правильном порядке"):
-        # no semantic: custom filter, no button role
-        filters = owner_page.locator(
-            '#riverFilters button[data-testid^="river-filter"]',
-        )
-        expect(filters, ErrMsg.wrong_count).to_have_count(5)
+        expect(tree.river_filters, ErrMsg.wrong_count).to_have_count(5)
 
         expected_branches = ["all", "maternal", "paternal", "other", "historical"]
-        actual_branches = [
-            filters.nth(i).get_attribute("data-branch")
-            for i in range(5)
-        ]
+        actual_branches = tree.river_filter_branches()
         should.be_equal(actual_branches, expected_branches, ErrMsg.filter_order_wrong)
 
     with step("проверка: active по умолчанию = all"):
-        expect(filters.nth(0), ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
+        expect(tree.river_filters.nth(0), ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
 
 
 @allure.title("О проекте: placeholder виден когда about_text не заполнен")
-def test_about_tab_shows_placeholder_when_about_text_is_empty(owner_page: Page, pages: PageFactory) -> None:
+def test_about_tab_shows_placeholder_when_about_text_is_empty(pages: PageFactory) -> None:
     """TC-13.05: на чистом demo seed about_text не заполнен →."""
     with step("действие: открыть вкладку About"):
         tree = pages.navigate_to(TreePage)
-        wait_for_authed_shell(owner_page)
+        wait_for_authed_shell(tree.page)
         tree.switch_tab("about")
 
     with step("проверка: placeholder виден с текстом-подсказкой"):
-        placeholder = owner_page.locator('[data-config-empty="about_text"]')
-        expect(placeholder, ErrMsg.element_not_visible).to_be_visible()
-        expect(placeholder, ErrMsg.wrong_text_content).to_contain_text(t(AboutTab.FAMILY_TREE_KEYWORD))
+        expect(tree.about_placeholder, ErrMsg.element_not_visible).to_be_visible()
+        expect(tree.about_placeholder, ErrMsg.wrong_text_content).to_contain_text(t(AboutTab.FAMILY_TREE_KEYWORD))
 
 
 @allure.title("Родственник: при 409-конфликте модалка остаётся открытой")
@@ -204,7 +192,7 @@ def test_add_relative_shows_error_on_409_conflict(owner_page: Page) -> None:
 def test_custom_select_arrow_down_then_enter_selects_option(owner_page: Page) -> None:
     """TC-25.06 (extension): ArrowDown открывает dropdown и фокусирует."""
     with step("подготовка: открыть редактор и dropdown"):
-        open_editor_for(owner_page)
+        editor = open_editor_for(owner_page)
         wrapper = custom_select_for(owner_page, "gender")
         wrapper.focus()
         owner_page.keyboard.press("ArrowDown")
@@ -217,8 +205,7 @@ def test_custom_select_arrow_down_then_enter_selects_option(owner_page: Page) ->
 
     with step("проверка: dropdown закрылся и native select обновился"):
         expect(dropdown, ErrMsg.dropdown_should_be_closed).not_to_be_visible()
-        native = owner_page.locator('select[data-field="gender"]')
-        selected_value = native.evaluate("(el) => el.value")
+        selected_value = editor.native_gender_value()
         should.be_true(selected_value, ErrMsg.native_select_not_synced)
 
 
@@ -266,18 +253,16 @@ def test_confirm_dialog_backdrop_click_cancels(owner_page: Page) -> None:
 
 
 @allure.title("Таймлайн: клик по фильтру переключает активную ветку")
-def test_timeline_river_filter_click_switches_active(owner_page: Page, pages: PageFactory) -> None:
+def test_timeline_river_filter_click_switches_active(pages: PageFactory) -> None:
     """TC-12.02 (extension): click `[data-testid="river-filter-btn"][data-branch=maternal]`."""
     with step("подготовка: переключиться на timeline"):
         tree = pages.navigate_to(TreePage)
-        wait_for_authed_shell(owner_page)
+        wait_for_authed_shell(tree.page)
         tree.switch_tab("timeline")
 
     with step("действие: кликнуть по фильтру maternal"):
-        # no semantic: custom filter, no button role
-        all_btn = owner_page.locator('[data-testid="river-filter-all"]')
-        # no semantic: custom filter, no button role
-        maternal_btn = owner_page.locator('[data-testid="river-filter-maternal"]')
+        all_btn = tree.river_filter_btn("all")
+        maternal_btn = tree.river_filter_btn("maternal")
         expect(all_btn, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
         maternal_btn.click()
 
@@ -287,23 +272,21 @@ def test_timeline_river_filter_click_switches_active(owner_page: Page, pages: Pa
 
 
 @allure.title("Источники: поле поиска и фильтр-кнопки присутствуют")
-def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page, pages: PageFactory) -> None:
+def test_sources_tab_renders_search_input_and_filter_buttons(pages: PageFactory) -> None:
     """TC-11.02 (structural): после переключения на sources tab UI."""
     with step("действие: переключиться на sources"):
         tree = pages.navigate_to(TreePage)
-        wait_for_authed_shell(owner_page)
+        wait_for_authed_shell(tree.page)
         tree.switch_tab("sources")
 
     with step("проверка: поле поиска с placeholder"):
-        search = owner_page.locator("#evidenceSearch")  # no semantic: input without label
-        expect(search, ErrMsg.input_not_visible).to_be_visible()
-        placeholder = search.get_attribute("placeholder")
+        expect(tree.sources_search, ErrMsg.input_not_visible).to_be_visible()
+        placeholder = tree.sources_search.get_attribute("placeholder")
         should.be_true(placeholder and t(Placeholders.SEARCH) in placeholder, ErrMsg.search_placeholder_wrong)
 
     with step("проверка: фильтр all активен по умолчанию"):
-        all_btn = owner_page.locator('.filter-btn[data-filter="all"]')
-        expect(all_btn, ErrMsg.button_not_visible).to_be_visible()
-        expect(all_btn, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
+        expect(tree.sources_filter_all, ErrMsg.button_not_visible).to_be_visible()
+        expect(tree.sources_filter_all, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
 
 
 @allure.title("Древо: минимапа скрыта на мобильном viewport (375px)")
@@ -314,38 +297,32 @@ def test_minimap_hidden_on_mobile_viewport(owner_page: Page, pages: PageFactory)
         tree = pages.navigate_to(TreePage)
 
     with step("проверка: minimap скрыт через display:none"):
-        display = tree.minimap.evaluate("(el) => getComputedStyle(el).display")
+        display = tree.minimap_computed_display()
         should.be_equal(display, "none", ErrMsg.element_should_be_hidden)
 
 
 @allure.title("О проекте: placeholder контактов виден при пустых данных")
-def test_about_contact_box_shows_placeholder_when_contacts_empty(owner_page: Page, pages: PageFactory) -> None:
+def test_about_contact_box_shows_placeholder_when_contacts_empty(pages: PageFactory) -> None:
     """TC-13.04 (negative): default seed → contact_text + contact_email пустые."""
     with step("действие: открыть вкладку About"):
         tree = pages.navigate_to(TreePage)
-        wait_for_authed_shell(owner_page)
+        wait_for_authed_shell(tree.page)
         tree.switch_tab("about")
 
     with step("проверка: контактные данные пусты"):
-        contact_text_p = owner_page.locator('[data-testid="contact-text"]')  # no semantic: content container
-        contact_email_a = owner_page.locator('[data-testid="contact-email"]')  # no semantic: content container
-        should.be_equal((contact_text_p.text_content() or "").strip(), "", ErrMsg.contact_text_not_empty)
-        should.be_equal((contact_email_a.text_content() or "").strip(), "", ErrMsg.contact_text_not_empty)
+        should.be_equal((tree.contact_text.text_content() or "").strip(), "", ErrMsg.contact_text_not_empty)
+        should.be_equal((tree.contact_email.text_content() or "").strip(), "", ErrMsg.contact_text_not_empty)
 
     with step("проверка: placeholder контактов виден"):
-        placeholder = owner_page.locator("#contactBoxPlaceholder")  # no semantic: placeholder container
-        expect(placeholder, ErrMsg.element_not_visible).to_be_visible()
+        expect(tree.contact_box_placeholder, ErrMsg.element_not_visible).to_be_visible()
 
 
 @allure.title("Древо: клик по карточке орбиты центрирует на персону")
-def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page, pages: PageFactory) -> None:
+def test_clicking_orbit_card_recenters_orbit_to_clicked_person(pages: PageFactory) -> None:
     """TC-04.08 / TC-05.01: click на не-центральную orbit-card →."""
     with step("подготовка: открыть главную и найти не-центральную карту"):
-        _ = pages.navigate_to(TreePage)
-        # no semantic: canvas container; canvas card, no ARIA
-        target_card = owner_page.locator(
-            '#treeContainer [data-testid="orbit-card"][data-person-id]:not([data-testid="orbit-center-card"])'
-        ).first
+        tree = pages.navigate_to(TreePage)
+        target_card = tree.non_center_orbit_card()
         expect(target_card, ErrMsg.orbit_card_not_visible).to_be_visible()
         target_pid = target_card.get_attribute("data-person-id")
         should.be_true(target_pid, ErrMsg.orbit_card_missing_pid)
@@ -354,8 +331,5 @@ def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page,
         target_card.click()
 
     with step("проверка: центр орбиты переместился на кликнутую персону"):
-        # no semantic: canvas card, no ARIA
-        new_center = owner_page.locator(
-            f'.orbit-zone-center [data-testid="orbit-center-card"][data-person-id=\'{target_pid}\']'
-        )
+        new_center = tree.orbit_center_for_person(target_pid)
         expect(new_center, ErrMsg.orbit_card_not_visible).to_be_visible()

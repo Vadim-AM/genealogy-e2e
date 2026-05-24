@@ -14,9 +14,9 @@ from assertions.base import should
 from config.constants import make_email
 from framework.response import expect_response
 from framework.step import step
-from helpers.auth.auth_ui import auth_name
 from pages.forgot_password_page import ForgotPasswordPage, ResetPasswordPage
 from pages.login_page import LoginPage
+from pages.tree_page import TreePage
 from src.texts import ErrMsg, TestData
 
 if TYPE_CHECKING:
@@ -53,12 +53,13 @@ def test_forgot_password_full_flow_user_logs_in_with_new_password(
         login = LoginPage(page)
         login.expect_visible_form()
         login.login(owner_user.email, owner_user.password)
-        login.expect_error()  # #msg текст non-empty → старый pass отвергнут
+        login.expect_error()
 
     with step("проверка: вход с новым паролем успешен"):
         login.login(owner_user.email, _NEW_PASSWORD)
         page.wait_for_url("**/")
-        expect(auth_name(page), ErrMsg.auth_name_wrong).to_have_text(
+        tree = TreePage(page)
+        expect(tree.auth_user_name, ErrMsg.auth_name_wrong).to_have_text(
             TestData.DEFAULT_FULL_NAME
         )
 
@@ -109,23 +110,16 @@ def test_reset_password_token_used_once_then_invalid_via_ui(
 
 @allure.title("Пустое поле email не отправляет запрос на сброс пароля")
 def test_forgot_password_empty_field_shows_inline_error_no_request(
-    page: Page, anon_pages: PageFactory,
+    page: Page, anon_pages: PageFactory, forgot_password_request_spy: list[str],
 ) -> None:
     """Пустой email → submit → backend не вызывается (HTML required)."""
-    with step("подготовка: открытие формы и установка перехватчика"):
+    with step("подготовка: открытие формы"):
         fp = anon_pages.navigate_to(ForgotPasswordPage)
         fp.expect_visible_form()
-
-        # Никаких сетевых запросов на forgot-password от пустого submit.
-        requests_seen: list[str] = []
-        page.on(
-            "request",
-            lambda req: requests_seen.append(req.url) if "forgot-password" in req.url else None,
-        )
 
     with step("действие: отправка пустого поля email"):
         fp.email.fill("")
         fp.submit_btn.click()
 
     with step("проверка: сетевой запрос не отправлен"):
-        should.be_empty(requests_seen, ErrMsg.empty_email_triggered_request)
+        should.be_empty(forgot_password_request_spy, ErrMsg.empty_email_triggered_request)

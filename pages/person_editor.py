@@ -46,6 +46,12 @@ class PersonEditor:
 
         # Inline warning (date-validity, etc.) — no semantic: warning text, no ARIA role
         self.warning = self.container.locator('[data-testid="editor-warning"]')
+        # Native hidden <select> — used to verify custom-select sync
+        self.native_gender = page.locator('select[data-field="gender"]')  # no semantic: hidden native select
+
+    def native_gender_value(self) -> str:
+        """Return the current value of the hidden native gender <select>."""
+        return self.native_gender.evaluate("(el) => el.value")
 
     def fill_fio(self, *, surname: str, given: str, patronymic: str = "") -> None:
         """Fill surname, given name, and optionally patronymic."""
@@ -68,6 +74,11 @@ class PersonEditor:
     def cancel(self) -> None:
         """Click cancel to discard editor changes."""
         self.btn_cancel.click()
+
+    def delete_btn_by_role(self) -> Locator:
+        """Return a delete button locator via accessible role + name."""
+        from src.texts import Buttons, t
+        return self.page.get_by_role("button", name=t(Buttons.DELETE), exact=False)
 
     def expect_visible(self) -> None:
         """Assert the editor container and key fields are visible."""
@@ -331,3 +342,24 @@ class AddRelativeModal:
             "death": self.death,
         }
         expect(loc_map[field]).to_have_attribute("readonly", "readonly")
+
+    def pick_first_via_keyboard(self) -> None:
+        """Select the first dropdown candidate via ArrowDown + Enter."""
+        self.surname.focus()
+        self.page.keyboard.press("ArrowDown")
+        self.page.keyboard.press("Enter")
+
+    def press_escape(self) -> None:
+        """Press Escape while a field is focused (closes dropdown, not modal)."""
+        self.surname.focus()
+        self.page.keyboard.press("Escape")
+
+    def save_and_expect_response(self, url_pattern: str) -> None:
+        """Click Save and wait for a matching network response.
+
+        Used when the test must assert on the response (e.g. relationships
+        or people POST). Returns nothing -- the caller uses the POM's
+        overlay assertion to confirm the modal closed.
+        """
+        with self.page.expect_response(url_pattern):
+            self.btn_save.click()

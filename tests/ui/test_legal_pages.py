@@ -13,6 +13,7 @@ from playwright.sync_api import Page, expect
 from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
+from pages.base import BasePage
 from pages.tree_page import TreePage
 from src.texts import ErrMsg
 
@@ -20,11 +21,34 @@ if TYPE_CHECKING:
     from fixtures.page_factory import PageFactory
 
 
+class _LegalPage(BasePage):
+    """Lightweight POM for /privacy and /terms — shared locators."""
+
+    def __init__(self, page: Page, path: str):
+        super().__init__(page)
+        self.URL = path
+        self.body = page.locator("body")
+        self.headings = page.locator("h1, h2")
+
+    def body_text(self) -> str:
+        """Return the full text content of the body element."""
+        return self.body.text_content() or ""
+
+    def heading_count(self) -> int:
+        """Return the number of h1/h2 headings on the page."""
+        return self.headings.count()
+
+    def title(self) -> str:
+        """Return the page title."""
+        return self.page.title()
+
+
 @pytest.mark.parametrize("path", ["/privacy", "/terms"])
 @allure.title("Юридические страницы отрендерены как HTML, не raw markdown")
 def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: str) -> None:
     """TC-BUG-LEGAL-001: privacy/terms must be rendered HTML."""
     with step("действие: загрузить юридическую страницу"):
+        legal = _LegalPage(page, path)
         response = page.goto(path)
         should.not_none(response, ErrMsg.page_navigation_failed)
         should.be_equal(response.status, HTTPStatus.OK, ErrMsg.status_mismatch)
@@ -33,17 +57,16 @@ def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: st
 
     with step("проверка: заголовок и headings присутствуют"):
         # Документ должен иметь непустой title (сырой .md его не устанавливает).
-        title = page.title()
+        title = legal.title()
         should.be_true(title and title.strip(), ErrMsg.empty_page_title)
 
         # Должен быть хотя бы один <h1>/<h2> в отрисованном DOM.
-        h1_count = page.locator("h1, h2").count()
-        should.greater(h1_count, 0, ErrMsg.no_headings_found)
+        should.greater(legal.heading_count(), 0, ErrMsg.no_headings_found)
 
     with step("проверка: нет сырых markdown-маркеров"):
         # Тело НЕ должно содержать литеральных markdown-маркеров вроде '# '
         # в начале строки (отрисованные заголовки не имеют ведущего '#').
-        body_text = page.locator("body").text_content() or ""
+        body_text = legal.body_text()
         lines = body_text.split("\n")
         md_marker_lines = [ln for ln in lines if ln.strip().startswith(("# ", "## ", "### "))]
         should.be_empty(md_marker_lines, ErrMsg.raw_markdown_lines)
@@ -54,12 +77,13 @@ def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: st
 def test_legal_has_no_unrendered_markdown_links(page: Page, path: str) -> None:
     """`[text](url)` syntax must not appear in rendered body."""
     with step("действие: загрузить страницу"):
-        page.goto(path)
-        page.wait_for_load_state("domcontentloaded")
+        legal = _LegalPage(page, path)
+        legal.goto()
+        legal.wait_for_page_load()
 
     with step("проверка: нет markdown-ссылок в тексте"):
         import re
-        body = page.locator("body").text_content() or ""
+        body = legal.body_text()
         md_links = re.findall(r"\[[^\]]+\]\([^\)]+\)", body)
         should.be_empty(md_links, ErrMsg.raw_markdown_links)
 
@@ -71,8 +95,8 @@ def test_landing_footer_legal_link_is_visible_and_target_blank(
 ) -> None:
     """TC-24.03: footer на / содержит link на /privacy и /terms; target=_blank."""
     with step("действие: открыть главную и найти ссылку"):
-        _ = anon_pages.navigate_to(TreePage)
-        link = page.locator(f"a[href='{href}']").first
+        tree = anon_pages.navigate_to(TreePage)
+        link = tree.footer_link(href)
         expect(link, ErrMsg.link_not_visible).to_be_visible()
 
     with step("проверка: ссылка открывается в новой вкладке"):

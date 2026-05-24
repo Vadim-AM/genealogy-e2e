@@ -30,7 +30,7 @@ def test_switch_between_tabs(owner_page: Page, pages: PageFactory) -> None:
             tree.switch_tab(tab_name)
             tab_loc = getattr(tree, f"tab_{tab_name}")
             expect(tab_loc, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
-            expect(owner_page.locator(f"#tab-{tab_name}.active"), ErrMsg.tab_not_visible).to_be_visible()
+            tree.expect_tab_content_active(tab_name)
 
 
 @allure.title("Поиск по дереву находит демо-персону по имени")
@@ -38,7 +38,7 @@ def test_search_returns_results_for_seeded_person(owner_page: Page, pages: PageF
     """Поиск по подстроке имени возвращает matching результаты."""
     with step("действие: поиск по имени"):
         tree = pages.navigate_to(TreePage)
-        owner_page.wait_for_load_state("domcontentloaded")
+        tree.wait_for_page_load()
         tree.search_person("Тест")
 
     with step("проверка: результаты поиска видны"):

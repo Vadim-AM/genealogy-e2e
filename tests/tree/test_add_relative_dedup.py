@@ -58,9 +58,7 @@ def test_sibling_parent_suggestion_prevents_duplicate(
 
         modal.click_suggestion(demo_father_id)
         modal.expect_linked_to(demo_father_id)
-        with owner_page.expect_response(f"**{routes.RELATIONSHIPS}**") as rel_resp:
-            modal.btn_save.click()
-        should.playwright_ok(rel_resp.value, ErrMsg.pw_response_not_ok)
+        modal.save_and_expect_response(f"**{routes.RELATIONSHIPS}**")
         expect(modal.overlay, ErrMsg.overlay_should_be_closed).not_to_be_visible()
 
     with step("проверка: ровно один новый person, оба ребёнка на одном отце"):
@@ -213,9 +211,7 @@ def test_user_ignores_suggestion_creates_new_person(
         modal.fill_fio(surname="Прадедов", given="Иннокентий", birth="01.01.1900")
         modal.select_gender("m")
 
-        with owner_page.expect_response(f"**{routes.PEOPLE}**") as resp:
-            modal.save()
-        should.playwright_ok(resp.value, ErrMsg.pw_response_not_ok)
+        modal.save_and_expect_response(f"**{routes.PEOPLE}**")
         expect(modal.overlay, ErrMsg.overlay_should_be_closed).not_to_be_visible()
 
     with step("проверка: новый person создан, demo-father не затронут"):
@@ -270,8 +266,7 @@ def test_suggestion_click_does_not_create_new_person(
         try:
             modal.click_suggestion(demo_father_id)
             modal.expect_linked_to(demo_father_id)
-            with owner_page.expect_response(f"**{routes.RELATIONSHIPS}**") as _:
-                modal.btn_save.click()
+            modal.save_and_expect_response(f"**{routes.RELATIONSHIPS}**")
             expect(modal.overlay, ErrMsg.overlay_should_be_closed).not_to_be_visible()
         finally:
             owner_page.remove_listener("request", _on_request)
@@ -300,9 +295,7 @@ def test_existing_sibling_auto_parent_checkbox_still_works(
         modal.fill_fio(surname="Тестовая", given="Брат", birth="01.01.1985")
         modal.select_gender("m")
 
-        with owner_page.expect_response(f"**{routes.PEOPLE}**") as resp:
-            modal.save()
-        should.playwright_ok(resp.value, ErrMsg.pw_response_not_ok)
+        modal.save_and_expect_response(f"**{routes.PEOPLE}**")
         expect(modal.overlay, ErrMsg.overlay_should_be_closed).not_to_be_visible()
 
     with step("проверка: новый сиблинг привязан к обоим demo-родителям"):
@@ -355,7 +348,7 @@ def test_suggestion_click_shows_error_on_backend_422(
         try:
             modal.click_suggestion(demo_father_id)
             modal.expect_linked_to(demo_father_id)
-            modal.btn_save.click()
+            modal.save()
             expect(modal.overlay, ErrMsg.modal_not_visible).to_be_visible()
             expect(modal.error, ErrMsg.validation_error_wrong).to_be_visible()
             expect(modal.error, ErrMsg.validation_error_wrong).to_contain_text(t(AgeValidation.PARENT_AGE_KEYWORD))

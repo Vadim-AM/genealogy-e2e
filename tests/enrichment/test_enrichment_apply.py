@@ -14,7 +14,7 @@ from pages.base import wait_for_authed_shell
 from pages.confirm_dialog import ConfirmDialog
 from pages.enrichment_modal import EnrichmentModal
 from pages.profile_panel import ProfilePanel
-from src.texts import Enrichment, ErrMsg, TestData, t
+from src.texts import ErrMsg, TestData
 
 
 @allure.title("AI-обогащение: принятие гипотезы и откат через UI")
@@ -44,20 +44,14 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
     with step("проверка: принятые факты отображаются как chips"):
         accepted = panel.accepted_facts_block
         expect(accepted, ErrMsg.element_not_visible).to_be_visible()
-        # no semantic: data-testid element, no role
-        chips = accepted.locator('[data-testid="profile-ai-chip"]')
-        expect(chips, ErrMsg.wrong_count).to_have_count(2)
+        expect(panel.accepted_chips, ErrMsg.wrong_count).to_have_count(2)
 
     with step("действие: откат принятой гипотезы"):
-        # no semantic: data-testid element, no role
-        chips.first.locator('[data-testid="profile-ai-chip-revert"]').click()
-        # no semantic: кнопка отката в prompt
-        owner_page.get_by_role(
-            "button", name=t(Enrichment.REVERT_OK), exact=True
-        ).click()
+        panel.revert_first_chip()
+        panel.confirm_revert()
 
     with step("проверка: chips исчезли после отката"):
-        expect(chips, ErrMsg.wrong_count).to_have_count(0)
+        expect(panel.accepted_chips, ErrMsg.wrong_count).to_have_count(0)
 
 
 @allure.title("AI-обогащение: кэш отдаёт результат, health, фидбек и письма принимаются")

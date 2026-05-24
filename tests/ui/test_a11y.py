@@ -27,7 +27,7 @@ def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFac
         # тест проверяет уровень `aria-invalid` который ставится только из
         # response-handler. Server-side валидация (zxcvbn-python score>=2) —
         # источник истины, который мы и тестируем.
-        page.evaluate("document.getElementById('password').removeAttribute('minlength')")
+        signup.remove_password_minlength()
 
     with step("действие: заполнить форму коротким паролем и отправить"):
         signup.email.fill("a11y-server@e2e.example.com")
@@ -37,7 +37,7 @@ def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFac
 
         # Ждём ответ сервера, затем проверяем aria-состояние.
         with page.expect_response("**/api/account/signup") as resp_info:
-            signup.submit_btn.click()
+            signup.submit()
         should.greater_or_equal(resp_info.value.status, HTTPStatus.BAD_REQUEST, ErrMsg.status_mismatch)
 
     with step("проверка: поле пароля получило aria-invalid"):
@@ -47,7 +47,7 @@ def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFac
 
 
 @allure.title("A11y: honeypot-поле скрыто от скринридера (aria-hidden)")
-def test_signup_honeypot_is_aria_hidden(page: Page, anon_pages: PageFactory) -> None:
+def test_signup_honeypot_is_aria_hidden(anon_pages: PageFactory) -> None:
     """A-SU-4: honeypot input has `aria-hidden="true"` (or its wrapper)."""
     with step("действие: открыть signup"):
         signup = anon_pages.navigate_to(SignupPage)
