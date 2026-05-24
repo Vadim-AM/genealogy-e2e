@@ -25,7 +25,6 @@ import httpx
 
 from api import routes
 from config.constants import unique_email
-from config.timeouts import TIMEOUTS
 from framework.step import step
 from helpers.ui.i18n_checks import has_cyrillic
 
@@ -59,7 +58,7 @@ def test_signup_validation_error_detail_in_russian(uvicorn_server: str):
     """Signup с слишком коротким паролем → 422 с detail на русском."""
     with step("действие: отправить signup с коротким паролем"), \
          httpx.Client(base_url=uvicorn_server) as c:
-            c.post(routes.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short).raise_for_status()
+            c.post(routes.TEST_RESET_SIGNUP_RATE).raise_for_status()
             r = c.post(
                 routes.SIGNUP,
                 json={

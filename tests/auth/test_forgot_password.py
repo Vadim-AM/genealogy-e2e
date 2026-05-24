@@ -22,7 +22,6 @@ from playwright.sync_api import Page, expect
 
 from api import routes
 from config.constants import make_email
-from config.timeouts import TIMEOUTS
 from framework.response import expect_response
 from framework.step import step
 from helpers.auth.auth_ui import auth_name
@@ -108,7 +107,6 @@ def test_forgot_password_unknown_email_shows_silent_success_message(
         r = httpx.get(
             f"{base_url}{routes.TEST_LAST_EMAIL}",
             params={"to": unknown_email},
-            timeout=TIMEOUTS.api_short,
         )
         expect_response(r, label="unknown email: no reset sent").status(HTTPStatus.NOT_FOUND)
 

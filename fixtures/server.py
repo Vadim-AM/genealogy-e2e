@@ -27,7 +27,7 @@ def wait_for_health(base_url: str, *, timeout: float) -> None:
     """Block until /api/health responds 200, or raise."""
     deadline = time.time() + timeout
     while time.time() < deadline:
-        response = httpx.get(f"{base_url}{routes.HEALTH}", timeout=TIMEOUTS.api_short)
+        response = httpx.get(f"{base_url}{routes.HEALTH}")
         if response.status_code == HTTPStatus.OK:
             return
         time.sleep(TIMEOUTS.polling_interval)
@@ -62,7 +62,6 @@ def set_ai_search_on(uvicorn_server: str) -> None:
     httpx.post(
         f"{uvicorn_server}{routes.TEST_SET_PLATFORM_SETTING}",
         json={"enable_ai_search": True},
-        timeout=TIMEOUTS.api_short,
     ).raise_for_status()
 
 
@@ -116,7 +115,7 @@ def ai_search_on_session(install_mock_ai: None, uvicorn_server: str) -> None:
     set-platform-setting actually reaches `/config/features` (replaces the
     old `_verify_ai_search_default`)."""
     set_ai_search_on(uvicorn_server)
-    f = httpx.get(f"{uvicorn_server}{routes.CONFIG_FEATURES}", timeout=TIMEOUTS.api_short)
+    f = httpx.get(f"{uvicorn_server}{routes.CONFIG_FEATURES}")
     f.raise_for_status()
     assert f.json().get("ai_search_enabled") is True, (
         f"session sanity failed: {routes.CONFIG_FEATURES} still reports "

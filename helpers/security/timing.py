@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from config.timeouts import TIMEOUTS
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -18,7 +17,7 @@ RATIO_THRESHOLD = 2.0
 
 def measure(client: httpx.Client, reset_url: str, make_call: Callable[[httpx.Client], object]) -> float:
     """Single iteration: reset signup throttle, measure call duration."""
-    httpx.post(reset_url, timeout=TIMEOUTS.api_short).raise_for_status()
+    httpx.post(reset_url).raise_for_status()
     start = time.perf_counter()
     make_call(client)
     return time.perf_counter() - start

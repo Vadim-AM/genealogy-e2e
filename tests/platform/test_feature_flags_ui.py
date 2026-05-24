@@ -29,7 +29,6 @@ import httpx
 from playwright.sync_api import expect
 
 from api import platform_api, routes
-from config.timeouts import TIMEOUTS
 from framework.response import expect_response
 from framework.step import step
 from src.texts import ErrMsg
@@ -147,7 +146,6 @@ def test_ai_search_toggle_reflects_db_value_when_off(
         httpx.post(
             f"{uvicorn_server}{routes.TEST_SET_PLATFORM_SETTING}",
             json={"enable_ai_search": False},
-            timeout=TIMEOUTS.api_short,
         ).raise_for_status()
 
     with step("действие: открываем дашборд и ждём загрузку настроек"):

@@ -15,7 +15,6 @@ import pytest
 
 from api import routes
 from config.constants import EMAIL_TOKEN_RE, TestConfig, unique_email
-from config.timeouts import TIMEOUTS
 from framework.step import step
 
 if TYPE_CHECKING:
@@ -55,7 +54,7 @@ def signup_unverified(uvicorn_server: str) -> Callable[..., str]:
     ) -> str:
         with httpx.Client(base_url=uvicorn_server) as c:
             c.post(
-                routes.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short
+                routes.TEST_RESET_SIGNUP_RATE
             ).raise_for_status()
             r = c.post(
                 routes.SIGNUP,
@@ -179,7 +178,7 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
             email = unique_email("owner")
         with httpx.Client(base_url=uvicorn_server) as c:
             with step(f"reset signup throttle for {email}"):
-                c.post(routes.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short).raise_for_status()
+                c.post(routes.TEST_RESET_SIGNUP_RATE).raise_for_status()
 
             with step(f"signup {email}"):
                 payload = {
@@ -216,7 +215,6 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
                     routes.ONBOARDING_COMPLETE,
                     cookies=cookies,
                     headers={"X-Tenant-Slug": slug},
-                    timeout=TIMEOUTS.api_short,
                 ).raise_for_status()
 
             return AuthUser(

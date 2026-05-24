@@ -15,7 +15,7 @@ Hard rules (CLAUDE.md):
 - Single canonical field name. Если backend переименует — тест fail'ит loud.
 - Hard expect / assert. Никаких OR-fallback'ов в проверках.
 - Нет skip-fallback. Если endpoint вернул 404 — это регрессия, fail.
-- Нет timeout-overrides — TIMEOUTS.api_request.
+- Нет timeout-overrides — дефолт из monkey-patch.
 """
 
 from __future__ import annotations
