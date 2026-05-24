@@ -10,7 +10,6 @@ from playwright.sync_api import Page, expect
 
 from assertions.base import should
 from framework.step import step
-from pages.base import wait_for_authed_shell
 from pages.tree_page import TreePage
 from src.texts import ErrMsg, TestData
 
@@ -23,7 +22,7 @@ def test_switch_between_tabs(owner_page: Page, pages: PageFactory) -> None:
     """Переключение вкладок обновляет active class и контент."""
     with step("подготовка: открыть дерево"):
         tree = pages.navigate_to(TreePage)
-        wait_for_authed_shell(owner_page)
+        tree.expect_authed_state()
 
     with step("проверка: переключение каждой вкладки обновляет active класс"):
         for tab_name in ("sources", "timeline", "about"):

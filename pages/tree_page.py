@@ -247,7 +247,7 @@ class TreePage(BasePage):
         # Auto-wait until the orbit renderer attaches at least one card.
         expect(self.orbit_cards.first).to_be_visible()
         count = self.orbit_cards.count()
-        assert count >= min_cards, (
+        assert count >= min_cards,  # precondition (
             f"orbit rendered {count} cards, expected at least {min_cards}"
         )
 
