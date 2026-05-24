@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._models.person import PersonResponse
@@ -36,7 +36,7 @@ def test_canonical_name_assembled_from_split_fields(owner_user, tenant_client):
         person_api.patch_person(api, pid, surname="Иванов", given_name="Иван", patronymic="Петрович")
 
     with step("проверка: каноническое имя содержит все фрагменты"):
-        r = api.get(API.person(pid))
+        r = api.get(routes.person(pid))
         person = expect_response(r, label="GET person").status_ok().schema(PersonResponse)
         for fragment in ("Иванов", "Иван", "Петрович"):
             assert fragment in (person.name or ""), f"canonical name missing '{fragment}': {person.name!r}"

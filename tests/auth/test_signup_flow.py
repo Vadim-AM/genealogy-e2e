@@ -13,7 +13,7 @@ import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import TestConfig, make_email
 from tests._core.err_msg import ErrMsg
 from tests._core.response import expect_response
@@ -52,7 +52,7 @@ def test_signup_happy_path_sends_verification_email(page: Page, base_url: str, a
         signup.expect_verification_message()
 
     with step("проверка: письмо с токеном верификации отправлено"):
-        r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
+        r = httpx.get(f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": email})
         expect_response(r, label="last-email").status_ok()
         assert "token=" in (r.json()["text_body"] or ""), \
             f"no verification token in email: {r.json()!r}"
@@ -76,7 +76,7 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str, ano
         signup.expect_verification_message()
 
         mail = httpx.get(
-            f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email}
+            f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": email}
         )
         expect_response(mail, label="last-email").status_ok()
         m = re.search(r"token=([\w\-]+)", mail.json()["text_body"])
@@ -85,7 +85,7 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str, ano
 
     with step("действие: verify-email и проверка auto_login"):
         verify = httpx.post(
-            f"{base_url}{API.VERIFY_EMAIL}", json={"token": token}
+            f"{base_url}{routes.VERIFY_EMAIL}", json={"token": token}
         )
         expect_response(verify, label="verify-email").status_ok()
         body = verify.json()
@@ -99,7 +99,7 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str, ano
         assert session_cookie, \
             f"verify-email response must Set-Cookie a session: got {list(cookies)}"
 
-        me = httpx.get(f"{base_url}{API.ACCOUNT_ME}", cookies=cookies)
+        me = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", cookies=cookies)
         expect_response(me, label="/me after verify").status_ok()
         assert me.json()["tenant"]["slug"] == body["tenant_slug"], \
             f"/me slug mismatch: expected {body['tenant_slug']!r}, got {me.json()['tenant']['slug']!r}"
@@ -119,7 +119,7 @@ def test_signup_then_verify_creates_tenant(page: Page, base_url: str, anon_pages
         signup.expect_verification_message()
 
         mail = httpx.get(
-            f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email}
+            f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": email}
         )
         expect_response(mail, label="last-email").status_ok()
         m = re.search(r"token=([\w\-]+)", mail.json()["text_body"])
@@ -131,7 +131,7 @@ def test_signup_then_verify_creates_tenant(page: Page, base_url: str, anon_pages
 
     with step("проверка: login возвращает tenant_slug"):
         me = httpx.post(
-            f"{base_url}{API.LOGIN}",
+            f"{base_url}{routes.LOGIN}",
             json={"email": email, "password": TestConfig.DEFAULT_PASSWORD},
         )
         expect_response(me, label="login after verify").status_ok()
@@ -163,7 +163,7 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str, anon_pages:
             f"signup with honeypot returned {resp_info.value.status} (expected 200 silent)"
 
     with step("проверка: письмо не отправлено"):
-        r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
+        r = httpx.get(f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": email})
         expect_response(r, label="honeypot: no email sent").status(HTTPStatus.NOT_FOUND)
 
 
@@ -192,7 +192,7 @@ def test_disposable_email_rejected_inline(page: Page, base_url: str, anon_pages:
         expect(email_err, ErrMsg.wrong_text_content).not_to_have_text("")
         expect(page.locator("#email"), ErrMsg.wrong_attribute).to_have_attribute("aria-invalid", "true")
 
-        r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": disposable_email})
+        r = httpx.get(f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": disposable_email})
         expect_response(r, label="disposable: no email sent").status(HTTPStatus.NOT_FOUND)
 
 
@@ -212,5 +212,5 @@ def test_password_too_short_rejected_inline(page: Page, base_url: str, anon_page
         assert pwd_valid is False, \
             f"password input must fail HTML5 minlength validity, got {pwd_valid!r}"
 
-        r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
+        r = httpx.get(f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": email})
         expect_response(r, label="short-pw: no email sent").status(HTTPStatus.NOT_FOUND)

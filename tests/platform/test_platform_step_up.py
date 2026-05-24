@@ -17,7 +17,7 @@ from http import HTTPStatus
 import allure
 import pyotp
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import make_email
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -36,7 +36,7 @@ def test_grant_license_403_step_up_required_without_step_up(
 
     with step("проверка: grant-license без step-up отклоняется 403"):
         r = api.post(
-            API.PLATFORM_FREE_LICENSE_GRANT,
+            routes.PLATFORM_FREE_LICENSE_GRANT,
             json={"email": make_email("stepup-target")},
         )
         expect_response(r, label="grant without step-up").status(HTTPStatus.FORBIDDEN)
@@ -53,12 +53,12 @@ def test_step_up_with_valid_totp_unlocks_critical_action(
         api = tenant_client(superadmin_user)
         secret = setup_and_verify_mfa(api)
         code = pyotp.TOTP(secret).now()
-        r1 = api.post(API.MFA_STEP_UP, json={"method": "totp", "code": code})
+        r1 = api.post(routes.MFA_STEP_UP, json={"method": "totp", "code": code})
         expect_response(r1, label="step-up TOTP").status_ok().json_eq("status", "ok")
 
     with step("проверка: grant-license после step-up проходит"):
         r2 = api.post(
-            API.PLATFORM_FREE_LICENSE_GRANT,
+            routes.PLATFORM_FREE_LICENSE_GRANT,
             json={"email": make_email("stepup-grant-ok")},
         )
         expect_response(r2, label="grant after step-up").status_ok().json_eq("status", "granted")
@@ -73,7 +73,7 @@ def test_step_up_invalid_totp_401(superadmin_user, tenant_client):
         setup_and_verify_mfa(api)
 
     with step("проверка: неверный TOTP в step-up — 401"):
-        r = api.post(API.MFA_STEP_UP, json={"method": "totp", "code": "000000"})
+        r = api.post(routes.MFA_STEP_UP, json={"method": "totp", "code": "000000"})
         expect_response(r, label="step-up invalid TOTP").status(HTTPStatus.UNAUTHORIZED)
 
 
@@ -86,7 +86,7 @@ def test_step_up_unknown_method_400(superadmin_user, tenant_client):
         setup_and_verify_mfa(api)
 
     with step("проверка: неизвестный метод — 400"):
-        r = api.post(API.MFA_STEP_UP, json={"method": "garbage", "code": "000000"})
+        r = api.post(routes.MFA_STEP_UP, json={"method": "garbage", "code": "000000"})
         expect_response(r, label="step-up unknown method").status(HTTPStatus.BAD_REQUEST)
 
 
@@ -98,7 +98,7 @@ def test_step_up_writes_audit_event(superadmin_user, tenant_client):
         secret = setup_and_verify_mfa(api)
         code = pyotp.TOTP(secret).now()
         expect_response(
-            api.post(API.MFA_STEP_UP, json={"method": "totp", "code": code}),
+            api.post(routes.MFA_STEP_UP, json={"method": "totp", "code": code}),
             label="MFA step-up",
         ).status_ok()
 
@@ -127,7 +127,7 @@ def test_recovery_redeem_works_as_step_up_method(superadmin_user, tenant_client)
         codes = recovery.codes
 
     with step("проверка: step-up через recovery-код — 200"):
-        r = api.post(API.MFA_STEP_UP, json={"method": "recovery", "code": codes[0]})
+        r = api.post(routes.MFA_STEP_UP, json={"method": "recovery", "code": codes[0]})
         expect_response(r, label="step-up recovery").status_ok().json_eq("status", "ok")
 
 

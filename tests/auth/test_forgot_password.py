@@ -20,7 +20,7 @@ import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import make_email
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import TestData
@@ -107,7 +107,7 @@ def test_forgot_password_unknown_email_shows_silent_success_message(
 
     with step("проверка: письмо не отправлено для неизвестного email"):
         r = httpx.get(
-            f"{base_url}{API.TEST_LAST_EMAIL}",
+            f"{base_url}{routes.TEST_LAST_EMAIL}",
             params={"to": unknown_email},
             timeout=TIMEOUTS.api_short,
         )

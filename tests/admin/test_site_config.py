@@ -17,7 +17,7 @@ from __future__ import annotations
 import allure
 import httpx
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import unique_email
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -34,11 +34,11 @@ def test_tenant_b_sees_default_not_tenant_a_value(signup_via_api, tenant_client)
         user_b = signup_via_api(email=unique_email("mt-default-b"))
 
         tenant_client(user_a).patch(
-            API.SITE_CONFIG, json={"site_name": _TENANT_A_VALUE},
+            routes.SITE_CONFIG, json={"site_name": _TENANT_A_VALUE},
         ).raise_for_status()
 
     with step("проверка: tenant B видит default, не значение A"):
-        r = tenant_client(user_b).get(API.SITE_CONFIG)
+        r = tenant_client(user_b).get(routes.SITE_CONFIG)
         r.raise_for_status()
         b_value = r.json().get("site_name") or ""
         assert b_value != _TENANT_A_VALUE, (
@@ -61,11 +61,11 @@ def test_tenant_b_patch_does_not_overwrite_tenant_a(signup_via_api, tenant_clien
         api_a = tenant_client(user_a)
         api_b = tenant_client(user_b)
 
-        api_a.patch(API.SITE_CONFIG, json={"site_name": _TENANT_A_VALUE}).raise_for_status()
-        api_b.patch(API.SITE_CONFIG, json={"site_name": _TENANT_B_VALUE}).raise_for_status()
+        api_a.patch(routes.SITE_CONFIG, json={"site_name": _TENANT_A_VALUE}).raise_for_status()
+        api_b.patch(routes.SITE_CONFIG, json={"site_name": _TENANT_B_VALUE}).raise_for_status()
 
     with step("проверка: PATCH B не затёр значение A"):
-        r = api_a.get(API.SITE_CONFIG)
+        r = api_a.get(routes.SITE_CONFIG)
         r.raise_for_status()
         a_value = r.json().get("site_name") or ""
         assert a_value == _TENANT_A_VALUE, (
@@ -88,11 +88,11 @@ def test_anonymous_site_config_does_not_leak_tenant_value(
         user_a = signup_via_api(email=unique_email("mt-anon-a"))
 
         tenant_client(user_a).patch(
-            API.SITE_CONFIG, json={"site_name": _TENANT_A_VALUE},
+            routes.SITE_CONFIG, json={"site_name": _TENANT_A_VALUE},
         ).raise_for_status()
 
     with step("проверка: анонимный GET не возвращает значение tenant A"):
-        r = httpx.get(f"{base_url}{API.SITE_CONFIG}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.SITE_CONFIG}", timeout=TIMEOUTS.api_request)
         r.raise_for_status()
         anon_value = r.json().get("site_name") or ""
         assert anon_value != _TENANT_A_VALUE, (

@@ -22,7 +22,7 @@ from http import HTTPStatus
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import GedcomImport, t
 from tests._core.step import step
@@ -53,7 +53,7 @@ def test_round_trip_export_then_import(owner_page: Page, owner_user, tenant_clie
     with step("подготовка: экспорт текущего дерева через API"):
         api = tenant_client(owner_user)
         # 1. Экспорт текущего дерева через API (возвращает .ged текстом)
-        r = api.get(API.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long)
+        r = api.get(routes.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long)
         assert r.is_success, f"export GEDCOM failed: {r.status_code} {r.text[:200]}"
         ged_text = r.text
         assert "0 HEAD" in ged_text[:100], f"exported GEDCOM missing header: {ged_text[:100]!r}"
@@ -101,7 +101,7 @@ def test_import_new_persons_visible_in_tree(owner_page: Page, owner_user, tenant
 
     with step("проверка: новые персоны появились в /api/tree"):
         api = tenant_client(owner_user)
-        tree_after = api.get(API.TREE).json()
+        tree_after = api.get(routes.TREE).json()
         assert len(tree_after["people"]) >= count_before + 2, (
             f"expected ≥2 new persons; before={count_before}, after={len(tree_after['people'])}"
         )
@@ -236,13 +236,13 @@ def test_retry_after_error_resets_to_idle(owner_page: Page, owner_user):
                               content_type="application/json")
             else:
                 route.continue_()
-        owner_page.route(f"**{API.ADMIN_IMPORT_GEDCOM}", _block_500)
+        owner_page.route(f"**{routes.ADMIN_IMPORT_GEDCOM}", _block_500)
         try:
             owner.upload_ged(filename="boom.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
             owner.expect_import_state("ERROR")
             expect(owner.import_error, ErrMsg.gedcom_import_state_wrong).to_be_visible()
         finally:
-            owner_page.unroute(f"**{API.ADMIN_IMPORT_GEDCOM}")
+            owner_page.unroute(f"**{routes.ADMIN_IMPORT_GEDCOM}")
 
     with step("проверка: Retry сбрасывает в IDLE"):
         owner.import_retry_btn.click()
@@ -343,7 +343,7 @@ def test_backend_400_shows_friendly_error(owner_page: Page, owner_user):
             else:
                 route.continue_()
 
-        owner_page.route(f"**{API.ADMIN_IMPORT_GEDCOM}", _block_400)
+        owner_page.route(f"**{routes.ADMIN_IMPORT_GEDCOM}", _block_400)
 
     with step("проверка: UI показывает ERROR с detail от бэкенда"):
         try:
@@ -351,7 +351,7 @@ def test_backend_400_shows_friendly_error(owner_page: Page, owner_user):
             owner.expect_import_state("ERROR")
             expect(owner.import_error, ErrMsg.wrong_text_content).to_contain_text("GEDCOM parse error")
         finally:
-            owner_page.unroute(f"**{API.ADMIN_IMPORT_GEDCOM}")
+            owner_page.unroute(f"**{routes.ADMIN_IMPORT_GEDCOM}")
 
 
 @allure.title("GEDCOM: обрыв сети показывает понятное сообщение об ошибке")
@@ -359,7 +359,7 @@ def test_network_error_shows_friendly_message(owner_page: Page, owner_user):
     """Полный network fail (route.abort) → ERROR с friendly message."""
     with step("подготовка: перехват POST с abort"):
         owner = open_import_tab(owner_page)
-        owner_page.route(f"**{API.ADMIN_IMPORT_GEDCOM}", lambda r: r.abort())
+        owner_page.route(f"**{routes.ADMIN_IMPORT_GEDCOM}", lambda r: r.abort())
 
     with step("проверка: ERROR с friendly message"):
         try:
@@ -368,4 +368,4 @@ def test_network_error_shows_friendly_message(owner_page: Page, owner_user):
             # Сообщение — понятное, не сырой stacktrace
             expect(owner.import_error, ErrMsg.gedcom_import_state_wrong).to_be_visible()
         finally:
-            owner_page.unroute(f"**{API.ADMIN_IMPORT_GEDCOM}")
+            owner_page.unroute(f"**{routes.ADMIN_IMPORT_GEDCOM}")

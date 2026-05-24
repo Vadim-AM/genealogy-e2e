@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import TestData
 from tests._core.step import step
@@ -52,7 +52,7 @@ def test_owner_clicks_logout_link_and_indicator_switches_to_guest(
         map_tab_before = owner_page.locator('[data-tab="map"]')
 
     with step("действие: клик по кнопке 'Выйти'"), owner_page.expect_response(
-        lambda r: API.LOGOUT in r.url and r.request.method == "POST"
+        lambda r: routes.LOGOUT in r.url and r.request.method == "POST"
     ):
         logout_link(owner_page).click()
 
@@ -82,7 +82,7 @@ def test_user_relogins_via_form_lands_in_same_tenant(
         wait_for_authed_shell(owner_page)
         expect(logout_link(owner_page), ErrMsg.logout_link_not_visible).to_be_visible()
         with owner_page.expect_response(
-            lambda r: API.LOGOUT in r.url and r.request.method == "POST"
+            lambda r: routes.LOGOUT in r.url and r.request.method == "POST"
         ):
             logout_link(owner_page).click()
         expect(login_link(owner_page), ErrMsg.link_not_visible).to_be_visible()
@@ -91,7 +91,7 @@ def test_user_relogins_via_form_lands_in_same_tenant(
         login = pages.navigate_to(LoginPage)
         login.expect_visible_form()
         with owner_page.expect_response(
-            lambda r: API.LOGIN in r.url and r.request.method == "POST"
+            lambda r: routes.LOGIN in r.url and r.request.method == "POST"
         ) as resp_ctx:
             login.login(owner_user.email, owner_user.password)
         assert resp_ctx.value.ok, (

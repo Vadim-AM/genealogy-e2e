@@ -18,7 +18,7 @@ import allure
 import pyotp
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import make_email
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import Mfa, t
@@ -61,23 +61,23 @@ def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client):
         api = tenant_client(user)
 
         setup_data = expect_response(
-            api.post(API.USER_MFA_SETUP), label="user MFA setup",
+            api.post(routes.USER_MFA_SETUP), label="user MFA setup",
         ).status_ok().data
         secret = setup_data["secret"]
         expect_response(
-            api.post(API.USER_MFA_VERIFY, json={"code": pyotp.TOTP(secret).now()}),
+            api.post(routes.USER_MFA_VERIFY, json={"code": pyotp.TOTP(secret).now()}),
             label="user MFA verify",
         ).status_ok()
 
     with step("действие: регенерация кодов и проверка количества"):
         regen_data = expect_response(
-            api.post(API.USER_MFA_RECOVERY_REGEN), label="user MFA regen",
+            api.post(routes.USER_MFA_RECOVERY_REGEN), label="user MFA regen",
         ).status_ok().data
         codes = regen_data["codes"]
         assert len(codes) == 10, f"expected 10 recovery codes, got {len(codes)}"
 
         count_data = expect_response(
-            api.get(API.USER_MFA_RECOVERY_COUNT), label="user MFA recovery count",
+            api.get(routes.USER_MFA_RECOVERY_COUNT), label="user MFA recovery count",
         ).status_ok().data
         count_before = count_data["unused"]
         assert count_before == 10, \
@@ -85,17 +85,17 @@ def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client):
 
     with step("действие: использование кода и проверка декремента"):
         expect_response(
-            api.post(API.USER_MFA_RECOVERY_REDEEM, json={"code": codes[0]}),
+            api.post(routes.USER_MFA_RECOVERY_REDEEM, json={"code": codes[0]}),
             label="user MFA redeem",
         ).status_ok()
         count_after_data = expect_response(
-            api.get(API.USER_MFA_RECOVERY_COUNT), label="user MFA recovery count after",
+            api.get(routes.USER_MFA_RECOVERY_COUNT), label="user MFA recovery count after",
         ).status_ok().data
         count_after = count_after_data["unused"]
         assert count_after == 9, \
             f"redeeming a code must decrement the count: {count_before}→{count_after}"
 
     with step("проверка: повторное использование того же кода — 401"):
-        again = api.post(API.USER_MFA_RECOVERY_REDEEM, json={"code": codes[0]})
+        again = api.post(routes.USER_MFA_RECOVERY_REDEEM, json={"code": codes[0]})
         assert again.status_code == HTTPStatus.UNAUTHORIZED, \
             f"a recovery code must be one-time; re-redeem got {again.status_code}"

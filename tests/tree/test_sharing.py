@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.messages import TestData
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -35,7 +35,7 @@ def test_owner_shares_card_anon_views_then_revoke_kills_link(
         assert "/share/" in share_url, f"share url missing /share/ segment: {share_url!r}"
 
     with step("проверка: ссылка в списке без утечки токена"):
-        r_list = api.get(API.SHARE_LIST)
+        r_list = api.get(routes.SHARE_LIST)
         share_list = expect_response(r_list, label="share list").status_ok().schema(ShareListResponse)
         assert any(s.id == share_id for s in share_list.items), \
             "created share must appear in the owner's list"
@@ -52,7 +52,7 @@ def test_owner_shares_card_anon_views_then_revoke_kills_link(
             share.expect_person_visible(TestData.DEFAULT_FULL_NAME.split()[0])
             share.expect_no_edit_controls()
 
-            expect_response(api.delete(API.share(share_id)), label="revoke share").status_ok()
+            expect_response(api.delete(routes.share(share_id)), label="revoke share").status_ok()
 
             page.goto(share_url)
             share.expect_error_visible()
@@ -71,7 +71,7 @@ def test_share_list_never_leaks_tokens(owner_user, tenant_client):
             f"create response must carry the share url, got {share!r}"
 
     with step("проверка: список не содержит секретных токенов"):
-        r_list = api.get(API.SHARE_LIST)
+        r_list = api.get(routes.SHARE_LIST)
         share_list = expect_response(r_list, label="share list").status_ok().schema(ShareListResponse)
         assert share_list.items, "the created share must appear in the list (empty list)"
         for item in share_list.items:

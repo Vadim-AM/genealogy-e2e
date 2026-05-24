@@ -14,7 +14,7 @@ import allure
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.step import step
 from tests.pages.signup_page import SignupPage
@@ -64,7 +64,7 @@ def test_wait_form_visible(anon_pages: PageFactory):
 def test_health_endpoint_via_browser(page: Page):
     """Sanity: even page.goto sees the live FastAPI subprocess."""
     with step("действие: запросить /api/health через браузер"):
-        response = page.goto(API.HEALTH)
+        response = page.goto(routes.HEALTH)
 
     with step("проверка: endpoint доступен и отвечает 200"):
         assert response is not None, "page.goto(/api/health) returned None"

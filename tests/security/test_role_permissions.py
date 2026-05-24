@@ -14,7 +14,7 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.messages import TestData
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -28,7 +28,7 @@ def test_viewer_can_read_tree(viewer_in_owners_tenant, tenant_client):
     """
     with step("действие: viewer запрашивает дерево"):
         _, viewer = viewer_in_owners_tenant
-        r = tenant_client(viewer).get(API.TREE)
+        r = tenant_client(viewer).get(routes.TREE)
 
     with step("проверка: 200 OK"):
         expect_response(r, label="viewer GET tree").status(HTTPStatus.OK)
@@ -38,5 +38,5 @@ def test_viewer_can_read_tree(viewer_in_owners_tenant, tenant_client):
 def test_viewer_can_read_person(viewer_in_owners_tenant, tenant_client):
     """INV-PERM-003a: viewer GET /api/people/{id} returns 200."""
     _, viewer = viewer_in_owners_tenant
-    r = tenant_client(viewer).get(API.person(TestData.DEMO_PERSON_ID))
+    r = tenant_client(viewer).get(routes.person(TestData.DEMO_PERSON_ID))
     expect_response(r, label="viewer GET person").status(HTTPStatus.OK)

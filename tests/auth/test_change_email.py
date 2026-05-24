@@ -20,7 +20,7 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import make_email, unique_email
 from tests._core.step import step
 
@@ -42,7 +42,7 @@ def test_change_email_endpoint_initiates_confirmation(
     with step("действие: запрос смены email"):
         new_email = unique_email("changed")
         r = api.post(
-            API.ACCOUNT_EMAIL,
+            routes.ACCOUNT_EMAIL,
             json={"new_email": new_email, "current_password": user.password},
         )
 

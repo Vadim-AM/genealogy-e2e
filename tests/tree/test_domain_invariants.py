@@ -17,7 +17,7 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import unique_email
 from tests._core.messages import TestData
 from tests._core.response import expect_response
@@ -39,7 +39,7 @@ def test_patch_person_death_before_birth_is_422(owner_user, tenant_client):
     """
     api = tenant_client(owner_user)
     r = api.patch(
-        API.person(TestData.DEMO_PERSON_ID),
+        routes.person(TestData.DEMO_PERSON_ID),
         json={"birth": "1920", "death": "1900"},
     )
     expect_response(r, label="death before birth").status(HTTPStatus.BAD_REQUEST, HTTPStatus.UNPROCESSABLE_ENTITY)
@@ -67,8 +67,10 @@ def test_patch_parent_birth_after_child_is_422(signup_via_api, tenant_client):
         )
 
     with step("проверка: PATCH birth=2000 отклонён (400/422)"):
-        r = api.patch(API.person("dom004-parent"), json={"birth": "2000"})
-        expect_response(r, label="parent birth after child").status(HTTPStatus.BAD_REQUEST, HTTPStatus.UNPROCESSABLE_ENTITY)
+        r = api.patch(routes.person("dom004-parent"), json={"birth": "2000"})
+        expect_response(r, label="parent birth after child").status(
+            HTTPStatus.BAD_REQUEST, HTTPStatus.UNPROCESSABLE_ENTITY,
+        )
 
 
 @allure.title("Бэкенд отклоняет непарсируемую дату рождения")
@@ -80,7 +82,7 @@ def test_patch_person_garbage_birth_is_422(owner_user, tenant_client):
     """
     api = tenant_client(owner_user)
     r = api.patch(
-        API.person(TestData.DEMO_PERSON_ID),
+        routes.person(TestData.DEMO_PERSON_ID),
         json={"birth": "foobar"},
     )
     expect_response(r, label="garbage birth value").status(HTTPStatus.BAD_REQUEST, HTTPStatus.UNPROCESSABLE_ENTITY)
@@ -113,8 +115,10 @@ def test_third_parent_relationship_is_rejected(signup_via_api, tenant_client):
         )
 
     with step("проверка: третий родитель отклонён"):
-        r = api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p3", "dom002-child"))
-        expect_response(r, label="3rd parent").status(HTTPStatus.BAD_REQUEST, HTTPStatus.CONFLICT, HTTPStatus.UNPROCESSABLE_ENTITY)
+        r = api.post(routes.RELATIONSHIPS, json=parent_rel("dom002-p3", "dom002-child"))
+        expect_response(r, label="3rd parent").status(
+            HTTPStatus.BAD_REQUEST, HTTPStatus.CONFLICT, HTTPStatus.UNPROCESSABLE_ENTITY,
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -140,8 +144,10 @@ def test_parent_cycle_is_rejected(signup_via_api, tenant_client):
         )
 
     with step("проверка: обратная связь B→A отклонена"):
-        r2 = api.post(API.RELATIONSHIPS, json=parent_rel("dom003-b", "dom003-a"))
-        expect_response(r2, label="parent cycle B->A->B").status(HTTPStatus.BAD_REQUEST, HTTPStatus.CONFLICT, HTTPStatus.UNPROCESSABLE_ENTITY)
+        r2 = api.post(routes.RELATIONSHIPS, json=parent_rel("dom003-b", "dom003-a"))
+        expect_response(r2, label="parent cycle B->A->B").status(
+            HTTPStatus.BAD_REQUEST, HTTPStatus.CONFLICT, HTTPStatus.UNPROCESSABLE_ENTITY,
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -156,8 +162,10 @@ def test_subject_cannot_be_demoted_to_demo_branch(owner_user, tenant_client):
     Was xfail until upstream batch-6/7. Now regular regression.
     """
     api = tenant_client(owner_user)
-    r = api.patch(API.person(TestData.DEMO_PERSON_ID), json={"branch": "demo"})
-    expect_response(r, label="subject demoted to demo").status(HTTPStatus.BAD_REQUEST, HTTPStatus.CONFLICT, HTTPStatus.UNPROCESSABLE_ENTITY)
+    r = api.patch(routes.person(TestData.DEMO_PERSON_ID), json={"branch": "demo"})
+    expect_response(r, label="subject demoted to demo").status(
+        HTTPStatus.BAD_REQUEST, HTTPStatus.CONFLICT, HTTPStatus.UNPROCESSABLE_ENTITY,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -186,7 +194,7 @@ def test_delete_non_root_person_with_relationship_does_not_500(
         )
 
     with step("проверка: DELETE не вызывает 500"):
-        r = api.delete(API.person("cascade-parent"))
+        r = api.delete(routes.person("cascade-parent"))
         assert r.status_code < HTTPStatus.INTERNAL_SERVER_ERROR, (
             f"DELETE /api/people/cascade-parent crashed {r.status_code} -- "
             f"cascade not handled. Body: {r.text[:300]}"
@@ -214,10 +222,12 @@ def test_relationship_with_orphan_person_id_returns_404_not_500(
 
     with step("проверка: связь с несуществующим ID возвращает 400/404/422"):
         r = api.post(
-            API.RELATIONSHIPS,
+            routes.RELATIONSHIPS,
             json={"type": "parent", "person1_id": "txn001-real", "person2_id": "NONEXIST-ORPHAN-ID"},
         )
-        expect_response(r, label="orphan FK relationship").status(HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND, HTTPStatus.UNPROCESSABLE_ENTITY)
+        expect_response(r, label="orphan FK relationship").status(
+            HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND, HTTPStatus.UNPROCESSABLE_ENTITY,
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -233,10 +243,12 @@ def test_patch_person_huge_notes_is_rejected(owner_user, tenant_client):
     """
     api = tenant_client(owner_user)
     r = api.patch(
-        API.person(TestData.DEMO_PERSON_ID),
+        routes.person(TestData.DEMO_PERSON_ID),
         json={"notes": "X" * (50 * 1024)},  # 50 KB
     )
-    expect_response(r, label="50KB notes rejected").status(HTTPStatus.BAD_REQUEST, HTTPStatus.CONTENT_TOO_LARGE, HTTPStatus.UNPROCESSABLE_ENTITY)
+    expect_response(r, label="50KB notes rejected").status(
+        HTTPStatus.BAD_REQUEST, HTTPStatus.CONTENT_TOO_LARGE, HTTPStatus.UNPROCESSABLE_ENTITY,
+    )
 
 
 @allure.title("Бэкенд отклоняет слишком длинную фамилию (5000 символов)")
@@ -247,7 +259,9 @@ def test_patch_person_huge_surname_is_rejected(owner_user, tenant_client):
     """
     api = tenant_client(owner_user)
     r = api.patch(
-        API.person(TestData.DEMO_PERSON_ID),
+        routes.person(TestData.DEMO_PERSON_ID),
         json={"surname": "А" * 5_000},
     )
-    expect_response(r, label="5K-char surname rejected").status(HTTPStatus.BAD_REQUEST, HTTPStatus.CONTENT_TOO_LARGE, HTTPStatus.UNPROCESSABLE_ENTITY)
+    expect_response(r, label="5K-char surname rejected").status(
+        HTTPStatus.BAD_REQUEST, HTTPStatus.CONTENT_TOO_LARGE, HTTPStatus.UNPROCESSABLE_ENTITY,
+    )

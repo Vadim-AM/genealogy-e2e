@@ -36,9 +36,9 @@ def tenant_client(uvicorn_server: str) -> Generator[Callable[[AuthUser], httpx.C
 
         def test_x(owner_user, tenant_client, base_url):
             api = tenant_client(owner_user)
-            r = api.get(API.person(TestData.DEMO_PERSON_ID))
+            r = api.get(routes.person(TestData.DEMO_PERSON_ID))
             r.raise_for_status()
-            api.patch(API.person(pid), json={"summary": "..."})
+            api.patch(routes.person(pid), json={"summary": "..."})
 
     Несколько user'ов в одном тесте — несколько вызовов factory.
     Все клиенты автоматически закрываются на teardown.

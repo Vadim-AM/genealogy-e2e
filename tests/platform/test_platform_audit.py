@@ -13,7 +13,7 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests.helpers.api import platform_api
@@ -22,7 +22,7 @@ from tests.helpers.api import platform_api
 @allure.title("Аудит: журнал недоступен обычному владельцу")
 def test_audit_log_403_for_non_super(owner_user, tenant_client):
     """TC-PA-AUDIT-1: regular owner → 401/403."""
-    r = tenant_client(owner_user).get(API.PLATFORM_AUDIT_LOG)
+    r = tenant_client(owner_user).get(routes.PLATFORM_AUDIT_LOG)
     expect_response(r, label="owner audit-log").status(HTTPStatus.FORBIDDEN)
 
 
@@ -31,7 +31,7 @@ def test_audit_log_returns_canonical_shape(superadmin_user, tenant_client):
     """TC-PA-AUDIT-2: items, count, limit + per-item: id, ts, actor_email,
     action, target_type, target_id, payload, ip_hash."""
     with step("действие: запрашиваем audit-log с limit=10"):
-        r = tenant_client(superadmin_user).get(API.PLATFORM_AUDIT_LOG, params={"limit": 10})
+        r = tenant_client(superadmin_user).get(routes.PLATFORM_AUDIT_LOG, params={"limit": 10})
         data = expect_response(r, label="audit-log shape").status_ok().data
 
     with step("проверка: items, count, limit присутствуют и limit=10"):
@@ -44,14 +44,14 @@ def test_audit_log_returns_canonical_shape(superadmin_user, tenant_client):
 @allure.title("Аудит: limit=0 ограничивается снизу до 1")
 def test_audit_log_clamps_limit_lower(superadmin_user, tenant_client):
     """TC-PA-AUDIT-3: limit=0 → 1 (canonical)."""
-    r = tenant_client(superadmin_user).get(API.PLATFORM_AUDIT_LOG, params={"limit": 0})
+    r = tenant_client(superadmin_user).get(routes.PLATFORM_AUDIT_LOG, params={"limit": 0})
     expect_response(r, label="audit-log limit=0").status_ok().json_eq("limit", 1)
 
 
 @allure.title("Аудит: limit=99999 ограничивается сверху до 500")
 def test_audit_log_clamps_limit_upper(superadmin_user, tenant_client):
     """TC-PA-AUDIT-4: limit=99999 → 500 (canonical)."""
-    r = tenant_client(superadmin_user).get(API.PLATFORM_AUDIT_LOG, params={"limit": 99999})
+    r = tenant_client(superadmin_user).get(routes.PLATFORM_AUDIT_LOG, params={"limit": 99999})
     expect_response(r, label="audit-log limit=99999").status_ok().json_eq("limit", 500)
 
 
@@ -60,7 +60,7 @@ def test_audit_log_invalid_since_iso_returns_400(superadmin_user, tenant_client)
     """TC-PA-AUDIT-5: since_iso=garbage → 400 (не silent fallback)."""
     with step("действие: запрашиваем audit-log с невалидной датой"):
         r = tenant_client(superadmin_user).get(
-            API.PLATFORM_AUDIT_LOG, params={"since_iso": "not-a-date"},
+            routes.PLATFORM_AUDIT_LOG, params={"since_iso": "not-a-date"},
         )
 
     with step("проверка: 400 — не silent fallback"):
@@ -78,7 +78,7 @@ def test_settings_patch_writes_audit_entry(superadmin_user, tenant_client):
 
     with step("действие: патчим soft_warn_threshold"):
         expect_response(
-            api.patch(API.PLATFORM_SETTINGS, json={"soft_warn_threshold": new_value}),
+            api.patch(routes.PLATFORM_SETTINGS, json={"soft_warn_threshold": new_value}),
             label="patch settings",
         ).status_ok()
 
@@ -108,7 +108,7 @@ def test_audit_log_ip_hash_is_hex_not_raw_ip(superadmin_user, tenant_client):
 
     with step("подготовка: создаём audit-запись через self-PATCH"):
         expect_response(
-            api.patch(API.PLATFORM_SETTINGS, json={"soft_warn_threshold": 0.85}),
+            api.patch(routes.PLATFORM_SETTINGS, json={"soft_warn_threshold": 0.85}),
             label="patch settings",
         ).status_ok()
 
@@ -136,7 +136,7 @@ def test_audit_log_filters_by_action(superadmin_user, tenant_client):
 
     with step("подготовка: создаём settings_patch запись"):
         expect_response(
-            api.patch(API.PLATFORM_SETTINGS, json={"soft_warn_threshold": 0.9}),
+            api.patch(routes.PLATFORM_SETTINGS, json={"soft_warn_threshold": 0.9}),
             label="patch settings",
         ).status_ok()
 

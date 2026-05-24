@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.response import expect_response
 from tests._core.timeouts import TIMEOUTS
 from tests._models.enrichment import EnrichJobResponse, EnrichStartResponse
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 def start_enrichment(api: httpx.Client, person_id: str, *, force: bool = True) -> EnrichStartResponse:
     """POST /api/enrich/{pid} → validated EnrichStartResponse."""
     r = api.post(
-        API.enrich(person_id),
+        routes.enrich(person_id),
         json={"streaming": False, "force_refresh": force},
         timeout=TIMEOUTS.api_long,
     )
@@ -28,7 +28,7 @@ def poll_enrichment_job(api: httpx.Client, job_id: str) -> EnrichJobResponse:
     """Poll GET /api/enrich/jobs/{job_id} until done or timeout."""
     deadline = time.time() + TIMEOUTS.enrichment_poll
     while time.time() < deadline:
-        r = api.get(API.enrich_jobs(job_id))
+        r = api.get(routes.enrich_jobs(job_id))
         r.raise_for_status()
         job = EnrichJobResponse.model_validate(r.json())
         if job.status == "done":

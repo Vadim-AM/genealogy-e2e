@@ -10,7 +10,7 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import Enrichment, TestData, t
 from tests._core.response import expect_response
@@ -87,21 +87,21 @@ def test_enrichment_cache_and_health_invariants(
         assert enrichment_id is not None, "enrichment job did not finish in time"
 
     with step("проверка: кэш, health, feedback и letters-sent"):
-        cached = api.get(API.enrich_cache(enrichment_id))
+        cached = api.get(routes.enrich_cache(enrichment_id))
         cached_job = expect_response(cached, label="GET enrich cache").status_ok().schema(EnrichJobResponse)
         assert cached_job.enrichment_id == enrichment_id, \
             f"cache enrichment_id: expected {enrichment_id}, got {cached_job.enrichment_id}"
 
-        health = api.get(API.ENRICH_HEALTH_API_KEY)
+        health = api.get(routes.ENRICH_HEALTH_API_KEY)
         expect_response(health, label="GET enrich health").status_ok().json_has("configured")
 
         # Feedback + letter-sent telemetry — both keyed on the enrichment id.
-        feedback = api.post(API.enrich_feedback(TestData.DEMO_PERSON_ID), json={
+        feedback = api.post(routes.enrich_feedback(TestData.DEMO_PERSON_ID), json={
             "enrichment_id": enrichment_id, "feedback_type": "overall", "thumb": "up",
         })
         expect_response(feedback, label="POST enrich feedback").status_ok()
 
-        letter = api.post(API.ENRICH_LETTERS_SENT, json={
+        letter = api.post(routes.ENRICH_LETTERS_SENT, json={
             "enrichment_id": enrichment_id, "archive_name": "ЦАМО",
         })
         expect_response(letter, label="POST letters-sent").status_ok()

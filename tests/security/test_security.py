@@ -13,7 +13,7 @@ import allure
 import httpx
 import pytest
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -31,9 +31,9 @@ from tests._core.timeouts import TIMEOUTS
 @pytest.mark.parametrize(
     "endpoint",
     [
-        API.PEOPLE,
-        API.TENANT_INVITES,
-        API.PLATFORM_METRICS,
+        routes.PEOPLE,
+        routes.TENANT_INVITES,
+        routes.PLATFORM_METRICS,
     ],
 )
 @allure.title("Безопасность: аноним получает 401 на закрытом endpoint")
@@ -53,7 +53,7 @@ def test_anonymous_get_returns_401_on_private_endpoints(base_url: str, endpoint:
 @allure.title("Безопасность: /api/tree публично доступен гостю (200)")
 def test_anonymous_get_tree_returns_200_minimal_showcase(base_url: str):
     """TC-SEC-1 inverse: /api/tree IS public — guest sees the showcase tree."""
-    r = httpx.get(f"{base_url}{API.TREE}", timeout=TIMEOUTS.api_request)
+    r = httpx.get(f"{base_url}{routes.TREE}", timeout=TIMEOUTS.api_request)
     expect_response(r, label="GET /api/tree (public)").status(HTTPStatus.OK)
 
 
@@ -78,7 +78,7 @@ def test_security_headers_present_on_api_responses(base_url: str):
     response without protection.
     """
     with step("действие: запросить /api/account/me (заголовки на любом ответе)"):
-        r = httpx.get(f"{base_url}{API.ACCOUNT_ME}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", timeout=TIMEOUTS.api_request)
         # Состояние авторизации неважно — проверяем заголовки, не тело.
         headers = {k.lower(): v for k, v in r.headers.items()}
 
@@ -94,7 +94,7 @@ def test_csp_header_disables_inline_event_handlers(base_url: str):
     """TC-SEC-2 / BUG-SEC-002: CSP must include `script-src-attr 'none'`
     so inline `onclick=` event handlers cannot execute (XSS hardening)."""
     with step("действие: запросить /api/account/me и извлечь CSP"):
-        r = httpx.get(f"{base_url}{API.ACCOUNT_ME}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", timeout=TIMEOUTS.api_request)
         csp = r.headers.get("content-security-policy", "")
 
     with step("проверка: CSP содержит script-src-attr 'none'"):
@@ -154,6 +154,6 @@ def test_hsts_header_only_on_https(base_url: str):
             "this test assumes local dev (HTTP); HTTPS path is verified by deployment smoke"
 
     with step("проверка: HSTS-заголовок отсутствует"):
-        r = httpx.get(f"{base_url}{API.ACCOUNT_ME}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", timeout=TIMEOUTS.api_request)
         assert "strict-transport-security" not in {k.lower() for k in r.headers}, \
             "HSTS must not be sent on HTTP responses (only HTTPS)"

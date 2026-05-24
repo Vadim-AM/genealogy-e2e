@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.timeouts import TIMEOUTS
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ NEW_PASSWORD = "NewPassword_After_Reset_2026"
 def me_status(base_url: str, cookies: dict[str, str]) -> int:
     """Return HTTP status code of GET /api/account/me."""
     return httpx.get(
-        f"{base_url}{API.ACCOUNT_ME}",
+        f"{base_url}{routes.ACCOUNT_ME}",
         cookies=cookies,
         timeout=TIMEOUTS.api_request,
     ).status_code
@@ -29,13 +29,13 @@ def trigger_password_reset(
 ) -> None:
     """forgot-password -> read token from mail -> reset-password."""
     httpx.post(
-        f"{base_url}{API.FORGOT_PASSWORD}",
+        f"{base_url}{routes.FORGOT_PASSWORD}",
         json={"email": email},
         timeout=TIMEOUTS.api_request,
     ).raise_for_status()
     token = read_email_token(email)
     httpx.post(
-        f"{base_url}{API.RESET_PASSWORD}",
+        f"{base_url}{routes.RESET_PASSWORD}",
         json={"token": token, "new_password": new_password},
         timeout=TIMEOUTS.api_request,
     ).raise_for_status()

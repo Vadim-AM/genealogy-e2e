@@ -28,7 +28,7 @@ import httpx
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import Enrichment, t
 from tests._core.step import step
@@ -48,7 +48,7 @@ def ai_search_disabled(uvicorn_server: str):
     в `tests/_fixtures/patch.py`.
     """
     httpx.post(
-        f"{uvicorn_server}{API.TEST_SET_PLATFORM_SETTING}",
+        f"{uvicorn_server}{routes.TEST_SET_PLATFORM_SETTING}",
         json={"enable_ai_search": False},
         timeout=TIMEOUTS.api_short,
     ).raise_for_status()
@@ -82,7 +82,7 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
         page.on(
             "request",
             lambda req: enrich_post_calls.append(req.url)
-            if req.method == "POST" and API.ENRICH_PREFIX in req.url
+            if req.method == "POST" and routes.ENRICH_PREFIX in req.url
             else None,
         )
 
@@ -141,7 +141,7 @@ def test_features_endpoint_public_returns_ai_disabled_flag(uvicorn_server: str):
     """
     with step("действие: запрос /api/config/features"):
         r = httpx.get(
-            f"{uvicorn_server}{API.CONFIG_FEATURES}", timeout=TIMEOUTS.api_request
+            f"{uvicorn_server}{routes.CONFIG_FEATURES}", timeout=TIMEOUTS.api_request
         )
 
     with step("проверка: public доступ и ai_search_enabled=false"):
@@ -198,7 +198,7 @@ def test_features_endpoint_fires_on_main_page_bootstrap(page: Page, base_url: st
     state и default-рендерит active кнопки.
     """
     with step("действие: загрузка / и ожидание /api/config/features"), \
-         page.expect_response(f"**{API.CONFIG_FEATURES}") as resp_ctx:
+         page.expect_response(f"**{routes.CONFIG_FEATURES}") as resp_ctx:
         _ = anon_pages.navigate_to(TreePage)
 
     with step("проверка: /api/config/features ответил 200"):

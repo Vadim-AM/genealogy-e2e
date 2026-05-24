@@ -14,7 +14,7 @@ import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -44,12 +44,12 @@ def test_old_person_with_only_name_field_renders(owner_user, tenant_client):
             "branch": "subject",
             "gender": "m",
         }
-        r = api.post(API.PEOPLE, json=payload)
+        r = api.post(routes.PEOPLE, json=payload)
         assert r.status_code in (HTTPStatus.OK, HTTPStatus.CREATED), \
-            f"POST {API.PEOPLE} legacy payload rejected: {r.status_code} {r.text[:200]}"
+            f"POST {routes.PEOPLE} legacy payload rejected: {r.status_code} {r.text[:200]}"
 
     with step("проверка: имя сохранилось при чтении"):
-        r = api.get(API.person("edge-old-name"))
+        r = api.get(routes.person("edge-old-name"))
         r.raise_for_status()
         name = r.json().get("name") or ""
         assert "Иван" in name, f"name not preserved: {name!r}"
@@ -65,7 +65,7 @@ def test_health_endpoint_does_not_require_auth(base_url: str):
     is: reachable without credentials + `status == "ok"`.
     """
     with step("действие: запросить /api/health без авторизации"):
-        r = httpx.get(f"{base_url}{API.HEALTH}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.HEALTH}", timeout=TIMEOUTS.api_request)
         r.raise_for_status()
 
     with step("проверка: статус ok"):

@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, Route, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import AboutTab, Placeholders, TestData, t
 from tests._core.step import step
@@ -140,7 +140,7 @@ def test_confirm_dialog_escape_cancels(owner_page: Page):
         owner_page.on(
             "response",
             lambda r: delete_responses.append(r.status)
-            if API.PEOPLE in r.url and r.request.method == "DELETE"
+            if routes.PEOPLE in r.url and r.request.method == "DELETE"
             else None,
         )
 
@@ -369,7 +369,7 @@ def test_confirm_dialog_enter_confirms_delete(owner_page: Page):
 
     with step("действие: подтвердить Enter и проверить DELETE"), \
          owner_page.expect_request(
-             lambda req: bool(re.search(rf"{API.PEOPLE}/[^/?]+", req.url)
+             lambda req: bool(re.search(rf"{routes.PEOPLE}/[^/?]+", req.url)
              and req.method == "DELETE")
          ):
         dialog.confirm()
@@ -390,7 +390,7 @@ def test_confirm_dialog_backdrop_click_cancels(owner_page: Page):
         owner_page.on(
             "response",
             lambda r: delete_responses.append(r.status)
-            if API.PEOPLE in r.url and r.request.method == "DELETE"
+            if routes.PEOPLE in r.url and r.request.method == "DELETE"
             else None,
         )
 

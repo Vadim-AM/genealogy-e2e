@@ -21,7 +21,7 @@ from __future__ import annotations
 import allure
 import httpx
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import unique_email
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -43,7 +43,7 @@ def test_welcome_email_uses_public_url_env_not_hardcoded_prod(
         signup_via_api(email=email)
 
         with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
-            mail = c.get(API.TEST_LAST_EMAIL, params={"to": email})
+            mail = c.get(routes.TEST_LAST_EMAIL, params={"to": email})
             mail.raise_for_status()
             body = mail.json()
             text_body = body.get("text_body") or ""

@@ -27,7 +27,7 @@ from http import HTTPStatus
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import Buttons, t
 from tests._core.step import step
@@ -74,7 +74,7 @@ def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page):
         initial_thumbs = photos.thumb_count()
 
     with step("действие: загрузка JPEG"), owner_page.expect_response(
-        lambda r: API.UPLOAD_PHOTO in r.url and r.status == HTTPStatus.OK
+        lambda r: routes.UPLOAD_PHOTO in r.url and r.status == HTTPStatus.OK
     ):
         upload_jpeg(owner_page)
 
@@ -94,14 +94,14 @@ def test_photo_remove_button_drops_thumb_from_grid(owner_page: Page):
         initial = photos.thumb_count()
 
         with owner_page.expect_response(
-            lambda r: API.UPLOAD_PHOTO in r.url and r.status == HTTPStatus.OK
+            lambda r: routes.UPLOAD_PHOTO in r.url and r.status == HTTPStatus.OK
         ):
             upload_jpeg(owner_page)
         photos.expect_thumb_count(initial + 1)
         after_upload = initial + 1
 
     with step("действие: удалить последнюю миниатюру"), owner_page.expect_response(
-        lambda r: bool(re.search(rf"{API.PEOPLE}/[^/]+$", r.url) and r.request.method == "PATCH")
+        lambda r: bool(re.search(rf"{routes.PEOPLE}/[^/]+$", r.url) and r.request.method == "PATCH")
     ):
         photos.remove_last_thumb().click()
 
