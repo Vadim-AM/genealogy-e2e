@@ -55,7 +55,7 @@ def tablet_owner_page(
         trace_path = tmp_path / "trace-tablet.zip"
         try:
             ctx.tracing.stop(path=str(trace_path))
-        except Exception:
+        except OSError:
             trace_path = None
         if trace_path and trace_path.exists():
             allure.attach.file(

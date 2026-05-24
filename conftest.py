@@ -25,7 +25,7 @@ import pytest
 def pytest_configure(config: pytest.Config) -> None:
     try:
         from config.settings import settings  # noqa: F401
-    except Exception as exc:
+    except (ImportError, ValueError) as exc:
         pytest.exit(f"Settings validation failed: {exc}", returncode=2)
 
 pytest_plugins = (
@@ -54,7 +54,7 @@ def pytest_runtest_makereport(item, call):
                     name="screenshot",
                     attachment_type=allure.attachment_type.PNG,
                 )
-            except Exception:
+            except OSError:
                 pass
 
 _DOMAIN_MARKERS = frozenset({

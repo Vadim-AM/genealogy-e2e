@@ -126,7 +126,7 @@ def auth_context_factory(
             trace_path = tmp_path / f"trace-{i}.zip"
             try:
                 ctx.tracing.stop(path=str(trace_path))
-            except Exception:
+            except OSError:
                 trace_path = None  # type: ignore[assignment]
             if trace_path and trace_path.exists():
                 allure.attach.file(
