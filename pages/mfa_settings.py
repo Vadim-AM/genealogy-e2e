@@ -28,15 +28,15 @@ class MfaSettings:
 
     def __init__(self, page: Page):
         self.page = page
-        self.tab = page.locator('[data-tab="security"]')
-        self.status_text = page.locator("#mfaStatusText")
-        self.btn_enable = page.locator("#mfaEnableBtn")
-        self.btn_disable = page.locator("#mfaDisableBtn")
-        self.setup_secret = page.locator("#mfaSetupSecret")
-        self.verify_code = page.locator("#mfaVerifyCode")
-        self.recovery_codes = page.locator("#mfaRecoveryList li")
-        self.recovery_done = page.locator("#mfaRecoveryDoneBtn")
-        self.stepup_code = page.locator("#mfaStepUpCode")
+        self.tab = page.locator('[data-tab="security"]')  # no semantic: tab without role=tab
+        self.status_text = page.locator("#mfaStatusText")  # no semantic: status display, no ARIA
+        self.btn_enable = page.locator("#mfaEnableBtn")  # no semantic: button without accessible name
+        self.btn_disable = page.locator("#mfaDisableBtn")  # no semantic: button without accessible name
+        self.setup_secret = page.locator("#mfaSetupSecret")  # no semantic: secret display, no ARIA
+        self.verify_code = page.locator("#mfaVerifyCode")  # no semantic: TOTP input without label
+        self.recovery_codes = page.locator("#mfaRecoveryList li")  # no semantic: code list items, no ARIA
+        self.recovery_done = page.locator("#mfaRecoveryDoneBtn")  # no semantic: button without accessible name
+        self.stepup_code = page.locator("#mfaStepUpCode")  # no semantic: TOTP input without label
         self._secret: str | None = None
 
     def open_tab(self) -> Self:
@@ -61,6 +61,6 @@ class MfaSettings:
         """Click Disable → step-up dialog → submit a generated TOTP code."""
         self.btn_disable.click()
         expect(self.stepup_code).to_be_visible()
-        assert self._secret, "enable_with_totp must run before disable"
+        assert self._secret, "enable_with_totp must run before disable"  # precondition
         self.stepup_code.fill(pyotp.TOTP(self._secret).now())
         self.stepup_code.press("Enter")

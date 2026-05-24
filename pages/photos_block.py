@@ -23,11 +23,11 @@ class PhotosBlock:
 
     def __init__(self, page: Page):
         self.page = page
-        self.container = page.locator('[data-testid="photos-block"]')
-        self.add_btn = page.locator("#photoAddBtn")
-        self.file_input = page.locator("#photoFileInput")
-        self.grid = page.locator("#photoGrid")
-        self.thumbs = self.grid.locator('[data-testid="photo-thumb"]')
+        self.container = page.locator('[data-testid="photos-block"]')  # no semantic: photo container, no ARIA
+        self.add_btn = page.locator("#photoAddBtn")  # no semantic: upload widget, no role
+        self.file_input = page.locator("#photoFileInput")  # no semantic: hidden file input, no label
+        self.grid = page.locator("#photoGrid")  # no semantic: photo container, no ARIA
+        self.thumbs = self.grid.locator('[data-testid="photo-thumb"]')  # no semantic: photo container, no ARIA
 
     def thumb_count(self) -> int:
         """Return the current number of photo thumbnails."""
@@ -36,7 +36,7 @@ class PhotosBlock:
     def remove_last_thumb(self) -> Locator:
         """Return the `.photo-remove` locator on the last thumb (caller
         should click it inside an expect_response context)."""
-        return self.thumbs.last.locator('[data-testid="photo-remove"]')
+        return self.thumbs.last.locator('[data-testid="photo-remove"]')  # no semantic: upload widget, no role
 
     def expect_thumb_count(self, n: int) -> None:
         """Assert exactly n thumbnails are present in the grid."""

@@ -13,6 +13,7 @@ dependencies = [
     "pydantic-settings>=2.0",
     "allure-pytest>=2.13",
     "pytest-rerunfailures>=16.1",
+    "tenacity>=8.2",
 ]
 
 [project.optional-dependencies]

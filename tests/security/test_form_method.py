@@ -40,16 +40,16 @@ def test_signup_form_submits_via_post(page: Page, anon_pages: PageFactory):
     """Submit signup form → request method MUST be POST."""
     with step("подготовка: заполнить форму регистрации"):
         _ = anon_pages.navigate_to(SignupPage)
-        page.locator("#email").fill(unique_email("formpost"))
-        page.locator("#password").fill(TestConfig.DEFAULT_PASSWORD)
+        page.locator("#email").fill(unique_email("formpost"))  # no semantic: form input without label
+        page.locator("#password").fill(TestConfig.DEFAULT_PASSWORD)  # no semantic: form input without label
         # Wave-9: privacy/cross-border объединены с terms_accepted (см. backend
         # router.py:417). В форме остался только `#agreeTerms`.
-        page.locator("#agreeTerms").check()
+        page.locator("#agreeTerms").check()  # no semantic: form element by ID
 
     with step("действие: отправить форму и перехватить запрос"), page.expect_request(
         lambda req: _is_submit_request(req.url, routes.SIGNUP)
     ) as req_info:
-        page.locator("#signupBtn").click()
+        page.locator("#signupBtn").click()  # no semantic: submit button without accessible name
 
     with step("проверка: метод запроса — POST"):
         assert req_info.value.method == "POST", (
@@ -58,6 +58,7 @@ def test_signup_form_submits_via_post(page: Page, anon_pages: PageFactory):
         )
 
         # DOM-уровневая sanity (на случай рефакторинга на FormData без fetch):
+        # no semantic: form element by ID
         expect(page.locator("#signupForm"), ErrMsg.wrong_attribute).to_have_attribute("method", "post")
 
 
@@ -66,8 +67,8 @@ def test_login_form_submits_via_post(page: Page, anon_pages: PageFactory):
     """Submit login form → request method MUST be POST."""
     with step("подготовка: заполнить форму входа"):
         _ = anon_pages.navigate_to(LoginPage)
-        page.locator("#email").fill(unique_email("formpost-li"))
-        page.locator("#password").fill("any-password-here")
+        page.locator("#email").fill(unique_email("formpost-li"))  # no semantic: form input without label
+        page.locator("#password").fill("any-password-here")  # no semantic: form input without label
 
     with step("действие: отправить форму и перехватить запрос"), page.expect_request(
         lambda req: _is_submit_request(req.url, routes.LOGIN)
@@ -79,6 +80,7 @@ def test_login_form_submits_via_post(page: Page, anon_pages: PageFactory):
             f"login form submitted as {req_info.value.method}, expected POST."
         )
 
+        # no semantic: form element by ID
         expect(page.locator("#loginForm"), ErrMsg.wrong_attribute).to_have_attribute("method", "post")
 
 
@@ -94,4 +96,5 @@ def test_reset_password_form_method_is_post(page: Page):
         page.wait_for_load_state("domcontentloaded")
 
     with step("проверка: атрибут формы method=post"):
+        # no semantic: form element by ID
         expect(page.locator("#rpForm"), ErrMsg.wrong_attribute).to_have_attribute("method", "post")
