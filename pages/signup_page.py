@@ -116,10 +116,23 @@ class SignupPage(BasePage):
                 self.agree_terms.check()
         return self
 
+    def fill_credentials(self, *, email: str, password: str) -> Self:
+        """Fill email and password without checking agree or submitting."""
+        with step("действие: заполнить email и пароль"):
+            self.email.fill(email)
+            self.password.fill(password)
+        return self
+
     def submit(self) -> Self:
         """Click the signup submit button."""
         with step("действие: отправить регистрацию"):
             self.submit_btn.click()
+        return self
+
+    def submit_by_id(self) -> Self:
+        """Click the signup submit button by element ID (for non-semantic tests)."""
+        with step("действие: отправить регистрацию (по ID)"):
+            self.submit_btn_by_id.click()
         return self
 
     def expect_verification_message(self) -> None:

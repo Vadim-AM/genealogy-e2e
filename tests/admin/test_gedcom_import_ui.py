@@ -136,7 +136,7 @@ def test_cancel_during_preview_resets_to_idle(
         owner.expect_import_state("PREVIEW")
 
     with step("действие: отмена на этапе preview"):
-        owner.import_cancel_btn.click()
+        owner.click_import_cancel()
         owner.expect_import_state("IDLE")
 
     with step("проверка: count не изменился"):
@@ -158,10 +158,10 @@ def test_confirm_dialog_cancel_blocks_import(
 
     with step("действие: открыть confirmDialog и нажать Отмена"):
         # Кликаем Confirm виджета — confirmDialog появляется на body
-        owner.import_confirm_btn.click()
+        owner.click_import_confirm()
         expect(owner.confirm_dialog, ErrMsg.dialog_not_visible).to_be_visible()
         # Кликаем Отмена в dialog — должен закрыть dialog, оставить в PREVIEW
-        owner.confirm_dialog_cancel.click()
+        owner.click_confirm_dialog_cancel()
         expect(owner.confirm_dialog, ErrMsg.dialog_should_be_closed).to_have_count(0)
         owner.expect_import_state("PREVIEW")
 
@@ -181,7 +181,7 @@ def test_done_shows_skipped_count_on_reimport(
         owner.confirm_import_via_dialog()
         owner.expect_import_state("DONE")
         # Сброс через «Импортировать ещё файл»
-        owner.import_again_btn.click()
+        owner.click_import_again()
         owner.expect_import_state("IDLE")
 
     with step("действие: повторный импорт того же файла"):
@@ -220,7 +220,7 @@ def test_retry_after_error_resets_to_idle(owner_page: Page, owner_user: AuthUser
             owner_page.unroute(f"**{routes.ADMIN_IMPORT_GEDCOM}")
 
     with step("проверка: Retry сбрасывает в IDLE"):
-        owner.import_retry_btn.click()
+        owner.click_import_retry()
         owner.expect_import_state("IDLE")
 
 
@@ -242,7 +242,7 @@ def test_rejects_non_ged_extension(owner_page: Page, owner_user: AuthUser) -> No
         expect(owner.confirm_dialog, ErrMsg.dialog_not_visible).to_be_visible()
         expect(owner.confirm_dialog, ErrMsg.wrong_text_content).to_contain_text(GedcomImport.FILE_EXTENSION_HINT)
         should.be_empty(posted, ErrMsg.gedcom_no_post_expected)
-        owner.confirm_dialog_ok.click()
+        owner.click_confirm_dialog_ok()
         owner.expect_import_state("IDLE")
 
 
@@ -256,7 +256,7 @@ def test_rejects_empty_file(owner_page: Page, owner_user: AuthUser) -> None:
     with step("проверка: alertDialog «пустой» и возврат в IDLE"):
         expect(owner.confirm_dialog, ErrMsg.dialog_not_visible).to_be_visible()
         expect(owner.confirm_dialog, ErrMsg.wrong_text_content).to_contain_text(t(GedcomImport.EMPTY_LABEL))
-        owner.confirm_dialog_ok.click()
+        owner.click_confirm_dialog_ok()
         owner.expect_import_state("IDLE")
 
 
@@ -275,7 +275,7 @@ def test_rejects_oversize_file(owner_page: Page, owner_user: AuthUser) -> None:
     with step("проверка: alertDialog «слишком большой» и возврат в IDLE"):
         expect(owner.confirm_dialog, ErrMsg.dialog_not_visible).to_be_visible()
         expect(owner.confirm_dialog, ErrMsg.wrong_text_content).to_contain_text(t(GedcomImport.TOO_LARGE_LABEL))
-        owner.confirm_dialog_ok.click()
+        owner.click_confirm_dialog_ok()
         owner.expect_import_state("IDLE")
 
 

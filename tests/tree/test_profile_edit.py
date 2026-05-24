@@ -37,7 +37,7 @@ def test_maiden_name_visible_only_for_female_gender(owner_page: Page) -> None:
         expect(editor.maiden_name, ErrMsg.input_not_visible).to_be_visible()
 
     with step("проверка: переключение обратно на m очищает maiden"):
-        editor.maiden_name.fill("Иванова")
+        editor.fill_maiden_name("Иванова")
         editor.select_dropdown("gender", "m")
         expect(editor.maiden_name, ErrMsg.element_should_be_hidden).not_to_be_visible()
         expect(editor.maiden_name, ErrMsg.editor_field_wrong).to_have_value("")
@@ -60,7 +60,7 @@ def test_delete_button_invokes_confirm_dialog(
         )
 
     with step("действие: нажать Удалить и проверить текст диалога"):
-        editor.btn_delete.click()
+        editor.delete()
 
         dialog = ConfirmDialog(owner_page)
         dialog.expect_visible()
@@ -90,7 +90,7 @@ def test_owner_edits_demo_self_summary_through_ui(
         summary = "Записано через UI-editor в e2e-тесте"
         editor = open_editor_for(owner_page)
 
-        editor.summary.fill(summary)
+        editor.fill_summary(summary)
         with owner_page.expect_response(f"**/api/people/{TestData.DEMO_PERSON_ID}") as resp_info:
             editor.save()
         should.playwright_ok(resp_info.value, ErrMsg.pw_response_not_ok)

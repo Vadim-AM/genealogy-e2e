@@ -38,6 +38,18 @@ class WaitPage(BasePage):
         """no semantic: form container"""
         return self.page.locator("#waitForm")
 
+    def fill_email(self, email: str) -> Self:
+        """Fill the email field without submitting."""
+        with step("действие: заполнить email"):
+            self.email.fill(email)
+        return self
+
+    def click_submit(self) -> Self:
+        """Click the waitlist submit button."""
+        with step("действие: нажать кнопку отправки"):
+            self.submit_btn.click()
+        return self
+
     def submit_email(self, email: str) -> Self:
         """Fill the email and click submit to join the waitlist."""
         with step("действие: отправить email"):

@@ -61,6 +61,11 @@ class PhotosBlock:
         should click it inside an expect_response context)."""
         return self.thumbs.last.locator('[data-testid="photo-remove"]')  # no semantic: upload widget, no role
 
+    def remove_last(self) -> None:
+        """Click the remove button on the last thumbnail."""
+        with step("действие: удалить последнее фото"):
+            self.remove_last_thumb().click()
+
     def expect_thumb_count(self, n: int) -> None:
         """Assert exactly n thumbnails are present in the grid."""
         with step("проверка: количество фото"):

@@ -59,7 +59,7 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
 
     with step("проверка: клик по disabled-кнопке не вызывает POST enrich"):
         posts_before = len(enrich_post_spy)
-        panel.btn_enrich_disabled.first.click(force=True)
+        panel.click_enrich_disabled()
         panel.wait_for_network_idle()
         should.be_equal(len(enrich_post_spy), posts_before, ErrMsg.enrich_post_leaked)
 

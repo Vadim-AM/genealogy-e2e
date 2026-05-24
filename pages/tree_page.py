@@ -182,6 +182,11 @@ class TreePage(BasePage):
         """no semantic: content card, no ARIA"""
         return self.page.locator("#aboutBetaCard")
 
+    @property
+    def about_cta_link(self) -> Locator:
+        """CTA link to /wait inside the beta card."""
+        return self.about_beta_card.locator('a[href="/wait"]')
+
     # ── Сценарные методы (auth state) ─────────────────────────────────
 
     def expect_authed_state(self, display_name: str | None = None) -> None:
@@ -233,6 +238,13 @@ class TreePage(BasePage):
             panel.expect_visible()
             return panel
 
+    def reload(self) -> Self:
+        """Reload the page and wait for DOM content loaded."""
+        with step("действие: перезагрузка страницы"):
+            self.page.reload()
+            self.page.wait_for_load_state("domcontentloaded")
+        return self
+
     def switch_tab(self, tab_name: str) -> Self:
         """Click a tab and wait for the page to settle.
 
@@ -275,6 +287,10 @@ class TreePage(BasePage):
         """Return the first footer link matching the given href."""
         return self.page.locator(f"a[href='{href}']").first
 
+    def footer_link_target(self, href: str) -> str | None:
+        """Return the target attribute of a footer link."""
+        return self.footer_link(href).get_attribute("target")
+
     def tab_locator(self, tab_name: str) -> Locator:
         """Return a tab locator by data-tab name."""
         return self.page.locator(f'[data-tab="{tab_name}"]')
@@ -289,12 +305,31 @@ class TreePage(BasePage):
         # no semantic: custom filter, no button role
         return self.page.locator(f'[data-testid="river-filter-{branch}"]')
 
+    def click_river_filter(self, branch: str) -> Self:
+        """Click a river-filter button by branch name."""
+        with step(f"действие: клик по фильтру {branch!r}"):
+            self.river_filter_btn(branch).click()
+        return self
+
     def river_filter_branches(self) -> list[str | None]:
         """Return the list of data-branch values for all river-filter buttons."""
         return [
             self.river_filters.nth(i).get_attribute("data-branch")
             for i in range(self.river_filters.count())
         ]
+
+    def sources_search_placeholder(self) -> str | None:
+        """Return the placeholder attribute of the sources search input."""
+        return self.sources_search.get_attribute("placeholder")
+
+    def click_orbit_card(self, card: Locator) -> None:
+        """Click an orbit card (e.g. to recenter the orbit view)."""
+        with step("действие: клик по orbit-карточке"):
+            card.click()
+
+    def orbit_card_person_id(self, card: Locator) -> str | None:
+        """Return the data-person-id attribute of an orbit card."""
+        return card.get_attribute("data-person-id")
 
     def orbit_card_by_name(self, name: str) -> Locator:
         """Return an orbit card filtered by visible name text."""

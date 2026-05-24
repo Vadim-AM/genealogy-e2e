@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import allure
 import httpx
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 from assertions.base import should
 from framework.response import expect_response
@@ -28,8 +28,16 @@ class _LegalPage(BasePage):
     def __init__(self, page: Page, path: str):
         super().__init__(page)
         self.URL = path
-        self.body = page.locator("body")
-        self.headings = page.locator("h1, h2")
+
+    @property
+    def body(self) -> Locator:
+        """no semantic: body element"""
+        return self.page.locator("body")
+
+    @property
+    def headings(self) -> Locator:
+        """no semantic: heading elements without specific role"""
+        return self.page.locator("h1, h2")
 
     def body_text(self) -> str:
         """Return the full text content of the body element."""
@@ -102,7 +110,7 @@ def test_landing_footer_legal_link_is_visible_and_target_blank(
         expect(link, ErrMsg.link_not_visible).to_be_visible()
 
     with step("проверка: ссылка открывается в новой вкладке"):
-        target = link.get_attribute("target")
+        target = tree.footer_link_target(href)
         should.be_equal(target, "_blank", ErrMsg.link_target_wrong)
 
 

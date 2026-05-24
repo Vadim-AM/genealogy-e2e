@@ -123,8 +123,8 @@ def test_forgot_password_empty_field_shows_inline_error_no_request(
         fp.expect_visible_form()
 
     with step("действие: отправка пустого поля email"):
-        fp.email.fill("")
-        fp.submit_btn.click()
+        fp.fill_email("")
+        fp.click_submit()
 
     with step("проверка: сетевой запрос не отправлен"):
         should.be_empty(forgot_password_request_spy, ErrMsg.empty_email_triggered_request)

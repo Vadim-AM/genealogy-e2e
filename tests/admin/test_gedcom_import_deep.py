@@ -232,7 +232,7 @@ def test_user_reimports_same_file_does_not_duplicate_persons(
     with step("действие: повторный импорт того же файла"):
         # «Импортировать ещё» → IDLE → upload того же файла → confirm → DONE.
         owner = OwnerPage(owner_page)
-        owner.import_again_btn.click()
+        owner.click_import_again()
         owner.expect_import_state("IDLE")
         owner.upload_ged(filename="three-gen.ged", content=GEDCOM_THREE_GEN.encode("utf-8"))
         owner.expect_import_state("PREVIEW")

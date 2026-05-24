@@ -71,7 +71,7 @@ def test_photo_remove_button_drops_thumb_from_grid(owner_page: Page) -> None:
             lambda r: bool(re.search(rf"{routes.PEOPLE}/[^/]+$", r.url) and r.request.method == "PATCH")
         ),
     ):
-        photos.remove_last_thumb().click()
+        photos.remove_last()
 
     with step("проверка: миниатюра убрана из сетки"):
         photos.expect_thumb_count(after_upload - 1)

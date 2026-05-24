@@ -70,7 +70,7 @@ def test_link_existing_sibling_creates_only_relationship(
         owner_page.on("response", _track)
 
         with owner_page.expect_response("**/api/relationships") as rel_info:
-            modal.btn_save.click()
+            modal.save()
         rel_resp = rel_info.value
         should.playwright_ok(rel_resp, ErrMsg.pw_response_not_ok)
         should.be_equal(rel_resp.request.method, "POST", ErrMsg.pw_response_status_wrong)
@@ -114,11 +114,11 @@ def test_unlink_existing_returns_to_create_mode(
         modal.unlink_existing()
         modal.expect_not_linked()
         expect(modal.surname, ErrMsg.wrong_attribute).not_to_have_attribute("readonly", "readonly")
-        modal.surname.fill("Семёнов-Новый")
+        modal.fill_surname("Семёнов-Новый")
 
     with step("действие: сохранение нового человека"):
         with owner_page.expect_response(lambda r: routes.PEOPLE in r.url and r.request.method == "POST") as person_info:
-            modal.btn_save.click()
+            modal.save()
         should.playwright_ok(person_info.value, ErrMsg.pw_response_not_ok)
 
     with step("проверка: ровно один новый person создан"):

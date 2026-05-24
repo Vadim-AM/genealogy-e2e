@@ -30,8 +30,7 @@ def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFac
         signup.remove_password_minlength()
 
     with step("действие: заполнить форму коротким паролем и отправить"):
-        signup.email.fill("a11y-server@e2e.example.com")
-        signup.password.fill("short")  # < 8 chars — server rejects
+        signup.fill_credentials(email="a11y-server@e2e.example.com", password="short")  # < 8 chars — server rejects
         # Wave-9: privacy/cross-border объединены с terms_accepted.
         signup.agree_terms.check()
 

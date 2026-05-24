@@ -139,6 +139,25 @@ class PersonEditor:
             self.given_name.fill(given)
             self.patronymic.fill(patronymic)
 
+    def custom_select_wrapper(self, field: str) -> Locator:
+        """Return the custom-select wrapper for a given field."""
+        return custom_select_for(self.page, field)
+
+    def custom_select_dropdown_locator(self, field: str) -> Locator:
+        """Return the dropdown panel inside a custom-select wrapper."""
+        return self.custom_select_wrapper(field).locator(
+            '[data-testid="custom-select-dropdown"]'  # no semantic: JS widget, no ARIA role
+        )
+
+    def focus_custom_select(self, field: str) -> None:
+        """Focus the custom-select wrapper for keyboard interaction."""
+        with step(f"действие: фокус на custom-select {field!r}"):
+            self.custom_select_wrapper(field).focus()
+
+    def press_key(self, key: str) -> None:
+        """Press a keyboard key (ArrowDown, Escape, Enter, etc.)."""
+        self.page.keyboard.press(key)
+
     def select_dropdown(self, field: str, value: str) -> None:
         """Pick a value in the customSelect for the given field."""
         with step("действие: выбрать в dropdown"):
@@ -155,6 +174,21 @@ class PersonEditor:
         """Click cancel to discard editor changes."""
         with step("действие: отменить редактирование"):
             self.btn_cancel.click()
+
+    def delete(self) -> None:
+        """Click the delete button to initiate person deletion."""
+        with step("действие: нажать Удалить"):
+            self.btn_delete.click()
+
+    def fill_maiden_name(self, value: str) -> None:
+        """Fill the maiden name field."""
+        with step("действие: заполнить девичью фамилию"):
+            self.maiden_name.fill(value)
+
+    def fill_summary(self, value: str) -> None:
+        """Fill the summary/description field."""
+        with step("действие: заполнить описание"):
+            self.summary.fill(value)
 
     def delete_btn_by_role(self) -> Locator:
         """Return a delete button locator scoped to editor via accessible role."""

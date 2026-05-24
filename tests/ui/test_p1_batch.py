@@ -13,7 +13,6 @@ from api import routes
 from assertions.base import should
 from framework.step import step
 from pages.add_relative_modal import AddRelativeModal
-from pages.base import custom_select_for
 from pages.confirm_dialog import ConfirmDialog
 from pages.profile_panel import ProfilePanel, open_editor_for
 from pages.tree_page import TreePage
@@ -46,32 +45,29 @@ def test_branch_legend_is_hidden_when_tree_has_less_than_3_generations(
 def test_custom_select_opens_on_arrow_down_keyboard(owner_page: Page) -> None:
     """TC-25.06: focus на trigger custom-select + ArrowDown открывает."""
     with step("подготовка: открыть редактор персоны"):
-        open_editor_for(owner_page)
+        editor = open_editor_for(owner_page)
 
     with step("действие: фокус на gender select и ArrowDown"):
-        wrapper = custom_select_for(owner_page, "gender")
-        expect(wrapper, ErrMsg.dropdown_not_visible).to_be_visible()
-        wrapper.focus()
-        owner_page.keyboard.press("ArrowDown")
+        expect(editor.custom_select_wrapper("gender"), ErrMsg.dropdown_not_visible).to_be_visible()
+        editor.focus_custom_select("gender")
+        editor.press_key("ArrowDown")
 
     with step("проверка: dropdown открылся"):
-        dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')  # no semantic: JS widget, no ARIA role
-        expect(dropdown, ErrMsg.dropdown_not_visible).to_be_visible()
+        expect(editor.custom_select_dropdown_locator("gender"), ErrMsg.dropdown_not_visible).to_be_visible()
 
 
 @allure.title("Редактор: Escape закрывает выпадающий список")
 def test_custom_select_closes_on_escape_keyboard(owner_page: Page) -> None:
     """TC-25.06 (продолжение): Esc после открытия закрывает dropdown."""
     with step("подготовка: открыть редактор и dropdown"):
-        open_editor_for(owner_page)
-        wrapper = custom_select_for(owner_page, "gender")
-        wrapper.focus()
-        owner_page.keyboard.press("ArrowDown")
-        dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')  # no semantic: JS widget, no ARIA role
+        editor = open_editor_for(owner_page)
+        editor.focus_custom_select("gender")
+        editor.press_key("ArrowDown")
+        dropdown = editor.custom_select_dropdown_locator("gender")
         expect(dropdown, ErrMsg.dropdown_not_visible).to_be_visible()
 
     with step("действие: нажать Escape"):
-        owner_page.keyboard.press("Escape")
+        editor.press_key("Escape")
 
     with step("проверка: dropdown закрылся"):
         expect(dropdown, ErrMsg.dropdown_should_be_closed).not_to_be_visible()
@@ -91,7 +87,7 @@ def test_confirm_dialog_escape_cancels(owner_page: Page) -> None:
         )
 
     with step("действие: открыть confirm-dialog через delete"):
-        editor.btn_delete.click()
+        editor.delete()
         dialog = ConfirmDialog(owner_page)
         dialog.expect_visible()
 
@@ -195,15 +191,14 @@ def test_custom_select_arrow_down_then_enter_selects_option(owner_page: Page) ->
     """TC-25.06 (extension): ArrowDown открывает dropdown и фокусирует."""
     with step("подготовка: открыть редактор и dropdown"):
         editor = open_editor_for(owner_page)
-        wrapper = custom_select_for(owner_page, "gender")
-        wrapper.focus()
-        owner_page.keyboard.press("ArrowDown")
-        dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')  # no semantic: JS widget, no ARIA role
+        editor.focus_custom_select("gender")
+        editor.press_key("ArrowDown")
+        dropdown = editor.custom_select_dropdown_locator("gender")
         expect(dropdown, ErrMsg.dropdown_not_visible).to_be_visible()
 
     with step("действие: ArrowDown + Enter для выбора опции"):
-        owner_page.keyboard.press("ArrowDown")
-        owner_page.keyboard.press("Enter")
+        editor.press_key("ArrowDown")
+        editor.press_key("Enter")
 
     with step("проверка: dropdown закрылся и native select обновился"):
         expect(dropdown, ErrMsg.dropdown_should_be_closed).not_to_be_visible()
@@ -216,7 +211,7 @@ def test_confirm_dialog_enter_confirms_delete(owner_page: Page) -> None:
     """TC-20.02 (Enter): Enter в открытом confirmDialog → resolve(true)."""
     with step("подготовка: открыть confirm-dialog через delete"):
         editor = open_editor_for(owner_page, person_id="demo-grandpa")
-        editor.btn_delete.click()
+        editor.delete()
         dialog = ConfirmDialog(owner_page)
         dialog.expect_visible()
 
@@ -243,7 +238,7 @@ def test_confirm_dialog_backdrop_click_cancels(owner_page: Page) -> None:
         )
 
     with step("действие: открыть confirm-dialog"):
-        editor.btn_delete.click()
+        editor.delete()
         dialog = ConfirmDialog(owner_page)
         dialog.expect_visible()
 
@@ -267,7 +262,7 @@ def test_timeline_river_filter_click_switches_active(pages: PageFactory) -> None
         all_btn = tree.river_filter_btn("all")
         maternal_btn = tree.river_filter_btn("maternal")
         expect(all_btn, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
-        maternal_btn.click()
+        tree.click_river_filter("maternal")
 
     with step("проверка: active переключился на maternal"):
         expect(maternal_btn, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
@@ -284,7 +279,7 @@ def test_sources_tab_renders_search_input_and_filter_buttons(pages: PageFactory)
 
     with step("проверка: поле поиска с placeholder"):
         expect(tree.sources_search, ErrMsg.input_not_visible).to_be_visible()
-        placeholder = tree.sources_search.get_attribute("placeholder")
+        placeholder = tree.sources_search_placeholder()
         should.be_true(placeholder and t(Placeholders.SEARCH) in placeholder, ErrMsg.search_placeholder_wrong)
 
     with step("проверка: фильтр all активен по умолчанию"):
@@ -327,11 +322,11 @@ def test_clicking_orbit_card_recenters_orbit_to_clicked_person(pages: PageFactor
         tree = pages.navigate_to(TreePage)
         target_card = tree.non_center_orbit_card()
         expect(target_card, ErrMsg.orbit_card_not_visible).to_be_visible()
-        target_pid = target_card.get_attribute("data-person-id")
+        target_pid = tree.orbit_card_person_id(target_card)
         should.be_true(target_pid, ErrMsg.orbit_card_missing_pid)
 
     with step("действие: кликнуть по не-центральной карте"):
-        target_card.click()
+        tree.click_orbit_card(target_card)
 
     with step("проверка: центр орбиты переместился на кликнутую персону"):
         new_center = tree.orbit_center_for_person(target_pid)

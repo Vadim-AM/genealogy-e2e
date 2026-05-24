@@ -255,6 +255,36 @@ class OwnerPage(BasePage):
             self.confirm_import_via_dialog()
             self.expect_import_state("DONE")
 
+    def click_import_cancel(self) -> None:
+        """Click the Cancel button on the import widget."""
+        with step("действие: отменить импорт"):
+            self.import_cancel_btn.click()
+
+    def click_import_confirm(self) -> None:
+        """Click the Confirm button on the import widget."""
+        with step("действие: подтвердить импорт"):
+            self.import_confirm_btn.click()
+
+    def click_import_again(self) -> None:
+        """Click the 'Import again' button after a completed import."""
+        with step("действие: импортировать ещё"):
+            self.import_again_btn.click()
+
+    def click_import_retry(self) -> None:
+        """Click the Retry button after an import error."""
+        with step("действие: повторить импорт"):
+            self.import_retry_btn.click()
+
+    def click_confirm_dialog_ok(self) -> None:
+        """Click the OK button in the confirm/alert dialog."""
+        with step("действие: нажать ОК в диалоге"):
+            self.confirm_dialog_ok.click()
+
+    def click_confirm_dialog_cancel(self) -> None:
+        """Click the Cancel button in the confirm dialog."""
+        with step("действие: нажать Отмена в диалоге"):
+            self.confirm_dialog_cancel.click()
+
     def goto_import_tab(self) -> Self:
         """Navigate to /owner and open the GEDCOM import tab."""
         with step("навигация: вкладка импорта"):

@@ -109,6 +109,11 @@ class ProfilePanel:
         with step("клик «Найти больше»"):
             self.btn_enrich.click()
 
+    def click_enrich_disabled(self) -> None:
+        """Force-click the disabled enrichment button (for negative tests)."""
+        with step("действие: клик по disabled AI-кнопке"):
+            self.btn_enrich_disabled.first.click(force=True)
+
     def close(self) -> None:
         """Click the back button to close the profile panel."""
         with step("закрытие профиля"):

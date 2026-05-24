@@ -56,8 +56,8 @@ def test_wait_submit_invalid_email_blocks_html5_validity(anon_pages: PageFactory
     """F-WAIT-3: invalid email — input fails HTML5 validity (form does not submit)."""
     with step("действие: заполнить невалидный email и отправить"):
         wait = anon_pages.navigate_to(WaitPage)
-        wait.email.fill("not-an-email")
-        wait.submit_btn.click()
+        wait.fill_email("not-an-email")
+        wait.click_submit()
 
     with step("проверка: HTML5 validity false и result пуст"):
         should.be_false(wait.is_email_valid(), ErrMsg.html5_validity_passed)

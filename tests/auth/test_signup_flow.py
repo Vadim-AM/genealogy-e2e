@@ -136,7 +136,7 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str, anon_pages:
         )
 
         with page.expect_response("**/api/account/signup") as resp_info:
-            signup.submit_btn_by_id.click()
+            signup.submit_by_id()
         should.playwright_status(resp_info.value, HTTPStatus.OK, ErrMsg.signup_response_not_ok)
 
     with step("проверка: письмо не отправлено"):

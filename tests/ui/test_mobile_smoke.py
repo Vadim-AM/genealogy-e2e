@@ -79,7 +79,7 @@ def test_landing_tabs_clickable_on_mobile(mobile_page: Page) -> None:
         for tab_name in ("tree", "about"):
             tab_btn = tree.tab_locator(tab_name)
             expect(tab_btn, ErrMsg.tab_not_visible).to_be_visible()
-            tab_btn.click()
+            tree.switch_tab(tab_name)
             tree.expect_tab_content_active(tab_name)
 
 
@@ -92,8 +92,7 @@ def test_about_beta_card_visible_for_guest_on_mobile(mobile_page: Page) -> None:
 
     with step("проверка: бета-карточка с CTA на /wait видна"):
         expect(tree.about_beta_card, ErrMsg.element_not_visible).to_be_visible()
-        cta = tree.about_beta_card.locator('a[href="/wait"]')
-        expect(cta, ErrMsg.link_not_visible).to_be_visible()
+        expect(tree.about_cta_link, ErrMsg.link_not_visible).to_be_visible()
 
 
 @allure.title("Мобильный: форма регистрации заполняется и отправляется")
@@ -104,8 +103,7 @@ def test_signup_form_submittable_on_mobile(mobile_page: Page, base_url: str) -> 
 
     with step("действие: заполнить форму"):
         email = "mobile-smoke@e2e.local"
-        signup.email.fill(email)
-        signup.password.fill("Hunter22StrongMobile!")
+        signup.fill_credentials(email=email, password="Hunter22StrongMobile!")
         # Wave-9: privacy/cross-border объединены с terms_accepted; форма
         # имеет один `#agreeTerms`.
         signup.agree_terms.check()
@@ -135,12 +133,12 @@ def test_wait_form_submittable_on_mobile(mobile_page: Page) -> None:
     with step("действие: открыть /wait и заполнить форму"):
         wait = WaitPage(mobile_page).goto_and_load()
         expect(wait.email, ErrMsg.input_not_visible).to_be_visible()
-        wait.email.fill("waitlist-mobile@e2e.local")
+        wait.fill_email("waitlist-mobile@e2e.local")
 
     with step("действие: отправить форму"):
         expect(wait.submit_btn, ErrMsg.button_not_visible).to_be_visible()
         expect(wait.submit_btn, ErrMsg.button_not_enabled).to_be_enabled()
-        wait.submit_btn.click()
+        wait.click_submit()
         wait.wait_for_page_load()
 
     with step("проверка: result-блок виден"):

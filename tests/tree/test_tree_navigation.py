@@ -50,12 +50,11 @@ def test_f5_keeps_profile_open(owner_page: Page, pages: PageFactory) -> None:
     """F5 на profile URL сохраняет hash профиля."""
     with step("действие: открыть профиль и перезагрузить страницу"):
         profile_hash = f"#/p/{TestData.DEMO_PERSON_ID}"
-        _ = pages.navigate_to(TreePage)
+        tree = pages.navigate_to(TreePage)
 
         ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
 
-        owner_page.reload()
-        owner_page.wait_for_load_state("domcontentloaded")
+        tree.reload()
 
     with step("проверка: hash профиля сохранился после F5"):
         should.contain(owner_page.url, profile_hash, ErrMsg.hash_dropped_after_f5)

@@ -44,6 +44,18 @@ class ForgotPasswordPage(BasePage):
         """Status message element."""
         return self.page.get_by_role("status")
 
+    def fill_email(self, email: str) -> Self:
+        """Fill the email field without submitting."""
+        with step("действие: заполнить email"):
+            self.email.fill(email)
+        return self
+
+    def click_submit(self) -> Self:
+        """Click the submit button."""
+        with step("действие: нажать кнопку отправки"):
+            self.submit_btn.click()
+        return self
+
     def request_reset(self, email: str) -> Self:
         """Fill the email and submit the reset request."""
         with step("действие: запросить сброс пароля"):

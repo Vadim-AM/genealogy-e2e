@@ -47,6 +47,19 @@ class LoginPage(BasePage):
         """no semantic: form element by ID"""
         return self.page.locator("#loginForm")
 
+    def fill_credentials(self, email: str, password: str) -> Self:
+        """Fill email and password without clicking submit."""
+        with step("действие: заполнить email и пароль"):
+            self.email.fill(email)
+            self.password.fill(password)
+        return self
+
+    def submit(self) -> Self:
+        """Click the login submit button."""
+        with step("действие: отправить форму входа"):
+            self.submit_btn.click()
+        return self
+
     def login(self, email: str, password: str) -> Self:
         """Fill credentials and click the login button."""
         with step("действие: вход в систему"):

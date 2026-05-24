@@ -188,6 +188,11 @@ class AddRelativeModal:
         with step("действие: закрыть модалку"):
             self.btn_close.click()
 
+    def fill_surname(self, value: str) -> None:
+        """Fill the surname field (mid-flow update after unlink)."""
+        with step("действие: заполнить фамилию"):
+            self.surname.fill(value)
+
     # ── Gender (custom select wrapped by js/components/select.js) ─────
 
     _GENDER_SELECT = '[data-testid="custom-select"]:has(+ select#addRelGender)'
