@@ -33,6 +33,7 @@ from tests._core.err_msg import ErrMsg
 from tests._core.messages import Enrichment, t
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
+from tests.pages.profile_panel import ProfilePanel
 from tests.pages.tree_page import TreePage
 
 if TYPE_CHECKING:
@@ -76,7 +77,7 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
     (backend 503'ит, UI скрывает блок). Не путаем с POST на запуск нового
     enrichment, который — реальный compliance leak если случится.
     """
-    with step("подготовка: открыть профиль demo-self и подписаться на POST /api/enrich/"):
+    with step("подготовка: подписаться на POST enrich и открыть профиль"):
         page = owner_page
         enrich_post_calls: list[str] = []
         page.on(
@@ -86,42 +87,31 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
             else None,
         )
 
-        _ = pages.navigate_to(TreePage)
+        tree = pages.navigate_to(TreePage)
+        tree.open_center_profile()
+        panel = ProfilePanel(page)
 
-        # User clicks по центральной orbit-card → opens demo-self profile.
-        center = page.locator('[data-testid="orbit-center-card"]')
-        expect(center, ErrMsg.orbit_card_not_visible).to_be_visible()
-        center.click()
-        profile = page.locator('[data-testid="profile-page"]')
-        expect(profile, ErrMsg.profile_not_visible).to_be_visible()
+    with step("проверка: disabled-кнопка с маркером «скоро» и tooltip"):
+        expect(panel.btn_enrich_disabled, ErrMsg.wrong_count).to_have_count(1)
+        expect(
+            panel.btn_enrich_disabled.first,
+            ErrMsg.ai_button_should_be_disabled,
+        ).to_be_disabled()
 
-    with step("проверка: disabled-кнопка с маркером 'скоро' и tooltip"):
-        # 1. Disabled-кнопка с маркером «скоро».
-        skoro_btn = profile.locator(f'button:has-text("{t(Enrichment.COMING_SOON)}")')
-        expect(skoro_btn, ErrMsg.wrong_count).to_have_count(1)
-        expect(skoro_btn.first, ErrMsg.ai_button_should_be_disabled).to_be_disabled()
-
-        # 2. Tooltip — substring (locale-aware, без full-string fit).
-        title = skoro_btn.first.get_attribute("title") or ""
+        title = panel.btn_enrich_disabled.first.get_attribute("title") or ""
         assert t(Enrichment.BETA_KEYWORD) in title, (
-            f"title attribute should contain {t(Enrichment.BETA_KEYWORD)!r}, got {title!r}"
+            f"title должен содержать {t(Enrichment.BETA_KEYWORD)!r}, получили {title!r}"
         )
 
-        # 3. Активной enrich-кнопки нет.
-        active_enrich = profile.locator('button[data-action="enrich"]:not([disabled])')
-        expect(active_enrich, ErrMsg.wrong_count).to_have_count(0)
+        expect(panel.btn_enrich_active, ErrMsg.wrong_count).to_have_count(0)
 
     with step("проверка: клик по disabled-кнопке не вызывает POST /api/enrich/"):
-        # 4. Попытка клика по disabled-button. Native browser block'нет
-        # click-event (disabled HTMLButtonElement не fires onclick). Pre-click
-        # снимаем snapshot — если же что-то улетит после click, значит
-        # disabled был обойдён JS-ом, что и есть регрессия.
-        posts_before_click = list(enrich_post_calls)
-        skoro_btn.first.click(force=True)
+        posts_before = list(enrich_post_calls)
+        panel.btn_enrich_disabled.first.click(force=True)
         page.wait_for_load_state("networkidle")
-        new_posts = [u for u in enrich_post_calls if u not in posts_before_click]
+        new_posts = [u for u in enrich_post_calls if u not in posts_before]
         assert not new_posts, (
-            f"disabled AI button triggered POST /api/enrich/* after click: {new_posts!r}"
+            f"disabled AI кнопка вызвала POST /api/enrich/* после клика: {new_posts!r}"
         )
 
 
