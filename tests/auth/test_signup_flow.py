@@ -14,6 +14,7 @@ from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
 from tests._core.constants import TestConfig, make_email
+from tests._core.err_msg import ErrMsg
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests.pages.signup_page import SignupPage
@@ -145,7 +146,7 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str, anon_pages:
     """
     with step("действие: заполнение формы с honeypot и отправка"):
         email = make_email("bot")
-        anon_pages.navigate_to(SignupPage)
+        _ = anon_pages.navigate_to(SignupPage)
         page.evaluate(
             f"""
             document.querySelector('#email').value = {email!r};
@@ -187,8 +188,8 @@ def test_disposable_email_rejected_inline(page: Page, base_url: str, anon_pages:
 
     with step("проверка: inline-ошибка в поле email и письмо не отправлено"):
         email_err = page.locator("#email-err")
-        expect(email_err).not_to_have_text("")
-        expect(page.locator("#email")).to_have_attribute("aria-invalid", "true")
+        expect(email_err, ErrMsg.wrong_text_content).not_to_have_text("")
+        expect(page.locator("#email"), ErrMsg.wrong_attribute).to_have_attribute("aria-invalid", "true")
 
         r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": disposable_email})
         expect_response(r, label="disposable: no email sent").status(404)

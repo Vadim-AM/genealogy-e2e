@@ -28,15 +28,15 @@ from tests._core.api_paths import API
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
 
-# Accepted coverage gaps — the debt registry. Each line is tagged with its
-# journey-roadmap group. A gap is closed by a new journey test exercising
-# the endpoint + a constant in `tests/api_paths.py::API`; the line then
-# leaves this set. Do NOT add a line here just to silence the gate for a
-# brand-new endpoint without recording which journey will own it.
+# Принятые пробелы покрытия — реестр долга. Каждая строка помечена
+# группой roadmap. Пробел закрывается новым journey-тестом, проверяющим
+# endpoint + константой в `tests/api_paths.py::API`; после этого строка
+# удаляется. НЕ добавляйте строку только чтобы заглушить gate для
+# нового endpoint'а без указания, какой journey его покроет.
 KNOWN_GAPS: frozenset[str] = frozenset()
-# Empty: every backend /api/* path is exercised by a journey or a
-# backend-invariant test. New endpoints must land here with a roadmap
-# tag, or (preferably) with their covering test in the same change.
+# Пусто: каждый backend `/api/*` путь покрыт journey- или
+# backend-invariant тестом. Новые endpoint'ы должны попадать сюда с
+# roadmap-тегом, или (предпочтительно) с покрывающим тестом в том же изменении.
 
 
 _PARAM_RE = re.compile(r"\{[^}]+\}")

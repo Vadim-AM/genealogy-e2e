@@ -61,7 +61,7 @@ def test_wait_submit_email_success(page: Page, anon_pages: PageFactory):
 def test_wait_no_owner_personal_data(page: Page, anon_pages: PageFactory):
     """BUG-COPY-001: /wait must not mention owner family names (PII)."""
     with step("действие: загрузить /wait"):
-        anon_pages.navigate_to(WaitPage)
+        _ = anon_pages.navigate_to(WaitPage)
         body = page.content()
 
     with step("проверка: нет PII владельца"):

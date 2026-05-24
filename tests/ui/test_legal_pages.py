@@ -13,6 +13,7 @@ import httpx
 import pytest
 from playwright.sync_api import Page, expect
 
+from tests._core.err_msg import ErrMsg
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
 from tests.pages.tree_page import TreePage
@@ -33,17 +34,17 @@ def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: st
         assert "text/html" in content_type, f"{path} content-type={content_type!r}, expected text/html"
 
     with step("проверка: заголовок и headings присутствуют"):
-        # Document must have a non-empty title (raw .md doesn't set one).
+        # Документ должен иметь непустой title (сырой .md его не устанавливает).
         title = page.title()
         assert title and title.strip(), f"{path} has empty title"
 
-        # Must have at least one <h1>/<h2> in the rendered DOM.
+        # Должен быть хотя бы один <h1>/<h2> в отрисованном DOM.
         h1_count = page.locator("h1, h2").count()
         assert h1_count > 0, f"{path} has no <h1>/<h2> headings — looks like raw markdown"
 
     with step("проверка: нет сырых markdown-маркеров"):
-        # The body must NOT contain literal markdown markers like '# ' at line
-        # start (rendered headings have no leading '#').
+        # Тело НЕ должно содержать литеральных markdown-маркеров вроде '# '
+        # в начале строки (отрисованные заголовки не имеют ведущего '#').
         body_text = page.locator("body").text_content() or ""
         lines = body_text.split("\n")
         md_marker_lines = [ln for ln in lines if ln.strip().startswith(("# ", "## ", "### "))]
@@ -66,7 +67,7 @@ def test_legal_has_no_unrendered_markdown_links(page: Page, path: str):
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# TC-24.03 — Footer links на /privacy и /terms видны и open в новой вкладке
+# TC-24.03 — Footer-ссылки на /privacy и /terms видны и открываются в новой вкладке
 # ─────────────────────────────────────────────────────────────────────────
 
 
@@ -81,9 +82,9 @@ def test_landing_footer_legal_link_is_visible_and_target_blank(
     Селектор по href — устойчив к смене label'ов и i18n.
     """
     with step("действие: открыть главную и найти ссылку"):
-        anon_pages.navigate_to(TreePage)
+        _ = anon_pages.navigate_to(TreePage)
         link = page.locator(f"a[href='{href}']").first
-        expect(link).to_be_visible()
+        expect(link, ErrMsg.link_not_visible).to_be_visible()
 
     with step("проверка: ссылка открывается в новой вкладке"):
         target = link.get_attribute("target")

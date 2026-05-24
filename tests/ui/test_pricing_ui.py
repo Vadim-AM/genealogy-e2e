@@ -31,6 +31,7 @@ import httpx
 from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
+from tests._core.err_msg import ErrMsg
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -147,7 +148,7 @@ def test_pricing_cards_have_non_empty_headings(anon_pages: PageFactory):
     """
     with step("действие: загрузить страницу тарифов"):
         pricing = anon_pages.navigate_to(PricingPage)
-        expect(pricing.cards().first).to_be_visible()
+        expect(pricing.cards().first, ErrMsg.pricing_card_not_visible).to_be_visible()
 
     with step("проверка: 4 уникальных непустых заголовка"):
         found = pricing.card_titles()
@@ -164,7 +165,7 @@ def test_pricing_cards_show_rub_symbol(page: Page, anon_pages: PageFactory):
     """TC-N1: на странице должен быть символ ₽."""
     with step("действие: загрузить страницу тарифов"):
         pricing = anon_pages.navigate_to(PricingPage)
-        expect(pricing.cards().first).to_be_visible()
+        expect(pricing.cards().first, ErrMsg.pricing_card_not_visible).to_be_visible()
 
     with step("проверка: символ ₽ присутствует"):
         body_html = page.content()
@@ -198,15 +199,15 @@ def test_pricing_researcher_card_is_featured_by_position(
 
     with step("действие: загрузить страницу тарифов"):
         pricing = anon_pages.navigate_to(PricingPage)
-        expect(pricing.cards().first).to_be_visible()
+        expect(pricing.cards().first, ErrMsg.pricing_card_not_visible).to_be_visible()
         pricing.expect_cards_visible(len(items))
 
     with step("проверка: researcher-карточка имеет класс featured"):
-        expect(pricing.featured).to_have_count(1)
+        expect(pricing.featured, ErrMsg.wrong_count).to_have_count(1)
         researcher_card = pricing.cards().nth(researcher_idx)
         # to_have_class matches the full class attribute string, поэтому
         # regex substring `\\bfeatured\\b`.
-        expect(researcher_card).to_have_class(re.compile(r"\bfeatured\b"))
+        expect(researcher_card, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bfeatured\b"))
 
 
 @allure.title("Тарифы: нет JS-ошибок в консоли на /pricing")
@@ -221,7 +222,7 @@ def test_pricing_no_console_errors(page: Page, anon_pages: PageFactory):
         )
 
     with step("действие: загрузить /pricing.html"):
-        anon_pages.navigate_to(PricingPage)
+        _ = anon_pages.navigate_to(PricingPage)
 
     with step("проверка: нет JS-ошибок в консоли"):
         real = [e for e in errors if "favicon" not in e.lower()]

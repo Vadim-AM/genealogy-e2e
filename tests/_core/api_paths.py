@@ -131,6 +131,7 @@ class API:
         """Return path for enrichment feedback."""
         return f"/api/enrich/{pid}/feedback"
 
+    ENRICH_PREFIX = "/api/enrich/"
     ENRICH_HEALTH_API_KEY = "/api/enrich/health/api-key"
     ENRICH_LETTERS_SENT = "/api/enrich/letters/sent"
 

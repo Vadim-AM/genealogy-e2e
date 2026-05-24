@@ -78,10 +78,10 @@ def test_bug_csrf_001_console_clean_on_signup(page: Page, anon_pages: PageFactor
         page.on(
             "response",
             lambda r: bad_404.append(r.url)
-            if r.status == 404 and "/api/csrf-token" in r.url
+            if r.status == 404 and "/api/csrf-token" in r.url  # noqa: drift
             else None,
         )
-        anon_pages.navigate_to(SignupPage)
+        _ = anon_pages.navigate_to(SignupPage)
 
     with step("проверка: нет 404 на /api/csrf-token"):
         assert not bad_404, f"BUG-CSRF-001 regression: {bad_404}"

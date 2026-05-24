@@ -22,6 +22,7 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import FamilyGroups, RelationLabels, t
 from tests._core.step import step
 from tests._data.gedcom.samples import (
@@ -72,9 +73,12 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
         # inconsistency tracked separately).
         panel = search_and_open_profile(owner_page, "Андрей")
 
-        expect(panel.title).to_contain_text("Андрей")
-        expect(panel.title).to_contain_text("Сидоров")
-        expect(panel.container.locator('[data-testid="profile-dates"]')).to_contain_text("1980")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Андрей")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Сидоров")
+        expect(
+            panel.container.locator('[data-testid="profile-dates"]'),
+            ErrMsg.profile_dates_wrong,
+        ).to_contain_text("1980")
 
         # У Андрея ровно 2 родителя — если бы import продублировал персону,
         # их было бы 4. Точный count ловит обе регрессии: «нет связей» и
@@ -82,35 +86,61 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
         parents_group = panel.container.locator(
             '[data-testid="profile-family-group"]', has_text=t(FamilyGroups.PARENTS),
         )
-        expect(parents_group.locator('a[data-action="open-profile"]')).to_have_count(2)
+        expect(
+            parents_group.locator('a[data-action="open-profile"]'),
+            ErrMsg.family_group_count_wrong,
+        ).to_have_count(2)
 
     with step("проверка: навигация Андрей → Сергей (родитель) и обратная ссылка"):
         # Connection: Андрей → Сергей (родитель).
         click_family_link(panel, t(FamilyGroups.PARENTS), "Сергей")
-        expect(panel.title).to_contain_text("Сергей")
-        expect(panel.container.locator('[data-testid="profile-dates"]')).to_contain_text("1950")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Сергей")
+        expect(
+            panel.container.locator('[data-testid="profile-dates"]'),
+            ErrMsg.profile_dates_wrong,
+        ).to_contain_text("1950")
 
         # Bidirectional: Сергей → Андрей (в «Дети»). Ровно один ребёнок.
         children_group = panel.container.locator(
             '[data-testid="profile-family-group"]', has_text=t(FamilyGroups.CHILDREN),
         )
-        expect(children_group.locator('a[data-action="open-profile"]')).to_have_count(1)
-        expect(children_group.locator('a[data-action="open-profile"]').filter(has_text="Андрей")).to_be_visible()
+        expect(
+            children_group.locator('a[data-action="open-profile"]'),
+            ErrMsg.family_group_count_wrong,
+        ).to_have_count(1)
+        expect(
+            children_group.locator('a[data-action="open-profile"]').filter(has_text="Андрей"),
+            ErrMsg.family_link_not_visible,
+        ).to_be_visible()
 
     with step("проверка: навигация Сергей → Елена (супруга) и bidirectional spouse"):
         # Connection: Сергей → Елена (супруга). Ровно один супруг.
-        spouse_group = panel.container.locator('[data-testid="profile-family-group"]', has_text=t(FamilyGroups.SPOUSE))
-        expect(spouse_group.locator('a[data-action="open-profile"]')).to_have_count(1)
+        spouse_group = panel.container.locator(
+            '[data-testid="profile-family-group"]', has_text=t(FamilyGroups.SPOUSE),
+        )
+        expect(
+            spouse_group.locator('a[data-action="open-profile"]'),
+            ErrMsg.family_group_count_wrong,
+        ).to_have_count(1)
         click_family_link(panel, t(FamilyGroups.SPOUSE), "Елена")
-        expect(panel.title).to_contain_text("Елена")
-        expect(panel.container.locator('[data-testid="profile-dates"]')).to_contain_text("1952")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Елена")
+        expect(
+            panel.container.locator('[data-testid="profile-dates"]'),
+            ErrMsg.profile_dates_wrong,
+        ).to_contain_text("1952")
 
         # Bidirectional spouse: Елена → Сергей (count=1).
         elena_spouse_group = panel.container.locator(
             '[data-testid="profile-family-group"]', has_text=t(FamilyGroups.SPOUSE),
         )
-        expect(elena_spouse_group.locator('a[data-action="open-profile"]')).to_have_count(1)
-        expect(elena_spouse_group.locator('a[data-action="open-profile"]').filter(has_text="Сергей")).to_be_visible()
+        expect(
+            elena_spouse_group.locator('a[data-action="open-profile"]'),
+            ErrMsg.family_group_count_wrong,
+        ).to_have_count(1)
+        expect(
+            elena_spouse_group.locator('a[data-action="open-profile"]').filter(has_text="Сергей"),
+            ErrMsg.family_link_not_visible,
+        ).to_be_visible()
 
     with step("проверка: навигация к Ивану (поколение 1) — даты и место"):
         # Navigate back к Сергею, потом вверх к Ивану (generation 1).
@@ -119,11 +149,14 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
         click_family_link(panel, t(FamilyGroups.PARENTS), "Иван")
 
         # Iван (generation 1): daдy + место + год смерти.
-        expect(panel.title).to_contain_text("Иван")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Иван")
         dates_loc = panel.container.locator('[data-testid="profile-dates"]')
-        expect(dates_loc).to_contain_text("1920")
-        expect(dates_loc).to_contain_text("1990")
-        expect(panel.container.locator('[data-testid="profile-place"]')).to_contain_text("Краснодар")
+        expect(dates_loc, ErrMsg.profile_dates_wrong).to_contain_text("1920")
+        expect(dates_loc, ErrMsg.profile_dates_wrong).to_contain_text("1990")
+        expect(
+            panel.container.locator('[data-testid="profile-place"]'),
+            ErrMsg.profile_place_wrong,
+        ).to_contain_text("Краснодар")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -149,20 +182,23 @@ def test_user_imports_cyrillic_data_renders_without_mojibake_via_ui(
         panel = search_and_open_profile(owner_page, "Пётр")
 
         # Title содержит exact символы — букву ё и дефисную фамилию.
-        expect(panel.title).to_contain_text("Пётр")
-        expect(panel.title).to_contain_text("Аксёнов-Жёлтый")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Пётр")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Аксёнов-Жёлтый")
 
         # Даты + место с буквой ё в имени села.
         dates_loc = panel.container.locator('[data-testid="profile-dates"]')
-        expect(dates_loc).to_contain_text("1900")
-        expect(dates_loc).to_contain_text("1973")
-        expect(panel.container.locator('[data-testid="profile-place"]')).to_contain_text("Ёлкино")
+        expect(dates_loc, ErrMsg.profile_dates_wrong).to_contain_text("1900")
+        expect(dates_loc, ErrMsg.profile_dates_wrong).to_contain_text("1973")
+        expect(
+            panel.container.locator('[data-testid="profile-place"]'),
+            ErrMsg.profile_place_wrong,
+        ).to_contain_text("Ёлкино")
 
     with step("проверка: навигация к супруге Евдокии — буква ё в фамилии"):
         # Bidirectional spouse: Пётр → Евдокия с буквой ё в её фамилии.
         click_family_link(panel, t(FamilyGroups.SPOUSE), "Евдокия")
-        expect(panel.title).to_contain_text("Евдокия")
-        expect(panel.title).to_contain_text("Аксёнова-Жёлтая")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Евдокия")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Аксёнова-Жёлтая")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -186,12 +222,12 @@ def test_user_imports_minimal_indi_profile_renders_without_crash(
     with step("проверка: профиль рендерится с именем без краша"):
         panel = search_and_open_profile(owner_page, "Минимальный")
 
-        expect(panel.title).to_contain_text("Минимальный")
-        expect(panel.title).to_contain_text("Тестов")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Минимальный")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Тестов")
 
         # `.profile-page` container loaded — никаких JS exceptions, никакой
         # broken rendering (sanity что openProfile прошёл до конца).
-        expect(panel.container).to_be_visible()
+        expect(panel.container, ErrMsg.profile_not_visible).to_be_visible()
 
     with step("проверка: даты пустые и нет фантомных связей"):
         # Дата отсутствует — `[data-testid="profile-dates"]` либо empty, либо отсутствует.
@@ -210,8 +246,8 @@ def test_user_imports_minimal_indi_profile_renders_without_crash(
         # ссылки на родственника. Селектор `[data-testid="profile-family"]` — стабильный
         # контейнер (не зависит от локали section-title).
         family_block = panel.container.locator('[data-testid="profile-family"]')
-        expect(family_block).to_be_visible()
-        expect(family_block.locator('a[data-action="open-profile"]')).to_have_count(0)
+        expect(family_block, ErrMsg.element_not_visible).to_be_visible()
+        expect(family_block.locator('a[data-action="open-profile"]'), ErrMsg.family_group_count_wrong).to_have_count(0)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -236,17 +272,17 @@ def test_user_imports_indi_with_note_renders_biography_in_profile_story(
     with step("проверка: биография из NOTE отображается в profile-story"):
         panel = search_and_open_profile(owner_page, "Захар")
 
-        expect(panel.title).to_contain_text("Захар")
-        expect(panel.title).to_contain_text("Семёнов")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Захар")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Семёнов")
 
         story = panel.container.locator('[data-testid="profile-story"]')
-        expect(story).to_be_visible()
+        expect(story, ErrMsg.story_not_visible).to_be_visible()
         # Полный текст биографии (берём 3 опорные фразы — медаль, профессия,
         # эвакуация). Достаточно distinct, чтобы любая обрезка / потеря
         # фрагмента провалила тест.
-        expect(story).to_contain_text("Георгиевским крестом 4 степени")
-        expect(story).to_contain_text("учителем в селе Никольское")
-        expect(story).to_contain_text("Эвакуировался в 1942 году")
+        expect(story, ErrMsg.story_text_wrong).to_contain_text("Георгиевским крестом 4 степени")
+        expect(story, ErrMsg.story_text_wrong).to_contain_text("учителем в селе Никольское")
+        expect(story, ErrMsg.story_text_wrong).to_contain_text("Эвакуировался в 1942 году")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -277,11 +313,17 @@ def test_user_imports_male_and_female_show_correct_relation_label_in_orbit(
         orbit_cards = owner_page.locator('[data-testid="orbit-card"]')
         sergey_card = orbit_cards.filter(has_text="Сергей").first
         elena_card = orbit_cards.filter(has_text="Елена").first
-        expect(sergey_card).to_be_visible()
-        expect(elena_card).to_be_visible()
+        expect(sergey_card, ErrMsg.orbit_card_not_visible).to_be_visible()
+        expect(elena_card, ErrMsg.orbit_card_not_visible).to_be_visible()
 
-        expect(sergey_card.locator('[data-testid="orbit-card-relation"]')).to_have_text(t(RelationLabels.FATHER))
-        expect(elena_card.locator('[data-testid="orbit-card-relation"]')).to_have_text(t(RelationLabels.MOTHER))
+        expect(
+            sergey_card.locator('[data-testid="orbit-card-relation"]'),
+            ErrMsg.orbit_card_relation_wrong,
+        ).to_have_text(t(RelationLabels.FATHER))
+        expect(
+            elena_card.locator('[data-testid="orbit-card-relation"]'),
+            ErrMsg.orbit_card_relation_wrong,
+        ).to_have_text(t(RelationLabels.MOTHER))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -325,11 +367,14 @@ def test_user_reimports_same_file_does_not_duplicate_persons(
     with step("проверка: Андрей один и у него ровно 2 родителя"):
         # 1. Search «Андрей» → ровно 1 карточка.
         panel = search_and_open_profile(owner_page, "Андрей")
-        expect(panel.title).to_contain_text("Андрей")
+        expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Андрей")
 
         # 2. У Андрея всё ещё ровно 2 родителя (не 4 — что было бы при дубле
         # relationship-rows).
         parents_group = panel.container.locator(
             '[data-testid="profile-family-group"]', has_text=t(FamilyGroups.PARENTS),
         )
-        expect(parents_group.locator('a[data-action="open-profile"]')).to_have_count(2)
+        expect(
+            parents_group.locator('a[data-action="open-profile"]'),
+            ErrMsg.family_group_count_wrong,
+        ).to_have_count(2)

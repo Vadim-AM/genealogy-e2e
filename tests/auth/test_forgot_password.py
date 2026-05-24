@@ -21,6 +21,7 @@ from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
 from tests._core.constants import make_email
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import TestData
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -77,7 +78,7 @@ def test_forgot_password_full_flow_user_logs_in_with_new_password(
         # Новый пароль — успех. После login redirect на / + indicator authed.
         login.login(owner_user.email, _NEW_PASSWORD)
         page.wait_for_url("**/")
-        expect(auth_name(page)).to_have_text(
+        expect(auth_name(page), ErrMsg.auth_name_wrong).to_have_text(
             TestData.DEFAULT_FULL_NAME
         )
 

@@ -26,6 +26,8 @@ import re
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.api_paths import API
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import Buttons, t
 from tests._core.step import step
 from tests.helpers.tree.photos import upload_jpeg
@@ -43,9 +45,9 @@ def test_photos_block_renders_inside_editor(owner_page: Page):
         photos = PhotosBlock(owner_page)
 
     with step("проверка: кнопка добавления и file-input видны"):
-        expect(photos.container).to_be_visible()
-        expect(photos.add_btn).to_be_visible()
-        expect(photos.add_btn).to_contain_text(t(Buttons.ADD))
+        expect(photos.container, ErrMsg.photo_not_visible).to_be_visible()
+        expect(photos.add_btn, ErrMsg.button_not_visible).to_be_visible()
+        expect(photos.add_btn, ErrMsg.wrong_text_content).to_contain_text(t(Buttons.ADD))
         assert photos.add_btn.get_attribute("for") == "photoFileInput", (
             "label#photoAddBtn должен иметь for=photoFileInput для нативного "
             "click-to-open-file-chooser flow"
@@ -71,7 +73,7 @@ def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page):
         initial_thumbs = photos.thumb_count()
 
     with step("действие: загрузка JPEG"), owner_page.expect_response(
-        lambda r: "/api/admin/upload-photo" in r.url and r.status == 200
+        lambda r: API.UPLOAD_PHOTO in r.url and r.status == 200
     ):
         upload_jpeg(owner_page)
 
@@ -91,14 +93,14 @@ def test_photo_remove_button_drops_thumb_from_grid(owner_page: Page):
         initial = photos.thumb_count()
 
         with owner_page.expect_response(
-            lambda r: "/api/admin/upload-photo" in r.url and r.status == 200
+            lambda r: API.UPLOAD_PHOTO in r.url and r.status == 200
         ):
             upload_jpeg(owner_page)
         photos.expect_thumb_count(initial + 1)
         after_upload = initial + 1
 
     with step("действие: удалить последнюю миниатюру"), owner_page.expect_response(
-        lambda r: bool(re.search(r"/api/people/[^/]+$", r.url) and r.request.method == "PATCH")
+        lambda r: bool(re.search(rf"{API.PEOPLE}/[^/]+$", r.url) and r.request.method == "PATCH")
     ):
         photos.remove_last_thumb().click()
 

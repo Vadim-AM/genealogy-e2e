@@ -21,6 +21,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import AgeValidation, FamilyGroups, TestData, t
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -89,7 +90,7 @@ def test_sibling_parent_suggestion_prevents_duplicate(
             f"POST /api/relationships failed: {rel_resp.value.status} "
             f"{rel_resp.value.text()[:200]}"
         )
-        expect(modal.overlay).not_to_be_visible()
+        expect(modal.overlay, ErrMsg.overlay_should_be_closed).not_to_be_visible()
 
     with step("проверка: ровно один новый person, оба ребёнка на одном отце"):
         people_after = people(api)
@@ -141,12 +142,12 @@ def test_suggestion_filters_by_gender_for_mother_relationship(
 
     with step("проверка: gender=f показывает только мать, gender=m только отца"):
         modal.select_gender("f")
-        expect(modal.suggestion_card_by_id(parents["f"])).to_be_visible()
-        expect(modal.suggestion_card_by_id(parents["m"])).to_have_count(0)
+        expect(modal.suggestion_card_by_id(parents["f"]), ErrMsg.suggestion_not_visible).to_be_visible()
+        expect(modal.suggestion_card_by_id(parents["m"]), ErrMsg.suggestion_count_wrong).to_have_count(0)
 
         modal.select_gender("m")
-        expect(modal.suggestion_card_by_id(parents["m"])).to_be_visible()
-        expect(modal.suggestion_card_by_id(parents["f"])).to_have_count(0)
+        expect(modal.suggestion_card_by_id(parents["m"]), ErrMsg.suggestion_not_visible).to_be_visible()
+        expect(modal.suggestion_card_by_id(parents["f"]), ErrMsg.suggestion_count_wrong).to_have_count(0)
 
 
 @allure.title("Подсказки отсутствуют у персоны без братьев и сестёр")
@@ -233,7 +234,7 @@ def test_no_suggestion_when_max_parents_already(
     with step("проверка: кнопка + родитель скрыта при 2 родителях"):
         panel = open_profile(owner_page, TestData.DEMO_PERSON_ID)
         parents_add_btn = panel.add_relative_button(t(FamilyGroups.PARENTS))
-        expect(parents_add_btn).to_have_count(0)
+        expect(parents_add_btn, ErrMsg.parent_button_should_be_hidden).to_have_count(0)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -278,7 +279,7 @@ def test_user_ignores_suggestion_creates_new_person(
             modal.save()
         assert resp.value.ok, \
             f"POST /api/people failed: {resp.value.status} {resp.value.text()[:200]}"
-        expect(modal.overlay).not_to_be_visible()
+        expect(modal.overlay, ErrMsg.overlay_should_be_closed).not_to_be_visible()
 
     with step("проверка: новый person создан, demo-father не затронут"):
         people_after = people(api)
@@ -334,7 +335,7 @@ def test_suggestion_click_does_not_create_new_person(
     with step("действие: кликнуть suggestion и сохранить"):
         posted_people: list[str] = []
         def _on_request(req):
-            if req.method == "POST" and "/api/people" in req.url and "/api/people-" not in req.url:
+            if req.method == "POST" and API.PEOPLE in req.url and API.PEOPLE + "-" not in req.url:
                 posted_people.append(req.url)
 
         owner_page.on("request", _on_request)
@@ -343,7 +344,7 @@ def test_suggestion_click_does_not_create_new_person(
             modal.expect_linked_to(demo_father_id)
             with owner_page.expect_response(f"**{API.RELATIONSHIPS}**") as _:
                 modal.btn_save.click()
-            expect(modal.overlay).not_to_be_visible()
+            expect(modal.overlay, ErrMsg.overlay_should_be_closed).not_to_be_visible()
         finally:
             owner_page.remove_listener("request", _on_request)
 
@@ -378,7 +379,7 @@ def test_existing_sibling_auto_parent_checkbox_still_works(
         modal = AddRelativeModal(owner_page)
         modal.expect_visible()
 
-        expect(modal.share_parents_input).to_be_checked()
+        expect(modal.share_parents_input, ErrMsg.checkbox_state_wrong).to_be_checked()
 
         modal.fill_fio(surname="Тестовая", given="Брат", birth="01.01.1985")
         modal.select_gender("m")
@@ -387,7 +388,7 @@ def test_existing_sibling_auto_parent_checkbox_still_works(
             modal.save()
         assert resp.value.ok, \
             f"POST /api/people failed: {resp.value.status} {resp.value.text()[:200]}"
-        expect(modal.overlay).not_to_be_visible()
+        expect(modal.overlay, ErrMsg.overlay_should_be_closed).not_to_be_visible()
 
     with step("проверка: новый сиблинг привязан к обоим demo-родителям"):
         brat = find_person_by_name(api, "Брат", "Тестовая")
@@ -456,9 +457,9 @@ def test_suggestion_click_shows_error_on_backend_422(
             modal.click_suggestion(demo_father_id)
             modal.expect_linked_to(demo_father_id)
             modal.btn_save.click()
-            expect(modal.overlay).to_be_visible()
-            expect(modal.error).to_be_visible()
-            expect(modal.error).to_contain_text(t(AgeValidation.PARENT_AGE_KEYWORD))
+            expect(modal.overlay, ErrMsg.modal_not_visible).to_be_visible()
+            expect(modal.error, ErrMsg.validation_error_wrong).to_be_visible()
+            expect(modal.error, ErrMsg.validation_error_wrong).to_contain_text(t(AgeValidation.PARENT_AGE_KEYWORD))
         finally:
             owner_page.unroute(f"**{API.RELATIONSHIPS}*")
 
