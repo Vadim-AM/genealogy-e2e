@@ -10,6 +10,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import TestData
 from tests._core.step import step
 from tests.pages.person_editor import AddRelativeModal
@@ -44,7 +45,7 @@ def test_add_sibling_via_profile_creates_person_and_relationship(
         assert create_response.ok, \
             f"POST /api/people failed: {create_response.status} {create_response.text()[:200]}"
 
-        expect(modal.overlay).not_to_be_visible()
+        expect(modal.overlay, ErrMsg.overlay_should_be_closed).not_to_be_visible()
 
     with step("проверка: новая персона появилась в дереве"):
         tree_after = api.get(API.TREE)

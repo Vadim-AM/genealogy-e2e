@@ -13,6 +13,7 @@ import httpx
 from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
+from tests._core.err_msg import ErrMsg
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
 
@@ -22,7 +23,7 @@ def test_f5_on_nonexistent_profile_id_does_not_crash(owner_page: Page):
     """TC-EDGE-004: F5 on /#/p/<unknown> shows tree, no JS crash."""
     owner_page.goto("/#/p/nonexistent_xyz_123")
     owner_page.wait_for_load_state("domcontentloaded")
-    expect(owner_page.locator('[data-tab="tree"]')).to_be_visible()
+    expect(owner_page.locator('[data-tab="tree"]'), ErrMsg.tab_not_visible).to_be_visible()
 
 
 @allure.title("Edge: персона с единственным полем name корректно читается")

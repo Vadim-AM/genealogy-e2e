@@ -11,6 +11,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import Enrichment, TestData, t
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -50,10 +51,10 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
 
     with step("проверка: принятые факты отображаются как chips"):
         accepted = panel.accepted_facts_block
-        expect(accepted).to_be_visible()
+        expect(accepted, ErrMsg.element_not_visible).to_be_visible()
         chips = accepted.locator('[data-testid="profile-ai-chip"]')
         # Accepting the hypothesis writes its claim + reasoning as 2 chips.
-        expect(chips).to_have_count(2)
+        expect(chips, ErrMsg.wrong_count).to_have_count(2)
 
     with step("действие: откат принятой гипотезы"):
         chips.first.locator('[data-testid="profile-ai-chip-revert"]').click()
@@ -63,7 +64,7 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
         ).click()
 
     with step("проверка: chips исчезли после отката"):
-        expect(chips).to_have_count(0)
+        expect(chips, ErrMsg.wrong_count).to_have_count(0)
 
 
 @allure.title("AI-обогащение: кэш отдаёт результат, health, фидбек и письма принимаются")

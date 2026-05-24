@@ -19,6 +19,7 @@ from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
 from tests._core.constants import make_email
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import Mfa, t
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -35,18 +36,18 @@ def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user, pages: Pa
     acknowledges recovery codes → status shows on; disables via step-up
     → status shows off."""
     with step("подготовка: открытие вкладки безопасности, статус выключен"):
-        pages.navigate_to(OwnerPage)
+        _ = pages.navigate_to(OwnerPage)
         mfa = MfaSettings(owner_page).open_tab()
-        expect(mfa.status_text).to_contain_text(t(Mfa.STATUS_OFF))
+        expect(mfa.status_text, ErrMsg.mfa_status_wrong).to_contain_text(t(Mfa.STATUS_OFF))
 
     with step("действие: включение 2FA через TOTP"):
         mfa.enable_with_totp()
         mfa.finish_recovery()
-        expect(mfa.status_text).to_contain_text(t(Mfa.STATUS_ON))
+        expect(mfa.status_text, ErrMsg.mfa_status_wrong).to_contain_text(t(Mfa.STATUS_ON))
 
     with step("действие: отключение 2FA через step-up"):
         mfa.disable_with_stepup()
-        expect(mfa.status_text).to_contain_text(t(Mfa.STATUS_OFF))
+        expect(mfa.status_text, ErrMsg.mfa_status_wrong).to_contain_text(t(Mfa.STATUS_OFF))
 
 
 @allure.title("Код восстановления 2FA можно использовать только один раз")

@@ -49,7 +49,7 @@ def test_person_name_xss_is_escaped(
         ))
 
     with step("открыть дерево и проверить экранирование"):
-        pages.navigate_to(TreePage)
+        _ = pages.navigate_to(TreePage)
         content = owner_page.content()
         assert "<script>alert" not in content, f"XSS payload rendered as executable HTML: {payload}"
         assert "onerror=alert" not in content, f"XSS event handler rendered: {payload}"
@@ -96,7 +96,7 @@ def test_site_name_xss_is_escaped(
         site_api.patch_site_config(api, site_name=payload)
 
     with step("открыть главную и проверить экранирование"):
-        pages.navigate_to(TreePage)
+        _ = pages.navigate_to(TreePage)
         content = owner_page.content()
         assert "<script>alert" not in content, f"XSS payload in site_name rendered as HTML: {payload}"
         assert "onerror=alert" not in content, f"XSS event handler in site_name: {payload}"

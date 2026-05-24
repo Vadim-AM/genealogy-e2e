@@ -11,15 +11,16 @@ import allure
 from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
+from tests._core.err_msg import ErrMsg
 from tests._core.step import step
 from tests.pages.tree_page import TreePage
 
 if TYPE_CHECKING:
     from tests._fixtures.page_factory import PageFactory
 
-# Demo seed has demo-self + 2 parents around the centred subject =
-# 2 orbit cards rendered in the ring view (the centred subject card
-# is rendered in a different DOM slot — `#tab-tree .section-title`).
+# Демо-seed содержит demo-self + 2 родителя вокруг центрального субъекта =
+# 2 orbit-карточки в кольцевом виде (карточка центрального субъекта
+# рендерится в другом DOM-слоте — `#tab-tree .section-title`).
 DEMO_SEED_RING_CARDS = 2
 
 
@@ -52,26 +53,26 @@ def test_first_visit_shows_authed_tabs(owner_page: Page, pages: PageFactory):
         owner_page.wait_for_load_state("domcontentloaded")
 
     with step("проверка: навигационные вкладки видны"):
-        expect(tree.tab_tree).to_be_visible()
-        expect(tree.tab_sources).to_be_visible()
-        expect(tree.tab_timeline).to_be_visible()
-        expect(tree.tab_about).to_be_visible()
+        expect(tree.tab_tree, ErrMsg.tab_not_visible).to_be_visible()
+        expect(tree.tab_sources, ErrMsg.tab_not_visible).to_be_visible()
+        expect(tree.tab_timeline, ErrMsg.tab_not_visible).to_be_visible()
+        expect(tree.tab_about, ErrMsg.tab_not_visible).to_be_visible()
 
 
 @allure.title("Поле поиска отображается в шапке после входа")
 def test_first_visit_search_input_visible(owner_page: Page, pages: PageFactory):
     """F-FV-5: search input is in the header for authed users."""
-    pages.navigate_to(TreePage)
+    _ = pages.navigate_to(TreePage)
     owner_page.wait_for_load_state("domcontentloaded")
-    expect(owner_page.locator("#headerSearch")).to_be_visible()
+    expect(owner_page.locator("#headerSearch"), ErrMsg.element_not_visible).to_be_visible()
 
 
 @allure.title("Кнопка повтора тура видна на главной после входа")
 def test_first_visit_tour_replay_button_visible(owner_page: Page, pages: PageFactory):
     """F-FV-6: '?' tour replay button is visible."""
-    pages.navigate_to(TreePage)
+    _ = pages.navigate_to(TreePage)
     owner_page.wait_for_load_state("domcontentloaded")
-    expect(owner_page.locator("#tourReplayBtn")).to_be_visible()
+    expect(owner_page.locator("#tourReplayBtn"), ErrMsg.button_not_visible).to_be_visible()
 
 
 @allure.title("Эндпоинт /me возвращает slug тенанта после авторизации")

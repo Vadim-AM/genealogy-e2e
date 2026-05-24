@@ -11,6 +11,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import Buttons, TestData, t
 from tests._core.messages import ConfirmDialog as ConfirmDialogMsg
 from tests._core.step import step
@@ -32,16 +33,16 @@ def test_maiden_name_visible_only_for_female_gender(owner_page: Page):
 
     with step("проверка: maiden скрыто для m, видно для f"):
         editor.select_dropdown("gender", "m")
-        expect(editor.maiden_name).not_to_be_visible()
+        expect(editor.maiden_name, ErrMsg.element_should_be_hidden).not_to_be_visible()
 
         editor.select_dropdown("gender", "f")
-        expect(editor.maiden_name).to_be_visible()
+        expect(editor.maiden_name, ErrMsg.input_not_visible).to_be_visible()
 
     with step("проверка: переключение обратно на m очищает maiden"):
         editor.maiden_name.fill("Иванова")
         editor.select_dropdown("gender", "m")
-        expect(editor.maiden_name).not_to_be_visible()
-        expect(editor.maiden_name).to_have_value("")
+        expect(editor.maiden_name, ErrMsg.element_should_be_hidden).not_to_be_visible()
+        expect(editor.maiden_name, ErrMsg.editor_field_wrong).to_have_value("")
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -67,7 +68,7 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tena
         owner_page.on(
             "response",
             lambda r: delete_responses.append(r.status)
-            if r.request.method == "DELETE" and "/api/people/" in r.url
+            if r.request.method == "DELETE" and API.PEOPLE in r.url
             else None,
         )
 
@@ -155,4 +156,4 @@ def test_delete_button_hidden_for_root_subject(owner_page):
     delete_btn = editor.page.get_by_role(
         "button", name=t(Buttons.DELETE), exact=False
     )
-    expect(delete_btn).to_be_hidden()
+    expect(delete_btn, ErrMsg.element_should_be_hidden).to_be_hidden()

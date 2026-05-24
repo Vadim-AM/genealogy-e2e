@@ -28,6 +28,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import Enrichment, t
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -80,24 +81,24 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
         page.on(
             "request",
             lambda req: enrich_post_calls.append(req.url)
-            if req.method == "POST" and "/api/enrich/" in req.url
+            if req.method == "POST" and API.ENRICH_PREFIX in req.url
             else None,
         )
 
-        pages.navigate_to(TreePage)
+        _ = pages.navigate_to(TreePage)
 
         # User clicks по центральной orbit-card → opens demo-self profile.
         center = page.locator('[data-testid="orbit-center-card"]')
-        expect(center).to_be_visible()
+        expect(center, ErrMsg.orbit_card_not_visible).to_be_visible()
         center.click()
         profile = page.locator('[data-testid="profile-page"]')
-        expect(profile).to_be_visible()
+        expect(profile, ErrMsg.profile_not_visible).to_be_visible()
 
     with step("проверка: disabled-кнопка с маркером 'скоро' и tooltip"):
         # 1. Disabled-кнопка с маркером «скоро».
         skoro_btn = profile.locator(f'button:has-text("{t(Enrichment.COMING_SOON)}")')
-        expect(skoro_btn).to_have_count(1)
-        expect(skoro_btn.first).to_be_disabled()
+        expect(skoro_btn, ErrMsg.wrong_count).to_have_count(1)
+        expect(skoro_btn.first, ErrMsg.ai_button_should_be_disabled).to_be_disabled()
 
         # 2. Tooltip — substring (locale-aware, без full-string fit).
         title = skoro_btn.first.get_attribute("title") or ""
@@ -107,7 +108,7 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
 
         # 3. Активной enrich-кнопки нет.
         active_enrich = profile.locator('button[data-action="enrich"]:not([disabled])')
-        expect(active_enrich).to_have_count(0)
+        expect(active_enrich, ErrMsg.wrong_count).to_have_count(0)
 
     with step("проверка: клик по disabled-кнопке не вызывает POST /api/enrich/"):
         # 4. Попытка клика по disabled-button. Native browser block'нет
@@ -197,7 +198,7 @@ def test_features_endpoint_fires_on_main_page_bootstrap(page: Page, base_url: st
     """
     with step("действие: загрузка / и ожидание /api/config/features"), \
          page.expect_response(f"**{API.CONFIG_FEATURES}") as resp_ctx:
-        anon_pages.navigate_to(TreePage)
+        _ = anon_pages.navigate_to(TreePage)
 
     with step("проверка: /api/config/features ответил 200"):
         assert resp_ctx.value.ok, (

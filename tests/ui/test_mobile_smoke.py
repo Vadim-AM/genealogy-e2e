@@ -18,6 +18,7 @@ import allure
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Page, expect
 
+from tests._core.err_msg import ErrMsg
 from tests._core.step import step
 from tests._data.devices.descriptors import DEVICE_DESCRIPTORS
 from tests.pages.signup_page import SignupPage
@@ -38,12 +39,13 @@ def mobile_context(
         base_url=base_url,
         ignore_https_errors=True,
     )
-    # Pre-seed cookie-consent (same rationale as clients.py
-    # auth_context_factory): the cookie-consent banner mounts async on
-    # first visit and its overlay intercepts pointer events, racing
-    # touch clicks (e.g. #agreeTerms / #signupBtn on /signup). Seeding a
-    # non-null consent level makes cookie-consent.js exit early — banner
-    # never renders. Per-device contexts don't inherit the factory seed.
+    # Предзаполняем cookie-consent (аналогично clients.py
+    # auth_context_factory): баннер cookie-consent монтируется асинхронно
+    # при первом визите и его overlay перехватывает pointer events, вступая
+    # в гонку с touch-кликами (напр. #agreeTerms / #signupBtn на /signup).
+    # Установка ненулевого consent-уровня заставляет cookie-consent.js
+    # выйти раньше — баннер не рендерится. Per-device контексты не
+    # наследуют seed от factory.
     ctx.add_init_script(
         "try { localStorage.setItem('genealogy_cookie_consent', 'necessary'); "
         "localStorage.setItem('genealogy_cookie_consent_ts', String(Date.now())); "
@@ -61,7 +63,7 @@ def mobile_page(mobile_context: BrowserContext) -> Iterator[Page]:
 
 
 # ─────────────────────────────────────────────────────────────────
-# Smoke flow — 5 key scenarios, parametrize по устройству
+# Smoke-сценарии — 5 ключевых проверок, parametrize по устройству
 # ─────────────────────────────────────────────────────────────────
 
 
@@ -73,11 +75,14 @@ def test_landing_loads_and_shows_demo_tree_on_mobile(mobile_page: Page):
         mobile_page.wait_for_load_state("domcontentloaded")
 
     with step("проверка: treeContainer виден"):
-        expect(mobile_page.locator("#treeContainer")).to_be_visible()
+        # no semantic: canvas container
+        expect(
+            mobile_page.locator("#treeContainer"), ErrMsg.tree_not_rendered,
+        ).to_be_visible()
 
     with step("проверка: нет горизонтального скролла"):
-        # Horizontal scroll = mobile bug. document.body.scrollWidth должен быть
-        # меньше или равен viewport (с tolerance 4px для рендер-багов).
+        # Горизонтальный скролл = мобильный баг. document.body.scrollWidth
+        # должен быть меньше или равен viewport (с tolerance 4px для рендер-багов).
         sw = mobile_page.evaluate("document.documentElement.scrollWidth")
         cw = mobile_page.evaluate("document.documentElement.clientWidth")
         assert sw <= cw + 4, f"horizontal scroll: scrollWidth={sw}, clientWidth={cw}"
@@ -102,9 +107,9 @@ def test_landing_tabs_clickable_on_mobile(mobile_page: Page):
     with step("проверка: вкладки видны и кликаются"):
         for tab_name in ("tree", "about"):
             tab_btn = mobile_page.locator(f'.tab[data-tab="{tab_name}"]')
-            expect(tab_btn).to_be_visible()
+            expect(tab_btn, ErrMsg.tab_not_visible).to_be_visible()
             tab_btn.click()
-            expect(mobile_page.locator(f"#tab-{tab_name}")).to_have_class(
+            expect(mobile_page.locator(f"#tab-{tab_name}"), ErrMsg.wrong_css_class).to_have_class(
                 re.compile(r".*active.*")
             )
 
@@ -119,10 +124,10 @@ def test_about_beta_card_visible_for_guest_on_mobile(mobile_page: Page):
         mobile_page.locator('.tab[data-tab="about"]').click()
 
     with step("проверка: бета-карточка с CTA на /wait видна"):
-        beta_card = mobile_page.locator("#aboutBetaCard")
-        expect(beta_card).to_be_visible()
+        beta_card = mobile_page.locator("#aboutBetaCard")  # no semantic: content card, no ARIA
+        expect(beta_card, ErrMsg.element_not_visible).to_be_visible()
         cta = beta_card.locator('a[href="/wait"]')
-        expect(cta).to_be_visible()
+        expect(cta, ErrMsg.link_not_visible).to_be_visible()
 
 
 @allure.title("Мобильный: форма регистрации заполняется и отправляется")
@@ -146,26 +151,26 @@ def test_signup_form_submittable_on_mobile(
 
     with step("проверка: submit-кнопка достаточного размера для touch"):
         submit = signup.submit_btn
-        expect(submit).to_be_visible()
-        expect(submit).to_be_enabled()
+        expect(submit, ErrMsg.button_not_visible).to_be_visible()
+        expect(submit, ErrMsg.button_not_enabled).to_be_enabled()
         box = submit.bounding_box()
         assert box is not None and box["height"] >= 36, \
             f"submit button too small for touch: {box}"
 
     with step("действие: отправить форму"):
-        # Submit (form will probably succeed if backend ready, or fail on cap —
-        # обе ветки валидны для smoke. Главное что нет JS-ошибки в консоли).
+        # Отправка (форма скорее всего пройдёт если backend готов, или упадёт
+        # по лимиту — обе ветки валидны для smoke. Главное что нет JS-ошибки).
         submit.click()
         # Ждём response любого статуса
         mobile_page.wait_for_load_state("domcontentloaded")
 
     with step("проверка: страница не упала после submit"):
         # Никаких uncaught errors в console (collect через listener в conftest
-        # если есть; здесь — простой evaluate на presence of error-element).
-        mobile_page.locator("#signupMsg")
+        # если есть; здесь — простая проверка наличия error-элемента).
+        mobile_page.locator("#signupMsg")  # no semantic: status message, no ARIA role
         # msg может содержать success или error — обе валидны;
         # проверяем что страница не упала (URL/title).
-        expect(mobile_page).to_have_title(__import__("re").compile(r".+"))
+        expect(mobile_page, ErrMsg.page_title_wrong).to_have_title(__import__("re").compile(r".+"))
 
 
 @allure.title("Мобильный: форма вейтлиста на /wait работает на тачскрине")
@@ -176,16 +181,16 @@ def test_wait_form_submittable_on_mobile(mobile_page: Page):
         mobile_page.goto("/wait")
         mobile_page.wait_for_load_state("domcontentloaded")
         email_input = mobile_page.locator('input[type="email"]')
-        expect(email_input).to_be_visible()
+        expect(email_input, ErrMsg.input_not_visible).to_be_visible()
         email_input.fill("waitlist-mobile@e2e.local")
 
     with step("действие: отправить форму"):
-        submit = mobile_page.locator("#submitBtn")
-        expect(submit).to_be_visible()
-        expect(submit).to_be_enabled()
+        submit = mobile_page.locator("#submitBtn")  # no semantic: submit button without accessible name
+        expect(submit, ErrMsg.button_not_visible).to_be_visible()
+        expect(submit, ErrMsg.button_not_enabled).to_be_enabled()
         submit.click()
         mobile_page.wait_for_load_state("domcontentloaded")
 
     with step("проверка: result-блок виден"):
-        result = mobile_page.locator("#result")
-        expect(result).to_be_visible()
+        result = mobile_page.locator("#result")  # no semantic: dynamic result container
+        expect(result, ErrMsg.element_not_visible).to_be_visible()

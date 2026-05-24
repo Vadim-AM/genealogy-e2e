@@ -28,13 +28,14 @@ import httpx
 from playwright.sync_api import expect
 
 from tests._core.api_paths import API
+from tests._core.err_msg import ErrMsg
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
 from tests.helpers.api import platform_api
 
 # ─────────────────────────────────────────────────────────────────────────
-# Markup smoke — структура секции рендерится
+# Smoke-проверка разметки — структура секции рендерится
 # ─────────────────────────────────────────────────────────────────────────
 
 
@@ -51,7 +52,7 @@ def test_dashboard_has_feature_flags_section(auth_context_factory, superadmin_us
 
     with step("проверка: секция Feature Flags видна"):
         section = page.locator("#feature_flags_section")
-        expect(section).to_be_visible()
+        expect(section, ErrMsg.element_not_visible).to_be_visible()
 
 
 @allure.title("Флаги: секция содержит ровно 5 групп с заголовками")
@@ -61,7 +62,7 @@ def test_feature_flags_has_five_groups(auth_context_factory, superadmin_user):
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
         page.goto("/platform/dashboard")
-        expect(page.locator("#feature_flags_section")).to_be_visible()
+        expect(page.locator("#feature_flags_section"), ErrMsg.element_not_visible).to_be_visible()
 
     with step("проверка: ровно 5 групп с ожидаемыми заголовками"):
         groups = page.locator('[data-testid="ff-group"]')
@@ -88,7 +89,7 @@ def test_feature_flags_have_tooltips(auth_context_factory, superadmin_user):
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
         page.goto("/platform/dashboard")
-        expect(page.locator("#feature_flags_section")).to_be_visible()
+        expect(page.locator("#feature_flags_section"), ErrMsg.element_not_visible).to_be_visible()
 
     with step("проверка: минимум 8 tooltip-элементов с описаниями"):
         helps = page.locator('#feature_flags_section [data-testid="ff-help"]')
@@ -105,7 +106,7 @@ def test_feature_flags_have_tooltips(auth_context_factory, superadmin_user):
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# AI search toggle — главный флаг текущего релиза
+# Переключатель AI-поиска — главный флаг текущего релиза
 # ─────────────────────────────────────────────────────────────────────────
 
 
@@ -116,11 +117,11 @@ def test_ai_search_toggle_visible(auth_context_factory, superadmin_user):
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
         page.goto("/platform/dashboard")
-        expect(page.locator("#feature_flags_section")).to_be_visible()
+        expect(page.locator("#feature_flags_section"), ErrMsg.element_not_visible).to_be_visible()
 
     with step("проверка: toggle AI-поиска виден и имеет верный data-flag"):
         toggle = page.locator("#ff_enable_ai_search")
-        expect(toggle).to_be_visible()
+        expect(toggle, ErrMsg.element_not_visible).to_be_visible()
         assert toggle.get_attribute("data-flag") == "enable_ai_search", (
             f"toggle data-flag mismatch: expected 'enable_ai_search', "
             f"got {toggle.get_attribute('data-flag')!r}"
@@ -153,18 +154,19 @@ def test_ai_search_toggle_reflects_db_value_when_off(
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
         page.goto("/platform/dashboard")
-        expect(page.locator("#ff_enable_ai_search")).to_be_visible()
-        # loadSettings() done-sentinel, CSP-safe. tenants.js:121 assigns
-        # `set_beta_cap.value = s.beta_user_cap`; the input has no value
-        # attribute so it reads "" until loadSettings hydrates it. Two reasons
-        # the old `wait_for_function("…>0")` broke post-cutover: (1) the
-        # platform dashboard now serves `script-src 'self'` with no
-        # 'unsafe-eval', so Playwright's string-predicate eval is CSP-blocked;
-        # (2) the PR-B7 seed default for beta_user_cap is 0 — a valid loaded
-        # value, so `>0` never held anyway. A locator assertion runs at the
-        # driver level (no page eval) and `not_to_have_value("")` is
-        # value-agnostic: only "" means not-yet-hydrated.
-        expect(page.locator("#set_beta_cap")).not_to_have_value("")
+        expect(page.locator("#ff_enable_ai_search"), ErrMsg.element_not_visible).to_be_visible()
+        # Сигнал завершения loadSettings(), CSP-безопасный. tenants.js:121
+        # присваивает `set_beta_cap.value = s.beta_user_cap`; input не имеет
+        # атрибута value, поэтому читает "" пока loadSettings не заполнит.
+        # Две причины, почему старый `wait_for_function("…>0")` сломался
+        # после перехода: (1) dashboard теперь отдаёт `script-src 'self'`
+        # без 'unsafe-eval', Playwright'овский string-predicate eval
+        # блокируется CSP; (2) seed-дефолт PR-B7 для beta_user_cap = 0 —
+        # валидное загруженное значение, `>0` никогда не выполнялось.
+        # Locator assertion работает на уровне драйвера (без page eval),
+        # и `not_to_have_value("")` агностичен к значению: только ""
+        # означает «ещё не загружено».
+        expect(page.locator("#set_beta_cap"), ErrMsg.feature_flag_state_wrong).not_to_have_value("")
 
     with step("проверка: toggle AI-поиска не отмечен"):
         is_checked = page.locator("#ff_enable_ai_search").is_checked()
@@ -182,13 +184,14 @@ def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_u
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
         page.goto("/platform/dashboard")
-        expect(page.locator("#ff_enable_ai_search")).to_be_visible()
+        expect(page.locator("#ff_enable_ai_search"), ErrMsg.element_not_visible).to_be_visible()
 
-        # Wait for loadSettings() so the click lands after the change-listener
-        # is wired. CSP-safe locator assertion (not wait_for_function — the
-        # dashboard's `script-src 'self'` blocks string-predicate eval); see
-        # the matching note in test_ai_search_toggle_reflects_db_value_when_off.
-        expect(page.locator("#set_beta_cap")).not_to_have_value("")
+        # Ждём loadSettings(), чтобы клик произошёл после привязки
+        # change-listener. CSP-безопасный locator assertion (не
+        # wait_for_function — `script-src 'self'` на dashboard блокирует
+        # string-predicate eval); см. аналогичный комментарий в
+        # test_ai_search_toggle_reflects_db_value_when_off.
+        expect(page.locator("#set_beta_cap"), ErrMsg.feature_flag_state_wrong).not_to_have_value("")
 
         # Локатор должен использовать `contains` — на строке в .dirty состоянии
         # `class='ff-row dirty'`, exact match по ='ff-row' не сработает.
@@ -197,17 +200,17 @@ def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_u
         ).first
 
     with step("проверка: до клика .dirty отсутствует"):
-        expect(row).not_to_have_class(re.compile(r"\bdirty\b"))
+        expect(row, ErrMsg.feature_flag_state_wrong).not_to_have_class(re.compile(r"\bdirty\b"))
 
     with step("действие: кликаем toggle AI-поиска"):
         page.locator("#ff_enable_ai_search").click()
 
     with step("проверка: после клика строка получает класс .dirty"):
-        expect(row).to_have_class(re.compile(r"\bdirty\b"))
+        expect(row, ErrMsg.feature_flag_state_wrong).to_have_class(re.compile(r"\bdirty\b"))
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# PATCH endpoint — runtime изменение
+# PATCH endpoint — изменение в runtime
 # ─────────────────────────────────────────────────────────────────────────
 
 

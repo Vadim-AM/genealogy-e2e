@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import TestData
 from tests._core.step import step
 from tests.pages.base import wait_for_authed_shell
@@ -35,8 +36,8 @@ def test_switch_between_tabs(owner_page: Page, pages: PageFactory):
         for tab_name in ("sources", "timeline", "about"):
             tree.switch_tab(tab_name)
             tab_loc = getattr(tree, f"tab_{tab_name}")
-            expect(tab_loc).to_have_class(re.compile(r"\bactive\b"))
-            expect(owner_page.locator(f"#tab-{tab_name}.active")).to_be_visible()
+            expect(tab_loc, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
+            expect(owner_page.locator(f"#tab-{tab_name}.active"), ErrMsg.tab_not_visible).to_be_visible()
 
 
 @allure.title("Поиск по дереву находит демо-персону по имени")
@@ -53,7 +54,7 @@ def test_search_returns_results_for_seeded_person(owner_page: Page, pages: PageF
         tree.search_person("Тест")
 
     with step("проверка: результаты поиска видны"):
-        expect(tree.search_results.first).to_be_visible()
+        expect(tree.search_results.first, ErrMsg.search_results_not_visible).to_be_visible()
 
 
 @allure.title("Обновление страницы F5 сохраняет открытый профиль персоны")
@@ -63,7 +64,7 @@ def test_f5_keeps_profile_open(owner_page: Page, pages: PageFactory):
 
     with step("действие: открыть профиль и перезагрузить страницу"):
         profile_hash = f"#/p/{TestData.DEMO_PERSON_ID}"
-        pages.navigate_to(TreePage)
+        _ = pages.navigate_to(TreePage)
 
         ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
 
@@ -85,4 +86,4 @@ def test_back_to_tree_from_profile(owner_page: Page, pages: PageFactory):
         tree.switch_tab("tree")
 
     with step("проверка: вкладка дерева активна"):
-        expect(tree.tab_tree).to_have_class(re.compile(r"\bactive\b"))
+        expect(tree.tab_tree, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))

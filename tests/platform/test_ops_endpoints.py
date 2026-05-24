@@ -18,6 +18,7 @@ import httpx
 import pytest
 
 from tests._core.response import expect_response
+from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
 
 
@@ -25,5 +26,8 @@ from tests._core.timeouts import TIMEOUTS
 @pytest.mark.parametrize("path", ["/healthz", "/readyz"])
 def test_standard_probe_paths_return_200(base_url: str, path: str):
     """k8s/reverse-proxy liveness probes — 200 OK."""
-    r = httpx.get(f"{base_url}{path}", timeout=TIMEOUTS.api_short)
-    expect_response(r, label=f"probe {path}").status(200)
+    with step(f"действие: запросить {path}"):
+        r = httpx.get(f"{base_url}{path}", timeout=TIMEOUTS.api_short)
+
+    with step(f"проверка: {path} отвечает 200"):
+        expect_response(r, label=f"probe {path}").status(200)

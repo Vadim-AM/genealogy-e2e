@@ -18,6 +18,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import TestData
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -38,8 +39,8 @@ def test_owner_settings_tab_has_inputs(owner_page: Page, pages: PageFactory):
         owner.open_tab("settings")
 
     with step("проверка: поле site_name и кнопка сохранения видны"):
-        expect(owner.cfg_site_name).to_be_visible()
-        expect(owner.cfg_save).to_be_visible()
+        expect(owner.cfg_site_name, ErrMsg.element_not_visible).to_be_visible()
+        expect(owner.cfg_save, ErrMsg.button_not_visible).to_be_visible()
 
 
 @allure.title("Админка владельца: сохранение site_name попадает в бэкенд")

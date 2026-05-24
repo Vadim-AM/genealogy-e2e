@@ -13,6 +13,7 @@ import httpx
 from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
+from tests._core.err_msg import ErrMsg
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -45,5 +46,9 @@ def test_footer_version_matches_api_app_version(page: Page, base_url: str, anon_
         api_version = config.app_version
 
     with step("проверка: футер показывает ту же версию"):
-        anon_pages.navigate_to(TreePage)
-        expect(page.locator('[data-testid="footer-version"]').first).to_have_text(f"v{api_version}")
+        _ = anon_pages.navigate_to(TreePage)
+        # no semantic: version stamp, no ARIA
+        expect(
+            page.locator('[data-testid="footer-version"]').first,
+            ErrMsg.wrong_text_content,
+        ).to_have_text(f"v{api_version}")

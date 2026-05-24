@@ -11,6 +11,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import TestData
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -51,7 +52,7 @@ def test_owner_attaches_and_unlinks_a_source(
     with step("действие: отвязать источник"):
         with owner_page.expect_response("**/api/person-sources/**"):
             sources.unlink_first()
-        expect(sources.items).to_have_count(0)
+        expect(sources.items, ErrMsg.wrong_count).to_have_count(0)
 
     with step("проверка: источник отвязан в бэкенде"):
         after = api.get(API.person_sources(pid))
