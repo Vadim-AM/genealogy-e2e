@@ -73,8 +73,14 @@ grep -rn "\.locator(\|\.get_attribute(\|\.click(\|\.fill(\|\.wait_for_load_state
 # Rule 36: standalone helpers вместо POM-методов
 grep -rn "auth_name(\|logout_link(\|login_link(\|wait_for_authed_shell(" tests/ --include="test_*.py" | wc -l
 
+# Rule 37: eager locators в POM __init__ (должно быть 0)
+grep -rn "self\.\w* = .*locator\|self\.\w* = .*get_by_" pages/ --include="*.py" | grep -v "@property\|def " | wc -l
+
+# Rule 37: inline locator strings в POM-методах (должно быть 0)
+grep -rn "\.locator(\|\.get_by_" pages/ --include="*.py" | grep -v "return \|@property\|_CS_\|_ORBIT\|format(\|# " | grep -v '"""' | wc -l
+
 # Rule 25: assert в Page Objects (кроме precondition)
-grep -rn "^\s*assert " tests/pages/ --include="*.py" | grep -v "# precondition" | head -10
+grep -rn "^\s*assert " pages/ --include="*.py" | grep -v "# precondition" | head -10
 
 # Rule 17: файлы без step()
 comm -23 <(find tests/ -name "test_*.py" | sort) <(grep -rln "with step(" tests/ --include="test_*.py" | sort)
