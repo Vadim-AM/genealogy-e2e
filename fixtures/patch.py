@@ -112,7 +112,7 @@ def patched_request(self: httpx.Client, method: str, url: object, **kwargs: Any)
         headers.setdefault("X-Forwarded-For", xff)
 
     kwargs["headers"] = headers
-    kwargs.setdefault("timeout", TIMEOUTS.api_request)
+    kwargs.setdefault("timeout", TIMEOUTS.default)
     return _orig_httpx_request(self, method, url, **kwargs)  # type: ignore[arg-type]
 
 

@@ -29,7 +29,6 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from api import routes
-from config.timeouts import TIMEOUTS
 from framework.step import step
 from pages.tree_page import TreePage
 from src.texts import Enrichment, ErrMsg, t
@@ -49,7 +48,6 @@ def ai_search_disabled(uvicorn_server: str):
     httpx.post(
         f"{uvicorn_server}{routes.TEST_SET_PLATFORM_SETTING}",
         json={"enable_ai_search": False},
-        timeout=TIMEOUTS.api_short,
     ).raise_for_status()
     yield
 
