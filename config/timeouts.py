@@ -37,7 +37,7 @@ from config.settings import settings
 
 
 @dataclass(frozen=True)
-class _Timeouts:
+class Timeouts:
     api_short: float
     api_request: float
     api_long: float
@@ -56,9 +56,9 @@ class _Timeouts:
     pw_provision_ms: int
 
 
-def _build() -> _Timeouts:
+def build_timeouts() -> Timeouts:
     m = settings.timeout_multiplier
-    return _Timeouts(
+    return Timeouts(
         api_short=5.0 * m,
         api_request=10.0 * m,
         api_long=30.0 * m,
@@ -71,7 +71,7 @@ def _build() -> _Timeouts:
     )
 
 
-TIMEOUTS = _build()
+TIMEOUTS = build_timeouts()
 
 
 def set_playwright_default_expect_timeout() -> None:

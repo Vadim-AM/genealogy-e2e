@@ -14,10 +14,10 @@ from __future__ import annotations
 
 from config.settings import settings
 
-_LOCALE = settings.locale
+LOCALE = settings.locale
 
 
-class _Catalogue:
+class Catalogue:
     """Subclass and define attributes as `dict[locale, str]` or plain `str`."""
 
 
@@ -26,7 +26,7 @@ class _Catalogue:
 # ─────────────────────────────────────────────────────────────────────────
 
 
-class Buttons(_Catalogue):
+class Buttons(Catalogue):
     """Button names — used in `get_by_role("button", name=...)`."""
 
     LOGIN = {"ru": "Войти", "en": "Sign in"}
@@ -44,19 +44,19 @@ class Buttons(_Catalogue):
     WAITLIST_SUBMIT = {"ru": "Записаться в ранний доступ", "en": "Join early access"}
 
 
-class Links(_Catalogue):
+class Links(Catalogue):
     SIGNUP = {"ru": "Регистрация", "en": "Sign up"}
     FORGOT_PASSWORD = {"ru": "Забыли пароль", "en": "Forgot password"}
 
 
-class Brand(_Catalogue):
+class Brand(Catalogue):
     TITLE_FRAGMENTS = {
         "ru": ("Родословн", "Семейн", "древо"),
         "en": ("Genealogy", "Family", "tree"),
     }
 
 
-class Invite(_Catalogue):
+class Invite(Catalogue):
     OWNER_WARNING = {"ru": "владелец", "en": "owner"}
     ACCEPT_SUCCESS_TITLE = {"ru": "Готово", "en": "Done"}
     ALREADY_MEMBER_TITLE = {"ru": "уже здесь", "en": "already here"}
@@ -67,11 +67,11 @@ class Invite(_Catalogue):
     SIGNUP_LINK = {"ru": "зарегистрироваться", "en": "sign up"}
 
 
-class PII(_Catalogue):
+class PII(Catalogue):
     OWNER_FAMILY_NAMES = ("Данилюк", "Макаров")
 
 
-class AiConsent(_Catalogue):
+class AiConsent(Catalogue):
     PROVIDER = "Anthropic"
     POLICY_KEYWORD = {"ru": "приватность", "en": "privacy"}
     SHARED_DATA_KEYWORD = {"ru": "данных карточки", "en": "data from the card"}
@@ -79,36 +79,36 @@ class AiConsent(_Catalogue):
     CONFIRM_LABEL = {"ru": "Запустить", "en": "Run"}
 
 
-class Enrichment(_Catalogue):
+class Enrichment(Catalogue):
     REVERT_OK = {"ru": "Снять", "en": "Remove"}
     BETA_KEYWORD = {"ru": "публичной бете", "en": "public beta"}
     COMING_SOON = {"ru": "скоро", "en": "soon"}
 
 
-class Mfa(_Catalogue):
+class Mfa(Catalogue):
     STATUS_ON = {"ru": "включена", "en": "enabled"}
     STATUS_OFF = {"ru": "отключена", "en": "disabled"}
 
 
-class Onboarding(_Catalogue):
+class Onboarding(Catalogue):
     CLEAR_DEMO_CONFIRM = {"ru": "Стереть", "en": "Erase"}
     KEEP_DEMO_CONFIRM = {"ru": "Использовать как шаблон", "en": "Use as template"}
 
 
-class FamilyGroups(_Catalogue):
+class FamilyGroups(Catalogue):
     PARENTS = {"ru": "Родители", "en": "Parents"}
     SPOUSE = {"ru": "Супруг", "en": "Spouse"}
     CHILDREN = {"ru": "Дети", "en": "Children"}
     SIBLINGS = {"ru": "Братья/сёстры", "en": "Siblings"}
 
 
-class LinkedChip(_Catalogue):
+class LinkedChip(Catalogue):
     TITLE_KEYWORD = {"ru": "Привязка", "en": "Linked"}
     HINT_KEYWORD = {"ru": "связь", "en": "relationship"}
     UNLINK = {"ru": "Отвязать", "en": "Unlink"}
 
 
-class TestData(_Catalogue):
+class TestData(Catalogue):
     SAMPLE_SITE_NAME = "Тестовая семья"
     GEDCOM_HEAD = "0 HEAD"
     DEMO_PERSON_ID = "demo-self"
@@ -119,33 +119,33 @@ class TestData(_Catalogue):
     SOURCE_NAME_PATCHED = "Архив 1 (испр.)"
 
 
-class GedcomImport(_Catalogue):
+class GedcomImport(Catalogue):
     SKIPPED_LABEL = {"ru": "Пропущено", "en": "Skipped"}
     FILE_EXTENSION_HINT = ".ged"
     EMPTY_LABEL = {"ru": "пустой", "en": "empty"}
     TOO_LARGE_LABEL = {"ru": "слишком большой", "en": "too large"}
 
 
-class AgeValidation(_Catalogue):
+class AgeValidation(Catalogue):
     PARENT_AGE_KEYWORD = {"ru": "Возраст родителя", "en": "Parent age"}
 
 
-class Waitlist(_Catalogue):
+class Waitlist(Catalogue):
     OVERFLOW_TITLE = {"ru": "Сейчас принимаем не всех", "en": "Not accepting everyone"}
     WAITLIST_KEYWORD = {"ru": "список ожидания", "en": "waiting list"}
 
 
-class ConfirmDialog(_Catalogue):
+class ConfirmDialog(Catalogue):
     IRREVERSIBLE = {"ru": "необратим", "en": "irreversible"}
     RELATIONS_KEYWORD = {"ru": "связ", "en": "relat"}
 
 
-class RelationLabels(_Catalogue):
+class RelationLabels(Catalogue):
     FATHER = {"ru": "отец", "en": "father"}
     MOTHER = {"ru": "мать", "en": "mother"}
 
 
-class Labels(_Catalogue):
+class Labels(Catalogue):
     EMAIL = "Email"
     PASSWORD = {"ru": "Пароль", "en": "Password"}
     SITE_NAME = {"ru": "Название", "en": "Name"}
@@ -156,12 +156,12 @@ class Labels(_Catalogue):
     WAITLIST_EMAIL = {"ru": "Email для уведомления о запуске", "en": "Email for launch notification"}
 
 
-class Placeholders(_Catalogue):
+class Placeholders(Catalogue):
     SEARCH = {"ru": "Поиск", "en": "Search"}
     SEARCH_TREE = {"ru": "Найти...", "en": "Find..."}
 
 
-class AboutTab(_Catalogue):
+class AboutTab(Catalogue):
     FAMILY_TREE_KEYWORD = {"ru": "семейное древо", "en": "family tree"}
 
 
@@ -283,10 +283,10 @@ class ErrMsg:
 def t(value):
     """Pick the active-locale string (or pass through if not localised)."""
     if isinstance(value, dict):
-        if _LOCALE not in value:
+        if LOCALE not in value:
             raise KeyError(
-                f"locale {_LOCALE!r} not defined for value with keys {list(value)}; "
+                f"locale {LOCALE!r} not defined for value with keys {list(value)}; "
                 "extend src/texts.py"
             )
-        return value[_LOCALE]
+        return value[LOCALE]
     return value

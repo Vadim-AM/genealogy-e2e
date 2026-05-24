@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 T = TypeVar("T", bound=BaseModel)
 
-_SENSITIVE_KEYS = frozenset({
+SENSITIVE_KEYS = frozenset({
     "access_token", "refresh_token", "token", "password",
     "secret", "authorization", "cookie", "session_id",
 })
@@ -32,7 +32,7 @@ def _sanitize_json(data: Any) -> Any:
     """Маскирует чувствительные значения в JSON-структуре."""
     if isinstance(data, dict):
         return {
-            k: "***" if k.lower() in _SENSITIVE_KEYS else _sanitize_json(v)
+            k: "***" if k.lower() in SENSITIVE_KEYS else _sanitize_json(v)
             for k, v in data.items()
         }
     if isinstance(data, list):

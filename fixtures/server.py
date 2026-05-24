@@ -23,7 +23,7 @@ from config.timeouts import TIMEOUTS
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "_data" / "fixtures"
 
 
-def _wait_for_health(base_url: str, *, timeout: float) -> None:
+def wait_for_health(base_url: str, *, timeout: float) -> None:
     """Block until /api/health responds 200, or raise."""
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -40,7 +40,7 @@ def _wait_for_health(base_url: str, *, timeout: float) -> None:
 def base_url() -> str:
     """Test-instrumented backend URL. Overrides pytest-playwright's `base_url`."""
     url = settings.backend_url.rstrip("/")
-    _wait_for_health(url, timeout=TIMEOUTS.health_gate)
+    wait_for_health(url, timeout=TIMEOUTS.health_gate)
     return url
 
 
@@ -50,14 +50,14 @@ def uvicorn_server(base_url: str) -> str:
     return base_url
 
 
-def _post_reset(uvicorn_server: str) -> None:
+def post_reset(uvicorn_server: str) -> None:
     """POST /api/_test/reset to wipe backend state."""
     httpx.post(
         f"{uvicorn_server}{routes.TEST_RESET}", timeout=TIMEOUTS.api_request
     ).raise_for_status()
 
 
-def _set_ai_search_on(uvicorn_server: str) -> None:
+def set_ai_search_on(uvicorn_server: str) -> None:
     """Enable AI search via /api/_test/set-platform-setting."""
     httpx.post(
         f"{uvicorn_server}{routes.TEST_SET_PLATFORM_SETTING}",
@@ -67,7 +67,7 @@ def _set_ai_search_on(uvicorn_server: str) -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _baseline_reset(uvicorn_server: str, tmp_path_factory: pytest.TempPathFactory) -> None:
+def baseline_reset(uvicorn_server: str, tmp_path_factory: pytest.TempPathFactory) -> None:
     """One global `/api/_test/reset` for the whole run — a single clean
     baseline, NOT per-test (that was the parallelization blocker and the
     O(n) wedge tax). Tenants then accumulate across the run on purpose:
@@ -82,22 +82,22 @@ def _baseline_reset(uvicorn_server: str, tmp_path_factory: pytest.TempPathFactor
     works under `-p no:xdist` in the serial pass.
     """
     if os.environ.get("PYTEST_XDIST_WORKER") is None:
-        _post_reset(uvicorn_server)  # master / no xdist
+        post_reset(uvicorn_server)  # master / no xdist
         return
     from filelock import FileLock
 
     root = tmp_path_factory.getbasetemp().parent  # shared across workers
-    flag = root / "e2e_baseline_reset.done"
+    flag = root / "e2ebaseline_reset.done"
     with FileLock(str(flag) + ".lock"):
         if not flag.is_file():
-            _post_reset(uvicorn_server)
+            post_reset(uvicorn_server)
             flag.write_text("done")
 
 
 @pytest.fixture(scope="session", autouse=True)
-def install_mock_ai(_baseline_reset: None, uvicorn_server: str) -> None:
+def install_mock_ai(baseline_reset: None, uvicorn_server: str) -> None:
     """Install AI fixture (survives `/reset` — not touched by it). After
-    `_baseline_reset` so ordering is deterministic; idempotent, so the
+    `baseline_reset` so ordering is deterministic; idempotent, so the
     once-per-xdist-worker re-POST is harmless."""
     fixture = json.loads((FIXTURES_DIR / "ai_responses.json").read_text())
     httpx.post(
@@ -108,7 +108,7 @@ def install_mock_ai(_baseline_reset: None, uvicorn_server: str) -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _ai_search_on_session(install_mock_ai: None, uvicorn_server: str) -> None:
+def ai_search_on_session(install_mock_ai: None, uvicorn_server: str) -> None:
     """platform_settings.enable_ai_search → True once per session.
 
     Beta DB default is False (migration `r6s7t8u9v0w1`), but most e2e
@@ -116,7 +116,7 @@ def _ai_search_on_session(install_mock_ai: None, uvicorn_server: str) -> None:
     so setting it once sticks. Also the one-time sanity-check that
     set-platform-setting actually reaches `/config/features` (replaces the
     old `_verify_ai_search_default`)."""
-    _set_ai_search_on(uvicorn_server)
+    set_ai_search_on(uvicorn_server)
     f = httpx.get(f"{uvicorn_server}{routes.CONFIG_FEATURES}", timeout=TIMEOUTS.api_short)
     f.raise_for_status()
     assert f.json().get("ai_search_enabled") is True, (
@@ -138,7 +138,7 @@ def reset_state(request: pytest.FixtureRequest, uvicorn_server: str) -> None:
     auto-applied in root conftest (fixture-based)."""
     if request.node.get_closest_marker("serial") is None:
         return
-    _post_reset(uvicorn_server)
+    post_reset(uvicorn_server)
 
 
 @pytest.fixture(autouse=True)
@@ -151,7 +151,7 @@ def _ai_search_on_serial(request: pytest.FixtureRequest, reset_state: None, uvic
     per-test reset wiped it). Depends on `reset_state` to run after it."""
     if request.node.get_closest_marker("serial") is None:
         return
-    _set_ai_search_on(uvicorn_server)
+    set_ai_search_on(uvicorn_server)
 
 
 @pytest.fixture(scope="session")
