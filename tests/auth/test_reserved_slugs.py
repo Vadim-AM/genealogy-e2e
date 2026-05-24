@@ -8,6 +8,7 @@ import allure
 import pytest
 
 from assertions.base import should
+from config.constants import unique_email
 from framework.step import step
 from src.texts import ErrMsg
 
@@ -24,8 +25,8 @@ _RESERVED_SLUGS = ("admin", "api", "www", "root", "mail", "ftp", "support")
 @allure.title("Зарезервированные slug-и не назначаются при регистрации")
 def test_signup_does_not_assign_reserved_slug(signup_via_api: Callable[..., AuthUser], reserved: str) -> None:
     """INV-SLUG-001a: derived slug не совпадает с reserved word."""
-    with step(f"действие: signup с email '{reserved}@e2e.example.com'"):
-        email = f"{reserved}@e2e.example.com"
+    with step(f"действие: signup с email на основе reserved '{reserved}'"):
+        email = unique_email(reserved)
         user = signup_via_api(email=email)
 
     with step(f"проверка: slug не совпадает с reserved '{reserved}'"):
