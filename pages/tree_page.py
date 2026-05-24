@@ -7,13 +7,17 @@ Selectors verified against js/views/orbit.js + js/search.js (28.04 review):
 
 from __future__ import annotations
 
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 from playwright.sync_api import Page, expect
 
+from framework.step import step
 from src.texts import Placeholders, t
 
 from .base import BasePage
+
+if TYPE_CHECKING:
+    from pages.profile_panel import ProfilePanel
 
 
 class TreePage(BasePage):
@@ -45,11 +49,16 @@ class TreePage(BasePage):
         # no semantic: canvas card, no ARIA
         self.orbit_center = self.tree_container.locator('[data-testid="orbit-center-card"]')
 
-    def open_center_profile(self) -> None:
-        """Click the center orbit card to open the demo-self profile."""
-        expect(self.orbit_center).to_be_visible()
-        self.orbit_center.click()
-        self.page.locator('[data-testid="profile-page"]').wait_for(state="visible")
+    def open_center_profile(self) -> ProfilePanel:
+        """Клик по центральной orbit-карточке → открывает профиль demo-self."""
+        from pages.profile_panel import ProfilePanel
+
+        with step("клик по orbit-center → открытие профиля"):
+            expect(self.orbit_center).to_be_visible()
+            self.orbit_center.click()
+            panel = ProfilePanel(self.page)
+            panel.expect_visible()
+            return panel
 
     def switch_tab(self, tab_name: str) -> Self:
         """Click a tab and wait for the page to settle.

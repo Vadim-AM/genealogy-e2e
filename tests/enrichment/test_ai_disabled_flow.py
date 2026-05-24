@@ -1,22 +1,4 @@
-"""AI search disabled flow — TC-N3, TC-N4, TC-N5 (user-flow E2E).
-
-В тестовом setup uvicorn стартует с `ENABLE_AI_SEARCH=0` env →
-гарантированно AI выключен независимо от значения в БД.
-
-UI часть (TC-N5) — главная пользовательская гарантия: на profile-странице
-AI-кнопка disabled с маркером «скоро» и tooltip, и **не** улетает в
-`/api/enrich/*` при попытке клика. UI ловит регрессии, которые
-API-инспекция не видит:
-- `disabled` снят, click sends request → compliance leak;
-- aiSearchOn разрулен неправильно — обе кнопки рендерятся одновременно;
-- tooltip потерян после copy-edit.
-
-API часть (TC-N3, TC-N4) — backend invariant без UI surface: router-level
-503 на 11 enrichment-endpoint'ах. UI отрисовывает только UI-кнопку, не
-все endpoints — API-проверка обязательна как смежный контракт.
-
-Источник истины: `app/config.py:is_ai_search_enabled()`.
-"""
+"""AI search disabled flow — TC-N3, TC-N4, TC-N5."""
 
 from __future__ import annotations
 
@@ -32,7 +14,6 @@ from api import routes
 from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
-from pages.profile_panel import ProfilePanel
 from pages.tree_page import TreePage
 from src.texts import Enrichment, ErrMsg, t
 
@@ -42,12 +23,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture(autouse=True)
 def ai_search_disabled(uvicorn_server: str):
-    """Force `enable_ai_search=False` в БД перед каждым тестом этого
-    файла. После теста — следующий autouse `reset_state` чистит state.
-
-    `X-Test-Token` инжектируется автоматически через httpx monkey-patch
-    в `fixtures/patch.py`.
-    """
+    """Выключает AI search перед каждым тестом файла."""
     httpx.post(
         f"{uvicorn_server}{routes.TEST_SET_PLATFORM_SETTING}",
         json={"enable_ai_search": False},
@@ -55,38 +31,14 @@ def ai_search_disabled(uvicorn_server: str):
     yield
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# UI: TC-N5 — disabled button + no network leak
-# ─────────────────────────────────────────────────────────────────────────
-
-
-@allure.title("AI выключен: кнопка обогащения disabled с подсказкой «скоро»")
-def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip (
-    owner_page: Page, owner_user, pages: PageFactory,
+@allure.title("AI выключен: кнопка disabled с подсказкой «скоро», POST не улетает")
+def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
+    owner_page: Page, owner_user, pages: PageFactory, enrich_post_spy: list[str],
 ) -> None:
-    """TC-N5: настоящий user journey — owner открывает / → клик по центру
-    orbit → profile → AI-кнопка disabled c «скоро» и tooltip.
-
-    Главная compliance-проверка: **POST `/api/enrich/{pid}` (запуск
-    enrichment job)** не должен улететь при попытке клика по disabled.
-    HTML `disabled` мог быть удалён, а click-handler — нет.
-
-    Note: profile.js на open всё равно fires GET-ы на `/history` и
-    `/acceptances` для existing данных — это **graceful degradation**
-    (backend 503'ит, UI скрывает блок). Не путаем с POST на запуск нового
-    enrichment, который — реальный compliance leak если случится.
-    """
-    with step("подготовка: подписаться на POST enrich и открыть профиль"):
-        enrich_post_calls: list[str] = []
-        owner_page.on(
-            "request",
-            lambda req: enrich_post_calls.append(req.url)
-            if req.method == "POST" and routes.ENRICH_PREFIX in req.url
-            else None,
-        )
+    """TC-N5: owner → tree → orbit-center → profile → AI-кнопка disabled."""
+    with step("подготовка: открыть профиль demo-self"):
         tree = pages.navigate_to(TreePage)
-        tree.open_center_profile()
-        panel = ProfilePanel(owner_page)
+        panel = tree.open_center_profile()
 
     with step("проверка: disabled-кнопка с маркером «скоро» и tooltip"):
         expect(panel.btn_enrich_disabled, ErrMsg.wrong_count).to_have_count(1)
@@ -101,27 +53,15 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip (
         expect(panel.btn_enrich_active, ErrMsg.wrong_count).to_have_count(0)
 
     with step("проверка: клик по disabled-кнопке не вызывает POST enrich"):
-        posts_before = list(enrich_post_calls)
+        posts_before = len(enrich_post_spy)
         panel.btn_enrich_disabled.first.click(force=True)
         owner_page.wait_for_load_state("networkidle")
-        new_posts = [u for u in enrich_post_calls if u not in posts_before]
-        should.be_empty(new_posts, ErrMsg.enrich_post_leaked)
+        should.be_equal(len(enrich_post_spy), posts_before, ErrMsg.enrich_post_leaked)
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# API: backend invariants (no UI surface)
-# ─────────────────────────────────────────────────────────────────────────
-
-
-@allure.title("AI выключен: /api/config/features возвращает ai_search_enabled=false")
+@allure.title("AI выключен: /api/config/features → ai_search_enabled=false")
 def test_features_endpoint_public_returns_ai_disabled_flag(uvicorn_server: str) -> None:
-    """TC-N3: /api/config/features public (no auth) и при ENABLE_AI_SEARCH=0
-    возвращает `ai_search_enabled=false`. Frontend читает это на bootstrap.
-
-    Combined assertion — public access + value — два аспекта одного
-    contract'а, и оба регрессионно важны (auth-gate потерян = leak;
-    flag перевернулся = UI кнопку случайно разблокировали).
-    """
+    """TC-N3: public endpoint возвращает ai_search_enabled=false."""
     with step("действие: запрос /api/config/features"):
         r = httpx.get(f"{uvicorn_server}{routes.CONFIG_FEATURES}")
 
@@ -150,22 +90,20 @@ _ENRICH_ENDPOINTS = [
 
 
 @pytest.mark.parametrize("method,path", _ENRICH_ENDPOINTS)
-@allure.title("AI выключен: все /api/enrich/* эндпоинты возвращают 503")
+@allure.title("AI выключен: /api/enrich/* → 503")
 def test_enrich_endpoint_returns_503_when_ai_disabled(
     uvicorn_server: str, method: str, path: str,
 ) -> None:
-    """TC-N4: каждый зарегистрированный /api/enrich/* endpoint при
-    ENABLE_AI_SEARCH=0 → 503 (router-level Depends)."""
+    """TC-N4: каждый /api/enrich/* endpoint → 503 при ENABLE_AI_SEARCH=0."""
     r = httpx.request(method, f"{uvicorn_server}{path}", json={})
     expect_response(r, label=f"{method} {path}").status(HTTPStatus.SERVICE_UNAVAILABLE)
 
 
-@allure.title("AI выключен: главная страница запрашивает /api/config/features")
-def test_features_endpoint_fires_on_main_page_bootstrap(page: Page, anon_pages: PageFactory) -> None:
-    """TC-N3: при загрузке `/` frontend дёргает /api/config/features
-    (bootstrap `window.__features`). Без этого UI не знает про disabled
-    state и default-рендерит active кнопки.
-    """
+@allure.title("AI выключен: bootstrap загружает /api/config/features")
+def test_features_endpoint_fires_on_main_page_bootstrap(
+    page: Page, anon_pages: PageFactory,
+) -> None:
+    """TC-N3b: при загрузке / frontend дёргает /api/config/features."""
     with step("действие: загрузка / и ожидание /api/config/features"), \
          page.expect_response(f"**{routes.CONFIG_FEATURES}") as resp_ctx:
         _ = anon_pages.navigate_to(TreePage)
