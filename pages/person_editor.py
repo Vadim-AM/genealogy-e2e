@@ -138,11 +138,11 @@ class PersonEditor:
 
     def select_dropdown(self, field: str, value: str) -> None:
         """Pick a value in the customSelect for the given field."""
+        from pages.base import _CS_OPTION, _CS_TRIGGER
+
         custom = custom_select_for(self.page, field)
-        custom.locator('[data-testid="custom-select-trigger"]').click()  # no semantic: custom select trigger, no ARIA
-        custom.locator(  # no semantic: custom select option, no ARIA role
-            f'[data-testid="custom-select-option"][data-value="{value}"]'
-        ).click()
+        custom.locator(_CS_TRIGGER).click()
+        custom.locator(_CS_OPTION.format(value)).click()
 
     def save(self) -> None:
         """Click the save button to persist editor changes."""
@@ -353,19 +353,15 @@ class AddRelativeModal:
     # Gender (custom select wrapped by js/components/select.js)
     # ──────────────────────────────────────────────────────────────────
 
-    def select_gender(self, value: str) -> None:
-        """Pick a gender value ('m'/'f') via the custom-select wrapper.
+    _GENDER_SELECT = '[data-testid="custom-select"]:has(+ select#addRelGender)'
 
-        select.js replaces native <select id="addRelGender"> with a div
-        sibling — same pattern as PersonEditor.select_dropdown().
-        """
-        custom = self.container.locator(
-            '[data-testid="custom-select"]:has(+ select#addRelGender)'  # no semantic: custom select widget, no ARIA
-        )
-        custom.locator('[data-testid="custom-select-trigger"]').click()  # no semantic: custom select trigger, no ARIA
-        custom.locator(  # no semantic: custom select option, no ARIA role
-            f'[data-testid="custom-select-option"][data-value="{value}"]'
-        ).click()
+    def select_gender(self, value: str) -> None:
+        """Pick a gender value ('m'/'f') via the custom-select wrapper."""
+        from pages.base import _CS_OPTION, _CS_TRIGGER
+
+        custom = self.container.locator(self._GENDER_SELECT)
+        custom.locator(_CS_TRIGGER).click()
+        custom.locator(_CS_OPTION.format(value)).click()
 
     # ──────────────────────────────────────────────────────────────────
     # Sibling-share-parents checkbox (custom-wrapped `<label class="checkbox">`)

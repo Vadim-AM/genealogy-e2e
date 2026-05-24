@@ -13,9 +13,14 @@ from typing import Self
 from playwright.sync_api import Locator, Page, expect
 
 
+_CS_WRAPPER = '[data-testid="custom-select"]:has(+ select[data-field="{}"])'
+_CS_TRIGGER = '[data-testid="custom-select-trigger"]'
+_CS_OPTION = '[data-testid="custom-select-option"][data-value="{}"]'
+
+
 def custom_select_for(page: Page, field: str) -> Locator:
     """Return the custom-select wrapper for a native select[data-field]."""
-    return page.locator(f'[data-testid="custom-select"]:has(+ select[data-field="{field}"])')
+    return page.locator(_CS_WRAPPER.format(field))
 
 
 def wait_for_authed_shell(page: Page) -> None:
@@ -37,9 +42,8 @@ def wait_for_authed_shell(page: Page) -> None:
     the authed `updateGuestUI()`. Asserting render — not a fixed sleep
     or an internal flag — keeps this robust to refactors (Rule 13).
     """
-    expect(
-        page.locator('#treeContainer [data-testid="orbit-card"]').first
-    ).to_be_visible()
+    _ORBIT_CARD = '#treeContainer [data-testid="orbit-card"]'
+    expect(page.locator(_ORBIT_CARD).first).to_be_visible()
 
 
 class BasePage:
