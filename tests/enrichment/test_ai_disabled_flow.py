@@ -60,7 +60,7 @@ def ai_search_disabled(uvicorn_server: str):
 
 
 @allure.title("AI выключен: кнопка обогащения disabled с подсказкой «скоро»")
-def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
+def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip (
     owner_page: Page, owner_user, pages: PageFactory,
 ) -> None:
     """TC-N5: настоящий user journey — owner открывает / → клик по центру
@@ -174,6 +174,6 @@ def test_features_endpoint_fires_on_main_page_bootstrap(page: Page, anon_pages: 
         _ = anon_pages.navigate_to(TreePage)
 
     with step("проверка: /api/config/features ответил 200"):
-        assert resp_ctx.value.ok, (
-            f"bootstrap fetch /api/config/features failed: {resp_ctx.value.status}"
+        assert resp_ctx.value.status == HTTPStatus.OK, (
+            f"bootstrap {routes.CONFIG_FEATURES} вернул {resp_ctx.value.status}, ожидали 200"
         )
