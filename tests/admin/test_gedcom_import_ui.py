@@ -213,9 +213,7 @@ def test_rejects_non_ged_extension(owner_page: Page, owner_user) -> None:
                       and "/import-gedcom" in req.url else None)
 
     with step("действие: загрузить .txt файл"):
-        owner.import_file_input.set_input_files(
-            files=[{"name": "notgedcom.txt", "mimeType": "text/plain", "buffer": b"hello"}]  # type: ignore[arg-type]
-        )
+        owner.set_file_raw(name="notgedcom.txt", mime="text/plain", buffer=b"hello")
 
     with step("проверка: alertDialog появился и POST не отправлен"):
         expect(owner.confirm_dialog, ErrMsg.dialog_not_visible).to_be_visible()
@@ -230,9 +228,7 @@ def test_rejects_empty_file(owner_page: Page, owner_user) -> None:
     """Пустой .ged файл показывает alertDialog «пустой»."""
     with step("действие: загрузить пустой .ged файл"):
         owner = open_import_tab(owner_page)
-        owner.import_file_input.set_input_files(
-            files=[{"name": "empty.ged", "mimeType": "application/octet-stream", "buffer": b""}]  # type: ignore[arg-type]
-        )
+        owner.set_file_raw(name="empty.ged", mime="application/octet-stream", buffer=b"")
 
     with step("проверка: alertDialog «пустой» и возврат в IDLE"):
         expect(owner.confirm_dialog, ErrMsg.dialog_not_visible).to_be_visible()
@@ -251,15 +247,7 @@ def test_rejects_oversize_file(owner_page: Page, owner_user) -> None:
 
     with step("действие: загрузить oversize файл"):
         owner = open_import_tab(owner_page)
-        owner.import_file_input.set_input_files(
-            files=[  # type: ignore[arg-type]
-                {
-                    "name": "huge.ged",
-                    "mimeType": "application/octet-stream",
-                    "buffer": big_payload,
-                }
-            ]
-        )
+        owner.set_file_raw(name="huge.ged", mime="application/octet-stream", buffer=big_payload)
 
     with step("проверка: alertDialog «слишком большой» и возврат в IDLE"):
         expect(owner.confirm_dialog, ErrMsg.dialog_not_visible).to_be_visible()

@@ -75,7 +75,7 @@ def test_activity_heatmap_403_for_non_super(owner_user, tenant_client) -> None:
 
 @allure.title("Тепловая карта: матрица имеет размер 7 дней x 24 часа")
 def test_activity_heatmap_returns_7x24_matrix(superadmin_user, tenant_client) -> None:
-    """TC-PA-ANALYTICS-2.2: матрица 7 строк × 24 столбца."""
+    """TC-PA-ANALYTICS-2.2: матрица 7 строк x 24 столбца."""
     with step("действие: запрашиваем тепловую карту"):
         r = tenant_client(superadmin_user).get(routes.PLATFORM_ACTIVITY_HEATMAP)
         expect_response(r, label="heatmap 7x24").status_ok()
@@ -322,9 +322,8 @@ def test_dashboard_renders_phase1_widgets(
     with step("подготовка: открываем дашборд суперадмина"):
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
-        page.goto("/platform/dashboard")
-        page.wait_for_load_state("domcontentloaded")
+        dashboard = PlatformDashboardPage(page)
+        dashboard.goto_and_load()
 
     with step("проверка: все 9 виджетов Phase 1 присутствуют"):
-        dashboard = PlatformDashboardPage(page)
         dashboard.soft_check_phase1_widgets_present(soft_check)

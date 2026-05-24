@@ -6,6 +6,7 @@ import json
 from typing import TYPE_CHECKING
 
 from config.constants import TestConfig
+from pages.signup_page import SignupPage
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page, Route
@@ -34,9 +35,6 @@ def mock_signup_overflow(page: Page, *, email: str, subscribed: bool = True) -> 
 
 def fill_and_submit(page: Page, email: str) -> None:
     """Fill signup form fields and click submit."""
-    page.locator("#email").fill(email)
-    page.locator("#password").fill(TestConfig.DEFAULT_PASSWORD)
-    # Wave-9: privacy/cross-border объединены с terms_accepted; в форме
-    # остался только `#agreeTerms`.
-    page.locator("#agreeTerms").check()
-    page.locator("#signupBtn").click()
+    signup = SignupPage(page)
+    signup.fill_required(email=email, password=TestConfig.DEFAULT_PASSWORD)
+    signup.submit()

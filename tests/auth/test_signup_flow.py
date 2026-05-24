@@ -132,18 +132,15 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str, anon_pages:
     """S-SU-4: заполненный honeypot → тихий 200, письмо не отправлено."""
     with step("действие: заполнение формы с honeypot и отправка"):
         email = make_email("bot")
-        _ = anon_pages.navigate_to(SignupPage)
-        page.evaluate(
-            f"""
-            document.querySelector('#email').value = {email!r};
-            document.querySelector('#password').value = {TestConfig.DEFAULT_PASSWORD!r};
-            document.querySelector('#website').value = 'http://spam.example.com';
-            document.querySelector('#agreeTerms').checked = true;
-            """
+        signup = anon_pages.navigate_to(SignupPage)
+        signup.fill_honeypot_via_js(
+            email=email,
+            password=TestConfig.DEFAULT_PASSWORD,
+            honeypot="http://spam.example.com",
         )
 
         with page.expect_response("**/api/account/signup") as resp_info:
-            page.locator("#signupBtn").click()  # no semantic: submit без accessible name
+            signup.submit_btn_by_id.click()
         should.playwright_status(resp_info.value, HTTPStatus.OK, ErrMsg.signup_response_not_ok)
 
     with step("проверка: письмо не отправлено"):
@@ -163,10 +160,8 @@ def test_disposable_email_rejected_inline(page: Page, base_url: str, anon_pages:
         ).submit()
 
     with step("проверка: inline-ошибка в поле email и письмо не отправлено"):
-        email_err = page.locator("#email-err")  # no semantic: dynamic content, no ARIA
-        expect(email_err, ErrMsg.wrong_text_content).not_to_have_text("")
-        # no semantic: form input without label
-        expect(page.locator("#email"), ErrMsg.wrong_attribute).to_have_attribute("aria-invalid", "true")
+        expect(signup.email_error, ErrMsg.wrong_text_content).not_to_have_text("")
+        expect(signup.email, ErrMsg.wrong_attribute).to_have_attribute("aria-invalid", "true")
 
         r = httpx.get(f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": disposable_email})
         expect_response(r, label="disposable: no email sent").status(HTTPStatus.NOT_FOUND)
@@ -184,7 +179,7 @@ def test_password_too_short_rejected_inline(page: Page, base_url: str, anon_page
         ).submit()
 
     with step("проверка: HTML5 validation не пропускает и письмо не отправлено"):
-        pwd_valid = page.evaluate("() => document.getElementById('password').checkValidity()")
+        pwd_valid = signup.check_password_validity()
         should.be_false(pwd_valid, ErrMsg.password_validity_expected_false)
 
         r = httpx.get(f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": email})

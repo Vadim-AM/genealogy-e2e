@@ -60,8 +60,7 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tena
         should.contain(msg, t(ConfirmDialogMsg.RELATIONS_KEYWORD), ErrMsg.confirm_text_wrong)
 
     with step("действие: отменить диалог"):
-        dialog.cancel()
-        owner_page.wait_for_load_state("domcontentloaded")
+        dialog.cancel_and_settle()
 
     with step("проверка: DELETE не отправлен и персона на месте"):
         should.be_empty(delete_responses, ErrMsg.delete_sent_on_dismiss)
@@ -99,7 +98,4 @@ def test_owner_edits_demo_self_summary_through_ui(
 def test_delete_button_hidden_for_root_subject(owner_page) -> None:
     """Кнопка «Удалить» скрыта для root subject."""
     editor = open_editor_for(owner_page)
-    delete_btn = editor.page.get_by_role(
-        "button", name=t(Buttons.DELETE), exact=False
-    )
-    expect(delete_btn, ErrMsg.element_should_be_hidden).to_be_hidden()
+    expect(editor.delete_btn_by_role(), ErrMsg.element_should_be_hidden).to_be_hidden()

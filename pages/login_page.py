@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Self
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 from src.texts import Buttons, t
 
@@ -41,6 +41,11 @@ class LoginPage(BasePage):
         expect(self.email).to_be_visible()
         expect(self.password).to_be_visible()
         expect(self.submit_btn).to_be_visible()
+
+    @property
+    def form(self) -> Locator:
+        """Return the login form locator."""
+        return self.page.locator("#loginForm")  # no semantic: form element by ID
 
     def expect_error(self) -> None:
         """Assert the status message contains a non-empty error text."""

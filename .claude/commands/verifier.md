@@ -67,6 +67,12 @@ for f in sorted(pathlib.Path('tests').rglob('test_*.py')):
         if lines > 2: print(f'{f}: docstring {lines+1} lines')
 " | head -10
 
+# Rule 35: низкоуровневые Playwright-вызовы в тестах (должно быть 0)
+grep -rn "\.locator(\|\.get_attribute(\|\.click(\|\.fill(\|\.wait_for_load_state\|\.wait_for(" tests/ --include="test_*.py" | grep -v "conftest\|# \|\"\"\"" | wc -l
+
+# Rule 36: standalone helpers вместо POM-методов
+grep -rn "auth_name(\|logout_link(\|login_link(\|wait_for_authed_shell(" tests/ --include="test_*.py" | wc -l
+
 # Rule 25: assert в Page Objects (кроме precondition)
 grep -rn "^\s*assert " tests/pages/ --include="*.py" | grep -v "# precondition" | head -10
 

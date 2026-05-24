@@ -26,7 +26,6 @@ def test_owner_settings_tab_has_inputs(owner_page: Page, pages: PageFactory) -> 
     """Вкладка настроек содержит поле site_name и кнопку сохранения."""
     with step("действие: открытие вкладки настроек"):
         owner = pages.navigate_to(OwnerPage)
-        owner_page.wait_for_load_state("domcontentloaded")
         owner.open_tab("settings")
 
     with step("проверка: поле site_name и кнопка сохранения видны"):
@@ -39,7 +38,6 @@ def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_clien
     """Сохранение site_name через UI отражается в бэкенде."""
     with step("действие: сохранение нового site_name через UI"):
         owner = pages.navigate_to(OwnerPage)
-        owner_page.wait_for_load_state("domcontentloaded")
 
         new_name = TestData.SAMPLE_SITE_NAME
         with owner_page.expect_response(

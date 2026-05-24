@@ -160,13 +160,11 @@ def test_keyboard_arrow_down_enter_picks_first_candidate(
 
         modal = AddRelativeModal(owner_page)
         modal.expect_visible()
-        modal.surname.fill("Глеб")
+        modal.search_existing(surname="Глеб")
         modal.expect_dropdown_open()
 
     with step("действие: выбор через ArrowDown + Enter"):
-        modal.surname.focus()
-        owner_page.keyboard.press("ArrowDown")
-        owner_page.keyboard.press("Enter")
+        modal.pick_first_via_keyboard()
         modal.expect_linked_to(existing_id)
 
 
@@ -190,12 +188,11 @@ def test_escape_closes_dropdown_keeps_modal(
 
         modal = AddRelativeModal(owner_page)
         modal.expect_visible()
-        modal.surname.fill("Антон")
+        modal.search_existing(surname="Антон")
         modal.expect_dropdown_open()
 
     with step("действие: нажатие Escape"):
-        modal.surname.focus()
-        owner_page.keyboard.press("Escape")
+        modal.press_escape()
 
     with step("проверка: dropdown закрыт, модалка осталась открытой"):
         modal.expect_dropdown_closed()

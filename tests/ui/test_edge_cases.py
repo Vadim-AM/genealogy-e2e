@@ -12,15 +12,17 @@ from api import routes
 from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
+from pages.tree_page import TreePage
 from src.texts import ErrMsg
 
 
 @allure.title("Edge: переход по несуществующему профилю не ломает UI")
 def test_f5_on_nonexistent_profile_id_does_not_crash(owner_page: Page) -> None:
     """TC-EDGE-004: F5 on /#/p/<unknown> shows tree, no JS crash."""
+    tree = TreePage(owner_page)
     owner_page.goto("/#/p/nonexistent_xyz_123")
-    owner_page.wait_for_load_state("domcontentloaded")
-    expect(owner_page.locator('[data-tab="tree"]'), ErrMsg.tab_not_visible).to_be_visible()
+    tree.wait_for_page_load()
+    expect(tree.tab_tree, ErrMsg.tab_not_visible).to_be_visible()
 
 
 @allure.title("Edge: персона с единственным полем name корректно читается")

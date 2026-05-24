@@ -28,10 +28,10 @@ def test_photos_block_renders_inside_editor(owner_page: Page) -> None:
         expect(photos.container, ErrMsg.photo_not_visible).to_be_visible()
         expect(photos.add_btn, ErrMsg.button_not_visible).to_be_visible()
         expect(photos.add_btn, ErrMsg.wrong_text_content).to_contain_text(t(Buttons.ADD))
-        should.be_equal(photos.add_btn.get_attribute("for"), "photoFileInput", ErrMsg.photo_label_for_wrong)
+        should.be_equal(photos.add_btn_for_attr(), "photoFileInput", ErrMsg.photo_label_for_wrong)
 
         should.be_equal(photos.file_input.count(), 1, ErrMsg.photo_input_count_wrong)
-        accept = photos.file_input.get_attribute("accept")
+        accept = photos.file_input_accept()
         should.be_true(accept and "image" in accept, ErrMsg.photo_accept_wrong)
 
 

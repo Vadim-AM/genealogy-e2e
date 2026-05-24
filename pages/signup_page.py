@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Self
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 from src.texts import Buttons, Labels, t
 
@@ -39,6 +39,9 @@ class SignupPage(BasePage):
         self.password_toggle = page.locator("#pwToggle")  # no semantic: icon-only toggle
         self.password_strength = page.locator('[data-testid="signup-pw-meter"]')  # no semantic: custom meter widget
         self.signup_msg = page.locator("#signupMsg")  # no semantic: no ARIA role
+        self.email_error = page.locator("#email-err")  # no semantic: dynamic content, no ARIA
+        # no semantic: checkbox group container
+        self.agree_group = page.locator('[data-testid="signup-agree-group"]')
 
     def fill_required(
         self,
@@ -85,6 +88,43 @@ class SignupPage(BasePage):
         expect(self.email).to_be_visible()
         expect(self.password).to_be_visible()
         expect(self.submit_btn).to_be_visible()
+
+    @property
+    def form(self) -> Locator:
+        """Return the signup form locator."""
+        return self.page.locator("#signupForm")  # no semantic: form element by ID
+
+    @property
+    def submit_btn_by_id(self) -> Locator:
+        """Return the signup submit button by ID (for non-semantic tests)."""
+        return self.page.locator("#signupBtn")  # no semantic: submit button without accessible name
+
+    def check_password_validity(self) -> bool:
+        """Return the HTML5 checkValidity() result for the password field."""
+        return self.page.evaluate("() => document.getElementById('password').checkValidity()")
+
+    def fill_honeypot_via_js(self, *, email: str, password: str, honeypot: str) -> None:
+        """Fill form fields including the hidden honeypot via JS evaluate.
+
+        The honeypot field is visually hidden (tabindex=-1), so we use
+        JS to set all values simultaneously. The checkbox is also set via JS.
+        """
+        self.page.evaluate(
+            f"""
+            document.querySelector('#email').value = {email!r};
+            document.querySelector('#password').value = {password!r};
+            document.querySelector('#website').value = {honeypot!r};
+            document.querySelector('#agreeTerms').checked = true;
+            """
+        )
+
+    def remove_password_minlength(self) -> None:
+        """Remove the HTML5 minlength attribute from the password field.
+
+        Useful for testing server-side validation (zxcvbn) without native
+        browser validation blocking the submit.
+        """
+        self.page.evaluate("document.getElementById('password').removeAttribute('minlength')")
 
     def soft_check_form_basics(self, soft) -> None:
         """Smoke for X-SU-1..11: input attrs, autocomplete, required.

@@ -40,11 +40,11 @@ def test_wait_submit_email_success(page: Page, anon_pages: PageFactory) -> None:
 
 
 @allure.title("Вейтлист: на /wait нет персональных данных владельца")
-def test_wait_no_owner_personal_data(page: Page, anon_pages: PageFactory) -> None:
+def test_wait_no_owner_personal_data(anon_pages: PageFactory) -> None:
     """BUG-COPY-001: /wait must not mention owner family names (PII)."""
     with step("действие: загрузить /wait"):
-        _ = anon_pages.navigate_to(WaitPage)
-        body = page.content()
+        wait = anon_pages.navigate_to(WaitPage)
+        body = wait.page_content()
 
     with step("проверка: нет PII владельца"):
         for needle in PII.OWNER_FAMILY_NAMES:
@@ -52,7 +52,7 @@ def test_wait_no_owner_personal_data(page: Page, anon_pages: PageFactory) -> Non
 
 
 @allure.title("Вейтлист: невалидный email блокируется HTML5-проверкой")
-def test_wait_submit_invalid_email_blocks_html5_validity(page: Page, anon_pages: PageFactory) -> None:
+def test_wait_submit_invalid_email_blocks_html5_validity(anon_pages: PageFactory) -> None:
     """F-WAIT-3: invalid email — input fails HTML5 validity (form does not submit)."""
     with step("действие: заполнить невалидный email и отправить"):
         wait = anon_pages.navigate_to(WaitPage)
@@ -60,8 +60,7 @@ def test_wait_submit_invalid_email_blocks_html5_validity(page: Page, anon_pages:
         wait.submit_btn.click()
 
     with step("проверка: HTML5 validity false и result пуст"):
-        is_valid = page.evaluate("() => document.getElementById('email').checkValidity()")
-        should.be_false(is_valid, ErrMsg.html5_validity_passed)
+        should.be_false(wait.is_email_valid(), ErrMsg.html5_validity_passed)
         should.be_equal((wait.result.text_content() or "").strip(), "", ErrMsg.result_text_not_empty)
 
 
