@@ -424,6 +424,66 @@ from tests._core.err_msg import ErrMsg
 expect(locator, ErrMsg.profile_not_visible).to_be_visible()
 ```
 
+### 25. No `assert` in Page Objects — only `expect()` in tests
+
+Page Objects contain only locators and actions, never test assertions. All
+test assertions live in test functions via `expect(locator, ErrMsg.x).to_*()`.
+Precondition guards (`assert self._secret, "must call setup first"`) are
+allowed — they protect against programmer error, not test outcomes.
+
+```python
+# bad — assert in POM
+class TreePage(BasePage):
+    def verify_rendered(self):
+        assert self.h1.is_visible()  # ← never
+
+# good — POM returns locator, test asserts
+class TreePage(BasePage):
+    @property
+    def h1(self) -> Locator:
+        return self._page.locator("h1")
+
+def test_tree(pages):
+    tree = pages.navigate_to(TreePage)
+    expect(tree.h1, ErrMsg.tree_not_rendered).to_be_visible()
+```
+
+### 26. No private PO properties from tests
+
+If a test needs a POM locator, the property must be public. Don't access
+`page._internal_field` from a test file — make it a `@property`.
+
+### 27. POM methods must guarantee stable state on return
+
+Every POM method that changes page state must wait for the result to
+stabilise before returning. If the result can be one of two states (list
+appeared OR "no results" label appeared), wait for one of them explicitly
+(e.g. `expect(list_or_empty.first).to_be_visible()`) — otherwise
+`not_to_be_visible()` after the method gives a false positive (element
+not yet in DOM → check passes instantly).
+
+### 28. Max 2 levels of PO inheritance; decompose via components
+
+`BasePage → FeaturePage` is the maximum. A third level is a signal to
+extract a component. Repeated UI blocks (modals, panels, dropdowns)
+become standalone classes in `tests/pages/` that receive a `root: Locator`.
+
+### 29. Files > 500 lines → decompose
+
+A test file or POM exceeding 500 lines is a signal to split by domain or
+component. One POM = one UI domain.
+
+### 30. Diagnostics: MCP browser first, throwaway scripts second
+
+When debugging UI, use the Playwright MCP browser
+(`mcp__plugin_playwright_playwright__browser_*`) for interactive
+iterations: navigate → snapshot → evaluate → click. This is faster than
+the cycle of edit code → run pytest → wait → read screenshot.
+
+Don't create throwaway scripts in `/tmp/` for debugging — MCP browser
+covers most scenarios. On test failure — trace viewer
+(`playwright show-trace`) + Allure screenshots.
+
 ## Project structure
 
 ```
@@ -673,3 +733,29 @@ already cost a near-lost rewrite.
   component once, would the test still pass? If no, refactor.
 - Is the timeout right? → Use the catalogue. If you want a different value,
   add a category, don't inline a number.
+
+## Claude Code инструменты
+
+### Hooks (`.claude/settings.json`)
+
+PostToolUse hook автоматически запускает `ruff format` + `ruff check --fix`
+после каждого редактирования `.py` файла.
+
+### Агенты (`.claude/agents/`)
+
+| Агент | Назначение |
+|-------|-----------|
+| `test-runner` | Запуск pytest, анализ падений, диагностика |
+
+### Команды (`.claude/commands/`)
+
+| Команда | Назначение |
+|---------|-----------|
+| `/verifier` | Верификация: drift-lint + ruff + import-check + правила |
+
+### Скиллы (`.claude/skills/`)
+
+| Скилл | Назначение |
+|-------|-----------|
+| `/gen-test` | Генерация нового теста по конвенциям (30 правил) |
+| `/refactor` | Пошаговый рефакторинг: анализ → сводка → подтверждение → реализация |
