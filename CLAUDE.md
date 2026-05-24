@@ -183,24 +183,24 @@ in `tenant_client(user)` factory in conftest:
 ```python
 def test_x(owner_user, tenant_client):
     api = tenant_client(owner_user)
-    r = api.get(API.TREE)
-    api.patch(API.person(pid), json={"summary": "..."})
+    r = api.get(routes.TREE)
+    api.patch(routes.person(pid), json={"summary": "..."})
 ```
 
 Per-request override (`api.post(..., timeout=TIMEOUTS.api_long)`) is fine
 when `enrichment` job needs longer. Multiple users in one test → multiple
 factory calls (each closed automatically on teardown).
 
-**Anonymous calls** (lending, public health) — pass `httpx.get(f"{base_url}{API.HEALTH}")`
+**Anonymous calls** (lending, public health) — pass `httpx.get(f"{base_url}{routes.HEALTH}")`
 directly; no client needed. Or use a top-level `httpx.Client(base_url=base_url)`.
 
-### 10. No raw URL strings — go through `tests/api_paths.py::API`
+### 10. No raw URL strings — go through `tests/_core/api_paths`
 
 ```python
 # bad
 api.get(f"/api/people/{pid}")
 # good
-api.get(API.person(pid))
+api.get(routes.person(pid))
 ```
 
 When backend renames an endpoint — one place to update, IDE autocomplete,
@@ -233,7 +233,7 @@ If your test needs:
 - accepting that invite → `accept_invite(token, cookies=...)`.
 - AI consent stamp on owner → `grant_ai_consent(user)`.
 
-**Never** inline `c.post(API.SIGNUP, ...) → c.post(API.VERIFY_EMAIL, ...) → c.post(API.LOGIN, ...)` —
+**Never** inline `c.post(routes.SIGNUP, ...) → c.post(routes.VERIFY_EMAIL, ...) → c.post(routes.LOGIN, ...)` —
 that's 8+ lines of plumbing per test, and changes in the auth flow ripple through every test.
 
 ### 13. Green or it doesn't exist — no xfail/skip
@@ -386,7 +386,7 @@ self.honeypot = page.locator("#website")  # no semantic: hidden field
 
 ```python
 # bad — raw API call with inline JSON and untyped response
-r = api.post(API.PEOPLE, json={"id": pid, "name": name, "branch": "paternal", "gender": "m"})
+r = api.post(routes.PEOPLE, json={"id": pid, "name": name, "branch": "paternal", "gender": "m"})
 r.raise_for_status()
 people = r.json()["people"]
 
@@ -721,7 +721,7 @@ already cost a near-lost rewrite.
 | A global fixture | `tests/_fixtures/<topic>.py` |
 | A domain fixture | `tests/<domain>/conftest.py` |
 | A UI string | `tests/messages.py` (class + `t()`) |
-| An API path | `tests/api_paths.py` (class `API`) |
+| An API path | `tests/_core/api_paths.py` (module-level constants + builders) |
 | An env var | `tests/settings.py` (Pydantic field) |
 
 ## When in doubt

@@ -12,7 +12,7 @@ import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 @allure.title("Конфиг сайта содержит непустую версию приложения")
 def test_site_config_exposes_app_version(base_url: str):
     """`/api/site/config` returns a non-empty `app_version` string."""
-    r = httpx.get(f"{base_url}{API.SITE_CONFIG}", timeout=TIMEOUTS.api_request)
+    r = httpx.get(f"{base_url}{routes.SITE_CONFIG}", timeout=TIMEOUTS.api_request)
     config = expect_response(r, label="GET /api/site/config").status_ok().schema(SiteConfigResponse)
     assert isinstance(config.app_version, str) and config.app_version.strip(), \
         f"app_version must be a non-empty string: {config.app_version!r}"
@@ -41,7 +41,7 @@ def test_footer_version_matches_api_app_version(page: Page, base_url: str, anon_
     not just the original `v2.1.0`.
     """
     with step("подготовка: получить версию из API"):
-        r = httpx.get(f"{base_url}{API.SITE_CONFIG}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.SITE_CONFIG}", timeout=TIMEOUTS.api_request)
         config = expect_response(r, label="GET /api/site/config").status_ok().schema(SiteConfigResponse)
         api_version = config.app_version
 

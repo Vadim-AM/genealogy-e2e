@@ -10,7 +10,7 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.step import step
 
 
@@ -27,13 +27,13 @@ def test_logout_invalidates_session_across_tabs(owner_user, tenant_client):
         tab0 = tenant_client(owner_user)
 
     with step("проверка: сессия tab1 активна до logout"):
-        me1 = tab1.get(API.ACCOUNT_ME)
+        me1 = tab1.get(routes.ACCOUNT_ME)
         me1.raise_for_status()
         assert me1.json()["tenant"]["slug"] == owner_user.slug, \
             f"session should belong to {owner_user.slug!r}, got {me1.json()['tenant']['slug']!r}"
 
     with step("действие: logout из tab0"):
-        logout = tab0.post(API.LOGOUT)
+        logout = tab0.post(routes.LOGOUT)
         assert logout.status_code == HTTPStatus.OK, \
             f"logout returned {logout.status_code} {logout.text[:200]}"
 
@@ -41,7 +41,7 @@ def test_logout_invalidates_session_across_tabs(owner_user, tenant_client):
         # Tab 1 is now invalidated — server-side session revocation kills the
         # cookie that was minted before the logout even though the cookie value
         # itself hasn't changed.
-        me2 = tab1.get(API.ACCOUNT_ME)
+        me2 = tab1.get(routes.ACCOUNT_ME)
         assert me2.status_code == HTTPStatus.UNAUTHORIZED, \
             f"session still valid in tab 1 after tab 0 logout: " \
             f"{me2.status_code} {me2.text[:200]}"

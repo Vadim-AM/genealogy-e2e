@@ -11,7 +11,7 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -22,7 +22,7 @@ def test_owner_can_export_gedcom_via_auth_v2(owner_user, tenant_client):
     """INV-GEDCOM-001 (export): auth_v2 owner получает 200 + GEDCOM body."""
     with step("действие: экспортировать GEDCOM через auth_v2"):
         api = tenant_client(owner_user)
-        r = api.get(API.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long)
+        r = api.get(routes.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long)
 
     with step("проверка: 200 и тело начинается с '0 HEAD'"):
         expect_response(r, label="GEDCOM export auth_v2").status(HTTPStatus.OK)
@@ -49,7 +49,7 @@ def test_owner_can_import_gedcom_via_auth_v2(owner_user, tenant_client):
 
     with step("действие: импортировать GEDCOM через auth_v2"):
         r = api.post(
-            API.ADMIN_IMPORT_GEDCOM,
+            routes.ADMIN_IMPORT_GEDCOM,
             files={"file": ("import.ged", minimal_gedcom.encode("utf-8"), "application/octet-stream")},
             timeout=TIMEOUTS.api_long,
         )

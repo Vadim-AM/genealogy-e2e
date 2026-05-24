@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.messages import TestData
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -25,7 +25,7 @@ def test_get_person_returns_etag_for_concurrency(owner_user, tenant_client):
     """
     with step("действие: GET person"):
         api = tenant_client(owner_user)
-        r = api.get(API.person(TestData.DEMO_PERSON_ID))
+        r = api.get(routes.person(TestData.DEMO_PERSON_ID))
         expect_response(r, label="GET person").status_ok()
 
     with step("проверка: ETag header присутствует"):

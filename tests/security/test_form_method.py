@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import TestConfig, unique_email
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import Buttons, t
@@ -48,7 +48,7 @@ def test_signup_form_submits_via_post(page: Page, anon_pages: PageFactory):
         page.locator("#agreeTerms").check()
 
     with step("действие: отправить форму и перехватить запрос"), page.expect_request(
-        lambda req: _is_submit_request(req.url, API.SIGNUP)
+        lambda req: _is_submit_request(req.url, routes.SIGNUP)
     ) as req_info:
         page.locator("#signupBtn").click()
 
@@ -71,7 +71,7 @@ def test_login_form_submits_via_post(page: Page, anon_pages: PageFactory):
         page.locator("#password").fill("any-password-here")
 
     with step("действие: отправить форму и перехватить запрос"), page.expect_request(
-        lambda req: _is_submit_request(req.url, API.LOGIN)
+        lambda req: _is_submit_request(req.url, routes.LOGIN)
     ) as req_info:
         page.get_by_role("button", name=t(Buttons.LOGIN), exact=False).click()
 

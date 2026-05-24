@@ -19,7 +19,7 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -45,7 +45,7 @@ def test_person_created_in_tenant_a_not_visible_in_tenant_b(
 
     with step("действие: тенант A создаёт уникального person'а"):
         created = api_a.post(
-            API.PEOPLE,
+            routes.PEOPLE,
             json={
                 "name": "Тенант-А Уникум",
                 "surname": "Уникум",
@@ -56,7 +56,7 @@ def test_person_created_in_tenant_a_not_visible_in_tenant_b(
         assert created["id"], "created person must have an id"
 
     with step("проверка: тенант B не видит person'а тенанта A"):
-        tree_b = api_b.get(API.TREE).json()
+        tree_b = api_b.get(routes.TREE).json()
         b_person_ids = {p["id"] for p in tree_b["people"]}
         b_names = {p["name"] for p in tree_b["people"]}
         assert created["id"] not in b_person_ids, (
@@ -80,12 +80,12 @@ def test_tenant_b_cannot_read_tenant_a_person_by_id(
         api_b = tenant_client(user_b)
 
         created = api_a.post(
-            API.PEOPLE, json={"name": "Чужой Person", "gender": "m"}
+            routes.PEOPLE, json={"name": "Чужой Person", "gender": "m"}
         ).json()
         assert created["id"], "created person must have an id"
 
     with step("проверка: тенант B получает 404 при чтении чужого person"):
-        r = api_b.get(API.person(created["id"]))
+        r = api_b.get(routes.person(created["id"]))
         expect_response(r, label="cross-tenant read person").status(HTTPStatus.NOT_FOUND)
 
 
@@ -99,10 +99,10 @@ def test_tenant_b_cannot_patch_tenant_a_person(signup_via_api, tenant_client):
         api_a = tenant_client(user_a)
         api_b = tenant_client(user_b)
 
-        created = api_a.post(API.PEOPLE, json={"name": "Чужой Edit", "gender": "m"}).json()
+        created = api_a.post(routes.PEOPLE, json={"name": "Чужой Edit", "gender": "m"}).json()
 
     with step("проверка: тенант B получает 404 при PATCH чужого person"):
-        r = api_b.patch(API.person(created["id"]), json={"summary": "MUTATED by B"})
+        r = api_b.patch(routes.person(created["id"]), json={"summary": "MUTATED by B"})
         expect_response(r, label="cross-tenant write person").status(HTTPStatus.NOT_FOUND)
 
 
@@ -124,12 +124,12 @@ def test_same_display_slug_allowed_across_tenants(signup_via_api, tenant_client)
 
     with step("действие: создать person с одинаковым slug в обоих тенантах"):
         r_a = api_a.post(
-            API.PEOPLE,
+            routes.PEOPLE,
             json={"name": "A Иван", "display_slug": "ivan-ivanov", "gender": "m"},
         )
         expect_response(r_a, label="create person A with slug").status(HTTPStatus.CREATED)
         r_b = api_b.post(
-            API.PEOPLE,
+            routes.PEOPLE,
             json={"name": "B Иван", "display_slug": "ivan-ivanov", "gender": "m"},
         )
         expect_response(r_b, label="cross-tenant slug reuse").status(HTTPStatus.CREATED)
@@ -170,11 +170,11 @@ def test_gedcom_export_returns_only_own_tenant_data(signup_via_api, tenant_clien
         api_a = tenant_client(user_a)
         api_b = tenant_client(user_b)
 
-        api_a.post(API.PEOPLE, json={"name": "ExportA Тестов", "gender": "m"})
-        api_b.post(API.PEOPLE, json={"name": "ExportB Чужой", "gender": "m"})
+        api_a.post(routes.PEOPLE, json={"name": "ExportA Тестов", "gender": "m"})
+        api_b.post(routes.PEOPLE, json={"name": "ExportB Чужой", "gender": "m"})
 
     with step("действие: тенант A экспортирует GEDCOM"):
-        ged = api_a.get(API.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long).text
+        ged = api_a.get(routes.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long).text
 
     with step("проверка: экспорт содержит только данные тенанта A"):
         assert "ExportA" in ged, \
@@ -195,7 +195,7 @@ def test_gedcom_import_creates_persons_only_in_uploading_tenant(
 
         api_a = tenant_client(user_a)
         api_b = tenant_client(user_b)
-        b_count_before = len(api_b.get(API.TREE).json()["people"])
+        b_count_before = len(api_b.get(routes.TREE).json()["people"])
 
     with step("действие: тенант A импортирует GEDCOM-файл"):
         ged = (
@@ -209,7 +209,7 @@ def test_gedcom_import_creates_persons_only_in_uploading_tenant(
         ).encode()
 
         r = api_a.post(
-            API.ADMIN_IMPORT_GEDCOM,
+            routes.ADMIN_IMPORT_GEDCOM,
             files={"file": ("isolation.ged", ged, "application/octet-stream")},
             timeout=TIMEOUTS.api_long,
         )
@@ -218,10 +218,10 @@ def test_gedcom_import_creates_persons_only_in_uploading_tenant(
         expect_response(r, label="GEDCOM import preview auth_v2").status(HTTPStatus.OK)
         preview = r.json()
         confirm = {k: preview.get(k, []) for k in ("people", "relationships", "sources")}
-        api_a.post(API.ADMIN_IMPORT_GEDCOM_CONFIRM, json=confirm)
+        api_a.post(routes.ADMIN_IMPORT_GEDCOM_CONFIRM, json=confirm)
 
     with step("проверка: дерево тенанта B не изменилось"):
-        b_count_after = len(api_b.get(API.TREE).json()["people"])
+        b_count_after = len(api_b.get(routes.TREE).json()["people"])
         assert b_count_after == b_count_before, (
             f"LEAK: tenant_b's tree changed after tenant_a's GEDCOM import "
             f"(before={b_count_before}, after={b_count_after})"
@@ -248,7 +248,7 @@ def test_concurrent_creates_in_two_tenants_dont_interfere(
             api = tenant_client(user)
             for i in range(5):
                 api.post(
-                    API.PEOPLE,
+                    routes.PEOPLE,
                     json={"name": f"{label}-Person-{i}", "gender": "m"},
                 ).raise_for_status()
 
@@ -261,8 +261,8 @@ def test_concurrent_creates_in_two_tenants_dont_interfere(
     with step("проверка: каждый тенант видит только свои записи"):
         api_a = tenant_client(user_a)
         api_b = tenant_client(user_b)
-        a_names = {p["name"] for p in api_a.get(API.TREE).json()["people"]}
-        b_names = {p["name"] for p in api_b.get(API.TREE).json()["people"]}
+        a_names = {p["name"] for p in api_a.get(routes.TREE).json()["people"]}
+        b_names = {p["name"] for p in api_b.get(routes.TREE).json()["people"]}
 
         # A видит только свои concurr-A-* persons
         for i in range(5):

@@ -10,7 +10,7 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import Buttons, TestData, t
 from tests._core.messages import ConfirmDialog as ConfirmDialogMsg
@@ -68,7 +68,7 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tena
         owner_page.on(
             "response",
             lambda r: delete_responses.append(r.status)
-            if r.request.method == "DELETE" and API.PEOPLE in r.url
+            if r.request.method == "DELETE" and routes.PEOPLE in r.url
             else None,
         )
 
@@ -127,7 +127,7 @@ def test_owner_edits_demo_self_summary_through_ui(
         ) as resp_info:
             editor.save()
         assert resp_info.value.ok, \
-            f"PATCH {API.person(TestData.DEMO_PERSON_ID)} returned {resp_info.value.status}"
+            f"PATCH {routes.person(TestData.DEMO_PERSON_ID)} returned {resp_info.value.status}"
 
     with step("проверка: summary сохранён в бэкенде"):
         api = tenant_client(owner_user)

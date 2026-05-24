@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import PII, Brand, t
 from tests._core.step import step
@@ -54,12 +54,13 @@ def test_landing_no_console_errors(page: Page, anon_pages: PageFactory):
         js_errors: list[str] = []
         bad_responses: list[tuple[str, int]] = []
 
-        EXPECTED_401_URLS = (API.ACCOUNT_ME, API.TREE)
+        EXPECTED_401_URLS = (routes.ACCOUNT_ME, routes.TREE)
 
         page.on("pageerror", lambda exc: js_errors.append(str(exc)))
 
         def _on_response(resp):
-            if resp.status >= HTTPStatus.BAD_REQUEST and resp.status != HTTPStatus.NOT_FOUND:  # 404 covered by static-assets test
+            # 404 covered by static-assets test
+            if resp.status >= HTTPStatus.BAD_REQUEST and resp.status != HTTPStatus.NOT_FOUND:
                 url = resp.url
                 if resp.status == HTTPStatus.UNAUTHORIZED and any(u in url for u in EXPECTED_401_URLS):
                     return

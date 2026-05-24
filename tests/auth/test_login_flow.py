@@ -12,7 +12,7 @@ import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import Links, t
 from tests._core.response import expect_response
@@ -49,7 +49,7 @@ def test_login_with_correct_credentials_succeeds(
         assert session_cookie, f"no platform_session/session_id cookie set after login: {cookies}"
 
     with step("проверка: /me возвращает правильный tenant"):
-        me = httpx.get(f"{base_url}{API.ACCOUNT_ME}", cookies=cookies, timeout=TIMEOUTS.api_request)
+        me = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", cookies=cookies, timeout=TIMEOUTS.api_request)
         expect_response(me, label="/me after login").status_ok()
         assert me.json()["tenant"]["slug"] == owner_user.slug, \
             f"/me tenant slug: expected {owner_user.slug!r}, got {me.json()['tenant']['slug']!r}"

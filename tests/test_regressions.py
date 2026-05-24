@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import make_email
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -48,7 +48,7 @@ def test_bug_auth_001_authv2_owner_reads_enrichment(
         pid = tree.people[0].id
 
     with step("проверка: history и acceptances доступны (200/204)"):
-        for path in (API.enrich_history(pid), API.enrich_acceptances(pid)):
+        for path in (routes.enrich_history(pid), routes.enrich_acceptances(pid)):
             r = api.get(path)
             expect_response(r, label=f"GET {path}").status(HTTPStatus.OK, HTTPStatus.NO_CONTENT)
 
@@ -63,7 +63,7 @@ def test_bug_auth_002_pageview_platform_session_no_500(owner_user, tenant_client
     with step("действие: отправка page_view аналитики"):
         api = tenant_client(owner_user)
         r = api.post(
-            API.ANALYTICS_LOG,
+            routes.ANALYTICS_LOG,
             json={"event": "page_view", "path": "/", "context": {"section": "tree"}},
         )
 
@@ -124,7 +124,7 @@ def test_bug_auth_003_sse_reconnect_recovers(
 
     with step("действие: первый streaming enrichment POST"):
         r1 = api.post(
-            API.enrich(pid),
+            routes.enrich(pid),
             json={"streaming": True, "force_refresh": False},
             timeout=TIMEOUTS.api_long,
         )
@@ -132,7 +132,7 @@ def test_bug_auth_003_sse_reconnect_recovers(
 
     with step("проверка: повторный POST возвращает 200, не 409"):
         r2 = api.post(
-            API.enrich(pid),
+            routes.enrich(pid),
             json={"streaming": True, "force_refresh": False},
             timeout=TIMEOUTS.api_long,
         )

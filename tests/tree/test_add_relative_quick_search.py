@@ -28,7 +28,7 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import LinkedChip, TestData, t
 from tests._core.step import step
@@ -88,7 +88,7 @@ def test_link_existing_sibling_creates_only_relationship(
         def _track(response):
             nonlocal post_people_count
             if response.request.method == "POST" and response.url.endswith(
-                API.PEOPLE
+                routes.PEOPLE
             ):
                 post_people_count += 1
 
@@ -153,7 +153,7 @@ def test_unlink_existing_returns_to_create_mode(
 
     with step("действие: сохранение нового человека"):
         with owner_page.expect_response(
-            lambda r: API.PEOPLE in r.url and r.request.method == "POST"
+            lambda r: routes.PEOPLE in r.url and r.request.method == "POST"
         ) as person_info:
             modal.btn_save.click()
         assert person_info.value.ok, (

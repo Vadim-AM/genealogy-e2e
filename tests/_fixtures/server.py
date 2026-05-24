@@ -16,7 +16,7 @@ from typing import Any
 import httpx
 import pytest
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.settings import settings
 from tests._core.timeouts import TIMEOUTS
 
@@ -27,12 +27,12 @@ def _wait_for_health(base_url: str, *, timeout: float) -> None:
     """Block until /api/health responds 200, or raise."""
     deadline = time.time() + timeout
     while time.time() < deadline:
-        response = httpx.get(f"{base_url}{API.HEALTH}", timeout=TIMEOUTS.api_short)
+        response = httpx.get(f"{base_url}{routes.HEALTH}", timeout=TIMEOUTS.api_short)
         if response.status_code == HTTPStatus.OK:
             return
         time.sleep(TIMEOUTS.polling_interval)
     raise TimeoutError(
-        f"backend at {base_url} did not respond on {API.HEALTH} within {timeout}s"
+        f"backend at {base_url} did not respond on {routes.HEALTH} within {timeout}s"
     )
 
 
@@ -53,14 +53,14 @@ def uvicorn_server(base_url: str) -> str:
 def _post_reset(uvicorn_server: str) -> None:
     """POST /api/_test/reset to wipe backend state."""
     httpx.post(
-        f"{uvicorn_server}{API.TEST_RESET}", timeout=TIMEOUTS.api_request
+        f"{uvicorn_server}{routes.TEST_RESET}", timeout=TIMEOUTS.api_request
     ).raise_for_status()
 
 
 def _set_ai_search_on(uvicorn_server: str) -> None:
     """Enable AI search via /api/_test/set-platform-setting."""
     httpx.post(
-        f"{uvicorn_server}{API.TEST_SET_PLATFORM_SETTING}",
+        f"{uvicorn_server}{routes.TEST_SET_PLATFORM_SETTING}",
         json={"enable_ai_search": True},
         timeout=TIMEOUTS.api_short,
     ).raise_for_status()
@@ -101,7 +101,7 @@ def install_mock_ai(_baseline_reset: None, uvicorn_server: str) -> None:
     once-per-xdist-worker re-POST is harmless."""
     fixture = json.loads((FIXTURES_DIR / "ai_responses.json").read_text())
     httpx.post(
-        f"{uvicorn_server}{API.TEST_INSTALL_MOCK_AI}",
+        f"{uvicorn_server}{routes.TEST_INSTALL_MOCK_AI}",
         json=fixture,
         timeout=TIMEOUTS.api_request,
     ).raise_for_status()
@@ -117,10 +117,10 @@ def _ai_search_on_session(install_mock_ai: None, uvicorn_server: str) -> None:
     set-platform-setting actually reaches `/config/features` (replaces the
     old `_verify_ai_search_default`)."""
     _set_ai_search_on(uvicorn_server)
-    f = httpx.get(f"{uvicorn_server}{API.CONFIG_FEATURES}", timeout=TIMEOUTS.api_short)
+    f = httpx.get(f"{uvicorn_server}{routes.CONFIG_FEATURES}", timeout=TIMEOUTS.api_short)
     f.raise_for_status()
     assert f.json().get("ai_search_enabled") is True, (
-        f"session sanity failed: {API.CONFIG_FEATURES} still reports "
+        f"session sanity failed: {routes.CONFIG_FEATURES} still reports "
         f"{f.json()}. Either set-platform-setting не записал в БД, либо "
         "ENABLE_AI_SEARCH env override стоит на False."
     )

@@ -24,7 +24,7 @@ from http import HTTPStatus
 import allure
 import pyotp
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._fixtures.users import setup_and_verify_mfa
@@ -42,7 +42,7 @@ _BASE32_RE = re.compile(r"^[A-Z2-7]+$")
 @allure.title("MFA: настройка запрещена обычному владельцу")
 def test_mfa_setup_requires_superadmin(owner_user, tenant_client):
     """TC-PA-MFA-1: regular owner → 401/403 на /mfa/setup."""
-    r = tenant_client(owner_user).post(API.MFA_SETUP)
+    r = tenant_client(owner_user).post(routes.MFA_SETUP)
     expect_response(r, label="owner MFA setup").status(HTTPStatus.FORBIDDEN)
 
 
@@ -71,7 +71,7 @@ def test_mfa_setup_409_when_already_configured(superadmin_user, tenant_client):
         mfa_api.setup_mfa(api)
 
     with step("проверка: повторный setup отклоняется 409"):
-        r2 = api.post(API.MFA_SETUP)
+        r2 = api.post(routes.MFA_SETUP)
         expect_response(r2, label="MFA setup duplicate").status(HTTPStatus.CONFLICT)
 
 
@@ -108,14 +108,14 @@ def test_mfa_verify_wrong_code_401(superadmin_user, tenant_client):
         mfa_api.setup_mfa(api)
 
     with step("проверка: неверный код отклоняется 401"):
-        r = api.post(API.MFA_VERIFY, json={"code": "000000"})
+        r = api.post(routes.MFA_VERIFY, json={"code": "000000"})
         expect_response(r, label="MFA verify wrong code").status(HTTPStatus.UNAUTHORIZED)
 
 
 @allure.title("MFA: verify без предварительного setup отклоняется (409)")
 def test_mfa_verify_409_without_setup(superadmin_user, tenant_client):
     """TC-PA-MFA-6: verify без предшествующего setup → 409 (mfa_not_configured)."""
-    r = tenant_client(superadmin_user).post(API.MFA_VERIFY, json={"code": "123456"})
+    r = tenant_client(superadmin_user).post(routes.MFA_VERIFY, json={"code": "123456"})
     expect_response(r, label="MFA verify without setup").status(HTTPStatus.CONFLICT)
 
 
@@ -198,7 +198,7 @@ def test_recovery_redeem_consumes_one_code(superadmin_user, tenant_client):
         one = recovery.codes[0]
 
     with step("действие: redeem первого кода"):
-        r1 = api.post(API.MFA_RECOVERY_REDEEM, json={"code": one})
+        r1 = api.post(routes.MFA_RECOVERY_REDEEM, json={"code": one})
         resp = expect_response(r1, label="recovery redeem").status_ok().schema(MfaVerifyResponse)
         assert resp.status == "ok", f"redeem status: expected 'ok', got {resp.status!r}"
 
@@ -208,7 +208,7 @@ def test_recovery_redeem_consumes_one_code(superadmin_user, tenant_client):
             f"one code redeemed, expected 9 remaining, got {count.unused}"
 
     with step("проверка: повторный redeem того же кода — 401"):
-        r2 = api.post(API.MFA_RECOVERY_REDEEM, json={"code": one})
+        r2 = api.post(routes.MFA_RECOVERY_REDEEM, json={"code": one})
         expect_response(r2, label="recovery redeem reuse").status(HTTPStatus.UNAUTHORIZED)
 
 
@@ -227,5 +227,5 @@ def test_recovery_regenerate_invalidates_old_codes(superadmin_user, tenant_clien
             "second regenerate must invalidate all old codes"
 
     with step("проверка: старый код больше не валиден — 401"):
-        r = api.post(API.MFA_RECOVERY_REDEEM, json={"code": old_codes[0]})
+        r = api.post(routes.MFA_RECOVERY_REDEEM, json={"code": old_codes[0]})
         expect_response(r, label="old recovery code").status(HTTPStatus.UNAUTHORIZED)

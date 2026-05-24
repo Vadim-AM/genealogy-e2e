@@ -4,7 +4,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import TestConfig, unique_email
 from tests._core.timeouts import TIMEOUTS
 from tests._fixtures.users import AuthUser
@@ -27,7 +27,7 @@ def viewer_in_owners_tenant(
     signup_unverified(email=viewer_email)
     verify_token = read_email_token(viewer_email)
     httpx.post(
-        f"{base_url}{API.VERIFY_EMAIL}",
+        f"{base_url}{routes.VERIFY_EMAIL}",
         json={"token": verify_token},
         timeout=TIMEOUTS.api_request,
     ).raise_for_status()

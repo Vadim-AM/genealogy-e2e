@@ -11,7 +11,7 @@ from http import HTTPStatus
 import allure
 import pytest
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.step import step
 
 _MALICIOUS_IDS = [
@@ -30,7 +30,7 @@ def test_malicious_person_id_returns_404_not_500(
     """GET /api/people/{malicious_id} → 404, NOT 500."""
     with step("действие: запросить person с вредоносным ID"):
         api = tenant_client(owner_user)
-        r = api.get(API.person(malicious_id))
+        r = api.get(routes.person(malicious_id))
 
     with step("проверка: статус 400/404/422, не 500"):
         assert r.status_code != HTTPStatus.INTERNAL_SERVER_ERROR, (

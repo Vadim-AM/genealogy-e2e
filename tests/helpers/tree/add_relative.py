@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests.pages.person_editor import AddRelativeModal
 from tests.pages.profile_panel import ProfilePanel
 
@@ -31,7 +31,7 @@ def add_sibling_without_auto_parents(
     if gender:
         modal.select_gender(gender)
 
-    with page.expect_response(f"**{API.PEOPLE}**") as resp:
+    with page.expect_response(f"**{routes.PEOPLE}**") as resp:
         modal.save()
     assert resp.value.ok, (
         f"POST /api/people failed: {resp.value.status} {resp.value.text()[:200]}"

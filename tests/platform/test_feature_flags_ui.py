@@ -28,7 +28,7 @@ import allure
 import httpx
 from playwright.sync_api import expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -146,7 +146,7 @@ def test_ai_search_toggle_reflects_db_value_when_off(
     """
     with step("подготовка: устанавливаем enable_ai_search=False в БД"):
         httpx.post(
-            f"{uvicorn_server}{API.TEST_SET_PLATFORM_SETTING}",
+            f"{uvicorn_server}{routes.TEST_SET_PLATFORM_SETTING}",
             json={"enable_ai_search": False},
             timeout=TIMEOUTS.api_short,
         ).raise_for_status()
@@ -232,7 +232,7 @@ def test_patch_settings_writes_to_platformsettings_db(superadmin_user, tenant_cl
 
     with step("действие: PATCH с инвертированным значением"):
         new_value = not initial_db
-        patch_r = api.patch(API.PLATFORM_SETTINGS, json={"enable_ai_search": new_value})
+        patch_r = api.patch(routes.PLATFORM_SETTINGS, json={"enable_ai_search": new_value})
         expect_response(patch_r, label="PATCH platform settings").status_ok()
 
     with step("проверка: GET возвращает новое значение"):
@@ -243,7 +243,7 @@ def test_patch_settings_writes_to_platformsettings_db(superadmin_user, tenant_cl
         )
 
     with step("подготовка: откат значения для последующих тестов"):
-        rollback = api.patch(API.PLATFORM_SETTINGS, json={"enable_ai_search": initial_db})
+        rollback = api.patch(routes.PLATFORM_SETTINGS, json={"enable_ai_search": initial_db})
         expect_response(rollback, label="rollback platform settings").status_ok()
 
 
@@ -253,7 +253,7 @@ def test_patch_settings_validates_llm_provider_enum(superadmin_user, tenant_clie
     detail, упоминающим один из канонических provider'ов."""
     with step("действие: PATCH с невалидным llm_provider"):
         api = tenant_client(superadmin_user)
-        r = api.patch(API.PLATFORM_SETTINGS, json={"llm_provider": "openai"})
+        r = api.patch(routes.PLATFORM_SETTINGS, json={"llm_provider": "openai"})
 
     with step("проверка: 400 и упоминание канонических provider'ов"):
         assert r.status_code == HTTPStatus.BAD_REQUEST, \

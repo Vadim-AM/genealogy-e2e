@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.step import step
 from tests.pages.tree_page import TreePage
@@ -80,7 +80,7 @@ def test_me_endpoint_returns_tenant_after_login(owner_user, tenant_client):
     """F-FV-1 backend check: /api/account/me returns user + tenant slug."""
     with step("действие: запрос /me"):
         api = tenant_client(owner_user)
-        r = api.get(API.ACCOUNT_ME)
+        r = api.get(routes.ACCOUNT_ME)
         r.raise_for_status()
 
     with step("проверка: slug тенанта совпадает"):

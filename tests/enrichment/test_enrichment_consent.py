@@ -20,7 +20,7 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.err_msg import ErrMsg
 from tests._core.messages import AiConsent, t
 from tests._core.step import step
@@ -73,7 +73,7 @@ def test_consent_decline_closes_modal_and_blocks_enrich_post(owner_page: Page):
         owner_page.on(
             "request",
             lambda req: enrich_posts.append(req.url)
-            if req.method == "POST" and API.ENRICH_PREFIX in req.url
+            if req.method == "POST" and routes.ENRICH_PREFIX in req.url
             else None,
         )
 
