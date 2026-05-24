@@ -98,59 +98,6 @@ def test_webauthn_register_complete_400_without_challenge(superadmin_user, tenan
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _localhost_url(base_url: str) -> str:
-    """Заменить 127.0.0.1 на localhost для WebAuthn-совместимости.
-
-    Chrome WebAuthn API отбивает `127.0.0.1` с `SecurityError: This is an
-    invalid domain` потому что для этого IP-литерала нет валидного RP-id
-    fallback'а. `localhost` принимается как легитимный (Web IDL).
-    Backend слушает на 127.0.0.1 — DNS-резолюция localhost → 127.0.0.1
-    в одном loopback'е работает, но для browser context нужен hostname.
-    """
-    return base_url.replace("127.0.0.1", "localhost")
-
-
-def _make_localhost_context(browser, superadmin_user, base_url: str):
-    """BrowserContext указывающий на http://localhost:... (а не 127.0.0.1).
-
-    Тот же superadmin_user.cookies, но мы добавляем их под localhost-URL —
-    httpx эти cookies issued сервером для current scope, в браузере мы
-    выставляем их явно через ctx.add_cookies(url=).
-    """
-    localhost_url = _localhost_url(base_url)
-    ctx = browser.new_context(
-        base_url=localhost_url,
-        viewport={"width": 1440, "height": 900},
-    )
-    for name, value in superadmin_user.cookies.items():
-        ctx.add_cookies(
-            [{"name": name, "value": value, "url": localhost_url}]
-        )
-    return ctx
-
-
-def _add_virtual_authenticator(page) -> str:
-    """Регистрирует виртуальный TouchID-подобный authenticator через CDP.
-
-    Возвращает authenticatorId для последующего управления (mark verified, и т.п.).
-    Спецификация: https://chromedevtools.github.io/devtools-protocol/tot/WebAuthn/
-    """
-    cdp = page.context.new_cdp_session(page)
-    cdp.send("WebAuthn.enable", {"enableUI": False})
-    result = cdp.send(
-        "WebAuthn.addVirtualAuthenticator",
-        {
-            "options": {
-                "protocol": "ctap2",
-                "transport": "internal",  # эмулирует встроенный (TouchID/FaceID)
-                "hasResidentKey": True,
-                "hasUserVerification": True,
-                "isUserVerified": True,
-                "automaticPresenceSimulation": True,
-            }
-        },
-    )
-    return result["authenticatorId"]  # type: ignore[no-any-return]
 
 
 @allure.title("WebAuthn: полный цикл регистрации ключа через UI")
@@ -170,13 +117,13 @@ def test_webauthn_full_register_via_ui(
     (base64url helpers, navigator.credentials.create) собрана корректно и
     бэкенд принимает реальный attestation от Chrome WebAuthn-стека.
     """
-    ctx = _make_localhost_context(browser, superadmin_user, base_url)
+    ctx = make_localhost_context(browser, superadmin_user, base_url)
     try:
         with step("подготовка: открываем дашборд и добавляем virtual authenticator"):
             page = ctx.new_page()
             page.goto("/platform/dashboard")
             page.wait_for_load_state("domcontentloaded")
-            _add_virtual_authenticator(page)
+            add_virtual_authenticator(page)
 
         with step("действие: вызываем webauthnRegister через JS"):
             label = "VirtualE2EKey"
@@ -204,13 +151,13 @@ def test_webauthn_register_then_authenticate_via_ui(
 
     Гарантирует sign_count anti-replay работает: после auth счётчик растёт.
     """
-    ctx = _make_localhost_context(browser, superadmin_user, base_url)
+    ctx = make_localhost_context(browser, superadmin_user, base_url)
     try:
         with step("подготовка: открываем дашборд и регистрируем ключ"):
             page = ctx.new_page()
             page.goto("/platform/dashboard")
             page.wait_for_load_state("domcontentloaded")
-            _add_virtual_authenticator(page)
+            add_virtual_authenticator(page)
             page.evaluate("() => webauthnRegister('AuthFlowKey')")
 
         with step("действие: аутентификация через WebAuthn"):
