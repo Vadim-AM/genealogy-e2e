@@ -109,6 +109,7 @@ PLATFORM_WAITLIST = "/api/platform/waitlist"
 PLATFORM_BACKUPS = "/api/platform/backups"
 PLATFORM_NUDGES = "/api/platform/send-onboarding-nudges"
 PLATFORM_TENANT_OVERRIDE = "/api/platform/tenant-override"
+PLATFORM_EXPIRE_SUBSCRIPTIONS = "/api/platform/expire-subscriptions"
 
 # ── Test infra (gated by GENEALOGY_TEST_TOKEN env) ───────────────────
 TEST_RESET = "/api/_test/reset"

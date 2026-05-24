@@ -34,9 +34,10 @@ class ShareListResponse(BaseModel, extra="allow"):
 
 
 class SourceResponse(BaseModel, extra="allow"):
-    """Response from POST /api/sources and items in source lists."""
+    """Response from POST /api/sources and linked-source list items."""
 
-    id: str
+    id: str | None = None
+    source_id: str | None = None
     name: str
     type: str | None = None
 

@@ -9,7 +9,7 @@ from playwright.sync_api import Page, expect
 
 from api import auth_api
 from assertions.base import should
-from config.constants import make_email
+from config.constants import unique_email
 from framework.step import step
 from pages.invite_accept_page import InviteAcceptPage
 from pages.tree_page import TreePage
@@ -33,7 +33,7 @@ def test_invitee_lands_on_accept_page_sees_success_with_tenant_name(
 ) -> None:
     """TC-INV-001: invitee открывает invite → видит «Готово!» + ссылку на дерево."""
     with step("подготовка: создание приглашения и signup invitee"):
-        viewer_email = make_email("viewer")
+        viewer_email = unique_email("viewer")
         api = tenant_client(owner_user)
         invite = auth_api.create_invite(api, email=viewer_email, role="editor")
         invite_token = invite.token
@@ -66,7 +66,7 @@ def test_invitee_clicks_open_tree_lands_on_tree_with_authed_indicator(
 ) -> None:
     """Клик «Открыть древо» → / с авторизованным invitee в auth indicator."""
     with step("подготовка: создание приглашения и signup invitee"):
-        viewer_email = make_email("viewer2")
+        viewer_email = unique_email("viewer2")
         api = tenant_client(owner_user)
         invite = auth_api.create_invite(api, email=viewer_email, role="editor")
         invite_token = invite.token
@@ -140,7 +140,7 @@ def test_anonymous_emailed_invite_is_magic_link_auto_accepted(
 ) -> None:
     """v2-Phase1 H5: email-invite = magic-link → auto-accept без логина."""
     with step("подготовка: создание email-приглашения"):
-        viewer_email = make_email("magic-invitee")
+        viewer_email = unique_email("magic-invitee")
         api = tenant_client(owner_user)
         invite = auth_api.create_invite(api, email=viewer_email, role="viewer")
         invite_token = invite.token

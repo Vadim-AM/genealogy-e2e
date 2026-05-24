@@ -29,7 +29,7 @@ class BasePage:
 
     URL: str = "/"
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         self.page = page
 
     def goto(self, *, query: str = "") -> Self:

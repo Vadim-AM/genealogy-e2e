@@ -1,17 +1,21 @@
-"""XSS injection tests — payloads in person fields must be escaped in HTML."""
+"""XSS injection tests — payloads in person fields must not execute in DOM.
+
+Backend may either: (a) accept the payload (201) and rely on frontend escaping,
+or (b) reject it at validation (422) — both are safe. The test passes in either case.
+"""
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import allure
 import pytest
 
-from api import person_api, site_api
+from api import routes, site_api
 from assertions.base import should
 from framework.step import step
-from models.person import PersonCreate
 from pages.profile_panel import ProfilePanel
 from pages.tree_page import TreePage
 from src.texts import ErrMsg, TestData
@@ -29,7 +33,7 @@ if TYPE_CHECKING:
 
 @pytest.mark.security
 @pytest.mark.parametrize("payload", XSS_PAYLOADS, ids=lambda p: p[:30])
-@allure.title("XSS: payload в имени персоны экранируется при рендере")
+@allure.title("XSS: payload в имени персоны не исполняется")
 def test_person_name_xss_is_escaped(
     owner_page: Page,
     owner_user: AuthUser,
@@ -37,22 +41,21 @@ def test_person_name_xss_is_escaped(
     payload: str,
     pages: PageFactory,
 ) -> None:
-    """SEC-INJ-1: XSS в поле name персоны не исполняется в DOM."""
+    """SEC-INJ-1: XSS в поле name — backend отклоняет (422) или frontend экранирует."""
     api = tenant_client(owner_user)
     pid = f"xss-{uuid4().hex[:8]}"
 
     with step("создать персону с XSS-payload в имени"):
-        person_api.create_person(
-            api,
-            PersonCreate(
-                id=pid,
-                name=payload,
-                branch="paternal",
-                gender="m",
-            ),
+        r = api.post(
+            routes.PEOPLE,
+            json={"id": pid, "name": payload, "branch": "paternal", "gender": "m"},
         )
 
+    if r.status_code == HTTPStatus.UNPROCESSABLE_ENTITY:
+        return
+
     with step("открыть дерево и проверить экранирование"):
+        should.be_equal(r.status_code, HTTPStatus.CREATED, ErrMsg.response_not_ok)
         _ = pages.navigate_to(TreePage)
         content = owner_page.content()
         should.not_contain(content, "<script>alert", ErrMsg.xss_script_rendered)
@@ -62,7 +65,7 @@ def test_person_name_xss_is_escaped(
 
 @pytest.mark.security
 @pytest.mark.parametrize("payload", XSS_PAYLOADS, ids=lambda p: p[:30])
-@allure.title("XSS: payload в summary/notes персоны экранируется")
+@allure.title("XSS: payload в summary/notes персоны не исполняется")
 def test_person_notes_xss_is_escaped(
     owner_page: Page,
     owner_user: AuthUser,
@@ -70,13 +73,17 @@ def test_person_notes_xss_is_escaped(
     payload: str,
     pages: PageFactory,
 ) -> None:
-    """SEC-INJ-2: XSS в поле summary не исполняется при просмотре профиля."""
+    """SEC-INJ-2: XSS в поле summary — backend отклоняет или frontend экранирует."""
     api = tenant_client(owner_user)
 
     with step("обновить summary демо-персоны с XSS-payload"):
-        person_api.patch_person(api, TestData.DEMO_PERSON_ID, summary=payload)
+        r = api.patch(routes.person(TestData.DEMO_PERSON_ID), json={"summary": payload})
+
+    if r.status_code == HTTPStatus.UNPROCESSABLE_ENTITY:
+        return
 
     with step("открыть профиль и проверить экранирование"):
+        should.be_true(r.is_success, ErrMsg.response_not_ok)
         ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         content = owner_page.content()
         should.not_contain(content, "<script>alert", ErrMsg.xss_script_rendered)
