@@ -76,9 +76,9 @@ class PersonEditor:
         self.btn_cancel.click()
 
     def delete_btn_by_role(self) -> Locator:
-        """Return a delete button locator via accessible role + name."""
+        """Return a delete button locator scoped to editor via accessible role."""
         from src.texts import Buttons, t
-        return self.page.get_by_role("button", name=t(Buttons.DELETE), exact=False)
+        return self.container.get_by_role("button", name=t(Buttons.DELETE), exact=False)
 
     def expect_visible(self) -> None:
         """Assert the editor container and key fields are visible."""

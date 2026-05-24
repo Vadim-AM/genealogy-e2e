@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 from playwright.sync_api import Locator, Page, expect
 
+from framework.step import step
 from src.texts import Buttons, Enrichment, FamilyGroups, TestData, t
 
 if TYPE_CHECKING:
@@ -71,18 +72,21 @@ class ProfilePanel:
 
     def open_editor(self) -> PersonEditor:
         """Click Edit and return the person editor."""
-        self.btn_edit.click()
         from pages.person_editor import PersonEditor
 
-        return PersonEditor(self.page)
+        with step("открытие редактора персоны"):
+            self.btn_edit.click()
+            return PersonEditor(self.page)
 
     def trigger_enrichment(self) -> None:
         """Click the enrichment button to start AI search."""
-        self.btn_enrich.click()
+        with step("клик «Найти больше»"):
+            self.btn_enrich.click()
 
     def close(self) -> None:
         """Click the back button to close the profile panel."""
-        self.btn_back.click()
+        with step("закрытие профиля"):
+            self.btn_back.click()
 
     # ──────────────────────────────────────────────────────────────────
     # Add-relative
@@ -124,11 +128,12 @@ class ProfilePanel:
     @staticmethod
     def navigate_to(page: Page, person_id: str) -> ProfilePanel:
         """Go to a person's profile page and wait for it to render."""
-        page.goto(f"/#/p/{person_id}")
-        page.wait_for_load_state("domcontentloaded")
-        panel = ProfilePanel(page)
-        panel.expect_visible()
-        return panel
+        with step(f"навигация к профилю {person_id}"):
+            page.goto(f"/#/p/{person_id}")
+            page.wait_for_load_state("domcontentloaded")
+            panel = ProfilePanel(page)
+            panel.expect_visible()
+            return panel
 
     # ──────────────────────────────────────────────────────────────────
     # Profile data locators (data-testid sections)
@@ -183,8 +188,9 @@ class ProfilePanel:
 
     def click_family_link(self, group_label: str, name_substring: str) -> None:
         """Click a relative's name link inside a family group."""
-        self.family_link(group_label, name_substring).click()
-        expect(self.container).to_be_visible()
+        with step(f"клик по родственнику «{name_substring}»"):
+            self.family_link(group_label, name_substring).click()
+            expect(self.container).to_be_visible()
 
     # ──────────────────────────────────────────────────────────────────
     # AI enrichment chips (accepted facts)
@@ -198,15 +204,16 @@ class ProfilePanel:
 
     def revert_first_chip(self) -> None:
         """Click the revert button on the first accepted AI chip."""
-        # no semantic: data-testid element, no role
-        self.accepted_chips.first.locator('[data-testid="profile-ai-chip-revert"]').click()
+        with step("клик «Снять» на первом AI-чипе"):
+            # no semantic: data-testid element, no role
+            self.accepted_chips.first.locator('[data-testid="profile-ai-chip-revert"]').click()
 
     def confirm_revert(self) -> None:
         """Click the revert confirmation button in the prompt."""
-        from src.texts import Enrichment, t
-        self.page.get_by_role(
-            "button", name=t(Enrichment.REVERT_OK), exact=True,
-        ).click()
+        with step("подтверждение снятия AI-факта"):
+            self.page.get_by_role(
+                "button", name=t(Enrichment.REVERT_OK), exact=True,
+            ).click()
 
     @property
     def enrich_disabled_tooltip(self) -> str:
