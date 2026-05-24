@@ -174,7 +174,7 @@ Use in tests; fixtures keep `.raise_for_status()`.
 
 For API helpers returning typed responses, use `ApiResponse` wrapper:
 ```python
-from tests._core.response import ApiResponse
+from framework.response import ApiResponse
 resp = ApiResponse(raw_response)
 data = resp.expect(label="create person").status(HTTPStatus.CREATED).schema(PersonResponse)
 ```
@@ -182,8 +182,8 @@ data = resp.expect(label="create person").status(HTTPStatus.CREATED).schema(Pers
 ### 9. No raw `httpx.*` calls — go through `tenant_client(user)`
 
 Each test was repeating `cookies=user.cookies, headers={"X-Tenant-Slug":
-user.slug}, timeout=TIMEOUTS.api_request` on every API call. Encapsulated
-in `tenant_client(user)` factory in conftest:
+user.slug}` on every API call. Default timeout is built into the httpx
+monkey-patch. Encapsulated in `tenant_client(user)` factory in conftest:
 
 ```python
 def test_x(owner_user, tenant_client):
@@ -222,7 +222,7 @@ password = TestConfig.DEFAULT_PASSWORD
 # bad
 email = f"label@e2e.example.com"
 # good
-from tests.constants import make_email, unique_email
+from config.constants import make_email, unique_email
 email = make_email("label")            # deterministic
 email = unique_email("waitlist1")      # uuid-suffixed (when reset_state doesn't wipe target table)
 ```
@@ -320,7 +320,7 @@ lives in one domain — the domain it most naturally belongs to. No
 ### 17. Step visibility — in helpers AND test functions
 
 ```python
-from tests.step import step
+from framework.step import step
 
 with step("подготовка: создать пользователя"):
     user = signup_via_api()
@@ -397,8 +397,8 @@ r.raise_for_status()
 people = r.json()["people"]
 
 # good — typed helper with Pydantic model
-from tests.helpers.api.person_api import create_person, get_tree
-from tests._models.person import PersonCreate
+from api.person_api import create_person, get_tree
+from models.person import PersonCreate
 
 person = create_person(api, PersonCreate(id=pid, name=name))
 tree = get_tree(api)
@@ -426,7 +426,7 @@ def test_tree(pages: PageFactory):
 expect(locator).to_be_visible()
 
 # good
-from tests._core.err_msg import ErrMsg
+from src.texts import ErrMsg
 expect(locator, ErrMsg.profile_not_visible).to_be_visible()
 ```
 
