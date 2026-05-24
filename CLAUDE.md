@@ -88,7 +88,7 @@ is incremental). Tests bound to one form break when the other lands.
 ### 4. No hardcoded text in tests
 
 Every Russian-language text the suite asserts on or selects by lives in
-`tests/messages.py`. Switching to English will be one file edit instead
+`src/texts.py`. Switching to English will be one file edit instead
 of a ~30% test rewrite.
 
 When you need to add a new visible string:
@@ -101,10 +101,10 @@ When you need to add a new visible string:
 When extending the catalogue, add an `en` translation even if there's no
 English locale yet — costs one minute, prevents future hunt.
 
-### 5. No hardcoded timeouts — and all config via `tests/settings.py`
+### 5. No hardcoded timeouts — and all config via `config/settings.py`
 
-Every timeout routes through `tests/timeouts.py`. All environment config
-validates at collection time via Pydantic in `tests/settings.py`:
+Every timeout routes through `config/timeouts.py`. All environment config
+validates at collection time via Pydantic in `config/settings.py`:
 
 | Env var | Required | Default |
 |---------|----------|---------|
@@ -117,12 +117,9 @@ validates at collection time via Pydantic in `tests/settings.py`:
 Invalid or missing required env → immediate `pytest.exit` with a Pydantic
 error before any fixture runs.
 
-**Categories** (pick the smallest one that fits):
-- `api_short` (5s) — fire-and-forget admin/test endpoints.
-- `api_request` (10s) — typical product API call.
-- `api_long` (30s) — exports / bulk operations.
-- `health_gate` (30s) — subprocess /api/health bootstrap.
-- `enrichment_poll` (30s) — background job completion.
+Default httpx timeout (10s) is built into the monkey-patch (`fixtures/patch.py`)
+— don't pass `timeout=` explicitly. Override only when needed:
+- `TIMEOUTS.api_long` (30s) — exports, GEDCOM import, enrichment jobs.
 
 Playwright's `expect()` default auto-wait is fine — don't add explicit
 `timeout=10_000` in tests; bumping the global multiplier covers it.
@@ -166,7 +163,7 @@ data = r.json()
 assert "tenant_slug" in data
 
 # good
-from tests._core.response import expect_response
+from framework.response import expect_response
 expect_response(r).status(HTTPStatus.OK).json_has("tenant_slug")
 ```
 
@@ -202,7 +199,7 @@ factory calls (each closed automatically on teardown).
 **Anonymous calls** (lending, public health) — pass `httpx.get(f"{base_url}{routes.HEALTH}")`
 directly; no client needed. Or use a top-level `httpx.Client(base_url=base_url)`.
 
-### 10. No raw URL strings — go through `tests/_core/api_paths`
+### 10. No raw URL strings — go through `api/routes`
 
 ```python
 # bad
@@ -302,22 +299,23 @@ imports. Everything else has a dedicated home:
 
 | What | Where |
 |------|-------|
-| Helper functions (navigation, API wrappers, UI actions) | `tests/helpers/<domain>/` |
-| Test data (GEDCOM samples, JPEG bytes, device descriptors) | `tests/_data/<topic>/` |
-| Payload builders (tree, person, relationship factories) | `tests/_data/payloads/` |
-| Global fixtures (auth, server, clients) | `tests/_fixtures/` |
+| Helper functions (navigation, UI actions) | `helpers/<domain>/` |
+| Typed API wrappers | `api/<domain>_api.py` |
+| Test data (GEDCOM samples, JPEG bytes, device descriptors) | `test_data/<topic>/` |
+| Payload builders (tree, person, relationship factories) | `test_data/payloads/` |
+| Global fixtures (auth, server, clients) | `fixtures/` |
 | Domain-scoped fixtures (viewport factories, role builders) | `tests/<domain>/conftest.py` |
 | File-scoped autouse fixtures (AI-flag toggle, device parametrize) | stays in the test file |
-| Page Objects | `tests/pages/` |
+| Page Objects | `pages/` |
 
 **Module-level constants** (`_IS_OPEN = re.compile(...)`, threshold values)
 may stay in the test file when they are consumed only by that file.
 
-When adding a new helper: pick `tests/helpers/<domain>/` by semantic domain,
+When adding a new helper: pick `helpers/<domain>/` by semantic domain,
 not by which test file calls it. A helper used by multiple domains still
 lives in one domain — the domain it most naturally belongs to. No
-`tests/helpers/common/` — if it's truly generic, it goes in `tests/pages/`
-(if UI-related) or `tests/_fixtures/` (if fixture-related).
+`helpers/common/` — if it's truly generic, it goes in `pages/`
+(if UI-related) or `fixtures/` (if fixture-related).
 
 ### 17. Step visibility — in helpers AND test functions
 
@@ -341,9 +339,9 @@ Steps render as collapsible blocks in Allure with pass/fail + timing.
 ### 18. Shared utilities live in POMs, not in test files
 
 Patterns reusable across tests belong on Page Objects:
-- `custom_select_for(page, field)` → `tests/pages/base.py`
-- `ProfilePanel.navigate_to(page, person_id)` → `tests/pages/profile_panel.py`
-- `open_editor_for(page, person_id)` → `tests/pages/profile_panel.py`
+- `custom_select_for(page, field)` → `pages/base.py`
+- `ProfilePanel.navigate_to(page, person_id)` → `pages/profile_panel.py`
+- `open_editor_for(page, person_id)` → `pages/profile_panel.py`
 
 ### 19. Type hints + one-line docstrings on all public functions
 
@@ -474,7 +472,7 @@ not yet in DOM → check passes instantly).
 
 `BasePage → FeaturePage` is the maximum. A third level is a signal to
 extract a component. Repeated UI blocks (modals, panels, dropdowns)
-become standalone classes in `tests/pages/` that receive a `root: Locator`.
+become standalone classes in `pages/` that receive a `root: Locator`.
 
 ### 29. Files > 500 lines → decompose
 
@@ -492,75 +490,72 @@ Don't create throwaway scripts in `/tmp/` for debugging — MCP browser
 covers most scenarios. On test failure — trace viewer
 (`playwright show-trace`) + Allure screenshots.
 
+### 31. No `except Exception` — use specific types
+
+`except Exception` masks bugs. Use `json.JSONDecodeError`, `ValueError`,
+`OSError`, `TypeError` etc. The only acceptable broad catch is
+`except BaseException` in a `finally`-like pattern that re-raises.
+
+### 32. No unnecessary `_` prefix on names
+
+Underscore means "internal, don't import." Use it only for truly private
+helpers (`_sanitize_json`, `_fail`). Module-level constants, classes, and
+public functions are public: `Timeouts`, `LOCALE`, `build_timeouts()`.
+
+### 33. Use `from http import HTTPStatus` for status codes
+
+`expect_response(r).status(HTTPStatus.OK)`, not `.status(200)`.
+httpx default timeout (10s) is built into the monkey-patch — don't pass
+`timeout=` explicitly unless overriding to `TIMEOUTS.api_long`.
+
 ## Project structure
 
 ```
 genealogy-e2e/
-├── conftest.py               # root: loads tests/_fixtures/* plugins + path→marker rule
-├── tests/
-│   ├── _core/                # Infrastructure modules (settings, api_paths, messages, etc.)
-│   │   ├── api_paths.py      # API endpoint catalogue
-│   │   ├── messages.py       # Locale-aware UI strings + t() resolver
-│   │   ├── constants.py      # TestConfig, email/password factories
-│   │   ├── timeouts.py       # TIMEOUTS dataclass + multiplier
-│   │   ├── response.py       # expect_response() fluent assertions + .schema()
-│   │   ├── settings.py       # Pydantic env validation
-│   │   ├── step.py           # Allure step() context manager
-│   │   └── err_msg.py        # ErrMsg class (assertion messages)
-│   ├── _models/              # Pydantic API contract models
-│   │   ├── person.py         # PersonCreate, PersonResponse, TreeResponse
-│   │   ├── auth.py           # SignupRequest, LoginResponse, AccountMe
-│   │   ├── mfa.py            # MfaSetupResponse, MfaStatusResponse, etc.
-│   │   ├── enrichment.py     # EnrichStartResponse, EnrichJobResponse
-│   │   ├── site.py           # SiteConfigResponse, ShareCreateResponse
-│   │   └── platform.py       # FeaturesResponse, AuditLogResponse, etc.
-│   ├── _fixtures/            # GLOBAL fixtures (session/function scope, cross-domain)
-│   │   ├── patch.py          # httpx monkey-patch + Playwright expect default
-│   │   ├── server.py         # base_url, health gate, reset_state, install_mock_ai
-│   │   ├── users.py          # AuthUser + signup_via_api / owner_user / superadmin_user
-│   │   ├── clients.py        # tenant_client, auth_context_factory, owner_page
-│   │   ├── page_factory.py   # PageFactory + pages/anon_pages fixtures
-│   │   └── utils.py          # soft_check
-│   ├── _data/                # Test data artifacts (no logic, pure constants)
-│   │   ├── gedcom/samples.py # GEDCOM_THREE_GEN, SAMPLE_GEDCOM_UTF8, ...
-│   │   ├── media/jpeg.py     # MIN_JPEG_BYTES
-│   │   ├── devices/descriptors.py  # DEVICE_DESCRIPTORS (mobile emulation)
-│   │   └── payloads/         # tree.py, injection.py (XSS/SQL payloads)
-│   ├── helpers/              # Domain-organized helper functions
-│   │   ├── api/              # Typed API wrappers (person_api, mfa_api, site_api, etc.)
-│   │   ├── auth/             # auth_ui, signup_helpers, session_helpers
-│   │   ├── tree/             # tree_api, tree_navigation, photos, add_relative
-│   │   ├── admin/            # gedcom_ui (import_via_ui, open_import_tab)
-│   │   ├── security/         # timing (measure, ratio)
-│   │   ├── enrichment/       # enrichment_ui (open_demo_self, consent_dialog)
-│   │   └── ui/               # viewport, i18n_checks, custom_select
-│   ├── pages/                # Page Objects + shared UI utilities
-│   │   ├── base.py           # BasePage, wait_for_authed_shell, custom_select_for
-│   │   ├── profile_panel.py  # ProfilePanel + open_editor_for, navigate_to
-│   │   ├── person_editor.py  # PersonEditor, AddRelativeModal
-│   │   └── ...               # login_page, signup_page, tree_page, etc.
-│   ├── auth/                 # signup/login/verify/forgot/invite/session/etc.
-│   ├── tree/                 # tree, profile, person editor, photos, invariants
-│   ├── platform/             # superadmin platform (dashboard, MFA, WebAuthn, ops)
-│   ├── admin/                # tenant admin (owner, site config, subscription)
-│   ├── security/             # CSP, headers, timing, role-perm, GDPR, PII
-│   │   └── conftest.py       # viewer_in_owners_tenant fixture
-│   ├── enrichment/           # AI enrichment (consent, mock flow, disabled-mode)
-│   ├── ui/                   # landing, i18n, a11y, responsive, legal, waitlist
-│   │   └── conftest.py       # mobile_page, tablet_owner_page fixtures
-│   ├── test_smoke.py         # canary (no domain — runs on every PR)
-│   ├── test_regressions.py   # closed-bug regressions (no domain)
-│   └── test_api_coverage.py  # coverage gate: backend OpenAPI vs API catalogue
-├── scripts/
-│   └── check_drift.py        # Lints rules #5/#9 against tests/ + tests/pages/
-├── docker/Dockerfile.e2e     # CI-friendly image
-├── docker-compose.yml        # backend + e2e wiring
-├── .github/workflows/
-│   └── pr-check.yml          # boots uvicorn → drift-lint → pytest
-├── pyproject.toml            # deps, pytest config, ruff, mypy — single source
-└── scripts/
-    ├── check_drift.py        # Rule #5/#9 drift lint
-    └── flakiness_report.py   # Weekly flaky test analysis
+├── api/                      # routes.py (endpoint catalogue) + typed API wrappers
+│   ├── routes.py             # module-level constants + builder functions
+│   ├── person_api.py         # get_tree, create_person, patch_person, delete_person
+│   ├── auth_api.py           # signup, verify_email, login, read_email_token
+│   ├── mfa_api.py, enrichment_api.py, platform_api.py, relationship_api.py, site_api.py
+├── config/                   # Pydantic settings, timeouts, test constants
+│   ├── settings.py           # E2E_BACKEND_URL, locale, multiplier (Pydantic)
+│   ├── timeouts.py           # TIMEOUTS dataclass (default, api_long, pw_*)
+│   └── constants.py          # TestConfig, make_email, unique_email
+├── framework/                # Response assertions, step decorator
+│   ├── response.py           # expect_response() chain + ApiResponse wrapper
+│   └── step.py               # Allure step() context manager
+├── models/                   # Pydantic API contract models
+│   ├── person.py, auth.py, mfa.py, enrichment.py, site.py, platform.py
+├── fixtures/                 # Global pytest fixture plugins
+│   ├── patch.py              # httpx monkey-patch (headers, default timeout) + Playwright expect
+│   ├── server.py             # base_url, health gate, reset_state, install_mock_ai
+│   ├── users.py              # AuthUser + signup_via_api / owner_user / superadmin_user
+│   ├── clients.py            # tenant_client, auth_context_factory, owner_page
+│   ├── page_factory.py       # PageFactory + pages/anon_pages fixtures
+│   └── utils.py              # soft_check
+├── pages/                    # Page Objects
+│   ├── base.py               # BasePage, custom_select_for
+│   ├── tree_page.py          # TreePage (orbit cards, tabs, search, open_center_profile)
+│   ├── profile_panel.py      # ProfilePanel + open_editor_for
+│   ├── person_editor.py      # PersonEditor, AddRelativeModal
+│   └── ...                   # login, signup, forgot, invite, owner, mfa, enrichment, etc.
+├── helpers/                  # Domain-organized helper functions
+│   ├── auth/                 # auth_ui, signup_helpers, session_helpers
+│   ├── tree/                 # tree_api, tree_navigation, photos, add_relative
+│   ├── admin/                # gedcom_ui
+│   ├── security/             # timing
+│   ├── enrichment/           # enrichment_ui
+│   └── ui/                   # viewport, i18n_checks
+├── src/texts.py              # ErrMsg + locale-aware UI strings + t() resolver
+├── test_data/                # Pure test data (no logic)
+│   ├── gedcom/samples.py, media/jpeg.py, devices/descriptors.py, payloads/
+├── tests/                    # ONLY test files + domain conftest.py
+│   ├── auth/, tree/, platform/, admin/, security/, enrichment/, ui/
+│   ├── test_smoke.py, test_regressions.py, test_api_coverage.py, test_api_invariants.py
+├── conftest.py               # root: loads fixtures/* plugins + path→marker rule
+├── scripts/check_drift.py    # Lints rules #5/#9 against tests/ + pages/ + helpers/
+├── pyproject.toml            # deps, pytest config, ruff, mypy
+└── .github/workflows/pr-check.yml
 ```
 
 Tests under `tests/<domain>/` automatically get `@pytest.mark.<domain>` via
@@ -569,7 +564,7 @@ with `pytest -m auth`, `pytest -m security`, etc. — no per-file marker lines.
 
 ## Drift enforcement
 
-`scripts/check_drift.py` lints all `tests/*.py` (and `tests/pages/*.py`)
+`scripts/check_drift.py` lints `tests/`, `pages/`, and `helpers/`
 against rules #5 and #9 — runs in CI as a pre-pytest step. Catches
 `page.wait_for_timeout()`, hardcoded `time.sleep(N)`, `timeout=N` literals,
 and raw `'/api/...'` strings. Whitelist legitimate uses (e.g. router-shape
@@ -671,8 +666,8 @@ The suite assumes these exist in `genealogy/backend/app/_test_endpoints.py`,
 gated by `IS_TESTING` **and** a shared-secret token (commit `4a3f326`,
 `INV-TEST-001/002/003`). Every `/api/_test/*` call must carry
 `X-Test-Token: <GENEALOGY_TEST_TOKEN>`; the suite injects it automatically
-via the httpx monkey-patch in `tests/_fixtures/patch.py` using
-`settings.test_token` from `tests/settings.py` (env `E2E_TEST_TOKEN`). The backend
+via the httpx monkey-patch in `fixtures/patch.py` using
+`settings.test_token` from `config/settings.py` (env `E2E_TEST_TOKEN`). The backend
 must boot with the **same** value in `GENEALOGY_TEST_TOKEN` or the endpoints
 fail-closed (`503` no token → `401` no header → `403` wrong token):
 
@@ -723,14 +718,15 @@ already cost a near-lost rewrite.
 | I need to add... | Put it in... |
 |------------------|-------------|
 | A new test | `tests/<domain>/test_<feature>.py` |
-| A helper function | `tests/helpers/<domain>/<topic>.py` |
-| A Page Object | `tests/pages/<page_name>.py` |
-| Test data (GEDCOM, JSON, bytes) | `tests/_data/<topic>/` |
-| A global fixture | `tests/_fixtures/<topic>.py` |
+| A helper function | `helpers/<domain>/<topic>.py` |
+| A Page Object | `pages/<page_name>.py` |
+| A typed API wrapper | `api/<domain>_api.py` |
+| An API route | `api/routes.py` (module-level constants + builders) |
+| Test data (GEDCOM, JSON, bytes) | `test_data/<topic>/` |
+| A global fixture | `fixtures/<topic>.py` |
 | A domain fixture | `tests/<domain>/conftest.py` |
-| A UI string | `tests/messages.py` (class + `t()`) |
-| An API path | `tests/_core/api_paths.py` (module-level constants + builders) |
-| An env var | `tests/settings.py` (Pydantic field) |
+| A UI string / ErrMsg | `src/texts.py` |
+| An env var | `config/settings.py` (Pydantic field) |
 
 ## When in doubt
 
