@@ -140,7 +140,7 @@ def test_features_endpoint_public_returns_ai_disabled_flag(uvicorn_server: str):
     """
     with step("действие: запрос /api/config/features"):
         r = httpx.get(
-            f"{uvicorn_server}{routes.CONFIG_FEATURES}", timeout=TIMEOUTS.api_request
+            f"{uvicorn_server}{routes.CONFIG_FEATURES}"
         )
 
     with step("проверка: public доступ и ai_search_enabled=false"):
@@ -183,7 +183,7 @@ def test_enrich_endpoint_returns_503_when_ai_disabled(
     401/403 = auth-проверка обогнала router-guard, 200/500 = AI-кодпуть
     выполнился.
     """
-    r = httpx.request(method, f"{uvicorn_server}{path}", json={}, timeout=TIMEOUTS.api_request)
+    r = httpx.request(method, f"{uvicorn_server}{path}", json={})
     assert r.status_code == HTTPStatus.SERVICE_UNAVAILABLE, (
         f"{method} {path}: ожидали 503, получили {r.status_code}. "
         f"Detail: {r.text[:200]}"

@@ -53,7 +53,7 @@ def uvicorn_server(base_url: str) -> str:
 def post_reset(uvicorn_server: str) -> None:
     """POST /api/_test/reset to wipe backend state."""
     httpx.post(
-        f"{uvicorn_server}{routes.TEST_RESET}", timeout=TIMEOUTS.api_request
+        f"{uvicorn_server}{routes.TEST_RESET}"
     ).raise_for_status()
 
 
@@ -103,7 +103,6 @@ def install_mock_ai(baseline_reset: None, uvicorn_server: str) -> None:
     httpx.post(
         f"{uvicorn_server}{routes.TEST_INSTALL_MOCK_AI}",
         json=fixture,
-        timeout=TIMEOUTS.api_request,
     ).raise_for_status()
 
 

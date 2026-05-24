@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
-from config.timeouts import TIMEOUTS
 from framework.step import step
 from pages.signup_page import SignupPage
 from src.texts import ErrMsg
@@ -71,7 +70,7 @@ def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFac
 
     with step("проверка: поле пароля получило aria-invalid"):
         expect(signup.password, ErrMsg.wrong_attribute).to_have_attribute(
-            "aria-invalid", "true", timeout=TIMEOUTS.api_request * 1000
+            "aria-invalid", "true" * 1000
         )
 
 

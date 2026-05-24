@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 import httpx
 
 from api import routes
-from config.timeouts import TIMEOUTS
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -20,7 +19,6 @@ def me_status(base_url: str, cookies: dict[str, str]) -> int:
     return httpx.get(
         f"{base_url}{routes.ACCOUNT_ME}",
         cookies=cookies,
-        timeout=TIMEOUTS.api_request,
     ).status_code
 
 
@@ -31,11 +29,9 @@ def trigger_password_reset(
     httpx.post(
         f"{base_url}{routes.FORGOT_PASSWORD}",
         json={"email": email},
-        timeout=TIMEOUTS.api_request,
     ).raise_for_status()
     token = read_email_token(email)
     httpx.post(
         f"{base_url}{routes.RESET_PASSWORD}",
         json={"token": token, "new_password": new_password},
-        timeout=TIMEOUTS.api_request,
     ).raise_for_status()

@@ -19,7 +19,6 @@ import httpx
 
 from api import routes
 from config.constants import unique_email
-from config.timeouts import TIMEOUTS
 from framework.step import step
 
 _TENANT_A_VALUE = "Семья A — приватное"
@@ -92,7 +91,7 @@ def test_anonymous_site_config_does_not_leak_tenant_value(
         ).raise_for_status()
 
     with step("проверка: анонимный GET не возвращает значение tenant A"):
-        r = httpx.get(f"{base_url}{routes.SITE_CONFIG}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.SITE_CONFIG}")
         r.raise_for_status()
         anon_value = r.json().get("site_name") or ""
         assert anon_value != _TENANT_A_VALUE, (

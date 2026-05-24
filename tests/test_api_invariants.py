@@ -16,7 +16,6 @@ import allure
 import httpx
 
 from api import auth_api, platform_api, relationship_api, routes
-from config.timeouts import TIMEOUTS
 from framework.response import expect_response
 from framework.step import step
 from models.person import LocationResponse, PersonResponse
@@ -75,7 +74,7 @@ def test_cookie_consent_round_trips(owner_user, tenant_client):
 @allure.title("API: /api/config публичен и содержит site_name")
 def test_config_is_public_and_carries_site_name(base_url):
     """GET /api/config is public (no auth) and exposes tenant branding."""
-    r = httpx.get(f"{base_url}{routes.CONFIG}", timeout=TIMEOUTS.api_request)
+    r = httpx.get(f"{base_url}{routes.CONFIG}")
     expect_response(r, label="config").status_ok().json_has("site_name")
 
 
@@ -142,7 +141,7 @@ def test_postmark_webhook_rejects_unsigned(base_url):
     """POST /api/notifications/postmark-webhook without the signature
     header is rejected — inbound webhooks must be authenticated."""
     r = httpx.post(f"{base_url}{routes.WEBHOOK_POSTMARK}",
-                   json={"RecordType": "Bounce"}, timeout=TIMEOUTS.api_request)
+                   json={"RecordType": "Bounce"})
     expect_response(r, label="unsigned postmark webhook").status(HTTPStatus.UNAUTHORIZED)
 
 
@@ -151,7 +150,7 @@ def test_resend_webhook_rejects_unsigned(base_url):
     """POST /api/notifications/resend-webhook without the svix signature
     is rejected."""
     r = httpx.post(f"{base_url}{routes.WEBHOOK_RESEND}",
-                   json={"type": "email.bounced"}, timeout=TIMEOUTS.api_request)
+                   json={"type": "email.bounced"})
     expect_response(r, label="unsigned resend webhook").status(HTTPStatus.UNAUTHORIZED)
 
 
@@ -283,7 +282,6 @@ def test_tenant_delete_then_restore(
             json={"tenant_slug": owner_user.slug},
             cookies=cookies,
             headers={"Origin": base_url},
-            timeout=TIMEOUTS.api_request,
         )
 
     with step("проверка: тенант восстановлен"):

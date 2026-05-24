@@ -48,7 +48,7 @@ def test_login_with_correct_credentials_succeeds(
         assert session_cookie, f"no platform_session/session_id cookie set after login: {cookies}"
 
     with step("проверка: /me возвращает правильный tenant"):
-        me = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", cookies=cookies, timeout=TIMEOUTS.api_request)
+        me = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", cookies=cookies)
         expect_response(me, label="/me after login").status_ok()
         assert me.json()["tenant"]["slug"] == owner_user.slug, \
             f"/me tenant slug: expected {owner_user.slug!r}, got {me.json()['tenant']['slug']!r}"

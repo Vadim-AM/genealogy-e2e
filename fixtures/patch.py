@@ -21,7 +21,7 @@ from typing import Any
 import httpx
 
 from config.settings import settings
-from config.timeouts import set_playwright_default_expect_timeout
+from config.timeouts import TIMEOUTS, set_playwright_default_expect_timeout
 
 TEST_TOKEN = settings.test_token
 
@@ -112,6 +112,7 @@ def patched_request(self: httpx.Client, method: str, url: object, **kwargs: Any)
         headers.setdefault("X-Forwarded-For", xff)
 
     kwargs["headers"] = headers
+    kwargs.setdefault("timeout", TIMEOUTS.api_request)
     return _orig_httpx_request(self, method, url, **kwargs)  # type: ignore[arg-type]
 
 

@@ -23,7 +23,6 @@ import httpx
 
 from api import routes
 from config.constants import unique_email
-from config.timeouts import TIMEOUTS
 from framework.step import step
 
 
@@ -42,7 +41,7 @@ def test_welcome_email_uses_public_url_env_not_hardcoded_prod(
         email = unique_email("welcome")
         signup_via_api(email=email)
 
-        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+        with httpx.Client(base_url=uvicorn_server) as c:
             mail = c.get(routes.TEST_LAST_EMAIL, params={"to": email})
             mail.raise_for_status()
             body = mail.json()

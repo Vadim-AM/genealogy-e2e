@@ -20,7 +20,6 @@ from __future__ import annotations
 import allure
 import httpx
 
-from config.timeouts import TIMEOUTS
 from framework.step import step
 from src.texts import PII
 
@@ -35,7 +34,7 @@ def test_constants_js_no_owner_pii(base_url: str):
     «удобства ради»).
     """
     with step("действие: запрашиваем /js/constants.js"):
-        r = httpx.get(f"{base_url}/js/constants.js", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}/js/constants.js")
         r.raise_for_status()
         body = r.text
 
@@ -56,7 +55,7 @@ def test_index_html_no_owner_pii_in_inline_scripts(base_url: str):
     photoCaptions из index.html. Этот тест держит лендинг чистым.
     """
     with step("действие: запрашиваем / (лендинг)"):
-        r = httpx.get(f"{base_url}/", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}/")
         r.raise_for_status()
         body = r.text
 
@@ -77,7 +76,7 @@ def test_constants_js_has_no_geo_coordinates(base_url: str):
     Усть-Каменогорск, Да Нанг — owner's family migration history.
     """
     with step("действие: запрашиваем /js/constants.js"):
-        r = httpx.get(f"{base_url}/js/constants.js", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}/js/constants.js")
         r.raise_for_status()
         body = r.text
 
@@ -104,7 +103,7 @@ def test_constants_js_size_bounded(base_url: str):
     owner data of any shape (catches future PII without enumerating
     specific names/places)."""
     with step("действие: запрашиваем /js/constants.js"):
-        r = httpx.get(f"{base_url}/js/constants.js", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}/js/constants.js")
         r.raise_for_status()
         size = len(r.content)
 

@@ -14,7 +14,6 @@ import httpx
 import pytest
 from playwright.sync_api import Page, expect
 
-from config.timeouts import TIMEOUTS
 from framework.step import step
 from pages.tree_page import TreePage
 from src.texts import ErrMsg
@@ -105,7 +104,7 @@ def test_landing_footer_legal_link_resolves_to_200(
     Playwright ради этого избыточно.
     """
     with step("действие: запросить юридическую страницу"):
-        response = httpx.get(f"{base_url}{href}", follow_redirects=True, timeout=TIMEOUTS.api_request)
+        response = httpx.get(f"{base_url}{href}", follow_redirects=True)
 
     with step("проверка: 200 и content-type text/html"):
         assert response.status_code == HTTPStatus.OK, (

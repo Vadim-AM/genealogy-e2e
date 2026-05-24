@@ -6,8 +6,6 @@ from typing import Self
 
 from playwright.sync_api import Page, expect
 
-from src.texts import Buttons, Labels, t
-
 from .base import BasePage
 
 

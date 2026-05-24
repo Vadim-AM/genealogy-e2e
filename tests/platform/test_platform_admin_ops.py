@@ -14,7 +14,6 @@ import pyotp
 
 from api import mfa_api, routes
 from config.constants import make_email
-from config.timeouts import TIMEOUTS
 from framework.response import expect_response
 from framework.step import step
 
@@ -45,7 +44,7 @@ def test_admin_waitlist_lifecycle(superadmin_user, tenant_client, base_url):
         email = make_email("wl-admin")
         expect_response(
             httpx.post(f"{base_url}{routes.WAITLIST_SUBSCRIBE}", json={"email": email},
-                       timeout=TIMEOUTS.api_request),
+                       ),
             label="waitlist subscribe",
         ).status_ok()
 
@@ -82,7 +81,7 @@ def test_platform_waitlist_listing(superadmin_user, tenant_client, base_url):
         email = make_email("plat-wl")
         expect_response(
             httpx.post(f"{base_url}{routes.WAITLIST_SUBSCRIBE}", json={"email": email},
-                       timeout=TIMEOUTS.api_request),
+                       ),
             label="waitlist subscribe",
         ).status_ok()
 
@@ -160,7 +159,7 @@ def test_platform_waitlist_invite_promotes_subscriber(
         email = make_email("wl-invite")
         expect_response(
             httpx.post(f"{base_url}{routes.WAITLIST_SUBSCRIBE}", json={"email": email},
-                       timeout=TIMEOUTS.api_request),
+                       ),
             label="waitlist subscribe",
         ).status_ok()
 

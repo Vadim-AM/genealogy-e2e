@@ -21,9 +21,8 @@ def get_features(base_url: str) -> FeaturesResponse:
     """GET /api/config/features (public, no auth) → FeaturesResponse."""
     import httpx as _httpx
 
-    from config.timeouts import TIMEOUTS
 
-    r = _httpx.get(f"{base_url}{routes.CONFIG_FEATURES}", timeout=TIMEOUTS.api_request)
+    r = _httpx.get(f"{base_url}{routes.CONFIG_FEATURES}")
     return expect_response(r, label="config features").status_ok().schema(FeaturesResponse)
 
 
