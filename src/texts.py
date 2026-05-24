@@ -274,6 +274,25 @@ class ErrMsg:
     wrong_css_class = "CSS-класс элемента не совпадает"
     link_not_visible = "Ссылка не видна"
 
+    # Enrichment / AI
+    ai_tooltip_wrong = "Tooltip AI-кнопки не совпадает"
+    enrich_post_leaked = "POST enrich не должен был произойти"
+    bootstrap_fetch_failed = "Bootstrap-запрос не вернул ожидаемый статус"
+
+    # Data / collections
+    collection_not_empty = "Коллекция не должна быть пустой"
+    collection_should_be_empty = "Коллекция должна быть пустой"
+    item_not_found = "Элемент не найден в коллекции"
+    count_mismatch = "Количество не совпадает"
+
+    # Session / auth
+    session_should_be_valid = "Сессия должна быть валидна"
+    session_should_be_expired = "Сессия должна быть невалидна"
+
+    # API response
+    status_mismatch = "HTTP статус не совпадает"
+    response_field_wrong = "Поле ответа не совпадает"
+
 
 # ─────────────────────────────────────────────────────────────────────────
 # Locale resolver
