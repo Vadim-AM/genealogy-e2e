@@ -166,13 +166,21 @@ data = r.json()
 assert "tenant_slug" in data
 
 # good
-from tests.response import expect_response
-expect_response(r).status(200).json_has("tenant_slug")
+from tests._core.response import expect_response
+expect_response(r).status(HTTPStatus.OK).json_has("tenant_slug")
 ```
 
 `expect_response(r)` chains `.status()`, `.status_ok()`, `.json_has()`,
-`.json_eq()`. Every failure automatically includes: method, URL, status,
-body excerpt. Use in tests; fixtures keep `.raise_for_status()`.
+`.json_eq()`, `.schema(Model)`. Every failure automatically includes:
+method, URL, status, sanitised body excerpt (tokens/passwords masked).
+Use in tests; fixtures keep `.raise_for_status()`.
+
+For API helpers returning typed responses, use `ApiResponse` wrapper:
+```python
+from tests._core.response import ApiResponse
+resp = ApiResponse(raw_response)
+data = resp.expect(label="create person").status(HTTPStatus.CREATED).schema(PersonResponse)
+```
 
 ### 9. No raw `httpx.*` calls — go through `tenant_client(user)`
 
