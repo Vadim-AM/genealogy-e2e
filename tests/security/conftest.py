@@ -6,7 +6,6 @@ import pytest
 
 from api import routes
 from config.constants import TestConfig, unique_email
-from config.timeouts import TIMEOUTS
 from fixtures.users import AuthUser
 
 
@@ -29,7 +28,6 @@ def viewer_in_owners_tenant(
     httpx.post(
         f"{base_url}{routes.VERIFY_EMAIL}",
         json={"token": verify_token},
-        timeout=TIMEOUTS.api_request,
     ).raise_for_status()
     viewer_cookies = login_existing(viewer_email)
 

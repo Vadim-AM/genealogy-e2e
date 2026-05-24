@@ -36,7 +36,6 @@ import pytest
 
 from api import routes
 from config.constants import TestConfig, unique_email
-from config.timeouts import TIMEOUTS
 from framework.step import step
 from helpers.security.timing import ITERATIONS, RATIO_THRESHOLD, measure
 from helpers.security.timing import ratio as compute_ratio
@@ -83,7 +82,7 @@ def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_ap
                 json={**payload_template, "email": unique_email("timing-new")},
             )
 
-        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+        with httpx.Client(base_url=uvicorn_server) as c:
             latencies_existing = [measure(c, reset_url, call_existing) for _ in range(ITERATIONS)]
             latencies_new = [measure(c, reset_url, call_new) for _ in range(ITERATIONS)]
 
@@ -128,7 +127,7 @@ def test_login_no_timing_account_enumeration(uvicorn_server: str, signup_via_api
                 },
             )
 
-        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+        with httpx.Client(base_url=uvicorn_server) as c:
             latencies_existing = [measure(c, reset_url, call_existing_wrong_pwd) for _ in range(ITERATIONS)]
             latencies_nonexistent = [measure(c, reset_url, call_nonexistent) for _ in range(ITERATIONS)]
 

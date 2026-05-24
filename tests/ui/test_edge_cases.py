@@ -15,7 +15,6 @@ import httpx
 from playwright.sync_api import Page, expect
 
 from api import routes
-from config.timeouts import TIMEOUTS
 from framework.step import step
 from src.texts import ErrMsg
 
@@ -65,7 +64,7 @@ def test_health_endpoint_does_not_require_auth(base_url: str):
     is: reachable without credentials + `status == "ok"`.
     """
     with step("действие: запросить /api/health без авторизации"):
-        r = httpx.get(f"{base_url}{routes.HEALTH}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.HEALTH}")
         r.raise_for_status()
 
     with step("проверка: статус ok"):

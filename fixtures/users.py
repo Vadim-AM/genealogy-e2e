@@ -53,7 +53,7 @@ def signup_unverified(uvicorn_server: str) -> Callable[..., str]:
         password: str = TestConfig.DEFAULT_PASSWORD,
         full_name: str = "Тестовый Пользователь",
     ) -> str:
-        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+        with httpx.Client(base_url=uvicorn_server) as c:
             c.post(
                 routes.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short
             ).raise_for_status()
@@ -84,7 +84,7 @@ def login_existing(uvicorn_server: str) -> Callable[..., dict[str, str]]:
     """
 
     def _do(email: str, password: str = TestConfig.DEFAULT_PASSWORD) -> dict[str, str]:
-        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+        with httpx.Client(base_url=uvicorn_server) as c:
             r = c.post(
                 routes.LOGIN,
                 json={"email": email, "password": password},
@@ -104,7 +104,7 @@ def read_email_token(uvicorn_server: str) -> Callable[[str], str]:
     """
 
     def _read(email: str) -> str:
-        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+        with httpx.Client(base_url=uvicorn_server) as c:
             r = c.get(routes.TEST_LAST_EMAIL, params={"to": email})
             r.raise_for_status()
             return _extract_token_from_email(r.json().get("text_body") or "")
@@ -125,7 +125,6 @@ def create_invite(uvicorn_server: str) -> Callable[..., str]:
             json={"name": name, "role": role},
             cookies=owner.cookies,
             headers={"X-Tenant-Slug": owner.slug},
-            timeout=TIMEOUTS.api_request,
         )
         r.raise_for_status()
         return r.json()["token"]  # type: ignore[no-any-return]
@@ -144,7 +143,6 @@ def accept_invite(uvicorn_server: str) -> Callable[..., None]:
         r = httpx.post(
             f"{uvicorn_server}{routes.tenant_invite_accept(invite_token)}",
             cookies=cookies,
-            timeout=TIMEOUTS.api_request,
         )
         r.raise_for_status()
         # Backend deletes the old session and issues a new one bound to
@@ -179,7 +177,7 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
         # silent success без отправки письма.
         if email is None:
             email = unique_email("owner")
-        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+        with httpx.Client(base_url=uvicorn_server) as c:
             with step(f"reset signup throttle for {email}"):
                 c.post(routes.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short).raise_for_status()
 
@@ -280,7 +278,7 @@ def admin_login_via_api(uvicorn_server: str) -> Callable[[], dict[str, str]]:
     """Login as legacy admin (password). Returns admin_token cookie dict."""
 
     def _login() -> dict[str, str]:
-        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+        with httpx.Client(base_url=uvicorn_server) as c:
             r = c.post(routes.ADMIN_LOGIN, json={"password": TestConfig.ADMIN_PASSWORD})
             r.raise_for_status()
             return dict(r.cookies)

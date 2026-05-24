@@ -32,7 +32,6 @@ import httpx
 from playwright.sync_api import Page, expect
 
 from api import routes
-from config.timeouts import TIMEOUTS
 from framework.response import expect_response
 from framework.step import step
 from pages.pricing_page import PricingPage
@@ -50,7 +49,7 @@ if TYPE_CHECKING:
 def test_public_tiers_endpoint_returns_four_paid_tiers(uvicorn_server: str):
     """TC-N2: GET /api/tiers/public должен отдавать 4 publik-тарифа в ₽."""
     with step("действие: запросить /api/tiers/public"):
-        r = httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}")
         expect_response(r, label="GET /api/tiers/public").status(HTTPStatus.OK)
         body = r.json()
 
@@ -78,7 +77,7 @@ def test_public_tiers_have_display_name_and_numeric_prices(uvicorn_server: str):
     integer-значения.
     """
     with step("действие: запросить тарифы"):
-        body = httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request).json()
+        body = httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}").json()
         by_name = {i["tier_name"]: i for i in body["items"]}
 
     with step("проверка: display_name и цены корректны"):
@@ -105,7 +104,7 @@ def test_public_tiers_have_display_name_and_numeric_prices(uvicorn_server: str):
 @allure.title("Тарифы API: тарифы отсортированы по возрастанию цены")
 def test_public_tiers_sorted_by_price_ascending(uvicorn_server: str):
     """TC-N1: тарифы отсортированы по цене (free → pro)."""
-    body = httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request).json()
+    body = httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}").json()
     prices = [i["price_rub_month"] for i in body["items"]]
     assert prices == sorted(prices), \
         f"Тарифы не отсортированы по цене: {prices}"
@@ -187,7 +186,7 @@ def test_pricing_researcher_card_is_featured_by_position(
     """
     with step("подготовка: определить позицию researcher в API"):
         body = httpx.get(
-            f"{uvicorn_server}{routes.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request
+            f"{uvicorn_server}{routes.TIERS_PUBLIC}"
         ).json()
         items = body["items"]
         researcher_idx = next(

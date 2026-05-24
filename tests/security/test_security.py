@@ -14,7 +14,6 @@ import httpx
 import pytest
 
 from api import routes
-from config.timeouts import TIMEOUTS
 from framework.response import expect_response
 from framework.step import step
 
@@ -44,7 +43,7 @@ def test_anonymous_get_returns_401_on_private_endpoints(base_url: str, endpoint:
     showcase) — those are tested separately in `test_landing.py`.
     """
     with step(f"действие: анонимный GET {endpoint}"):
-        r = httpx.get(f"{base_url}{endpoint}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{endpoint}")
 
     with step("проверка: 401 — доступ запрещён"):
         expect_response(r, label=f"GET {endpoint}").status(HTTPStatus.UNAUTHORIZED)
@@ -53,7 +52,7 @@ def test_anonymous_get_returns_401_on_private_endpoints(base_url: str, endpoint:
 @allure.title("Безопасность: /api/tree публично доступен гостю (200)")
 def test_anonymous_get_tree_returns_200_minimal_showcase(base_url: str):
     """TC-SEC-1 inverse: /api/tree IS public — guest sees the showcase tree."""
-    r = httpx.get(f"{base_url}{routes.TREE}", timeout=TIMEOUTS.api_request)
+    r = httpx.get(f"{base_url}{routes.TREE}")
     expect_response(r, label="GET /api/tree (public)").status(HTTPStatus.OK)
 
 
@@ -78,7 +77,7 @@ def test_security_headers_present_on_api_responses(base_url: str):
     response without protection.
     """
     with step("действие: запросить /api/account/me (заголовки на любом ответе)"):
-        r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}")
         # Состояние авторизации неважно — проверяем заголовки, не тело.
         headers = {k.lower(): v for k, v in r.headers.items()}
 
@@ -94,7 +93,7 @@ def test_csp_header_disables_inline_event_handlers(base_url: str):
     """TC-SEC-2 / BUG-SEC-002: CSP must include `script-src-attr 'none'`
     so inline `onclick=` event handlers cannot execute (XSS hardening)."""
     with step("действие: запросить /api/account/me и извлечь CSP"):
-        r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}")
         csp = r.headers.get("content-security-policy", "")
 
     with step("проверка: CSP содержит script-src-attr 'none'"):
@@ -121,7 +120,7 @@ def test_landing_html_has_no_inline_event_handlers(base_url: str):
     регрессия BUG-SEC-002 sweep.
     """
     with step("действие: загрузить HTML лендинга"):
-        r = httpx.get(f"{base_url}/", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}/")
         expect_response(r, label="GET /").status_ok()
         html = r.text
 
@@ -154,6 +153,6 @@ def test_hsts_header_only_on_https(base_url: str):
             "this test assumes local dev (HTTP); HTTPS path is verified by deployment smoke"
 
     with step("проверка: HSTS-заголовок отсутствует"):
-        r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}")
         assert "strict-transport-security" not in {k.lower() for k in r.headers}, \
             "HSTS must not be sent on HTTP responses (only HTTPS)"

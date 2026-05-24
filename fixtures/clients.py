@@ -15,7 +15,6 @@ import allure
 import httpx
 import pytest
 
-from config.timeouts import TIMEOUTS
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -51,7 +50,6 @@ def tenant_client(uvicorn_server: str) -> Generator[Callable[[AuthUser], httpx.C
             base_url=uvicorn_server,
             cookies=user.cookies,
             headers={"X-Tenant-Slug": user.slug},
-            timeout=TIMEOUTS.api_request,
         )
         clients.append(c)
         return c

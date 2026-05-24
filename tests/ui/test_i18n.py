@@ -34,7 +34,7 @@ from helpers.ui.i18n_checks import has_cyrillic
 def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
     """Login с несуществующим email → response detail должен быть на русском."""
     with step("действие: отправить login с неверными credentials"), \
-         httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+         httpx.Client(base_url=uvicorn_server) as c:
             r = c.post(
                 routes.LOGIN,
                 json={
@@ -58,7 +58,7 @@ def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
 def test_signup_validation_error_detail_in_russian(uvicorn_server: str):
     """Signup с слишком коротким паролем → 422 с detail на русском."""
     with step("действие: отправить signup с коротким паролем"), \
-         httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+         httpx.Client(base_url=uvicorn_server) as c:
             c.post(routes.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short).raise_for_status()
             r = c.post(
                 routes.SIGNUP,
