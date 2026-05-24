@@ -231,18 +231,25 @@ class ProfilePanel:
         # no semantic: data-testid element, no role
         return self.accepted_facts_block.locator('[data-testid="profile-ai-chip"]')
 
+    @property
+    def chip_revert_btns(self) -> Locator:
+        """Кнопки «Снять» на AI-чипах."""
+        return self.accepted_chips.locator('[data-testid="profile-ai-chip-revert"]')
+
+    @property
+    def revert_confirm_btn(self) -> Locator:
+        """Кнопка подтверждения снятия AI-факта."""
+        return self.page.get_by_role("button", name=t(Enrichment.REVERT_OK), exact=True)
+
     def revert_first_chip(self) -> None:
         """Click the revert button on the first accepted AI chip."""
         with step("клик «Снять» на первом AI-чипе"):
-            # no semantic: data-testid element, no role
-            self.accepted_chips.first.locator('[data-testid="profile-ai-chip-revert"]').click()
+            self.chip_revert_btns.first.click()
 
     def confirm_revert(self) -> None:
         """Click the revert confirmation button in the prompt."""
         with step("подтверждение снятия AI-факта"):
-            self.page.get_by_role(
-                "button", name=t(Enrichment.REVERT_OK), exact=True,
-            ).click()
+            self.revert_confirm_btn.click()
 
     @property
     def enrich_disabled_tooltip(self) -> str:
