@@ -24,13 +24,13 @@ class OwnerPage(BasePage):
         self.tab_subscription = page.locator('[data-tab="subscription"]')  # no semantic: programmatic tab switching
         self.tab_danger = page.locator('[data-tab="danger"]')  # no semantic: programmatic tab switching
 
-        # Settings tab inputs.
-        self.cfg_site_name = page.get_by_label(t(Labels.SITE_NAME))
-        self.cfg_family_name = page.get_by_label(t(Labels.FAMILY_NAME))
-        self.cfg_regions = page.get_by_label(t(Labels.REGIONS))
-        self.cfg_contact_email = page.get_by_label(t(Labels.CONTACT_EMAIL))
-        self.cfg_about_text = page.get_by_label(t(Labels.ABOUT))
-        self.cfg_save = page.get_by_role("button", name=t(Buttons.SAVE))
+        # Settings tab inputs — labels are siblings without for=, get_by_label doesn't match.
+        self.cfg_site_name = page.locator("#cfg_site_name")  # no semantic: <label> is sibling, not wrapper
+        self.cfg_family_name = page.locator("#cfg_family_name")  # no semantic: <label> is sibling
+        self.cfg_regions = page.locator("#cfg_regions")  # no semantic: <label> is sibling
+        self.cfg_contact_email = page.locator("#cfg_contact_email")  # no semantic: <label> is sibling
+        self.cfg_about_text = page.locator("#cfg_about_text")  # no semantic: <label> is sibling
+        self.cfg_save = page.locator("#cfgSave")  # no semantic: button text may change
 
         # Invite tab locators omitted — invite flow is exercised via API
         # fixtures (create_invite / accept_invite in _fixtures/users.py).
