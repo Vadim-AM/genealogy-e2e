@@ -10,7 +10,7 @@ import pyotp
 
 from api import mfa_api, platform_api, routes
 from assertions.base import should
-from config.constants import make_email
+from config.constants import unique_email
 from fixtures.users import setup_and_verify_mfa
 from framework.response import expect_response
 from framework.step import step
@@ -36,7 +36,7 @@ def test_grant_license_403_step_up_required_without_step_up(
     with step("проверка: grant-license без step-up отклоняется 403"):
         r = api.post(
             routes.PLATFORM_FREE_LICENSE_GRANT,
-            json={"email": make_email("stepup-target")},
+            json={"email": unique_email("stepup-target")},
         )
         expect_response(r, label="grant without step-up").status(HTTPStatus.FORBIDDEN)
         should.contain(r.text, "step_up_required", ErrMsg.step_up_required_missing)
@@ -57,7 +57,7 @@ def test_step_up_with_valid_totp_unlocks_critical_action(
     with step("проверка: grant-license после step-up проходит"):
         r2 = api.post(
             routes.PLATFORM_FREE_LICENSE_GRANT,
-            json={"email": make_email("stepup-grant-ok")},
+            json={"email": unique_email("stepup-grant-ok")},
         )
         expect_response(r2, label="grant after step-up").status_ok().json_eq("status", "granted")
 

@@ -9,7 +9,7 @@ import allure
 
 from api import routes
 from assertions.base import should
-from config.constants import make_email, unique_email
+from config.constants import unique_email
 from framework.response import expect_response
 from framework.step import step
 from src.texts import ErrMsg
@@ -30,7 +30,7 @@ def test_change_email_endpoint_initiates_confirmation(
 ) -> None:
     """INV-EMAIL-002: POST /api/account/me/email → 200 + confirmation mail."""
     with step("подготовка: signup и получение клиента"):
-        user = signup_via_api(email=make_email("orig"))
+        user = signup_via_api(email=unique_email("orig"))
         api = tenant_client(user)
 
     with step("действие: запрос смены email"):

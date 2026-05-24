@@ -12,10 +12,12 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def forgot_password_request_spy(page: Page) -> list[str]:
-    """Collect URLs of any forgot-password network requests."""
+    """Collect URLs of POST requests to forgot-password API."""
     calls: list[str] = []
     page.on(
         "request",
-        lambda req: calls.append(req.url) if "forgot-password" in req.url else None,
+        lambda req: calls.append(req.url)
+        if req.method == "POST" and "forgot-password" in req.url
+        else None,
     )
     return calls

@@ -9,7 +9,7 @@ import allure
 
 from api import person_api, routes, site_api
 from assertions.base import should
-from config.constants import make_email
+from config.constants import unique_email
 from config.timeouts import TIMEOUTS
 from framework.response import expect_response
 from framework.step import step
@@ -87,8 +87,8 @@ def test_bug_mt_001_site_config_is_per_tenant(
 ) -> None:
     """BUG-MT-001 regression: PATCH /api/site/config in tenant A must NOT affect tenant B."""
     with step("подготовка: создать два тенанта"):
-        user_a = signup_via_api(email=make_email("config-a"))
-        user_b = signup_via_api(email=make_email("config-b"))
+        user_a = signup_via_api(email=unique_email("config-a"))
+        user_b = signup_via_api(email=unique_email("config-b"))
         api_a = tenant_client(user_a)
         api_b = tenant_client(user_b)
 

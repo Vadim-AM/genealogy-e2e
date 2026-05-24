@@ -12,7 +12,7 @@ from playwright.sync_api import Page, expect
 
 from api import routes
 from assertions.base import should
-from config.constants import TestConfig, make_email
+from config.constants import TestConfig, unique_email
 from framework.response import expect_response
 from framework.step import step
 from models.auth import AccountMe, EmailResponse, LoginResponse
@@ -38,7 +38,7 @@ def test_signup_form_has_required_inputs(anon_pages: PageFactory, soft_check: Ex
 def test_signup_happy_path_sends_verification_email(page: Page, base_url: str, anon_pages: PageFactory) -> None:
     """F-SU-1, F-EV-1: отправка формы → backend отправляет verification email."""
     with step("действие: заполнение и отправка формы регистрации"):
-        email = make_email("happy")
+        email = unique_email("happy")
         signup = anon_pages.navigate_to(SignupPage)
 
         with page.expect_response("**/api/account/signup") as resp_info:
@@ -61,7 +61,7 @@ def test_signup_happy_path_sends_verification_email(page: Page, base_url: str, a
 def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str, anon_pages: PageFactory) -> None:
     """TC-FLOW-1.1: POST /api/account/verify-email выдаёт session cookie для auto-login."""
     with step("подготовка: signup и получение токена верификации"):
-        email = make_email("autologin")
+        email = unique_email("autologin")
         signup = anon_pages.navigate_to(SignupPage)
         signup.fill_required(
             email=email,
@@ -96,7 +96,7 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str, ano
 def test_signup_then_verify_creates_tenant(page: Page, base_url: str, anon_pages: PageFactory) -> None:
     """F-EV-4: после верификации login возвращает tenant_slug."""
     with step("подготовка: signup и получение токена"):
-        email = make_email("verify")
+        email = unique_email("verify")
         signup = anon_pages.navigate_to(SignupPage)
         signup.fill_required(
             email=email,
@@ -127,7 +127,7 @@ def test_signup_then_verify_creates_tenant(page: Page, base_url: str, anon_pages
 def test_honeypot_field_silently_succeeds(page: Page, base_url: str, anon_pages: PageFactory) -> None:
     """S-SU-4: заполненный honeypot → тихий 200, письмо не отправлено."""
     with step("действие: заполнение формы с honeypot и отправка"):
-        email = make_email("bot")
+        email = unique_email("bot")
         signup = anon_pages.navigate_to(SignupPage)
         signup.fill_honeypot_via_js(
             email=email,
@@ -167,7 +167,7 @@ def test_disposable_email_rejected_inline(page: Page, base_url: str, anon_pages:
 def test_password_too_short_rejected_inline(page: Page, base_url: str, anon_pages: PageFactory) -> None:
     """S-SU-8: пароль < 8 символов → HTML5 validity блокирует submit."""
     with step("действие: попытка регистрации с коротким паролем"):
-        email = make_email("shortpw")
+        email = unique_email("shortpw")
         signup = anon_pages.navigate_to(SignupPage)
         signup.fill_required(
             email=email,

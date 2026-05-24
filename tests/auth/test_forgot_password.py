@@ -11,7 +11,7 @@ from playwright.sync_api import Page, expect
 
 from api import routes
 from assertions.base import should
-from config.constants import make_email
+from config.constants import unique_email
 from framework.response import expect_response
 from framework.step import step
 from pages.forgot_password_page import ForgotPasswordPage, ResetPasswordPage
@@ -73,7 +73,7 @@ def test_forgot_password_unknown_email_shows_silent_success_message(
 ) -> None:
     """F-FP-2 / TC-FP-2: для unknown email UI показывает ту же success-копию."""
     with step("действие: запрос сброса для неизвестного email"):
-        unknown_email = make_email("never-registered")
+        unknown_email = unique_email("never-registered")
         fp = anon_pages.navigate_to(ForgotPasswordPage)
         with page.expect_response("**/api/account/forgot-password") as resp_info:
             fp.request_reset(unknown_email)

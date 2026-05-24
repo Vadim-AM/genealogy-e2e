@@ -11,7 +11,7 @@ from playwright.sync_api import Page, expect
 
 from api import routes
 from assertions.base import should
-from config.constants import make_email
+from config.constants import unique_email
 from framework.response import expect_response
 from framework.step import step
 from pages.mfa_settings import MfaSettings
@@ -51,7 +51,7 @@ def test_user_mfa_recovery_codes_are_one_time(
 ) -> None:
     """Recovery codes одноразовые: redeem → count--, повторный redeem → 401."""
     with step("подготовка: signup и включение 2FA"):
-        user = signup_via_api(email=make_email("mfa-recovery"))
+        user = signup_via_api(email=unique_email("mfa-recovery"))
         api = tenant_client(user)
 
         setup_data = (

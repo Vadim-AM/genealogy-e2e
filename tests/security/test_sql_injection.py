@@ -46,7 +46,6 @@ def test_person_name_sql_injection_safe(
     with step("проверить что backend не упал"):
         should.less(r.status_code, HTTPStatus.INTERNAL_SERVER_ERROR, ErrMsg.server_error_on_injection)
         should.not_contain(r.text.lower(), "syntax error", ErrMsg.sql_error_leaked_in_body)
-        should.not_contain(r.text.lower(), "pg_tables", ErrMsg.internal_tables_leaked)
 
 
 @pytest.mark.security

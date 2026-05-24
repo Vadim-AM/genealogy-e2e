@@ -10,7 +10,7 @@ import pyotp
 
 from api import mfa_api, routes
 from assertions.base import should
-from config.constants import make_email
+from config.constants import unique_email
 from framework.response import expect_response
 from framework.step import step
 from src.texts import ErrMsg
@@ -44,7 +44,7 @@ def test_admin_waitlist_lifecycle(
 ) -> None:
     """A waitlist subscriber appears for superadmin, can be marked."""
     with step("подготовка: подписываем email на вейтлист"):
-        email = make_email("wl-admin")
+        email = unique_email("wl-admin")
         expect_response(
             httpx.post(
                 f"{base_url}{routes.WAITLIST_SUBSCRIBE}",
@@ -82,7 +82,7 @@ def test_platform_waitlist_listing(
 ) -> None:
     """GET /api/platform/waitlist lists waitlist subscribers for the."""
     with step("подготовка: подписываем email на вейтлист"):
-        email = make_email("plat-wl")
+        email = unique_email("plat-wl")
         expect_response(
             httpx.post(
                 f"{base_url}{routes.WAITLIST_SUBSCRIBE}",
@@ -164,7 +164,7 @@ def test_platform_waitlist_invite_promotes_subscriber(
 ) -> None:
     """POST /api/platform/waitlist/{id}/invite promotes a waitlist."""
     with step("подготовка: подписываем email на вейтлист"):
-        email = make_email("wl-invite")
+        email = unique_email("wl-invite")
         expect_response(
             httpx.post(
                 f"{base_url}{routes.WAITLIST_SUBSCRIBE}",
