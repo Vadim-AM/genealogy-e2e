@@ -593,7 +593,35 @@ Move them to the POM class that owns the page region:
 
 The helpers module becomes unnecessary when POM covers all interactions.
 
-### 37. Docstrings — 1 sentence, TC-ID preserved
+### 37. Locators as `@property`, not `self.xxx =` in `__init__`
+
+Playwright best practice (and account_ui_autotests pattern): every
+locator is a `@property` method, not an `__init__` assignment. Lazy
+evaluation — locator is created on access, not on POM construction.
+
+```python
+# bad — eager, all locators created at __init__
+class TreePage(BasePage):
+    def __init__(self, page):
+        super().__init__(page)
+        self.h1 = page.get_by_role("heading", level=1)
+        self.tab_map = page.locator('[data-tab="map"]')
+
+# good — lazy @property, Playwright re-evaluates on each access
+class TreePage(BasePage):
+    @property
+    def h1(self) -> Locator:
+        return self.page.get_by_role("heading", level=1)
+
+    @property
+    def tab_map(self) -> Locator:
+        return self.page.locator('[data-tab="map"]')  # no semantic: data-tab
+```
+
+Methods that use locators reference `self.xxx` — the `@property`
+evaluates lazily. No inline `self.page.locator(...)` in methods.
+
+### 38. Docstrings — 1 sentence, TC-ID preserved
 
 Module docstring: 1 line. Function docstring: 1 sentence + TC-ID.
 No multi-paragraph explanations — the code and step names tell the story.
