@@ -18,33 +18,33 @@ class PersonEditor:
 
     def __init__(self, page: Page):
         self.page = page
-        self.container = page.locator("#personEditor")
+        self.container = page.locator("#personEditor")  # no semantic: form container without role
 
-        # FIO group
+        # FIO group — no semantic: inputs keyed by data-field, no label
         self.surname = self.container.locator('[data-field="surname"]')
         self.given_name = self.container.locator('[data-field="given_name"]')
         self.patronymic = self.container.locator('[data-field="patronymic"]')
         self.maiden_name = self.container.locator('[data-field="maiden_name"]')
 
-        # Dates / places
+        # Dates / places — no semantic: inputs keyed by data-field, no label
         self.birth = self.container.locator('[data-field="birth"]')
         self.birth_place = self.container.locator('[data-field="birth_place"]')
         self.death = self.container.locator('[data-field="death"]')
 
-        # Misc
+        # Misc — no semantic: inputs keyed by data-field, no label
         self.badge = self.container.locator('[data-field="badge"]')
         self.summary = self.container.locator('[data-field="summary"]')
         self.notes = self.container.locator('[data-field="notes"]')
-        self.gender = self.container.locator('[data-field="gender"]')
-        self.branch = self.container.locator('[data-field="branch"]')
-        self.status = self.container.locator('[data-field="status"]')
+        self.gender = self.container.locator('[data-field="gender"]')  # no semantic: custom select widget, no label
+        self.branch = self.container.locator('[data-field="branch"]')  # no semantic: custom select widget, no label
+        self.status = self.container.locator('[data-field="status"]')  # no semantic: custom select widget, no label
 
-        # Action buttons
+        # Action buttons — no semantic: buttons identified by data-action
         self.btn_save = self.container.locator('[data-action="save"]')
         self.btn_cancel = self.container.locator('[data-action="cancel"]')
         self.btn_delete = self.container.locator('[data-action="delete"]')
 
-        # Inline warning (date-validity, etc.)
+        # Inline warning (date-validity, etc.) — no semantic: warning text, no ARIA role
         self.warning = self.container.locator('[data-testid="editor-warning"]')
 
     def fill_fio(self, *, surname: str, given: str, patronymic: str = "") -> None:
@@ -56,8 +56,10 @@ class PersonEditor:
     def select_dropdown(self, field: str, value: str) -> None:
         """Pick a value in the customSelect for the given field."""
         custom = custom_select_for(self.page, field)
-        custom.locator('[data-testid="custom-select-trigger"]').click()
-        custom.locator(f'[data-testid="custom-select-option"][data-value="{value}"]').click()
+        custom.locator('[data-testid="custom-select-trigger"]').click()  # no semantic: custom select trigger, no ARIA
+        custom.locator(  # no semantic: custom select option, no ARIA role
+            f'[data-testid="custom-select-option"][data-value="{value}"]'
+        ).click()
 
     def save(self) -> None:
         """Click the save button to persist editor changes."""
@@ -94,42 +96,48 @@ class AddRelativeModal:
 
     def __init__(self, page: Page):
         self.page = page
+        # no semantic: overlay/modal identified by data-testid, no ARIA
         self.overlay = page.locator('[data-testid="add-rel-overlay"]')
         self.container = self.overlay.locator('[data-testid="add-rel-modal"]')
-        self.title = self.container.locator("#add-rel-title")
+        self.title = self.container.locator("#add-rel-title")  # no semantic: heading without role
+        # no semantic: close button, no accessible name
         self.btn_close = self.container.locator('[data-testid="add-rel-close"]')
 
         # Fields
-        self.surname = self.container.locator("#addRelSurname")
-        self.given_name = self.container.locator("#addRelGiven")
-        self.patronymic = self.container.locator("#addRelPatronymic")
-        self.gender = self.container.locator("#addRelGender")
-        self.birth = self.container.locator("#addRelBirth")
-        self.death_known = self.container.locator("#addRelDeathKnown")
-        self.death = self.container.locator("#addRelDeath")
-        self.error = self.container.locator("#addRelError")
+        self.surname = self.container.locator("#addRelSurname")  # no semantic: input without label
+        self.given_name = self.container.locator("#addRelGiven")  # no semantic: input without label
+        self.patronymic = self.container.locator("#addRelPatronymic")  # no semantic: input without label
+        self.gender = self.container.locator("#addRelGender")  # no semantic: custom select widget, no label
+        self.birth = self.container.locator("#addRelBirth")  # no semantic: input without label
+        self.death_known = self.container.locator("#addRelDeathKnown")  # no semantic: checkbox without label
+        self.death = self.container.locator("#addRelDeath")  # no semantic: input without label
+        self.error = self.container.locator("#addRelError")  # no semantic: error text, no ARIA role
 
-        # Actions
+        # Actions — no semantic: buttons identified by data-action
         self.btn_save = self.container.locator('[data-action="save"]')
+        # no semantic: button identified by data-action
         self.btn_save_and_edit = self.container.locator('[data-action="save-then-edit"]')
         self.btn_cancel = self.container.locator('[data-action="cancel"]')
 
         # Suggestion block (Фаза 1 — graph-aware dedup): рендерится только если
         # у currentPerson есть siblings с уже-привязанными parents того же пола,
         # что фронт-форма предлагает. Иначе slot пуст.
+        # no semantic: suggestion slot/block, no ARIA
         self.suggest_slot = self.container.locator("[data-suggest-slot]")
         self.suggest_block = self.container.locator("[data-suggest-block]")
         # Graph-card scoped по классу — `data-action="pick-existing"` теперь
         # общий с dropdown-строками (см. FEATURE-PARENT-SEARCH-001).
+        # no semantic: card/divider elements, no ARIA role
         self.suggest_cards = self.container.locator('[data-testid="add-rel-suggest-card"]')
         self.suggest_divider = self.container.locator('[data-testid="add-rel-suggest-divider"]')
 
         # FEATURE-PARENT-SEARCH-001: inline-autocomplete dropdown + linked-chip.
+        # no semantic: listbox/row/chip elements without ARIA role
         self.dropdown = self.container.locator("#addRelExistingResults")
         self.dropdown_rows = self.dropdown.locator('[data-testid="add-rel-existing-row"]')
         self.linked_chip = self.container.locator('[data-testid="add-rel-linked-chip"]')
         self.btn_unlink = self.linked_chip.locator(
-            '[data-action="unlink-existing"]'
+            '[data-action="unlink-existing"]'  # no semantic: button identified by data-action
         )
 
     def expect_visible(self) -> None:
@@ -182,10 +190,12 @@ class AddRelativeModal:
         sibling — same pattern as PersonEditor.select_dropdown().
         """
         custom = self.container.locator(
-            '[data-testid="custom-select"]:has(+ select#addRelGender)'
+            '[data-testid="custom-select"]:has(+ select#addRelGender)'  # no semantic: custom select widget, no ARIA
         )
-        custom.locator('[data-testid="custom-select-trigger"]').click()
-        custom.locator(f'[data-testid="custom-select-option"][data-value="{value}"]').click()
+        custom.locator('[data-testid="custom-select-trigger"]').click()  # no semantic: custom select trigger, no ARIA
+        custom.locator(  # no semantic: custom select option, no ARIA role
+            f'[data-testid="custom-select-option"][data-value="{value}"]'
+        ).click()
 
     # ──────────────────────────────────────────────────────────────────
     # Sibling-share-parents checkbox (custom-wrapped `<label class="checkbox">`)
@@ -193,7 +203,7 @@ class AddRelativeModal:
 
     @property
     def share_parents_input(self) -> Locator:
-        return self.container.locator("#addRelSiblingShareParents")
+        return self.container.locator("#addRelSiblingShareParents")  # no semantic: hidden checkbox, no label
 
     @property
     def share_parents_label(self) -> Locator:
@@ -201,6 +211,7 @@ class AddRelativeModal:
         `.checkbox-box`. Нативный input visually-hidden через CSS обёртки,
         поэтому Playwright не может clicknуть его напрямую (element-not-visible).
         Кликаем по label — стандартный HTML toggles bound input."""
+        # no semantic: custom checkbox wrapper, native input hidden
         return self.container.locator(
             'label.checkbox:has(#addRelSiblingShareParents)'
         )
@@ -224,6 +235,7 @@ class AddRelativeModal:
         FEATURE-PARENT-SEARCH-001 унифицировала атрибут: `data-suggestion-id`
         → `data-person-id` (один контракт с dropdown-строками).
         """
+        # no semantic: card element, no ARIA role
         return self.container.locator(
             f'[data-testid="add-rel-suggest-card"][data-person-id="{person_id}"]'
         )
@@ -278,6 +290,7 @@ class AddRelativeModal:
 
     def row_by_person_id(self, person_id: str) -> Locator:
         """Locator for a dropdown row by the linked person's id."""
+        # no semantic: row element, no ARIA role
         return self.dropdown.locator(
             f'[data-testid="add-rel-existing-row"][data-person-id="{person_id}"]'
         )
