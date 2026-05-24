@@ -29,7 +29,7 @@ from framework.step import step
 @allure.title("Welcome-письмо содержит URL из GENEALOGY_PUBLIC_URL, не прод")
 def test_welcome_email_uses_public_url_env_not_hardcoded_prod(
     signup_via_api, uvicorn_server: str,
-):
+) -> None:
     """Welcome-email должен ссылаться на `GENEALOGY_PUBLIC_URL`-based URL,
     не на захардкоженный `nasharodoslovnaya.ru`.
 

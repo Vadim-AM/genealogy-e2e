@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 
 @allure.title("Вкладка 'Карта' скрыта по умолчанию до включения фичи")
-def test_map_tab_is_hidden_by_default(owner_page: Page, pages: PageFactory):
+def test_map_tab_is_hidden_by_default(owner_page: Page, pages: PageFactory) -> None:
     """TC-10.02 (Wave-9): map tab `<button data-tab="map">` has `hidden`
     attribute → not visible in tab strip until feature ships.
 

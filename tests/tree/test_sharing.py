@@ -21,7 +21,7 @@ from src.texts import TestData
 @allure.title("Публичная ссылка: аноним видит карточку, после отзыва -- нет")
 def test_owner_shares_card_anon_views_then_revoke_kills_link(
     owner_user, tenant_client, browser,
-):
+) -> None:
     """Owner creates a person share link; an anonymous visitor opens it
     and sees the person read-only; owner revokes; the same link then
     shows the dead-link page. Covers create / list / view / revoke."""
@@ -60,7 +60,7 @@ def test_owner_shares_card_anon_views_then_revoke_kills_link(
 
 
 @allure.title("Список шаринг-ссылок не содержит секретных токенов")
-def test_share_list_never_leaks_tokens(owner_user, tenant_client):
+def test_share_list_never_leaks_tokens(owner_user, tenant_client) -> None:
     """Security invariant: GET /api/share/list returns the owner's shares
     but never the token url — tokens must not reach logs."""
     with step("подготовка: создать публичную ссылку"):

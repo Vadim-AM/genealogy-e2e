@@ -28,7 +28,7 @@ REQUIRED_KEYS = {
 
 
 @allure.title("Подписка: free-тариф показывает лимит 3 и 0 использованных")
-def test_subscription_usage_shape_for_free_owner(owner_user, tenant_client):
+def test_subscription_usage_shape_for_free_owner(owner_user, tenant_client) -> None:
     """TC-AI-2: /api/subscription/usage returns the canonical free-tier shape."""
     with step("действие: запросить usage для free-tier owner"):
         api = tenant_client(owner_user)
@@ -53,7 +53,7 @@ def test_subscription_usage_shape_for_free_owner(owner_user, tenant_client):
 
 
 @allure.title("Подписка: анонимный запрос к usage возвращает 401")
-def test_subscription_usage_requires_auth(base_url: str):
+def test_subscription_usage_requires_auth(base_url: str) -> None:
     """Anonymous request to /api/subscription/usage → 401."""
     r = httpx.get(f"{base_url}{routes.SUBSCRIPTION_USAGE_LEGACY}")
     expect_response(r, label="anon subscription/usage").status(HTTPStatus.UNAUTHORIZED)

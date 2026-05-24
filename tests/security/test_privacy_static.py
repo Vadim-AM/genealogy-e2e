@@ -25,7 +25,7 @@ from src.texts import PII
 
 
 @allure.title("Приватность: constants.js не содержит ФИО владельца")
-def test_constants_js_no_owner_pii(base_url: str):
+def test_constants_js_no_owner_pii(base_url: str) -> None:
     """`/js/constants.js` (public static mount) не содержит owner PII.
 
     Closed regression — фикс `de7f53a` ("BUG-COPY-001 finalize") убрал
@@ -48,7 +48,7 @@ def test_constants_js_no_owner_pii(base_url: str):
 
 
 @allure.title("Приватность: index.html не содержит PII в inline-скриптах")
-def test_index_html_no_owner_pii_in_inline_scripts(base_url: str):
+def test_index_html_no_owner_pii_in_inline_scripts(base_url: str) -> None:
     """`/` (anonymous landing) inline scripts must not contain owner PII.
 
     Closed regression — фикс `de7f53a` зачистил inline timelineGeo +
@@ -69,7 +69,7 @@ def test_index_html_no_owner_pii_in_inline_scripts(base_url: str):
 
 
 @allure.title("Приватность: constants.js не содержит координат миграций")
-def test_constants_js_has_no_geo_coordinates(base_url: str):
+def test_constants_js_has_no_geo_coordinates(base_url: str) -> None:
     """Sanity check: hardcoded migration coordinates removed.
 
     Old version had explicit lat/lng для Тукумс, Черняховск, Калининград,
@@ -98,7 +98,7 @@ _CONSTANTS_JS_MAX_BYTES = 5 * 1024
 
 
 @allure.title("Приватность: размер constants.js не превышает 5 КБ")
-def test_constants_js_size_bounded(base_url: str):
+def test_constants_js_size_bounded(base_url: str) -> None:
     """`/js/constants.js` is small — guard against re-inlining of
     owner data of any shape (catches future PII without enumerating
     specific names/places)."""

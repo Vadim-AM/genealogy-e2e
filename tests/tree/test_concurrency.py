@@ -18,7 +18,7 @@ from src.texts import TestData
 
 
 @allure.title("GET персоны возвращает ETag для контроля конкурентности")
-def test_get_person_returns_etag_for_concurrency(owner_user, tenant_client):
+def test_get_person_returns_etag_for_concurrency(owner_user, tenant_client) -> None:
     """INV-EDIT-001: GET /api/people/{id} returns an ETag header.
 
     Was xfail until upstream batch-6/7. Now regular regression.

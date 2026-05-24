@@ -26,7 +26,7 @@ _MALICIOUS_IDS = [
 @allure.title("Безопасность: вредоносный person ID возвращает 400/404, не 500")
 def test_malicious_person_id_returns_404_not_500(
     owner_user, tenant_client, malicious_id: str,
-):
+) -> None:
     """GET /api/people/{malicious_id} → 404, NOT 500."""
     with step("действие: запросить person с вредоносным ID"):
         api = tenant_client(owner_user)

@@ -49,7 +49,7 @@ pytestmark = pytest.mark.slow
 
 
 @allure.title("Timing: signup не выдаёт существование аккаунта по времени")
-def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_api):
+def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_api) -> None:
     """TC-SEC-3: signup p50 latency for existing ≈ new email (ratio < 3×).
 
     Was xfail under BUG-SEC-003 (≈9× ratio in Run 2) until upstream
@@ -99,7 +99,7 @@ def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_ap
 
 
 @allure.title("Timing: login не выдаёт существование аккаунта по времени")
-def test_login_no_timing_account_enumeration(uvicorn_server: str, signup_via_api):
+def test_login_no_timing_account_enumeration(uvicorn_server: str, signup_via_api) -> None:
     """TC-SEC-4: login p50 latency for wrong-password ≈ non-existent (ratio < 3×).
 
     Both branches return 401, but slow branch does bcrypt verify, fast

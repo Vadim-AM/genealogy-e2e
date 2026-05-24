@@ -36,7 +36,7 @@ from src.texts import Buttons, ErrMsg, t
 
 
 @allure.title("Блок фото отображается в редакторе с кнопкой добавления")
-def test_photos_block_renders_inside_editor(owner_page: Page):
+def test_photos_block_renders_inside_editor(owner_page: Page) -> None:
     """TC-08.01 (precondition): `.photos-block` есть в editor'е,
     содержит file-input + label-кнопку «Добавить фото» + drag-drop zone.
     """
@@ -61,7 +61,7 @@ def test_photos_block_renders_inside_editor(owner_page: Page):
 
 
 @allure.title("Загрузка фото добавляет миниатюру в сетку")
-def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page):
+def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page) -> None:
     """TC-08.02: set_input_files с JPEG → POST /api/admin/upload-photo
     → backend отвечает path → JS добавляет в #photoGrid новый
     `.photo-thumb`. Перед upload — `<span>Нет фото</span>` placeholder
@@ -82,7 +82,7 @@ def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page):
 
 
 @allure.title("Удаление фото убирает миниатюру из сетки")
-def test_photo_remove_button_drops_thumb_from_grid(owner_page: Page):
+def test_photo_remove_button_drops_thumb_from_grid(owner_page: Page) -> None:
     """TC-08.11: после upload click `.photo-remove` → PATCH
     /api/admin/people/{id} (photos без удалённой) → JS перерендеривает
     grid — thumb count уменьшается обратно.

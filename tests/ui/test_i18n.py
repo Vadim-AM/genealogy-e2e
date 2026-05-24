@@ -30,7 +30,7 @@ from helpers.ui.i18n_checks import has_cyrillic
 
 
 @allure.title("i18n: ошибка входа с неверным паролем приходит на русском")
-def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
+def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str) -> None:
     """Login с несуществующим email → response detail должен быть на русском."""
     with step("действие: отправить login с неверными credentials"), \
          httpx.Client(base_url=uvicorn_server) as c:
@@ -54,7 +54,7 @@ def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
 
 
 @allure.title("i18n: ошибка валидации при регистрации приходит на русском")
-def test_signup_validation_error_detail_in_russian(uvicorn_server: str):
+def test_signup_validation_error_detail_in_russian(uvicorn_server: str) -> None:
     """Signup с слишком коротким паролем → 422 с detail на русском."""
     with step("действие: отправить signup с коротким паролем"), \
          httpx.Client(base_url=uvicorn_server) as c:

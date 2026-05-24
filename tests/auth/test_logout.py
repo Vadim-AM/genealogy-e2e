@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 @allure.title("Клик 'Выйти' переключает индикатор в гостевой режим")
 def test_owner_clicks_logout_link_and_indicator_switches_to_guest(
     owner_page: Page, owner_user, pages: PageFactory,
-):
+) -> None:
     """F-LO-1: клик по «Выйти» сбрасывает session и переключает UI в guest.
 
     Контракт:
@@ -69,7 +69,7 @@ def test_owner_clicks_logout_link_and_indicator_switches_to_guest(
 @allure.title("Повторный вход после выхода возвращает в тот же тенант")
 def test_user_relogins_via_form_lands_in_same_tenant(
     owner_page: Page, owner_user, pages: PageFactory,
-):
+) -> None:
     """F-LO-2: после logout юзер логинится снова через `/login` форму
     и попадает в **тот же tenant** (slug сохраняется).
 

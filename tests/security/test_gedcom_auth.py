@@ -18,7 +18,7 @@ from framework.step import step
 
 
 @allure.title("GEDCOM: владелец экспортирует дерево через auth_v2")
-def test_owner_can_export_gedcom_via_auth_v2(owner_user, tenant_client):
+def test_owner_can_export_gedcom_via_auth_v2(owner_user, tenant_client) -> None:
     """INV-GEDCOM-001 (export): auth_v2 owner получает 200 + GEDCOM body."""
     with step("действие: экспортировать GEDCOM через auth_v2"):
         api = tenant_client(owner_user)
@@ -35,7 +35,7 @@ def test_owner_can_export_gedcom_via_auth_v2(owner_user, tenant_client):
 
 
 @allure.title("GEDCOM: владелец импортирует файл через auth_v2")
-def test_owner_can_import_gedcom_via_auth_v2(owner_user, tenant_client):
+def test_owner_can_import_gedcom_via_auth_v2(owner_user, tenant_client) -> None:
     """INV-GEDCOM-001 (import): auth_v2 owner может POST GEDCOM."""
     with step("подготовка: подготовить минимальный GEDCOM-файл"):
         api = tenant_client(owner_user)

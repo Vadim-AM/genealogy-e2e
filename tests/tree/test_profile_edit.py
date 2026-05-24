@@ -23,7 +23,7 @@ from src.texts import ConfirmDialog as ConfirmDialogMsg
 
 
 @allure.title("Редактор: девичья фамилия видна только для женского пола")
-def test_maiden_name_visible_only_for_female_gender(owner_page: Page):
+def test_maiden_name_visible_only_for_female_gender(owner_page: Page) -> None:
     """TC-EDITOR-1: `maiden_name` field is hidden for gender=m, visible for f.
     Switching back to m clears the previously typed value (no orphan data)."""
     with step("подготовка: открыть редактор"):
@@ -49,7 +49,7 @@ def test_maiden_name_visible_only_for_female_gender(owner_page: Page):
 
 
 @allure.title("Кнопка 'Удалить' открывает диалог подтверждения с предупреждением")
-def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tenant_client):
+def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tenant_client) -> None:
     """TC-EDITOR-2: clicking «Удалить» triggers a custom `confirmDialog()`
     whose text mentions «Удалить» + irreversibility + «связанные источники
     и связи». Dismissing it must NOT send a DELETE request.
@@ -106,7 +106,7 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tena
 @allure.title("Редактирование описания через UI сохраняется в бэкенде")
 def test_owner_edits_demo_self_summary_through_ui(
     owner_page: Page, owner_user, tenant_client,
-):
+) -> None:
     """Edit `summary` via the editor UI and verify backend persisted it.
 
     Was xfailed under BUG-EDITOR-002 (bindPersonEditor sent `branch=""`
@@ -142,7 +142,7 @@ def test_owner_edits_demo_self_summary_through_ui(
 
 
 @allure.title("Кнопка удаления скрыта для корневой персоны дерева")
-def test_delete_button_hidden_for_root_subject(owner_page):
+def test_delete_button_hidden_for_root_subject(owner_page) -> None:
     """Editor открытый на корневой subject-карточке не должен показывать
     кнопку «Удалить» — её удаление приводит к потере якоря пространства.
 

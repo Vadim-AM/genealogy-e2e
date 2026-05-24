@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 @pytest.mark.parametrize("path", ["/privacy", "/terms"])
 @allure.title("Юридические страницы отрендерены как HTML, не raw markdown")
-def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: str):
+def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: str) -> None:
     """TC-BUG-LEGAL-001: privacy/terms must be rendered HTML."""
     with step("действие: загрузить юридическую страницу"):
         response = page.goto(path)
@@ -53,7 +53,7 @@ def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: st
 
 @pytest.mark.parametrize("path", ["/privacy", "/terms"])
 @allure.title("Юридические страницы не содержат сырых markdown-ссылок")
-def test_legal_has_no_unrendered_markdown_links(page: Page, path: str):
+def test_legal_has_no_unrendered_markdown_links(page: Page, path: str) -> None:
     """`[text](url)` syntax must not appear in rendered body."""
     with step("действие: загрузить страницу"):
         page.goto(path)
@@ -75,7 +75,7 @@ def test_legal_has_no_unrendered_markdown_links(page: Page, path: str):
 @allure.title("Футер: юридические ссылки открываются в новой вкладке")
 def test_landing_footer_legal_link_is_visible_and_target_blank(
     page: Page, href: str, anon_pages: PageFactory,
-):
+) -> None:
     """TC-24.03: footer на / содержит link на /privacy и /terms; target=_blank
     чтобы юзер не терял состояние tree/orbit при чтении legal text.
 
@@ -98,7 +98,7 @@ def test_landing_footer_legal_link_is_visible_and_target_blank(
 @allure.title("Футер: юридические ссылки ведут на существующие страницы")
 def test_landing_footer_legal_link_resolves_to_200(
     base_url: str, href: str,
-):
+) -> None:
     """TC-24.03: переход по footer-link реально возвращает 200 + HTML
     (защита от битой ссылки). httpx — открывать новую tab через
     Playwright ради этого избыточно.

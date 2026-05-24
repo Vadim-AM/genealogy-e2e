@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 @allure.title("Регрессия: auth_v2 владелец читает историю обогащения")
 def test_bug_auth_001_authv2_owner_reads_enrichment(
     owner_user, grant_ai_consent, tenant_client,
-):
+) -> None:
     """TC-BUG-AUTH-001: auth_v2 owner can hit GET /api/enrich/{id}/history without 401."""
     with step("подготовка: consent и получение pid"):
         grant_ai_consent(owner_user)
@@ -53,7 +53,7 @@ def test_bug_auth_001_authv2_owner_reads_enrichment(
 
 
 @allure.title("Регрессия: аналитика page_view не падает с 500")
-def test_bug_auth_002_pageview_platform_session_no_500(owner_user, tenant_client):
+def test_bug_auth_002_pageview_platform_session_no_500(owner_user, tenant_client) -> None:
     """TC-BUG-AUTH-002: /api/analytics/log with PlatformSession cookie returns 204.
 
     Pinned exact status (was `< 500` smoke per rule #1). Backend
@@ -71,7 +71,7 @@ def test_bug_auth_002_pageview_platform_session_no_500(owner_user, tenant_client
 
 
 @allure.title("Регрессия: /signup не запрашивает /api/csrf-token (404)")
-def test_bug_csrf_001_console_clean_on_signup(page: Page, anon_pages: PageFactory):
+def test_bug_csrf_001_console_clean_on_signup(page: Page, anon_pages: PageFactory) -> None:
     """TC-BUG-CSRF-001: opening /signup → no 404 on /api/csrf-token in console."""
     with step("действие: открыть /signup и слушать 404 на /api/csrf-token"):
         bad_404: list[str] = []
@@ -88,7 +88,7 @@ def test_bug_csrf_001_console_clean_on_signup(page: Page, anon_pages: PageFactor
 
 
 @allure.title("Регрессия: site_config изолирован между тенантами")
-def test_bug_mt_001_site_config_is_per_tenant(signup_via_api, tenant_client):
+def test_bug_mt_001_site_config_is_per_tenant(signup_via_api, tenant_client) -> None:
     """BUG-MT-001 regression: PATCH /api/site/config in tenant A must NOT affect tenant B.
 
     Was xfail (Apr 2026) — passes in current HEAD; marker dropped on 28.04.
@@ -111,7 +111,7 @@ def test_bug_mt_001_site_config_is_per_tenant(signup_via_api, tenant_client):
 @allure.title("Регрессия: повторный запрос обогащения не даёт 409")
 def test_bug_auth_003_sse_reconnect_recovers(
     owner_user, grant_ai_consent, tenant_client,
-):
+) -> None:
     """TC-BUG-AUTH-003 regression: re-issuing a streaming enrichment for the
     same person must reuse the active job, not 409 Conflict."""
     with step("подготовка: consent и получение pid"):

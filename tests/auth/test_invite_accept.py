@@ -28,7 +28,7 @@ from src.texts import ErrMsg, Invite, TestData, t
 @allure.title("Приглашённый видит успех с именем древа на странице принятия")
 def test_invitee_lands_on_accept_page_sees_success_with_tenant_name(
     auth_context_factory, owner_user, signup_via_api, tenant_client,
-):
+) -> None:
     """TC-INV-001: invitee opens `/invite-accept?token=` → page auto-fetch'ит
     accept → видит «Готово!» + tenant_display_name + ссылку «Открыть древо».
 
@@ -69,7 +69,7 @@ def test_invitee_lands_on_accept_page_sees_success_with_tenant_name(
 @allure.title("Клик 'Открыть древо' ведёт на главную с авторизацией")
 def test_invitee_clicks_open_tree_lands_on_tree_with_authed_indicator(
     auth_context_factory, owner_user, signup_via_api, tenant_client,
-):
+) -> None:
     """Full continuation: click «Открыть древо» → / loads с авторизованным
     invitee'ом (его имя в `#authIndicator .auth-name`).
 
@@ -104,7 +104,7 @@ def test_invitee_clicks_open_tree_lands_on_tree_with_authed_indicator(
 @allure.title("Владелец открывает своё приглашение и видит предупреждение")
 def test_owner_opens_own_invite_sees_warning_with_display_name(
     owner_page: Page, owner_user, tenant_client,
-):
+) -> None:
     """TC-INVITE-1 + BUG-UX-003: owner открывает invite, выписанный на
     *свой собственный* email → видит warning «вы и так владелец древа
     «<display_name>»» (full_name из signup), а не slug-URL.
@@ -141,7 +141,7 @@ def test_owner_opens_own_invite_sees_warning_with_display_name(
 @allure.title("Неавторизованный видит ссылки входа/регистрации с токеном")
 def test_anonymous_invitee_sees_login_links_with_token_in_next(
     page: Page, owner_user, tenant_client,
-):
+) -> None:
     """TC-INVITE-2: anonymous visitor + **email-less** invite видит prompt
     с links на `/login` и `/signup`, оба preserve token через
     `?next=/invite-accept?token=…`.
@@ -182,7 +182,7 @@ def test_anonymous_invitee_sees_login_links_with_token_in_next(
 @allure.title("Email-приглашение работает как magic-link без логина")
 def test_anonymous_emailed_invite_is_magic_link_auto_accepted(
     page: Page, owner_user, tenant_client,
-):
+) -> None:
     """v2-Phase1 H5 (new contract): an *emailed* invite opened by an
     anonymous visitor is a magic-link — the unique 192-bit token is the
     email-ownership proof, so the backend creates a passwordless user and

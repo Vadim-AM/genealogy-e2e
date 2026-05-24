@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @allure.title("Владелец удаляет демо-родственников из дерева")
-def test_owner_clears_demo_relatives(owner_page: Page, owner_user, tenant_client, pages: PageFactory):
+def test_owner_clears_demo_relatives(owner_page: Page, owner_user, tenant_client, pages: PageFactory) -> None:
     """Owner opens settings → 'Стереть демо-родственников' → confirms →
     the demo people are removed from the tree."""
     with step("подготовка: проверка наличия демо-данных"):
@@ -47,7 +47,7 @@ def test_owner_clears_demo_relatives(owner_page: Page, owner_user, tenant_client
 
 
 @allure.title("Владелец сохраняет демо-данные как шаблон для дерева")
-def test_owner_keeps_demo_as_template(owner_page: Page, owner_user, tenant_client, pages: PageFactory):
+def test_owner_keeps_demo_as_template(owner_page: Page, owner_user, tenant_client, pages: PageFactory) -> None:
     """Owner opens settings → 'Использовать как шаблон' → confirms →
     the tree structure stays (people are kept, not deleted)."""
     with step("подготовка: проверка наличия демо-данных"):

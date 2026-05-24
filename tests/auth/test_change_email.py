@@ -28,7 +28,7 @@ from framework.step import step
 @allure.title("Запрос смены email отправляет токен подтверждения на новый адрес")
 def test_change_email_endpoint_initiates_confirmation(
     signup_via_api, tenant_client, read_email_token,
-):
+) -> None:
     """INV-EMAIL-002: POST /api/account/me/email c `{new_email,
     current_password}` → 200/202 + confirmation mail на new_email.
 

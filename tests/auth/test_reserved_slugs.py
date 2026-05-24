@@ -30,7 +30,7 @@ _RESERVED_SLUGS = ("admin", "api", "www", "root", "mail", "ftp", "support")
 
 @pytest.mark.parametrize("reserved", _RESERVED_SLUGS)
 @allure.title("Зарезервированные slug-и не назначаются при регистрации")
-def test_signup_does_not_assign_reserved_slug(signup_via_api, reserved: str):
+def test_signup_does_not_assign_reserved_slug(signup_via_api, reserved: str) -> None:
     """INV-SLUG-001a: derived slug не должен ровно совпадать с reserved.
 
     Was open at Run security 28.04 night (slug derivation хватался

@@ -28,7 +28,7 @@ from helpers.tree.tree_api import demo_pid
 @allure.title("AI-обогащение: mock-результат содержит архивные подсказки")
 def test_enrichment_endpoint_returns_mocked_output(
     owner_user, grant_ai_consent, tenant_client,
-):
+) -> None:
     """F-AI-3: POST /api/enrich/{id} → job_id → poll → output uses mock fixture."""
     with step("подготовка: consent и запуск enrichment"):
         grant_ai_consent(owner_user)
@@ -53,7 +53,7 @@ def test_enrichment_endpoint_returns_mocked_output(
 @allure.title("AI-обогащение: история возвращает dict с ключом items")
 def test_enrichment_history_endpoint_returns_items_dict(
     owner_user, grant_ai_consent, tenant_client,
-):
+) -> None:
     """TC-E2E-010 surrogate: GET /api/enrich/{pid}/history returns `{items: [...]}`.
 
     Контракт shape — backend всегда возвращает dict с ключом `items`
@@ -84,7 +84,7 @@ def test_enrichment_history_endpoint_returns_items_dict(
 @allure.title("AI-обогащение: первый запуск не упирается в квоту (429)")
 def test_enrichment_first_run_does_not_hit_quota(
     owner_user, grant_ai_consent, tenant_client,
-):
+) -> None:
     """F-AI-9 surrogate: a single mocked enrichment doesn't 429."""
     with step("подготовка: consent и запуск первого enrichment"):
         grant_ai_consent(owner_user)

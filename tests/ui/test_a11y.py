@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 
 @allure.title("A11y: поле пароля получает aria-invalid при ошибке сервера")
-def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFactory):
+def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFactory) -> None:
     """A-SU-3: server returns 422 на short password → JS handler ставит
     `aria-invalid="true"` на password input.
 
@@ -75,7 +75,7 @@ def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFac
 
 
 @allure.title("A11y: honeypot-поле скрыто от скринридера (aria-hidden)")
-def test_signup_honeypot_is_aria_hidden(page: Page, anon_pages: PageFactory):
+def test_signup_honeypot_is_aria_hidden(page: Page, anon_pages: PageFactory) -> None:
     """A-SU-4: honeypot input has `aria-hidden="true"` (or its wrapper).
 
     Was xfail until upstream batch-6/7. Now regular regression.

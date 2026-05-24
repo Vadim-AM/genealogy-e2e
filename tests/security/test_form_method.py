@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 
 @allure.title("Формы: регистрация отправляется методом POST, не GET")
-def test_signup_form_submits_via_post(page: Page, anon_pages: PageFactory):
+def test_signup_form_submits_via_post(page: Page, anon_pages: PageFactory) -> None:
     """Submit signup form → request method MUST be POST."""
     with step("подготовка: заполнить форму регистрации"):
         _ = anon_pages.navigate_to(SignupPage)
@@ -60,7 +60,7 @@ def test_signup_form_submits_via_post(page: Page, anon_pages: PageFactory):
 
 
 @allure.title("Формы: вход отправляется методом POST, не GET")
-def test_login_form_submits_via_post(page: Page, anon_pages: PageFactory):
+def test_login_form_submits_via_post(page: Page, anon_pages: PageFactory) -> None:
     """Submit login form → request method MUST be POST."""
     with step("подготовка: заполнить форму входа"):
         _ = anon_pages.navigate_to(LoginPage)
@@ -82,7 +82,7 @@ def test_login_form_submits_via_post(page: Page, anon_pages: PageFactory):
 
 
 @allure.title("Формы: сброс пароля отправляется методом POST, не GET")
-def test_reset_password_form_method_is_post(page: Page):
+def test_reset_password_form_method_is_post(page: Page) -> None:
     """Reset-password form structural check (method="post").
 
     Не submit'им реально (token fake → backend 4xx, network capture

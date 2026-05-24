@@ -26,7 +26,7 @@ def test_person_name_sql_injection_safe(
     owner_user,
     tenant_client,
     payload,
-):
+) -> None:
     """SEC-INJ-5: SQL в person name → 2xx (stored as text) or 4xx, never 500."""
     api = tenant_client(owner_user)
     pid = f"sqli-{uuid4().hex[:8]}"
@@ -57,7 +57,7 @@ def test_person_name_sql_injection_safe(
 def test_signup_email_sql_injection_safe(
     base_url,
     payload,
-):
+) -> None:
     """SEC-INJ-6: SQL in signup email → 422 (validation), never 500."""
     with step("отправить signup с SQL-payload в email"):
         r = httpx.post(
@@ -89,7 +89,7 @@ def test_person_patch_sql_injection_safe(
     owner_user,
     tenant_client,
     payload,
-):
+) -> None:
     """SEC-INJ-7: SQL in PATCH person summary/notes → safe."""
     api = tenant_client(owner_user)
 

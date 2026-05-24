@@ -26,7 +26,7 @@ from models.auth import AccountMe
 @allure.title("GDPR: удаление тенанта инвалидирует сессию владельца")
 def test_delete_tenant_invalidates_owner_session(
     signup_via_api, tenant_client,
-):
+) -> None:
     """INV-GDPR-001a: после soft-delete tenant'а старая cookie owner'а
     больше не должна работать на `/api/account/me`.
 

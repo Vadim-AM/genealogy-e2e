@@ -19,7 +19,7 @@ from src.texts import ErrMsg, TestData
 @allure.title("Добавление брата/сестры через профиль создаёт персону и связь")
 def test_add_sibling_via_profile_creates_person_and_relationship(
     owner_page: Page, owner_user, tenant_client,
-):
+) -> None:
     """TC-E2E-008: open demo-self profile → "+" sibling → fill FIO → Save.
 
     Sibling relation is chosen because it has no `RELATIVE_LIMITS` cap;

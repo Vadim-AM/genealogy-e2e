@@ -21,7 +21,7 @@ from src.texts import TestData
 
 
 @allure.title("Роли: viewer может читать дерево владельца")
-def test_viewer_can_read_tree(viewer_in_owners_tenant, tenant_client):
+def test_viewer_can_read_tree(viewer_in_owners_tenant, tenant_client) -> None:
     """INV-PERM-003a: viewer's GET /api/tree returns 200 with data.
 
     Was xfail until upstream commit `fded6c7`. Regression-trail.
@@ -35,7 +35,7 @@ def test_viewer_can_read_tree(viewer_in_owners_tenant, tenant_client):
 
 
 @allure.title("Роли: viewer может читать профиль персоны")
-def test_viewer_can_read_person(viewer_in_owners_tenant, tenant_client):
+def test_viewer_can_read_person(viewer_in_owners_tenant, tenant_client) -> None:
     """INV-PERM-003a: viewer GET /api/people/{id} returns 200."""
     _, viewer = viewer_in_owners_tenant
     r = tenant_client(viewer).get(routes.person(TestData.DEMO_PERSON_ID))

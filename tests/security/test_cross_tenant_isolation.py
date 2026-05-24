@@ -32,7 +32,7 @@ from framework.step import step
 @allure.title("Изоляция: персона тенанта A не видна тенанту B")
 def test_person_created_in_tenant_a_not_visible_in_tenant_b(
     signup_via_api, tenant_client
-):
+) -> None:
     """Тенант A создаёт person → тенант B не видит его в /api/tree
     (главный изоляционный invariant)."""
     with step("подготовка: создать два независимых тенанта"):
@@ -70,7 +70,7 @@ def test_person_created_in_tenant_a_not_visible_in_tenant_b(
 @allure.title("Изоляция: чтение чужой персоны по ID возвращает 404")
 def test_tenant_b_cannot_read_tenant_a_person_by_id(
     signup_via_api, tenant_client
-):
+) -> None:
     """Прямой GET /api/people/{id} с чужим id → 404 (per-tenant scope hides)."""
     with step("подготовка: создать два тенанта и person в тенанте A"):
         user_a = signup_via_api()
@@ -90,7 +90,7 @@ def test_tenant_b_cannot_read_tenant_a_person_by_id(
 
 
 @allure.title("Изоляция: редактирование чужой персоны возвращает 404")
-def test_tenant_b_cannot_patch_tenant_a_person(signup_via_api, tenant_client):
+def test_tenant_b_cannot_patch_tenant_a_person(signup_via_api, tenant_client) -> None:
     """Write-leak проверка: PATCH чужого person → 404 (per-tenant scope hides)."""
     with step("подготовка: создать два тенанта и person в тенанте A"):
         user_a = signup_via_api()
@@ -112,7 +112,7 @@ def test_tenant_b_cannot_patch_tenant_a_person(signup_via_api, tenant_client):
 
 
 @allure.title("Изоляция: одинаковый display_slug допустим в разных тенантах")
-def test_same_display_slug_allowed_across_tenants(signup_via_api, tenant_client):
+def test_same_display_slug_allowed_across_tenants(signup_via_api, tenant_client) -> None:
     """display_slug — per-tenant, не global. Tenant A и B могут оба иметь
     person с `display_slug='ivan-ivanov'` — без коллизии."""
     with step("подготовка: создать два тенанта"):
@@ -142,7 +142,7 @@ def test_same_display_slug_allowed_across_tenants(signup_via_api, tenant_client)
 @allure.title("Изоляция: одинаковые ФИО получают разные tenant_slug")
 def test_tenant_signup_with_same_display_name_gets_different_slugs(
     signup_via_api, tenant_client
-):
+) -> None:
     """Два signup'а с одинаковым `full_name` → разные tenant_slug
     (auto-suffix или random). Без этого — overlap данных."""
     with step("действие: два signup с одинаковым full_name"):
@@ -161,7 +161,7 @@ def test_tenant_signup_with_same_display_name_gets_different_slugs(
 
 
 @allure.title("Изоляция: GEDCOM-экспорт содержит только свои данные")
-def test_gedcom_export_returns_only_own_tenant_data(signup_via_api, tenant_client):
+def test_gedcom_export_returns_only_own_tenant_data(signup_via_api, tenant_client) -> None:
     """Tenant A экспортирует GEDCOM → файл содержит только его данные."""
     with step("подготовка: создать два тенанта с уникальными person'ами"):
         user_a = signup_via_api()
@@ -187,7 +187,7 @@ def test_gedcom_export_returns_only_own_tenant_data(signup_via_api, tenant_clien
 @allure.title("Изоляция: GEDCOM-импорт не затрагивает чужой тенант")
 def test_gedcom_import_creates_persons_only_in_uploading_tenant(
     signup_via_api, tenant_client
-):
+) -> None:
     """Tenant A импортирует .ged → tenant B свой tree не меняется."""
     with step("подготовка: создать два тенанта, запомнить размер дерева B"):
         user_a = signup_via_api()
@@ -236,7 +236,7 @@ def test_gedcom_import_creates_persons_only_in_uploading_tenant(
 @allure.title("Изоляция: параллельные записи двух тенантов не пересекаются")
 def test_concurrent_creates_in_two_tenants_dont_interfere(
     signup_via_api, tenant_client
-):
+) -> None:
     """Параллельные create-операции в двух tenant'ах — никаких cross-effects
     (без потери записей, без чужих записей)."""
     with step("подготовка: создать два тенанта"):

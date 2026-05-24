@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 @allure.title("Владелец включает и затем отключает двухфакторную аутентификацию")
-def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user, pages: PageFactory):
+def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user, pages: PageFactory) -> None:
     """Owner opens Security settings → enables 2FA with a TOTP code →
     acknowledges recovery codes → status shows on; disables via step-up
     → status shows off."""
@@ -51,7 +51,7 @@ def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user, pages: Pa
 
 
 @allure.title("Код восстановления 2FA можно использовать только один раз")
-def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client):
+def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client) -> None:
     """Backend invariant: recovery codes are one-time. Enable 2FA,
     regenerate to obtain the codes, redeem one → the unused count drops,
     re-redeeming the same code → 401."""

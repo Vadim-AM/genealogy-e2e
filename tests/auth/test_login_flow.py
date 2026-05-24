@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @allure.title("Форма логина содержит поля email, пароль и кнопку входа")
-def test_login_form_renders(anon_pages: PageFactory):
+def test_login_form_renders(anon_pages: PageFactory) -> None:
     """F-LG-1, X-LG-1..4: /login renders email + password + submit."""
     login = anon_pages.navigate_to(LoginPage)
     login.expect_visible_form()
@@ -33,7 +33,7 @@ def test_login_form_renders(anon_pages: PageFactory):
 @allure.title("Вход с правильным паролем выдаёт сессию и доступ к /me")
 def test_login_with_correct_credentials_succeeds(
     page: Page, base_url: str, owner_user, anon_pages: PageFactory
-):
+) -> None:
     """F-LG-1, F-LG-4: correct credentials → session cookie + /me returns tenant."""
     with step("действие: вход с правильными credentials"):
         login = anon_pages.navigate_to(LoginPage)
@@ -55,7 +55,7 @@ def test_login_with_correct_credentials_succeeds(
 
 
 @allure.title("Неверный пароль показывает ошибку на странице логина")
-def test_login_with_wrong_password_shows_error(page: Page, owner_user, anon_pages: PageFactory):
+def test_login_with_wrong_password_shows_error(page: Page, owner_user, anon_pages: PageFactory) -> None:
     """S-LG-1: wrong credentials → visible inline error, no redirect away from /login."""
     with step("действие: вход с неверным паролем"):
         login = anon_pages.navigate_to(LoginPage)
@@ -69,7 +69,7 @@ def test_login_with_wrong_password_shows_error(page: Page, owner_user, anon_page
 @allure.title("Ошибки для неизвестного email и неверного пароля одинаковы")
 def test_login_unknown_email_returns_same_error_as_wrong_password(
     page: Page, owner_user, anon_pages: PageFactory
-):
+) -> None:
     """S-LG-1, S-SU-2: unknown email vs wrong password — identical error text.
 
     No reverse-engineerable signal that an account does/does-not exist.
@@ -102,7 +102,7 @@ def test_login_unknown_email_returns_same_error_as_wrong_password(
 
 
 @allure.title("Страница логина содержит ссылки на регистрацию и сброс пароля")
-def test_login_links_to_signup_and_forgot(page: Page, anon_pages: PageFactory):
+def test_login_links_to_signup_and_forgot(page: Page, anon_pages: PageFactory) -> None:
     """X-LG-1, X-LG-2: signup and forgot-password links visible on /login."""
     with step("действие: переход на /login"):
         _ = anon_pages.navigate_to(LoginPage)

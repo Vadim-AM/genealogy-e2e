@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 @allure.title("Форма регистрации содержит обязательные поля и honeypot")
-def test_signup_form_has_required_inputs(anon_pages: PageFactory, soft_check):
+def test_signup_form_has_required_inputs(anon_pages: PageFactory, soft_check) -> None:
     """F-SU-1, X-SU-1..11: required inputs + autocomplete + honeypot tabindex."""
     signup = anon_pages.navigate_to(SignupPage)
     signup.expect_visible_form()
@@ -34,7 +34,7 @@ def test_signup_form_has_required_inputs(anon_pages: PageFactory, soft_check):
 
 
 @allure.title("Успешная регистрация отправляет письмо с токеном верификации")
-def test_signup_happy_path_sends_verification_email(page: Page, base_url: str, anon_pages: PageFactory):
+def test_signup_happy_path_sends_verification_email(page: Page, base_url: str, anon_pages: PageFactory) -> None:
     """F-SU-1, F-EV-1: submit form → backend sends verification email."""
     with step("действие: заполнение и отправка формы регистрации"):
         email = make_email("happy")
@@ -59,7 +59,7 @@ def test_signup_happy_path_sends_verification_email(page: Page, base_url: str, a
 
 
 @allure.title("Подтверждение email автоматически авторизует пользователя")
-def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str, anon_pages: PageFactory):
+def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str, anon_pages: PageFactory) -> None:
     """TC-FLOW-1.1: POST /api/account/verify-email sets a session cookie in
     the response so the user is logged in immediately — no extra login step.
 
@@ -106,7 +106,7 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str, ano
 
 
 @allure.title("После верификации email создаётся тенант для пользователя")
-def test_signup_then_verify_creates_tenant(page: Page, base_url: str, anon_pages: PageFactory):
+def test_signup_then_verify_creates_tenant(page: Page, base_url: str, anon_pages: PageFactory) -> None:
     """F-EV-4: after verify, login succeeds and tenant_slug is returned."""
     with step("подготовка: signup и получение токена"):
         email = make_email("verify")
@@ -139,7 +139,7 @@ def test_signup_then_verify_creates_tenant(page: Page, base_url: str, anon_pages
 
 
 @allure.title("Заполненный honeypot даёт тихий 200 без отправки письма")
-def test_honeypot_field_silently_succeeds(page: Page, base_url: str, anon_pages: PageFactory):
+def test_honeypot_field_silently_succeeds(page: Page, base_url: str, anon_pages: PageFactory) -> None:
     """S-SU-4: filling honeypot 'website' → silent 200, no email captured.
 
     We wait for the signup response (no fixed sleep) and assert the
@@ -168,7 +168,7 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str, anon_pages:
 
 
 @allure.title("Одноразовый email отклоняется с ошибкой в поле ввода")
-def test_disposable_email_rejected_inline(page: Page, base_url: str, anon_pages: PageFactory):
+def test_disposable_email_rejected_inline(page: Page, base_url: str, anon_pages: PageFactory) -> None:
     """S-SU-5: disposable email — inline error visible, no email sent.
 
     Backend → 422 detail с подстрокой «email», и signup.html
@@ -197,7 +197,7 @@ def test_disposable_email_rejected_inline(page: Page, base_url: str, anon_pages:
 
 
 @allure.title("Слишком короткий пароль не проходит валидацию формы")
-def test_password_too_short_rejected_inline(page: Page, base_url: str, anon_pages: PageFactory):
+def test_password_too_short_rejected_inline(page: Page, base_url: str, anon_pages: PageFactory) -> None:
     """S-SU-8: password < 8 chars — HTML5 validity blocks submit, no email sent."""
     with step("действие: попытка регистрации с коротким паролем"):
         email = make_email("shortpw")

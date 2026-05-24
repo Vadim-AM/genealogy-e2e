@@ -20,7 +20,7 @@ from src.texts import ErrMsg
 
 
 @allure.title("Edge: переход по несуществующему профилю не ломает UI")
-def test_f5_on_nonexistent_profile_id_does_not_crash(owner_page: Page):
+def test_f5_on_nonexistent_profile_id_does_not_crash(owner_page: Page) -> None:
     """TC-EDGE-004: F5 on /#/p/<unknown> shows tree, no JS crash."""
     owner_page.goto("/#/p/nonexistent_xyz_123")
     owner_page.wait_for_load_state("domcontentloaded")
@@ -28,7 +28,7 @@ def test_f5_on_nonexistent_profile_id_does_not_crash(owner_page: Page):
 
 
 @allure.title("Edge: персона с единственным полем name корректно читается")
-def test_old_person_with_only_name_field_renders(owner_user, tenant_client):
+def test_old_person_with_only_name_field_renders(owner_user, tenant_client) -> None:
     """TC-EDGE-001: a person record with only `name` (no surname/given) — accessible.
 
     If POST /api/people stops accepting the legacy single-name payload, that's
@@ -55,7 +55,7 @@ def test_old_person_with_only_name_field_renders(owner_user, tenant_client):
 
 
 @allure.title("Edge: /api/health доступен без авторизации и отдаёт ok")
-def test_health_endpoint_does_not_require_auth(base_url: str):
+def test_health_endpoint_does_not_require_auth(base_url: str) -> None:
     """Smoke: /api/health is public (no auth), reports status ok.
 
     Behaviour, not exact shape (Rule 13): post-PR-B7 the body also carries

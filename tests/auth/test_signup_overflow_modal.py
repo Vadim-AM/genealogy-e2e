@@ -35,7 +35,7 @@ _IS_OPEN = re.compile(r"\bis-open\b")
 
 
 @allure.title("Модалка листа ожидания открывается с email пользователя")
-def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page, anon_pages: PageFactory):
+def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page, anon_pages: PageFactory) -> None:
     """TC-22.04 (open): backend → waitlist_required → модалка открывается,
     title «Сейчас принимаем не всех», email юзера встроен в #waitlistBody2.
 
@@ -59,7 +59,7 @@ def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page, a
 
 
 @allure.title("Кнопка 'Понятно' в модалке ожидания ведёт на главную")
-def test_waitlist_modal_ok_button_redirects_to_landing(page: Page, anon_pages: PageFactory):
+def test_waitlist_modal_ok_button_redirects_to_landing(page: Page, anon_pages: PageFactory) -> None:
     """TC-22.04 (close-ok): click «Понятно» → закрывает модалку и
     делает redirect на / (signup.html:407: location.href = '/').
     """
@@ -76,7 +76,7 @@ def test_waitlist_modal_ok_button_redirects_to_landing(page: Page, anon_pages: P
 
 
 @allure.title("Esc закрывает модалку ожидания без перенаправления")
-def test_waitlist_modal_esc_closes_without_redirect(page: Page, anon_pages: PageFactory):
+def test_waitlist_modal_esc_closes_without_redirect(page: Page, anon_pages: PageFactory) -> None:
     """TC-22.05: Esc убирает класс .is-open, но НЕ делает redirect —
     юзер остаётся на /signup. Это сознательное решение (signup.html:411):
     не блокируем юзера если он промахнулся клавишей.
@@ -101,7 +101,7 @@ def test_waitlist_modal_esc_closes_without_redirect(page: Page, anon_pages: Page
 
 
 @allure.title("Модалка показывает ссылку /wait при неуспешной авто-подписке")
-def test_waitlist_modal_shows_wait_link_when_auto_subscribe_failed(page: Page, anon_pages: PageFactory):
+def test_waitlist_modal_shows_wait_link_when_auto_subscribe_failed(page: Page, anon_pages: PageFactory) -> None:
     """TC-22.04 (fallback): когда backend не смог auto-subscribe
     (waitlist_subscribed=false), модалка показывает CTA на /wait
     для повторной подписки вручную (signup.html:399).

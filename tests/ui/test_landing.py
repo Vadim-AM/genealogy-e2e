@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 @allure.title("Лендинг: заголовок страницы содержит название бренда")
-def test_landing_title_has_brand(page: Page, anon_pages: PageFactory):
+def test_landing_title_has_brand(page: Page, anon_pages: PageFactory) -> None:
     """F-LND-2: title contains a brand fragment.
 
     Title is finalised by `_bootstrapSiteConfig` (js/init.js) after fetching
@@ -40,7 +40,7 @@ def test_landing_title_has_brand(page: Page, anon_pages: PageFactory):
 
 
 @allure.title("Лендинг: нет JS-ошибок в консоли при загрузке")
-def test_landing_no_console_errors(page: Page, anon_pages: PageFactory):
+def test_landing_no_console_errors(page: Page, anon_pages: PageFactory) -> None:
     """N-1: no JS exceptions on landing; only allowlisted 401-on-anon network errors.
 
     Two channels are tracked separately:
@@ -76,7 +76,7 @@ def test_landing_no_console_errors(page: Page, anon_pages: PageFactory):
 
 
 @allure.title("Лендинг: гость видит вкладки Древо и О проекте")
-def test_landing_has_main_tabs(page: Page, anon_pages: PageFactory):
+def test_landing_has_main_tabs(page: Page, anon_pages: PageFactory) -> None:
     """U-LND-1: guest-visible tabs are present.
 
     Guests see only `tree` and `about`; map/sources/timeline are auth-gated
@@ -91,7 +91,7 @@ def test_landing_has_main_tabs(page: Page, anon_pages: PageFactory):
 
 
 @allure.title("Лендинг: на главной нет персональных данных владельца")
-def test_landing_no_personal_owner_data(page: Page, anon_pages: PageFactory):
+def test_landing_no_personal_owner_data(page: Page, anon_pages: PageFactory) -> None:
     """C-LND-3: public landing must not leak owner family names (PII).
 
     Was xfailed under BUG-COPY-001 until upstream commit `fc2849e`
@@ -109,7 +109,7 @@ def test_landing_no_personal_owner_data(page: Page, anon_pages: PageFactory):
 
 
 @allure.title("Лендинг: CSS/JS-ресурсы загружаются без ошибок")
-def test_static_assets_load(page: Page, anon_pages: PageFactory):
+def test_static_assets_load(page: Page, anon_pages: PageFactory) -> None:
     """F-LND-5: critical CSS/JS bundles return 200."""
     with step("подготовка: подключить listener на статику"):
         statuses: dict[str, int] = {}

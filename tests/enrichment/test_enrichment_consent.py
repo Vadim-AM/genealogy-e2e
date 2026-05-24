@@ -29,7 +29,7 @@ from src.texts import AiConsent, ErrMsg, t
 @allure.title("AI-согласие: первый клик показывает модалку с Anthropic и политикой")
 def test_first_enrich_click_renders_consent_modal_with_legal_content(
     owner_page: Page,
-):
+) -> None:
     """TC-AI-1 (positive): первый click ★ → modal с Anthropic + privacy
     policy + перечислением shared data."""
     with step("действие: открыть профиль и кликнуть обогащение"):
@@ -57,7 +57,7 @@ def test_first_enrich_click_renders_consent_modal_with_legal_content(
 
 
 @allure.title("AI-согласие: отказ закрывает модалку и блокирует запрос")
-def test_consent_decline_closes_modal_and_blocks_enrich_post(owner_page: Page):
+def test_consent_decline_closes_modal_and_blocks_enrich_post(owner_page: Page) -> None:
     """TC-AI-1 (negative): Cancel в consent modal — modal закрывается, и
     POST /api/enrich/* не уходит ни до, ни после клика.
 
@@ -93,7 +93,7 @@ def test_consent_decline_closes_modal_and_blocks_enrich_post(owner_page: Page):
 
 
 @allure.title("AI-согласие: повторный клик после отказа снова показывает модалку")
-def test_consent_re_click_after_decline_re_renders_modal(owner_page: Page):
+def test_consent_re_click_after_decline_re_renders_modal(owner_page: Page) -> None:
     """Compliance: second click «★» **после** Decline должен снова показать
     consent modal — не silent fail (тогда юзер не знает что enrich
     выключен) и не silent send (compliance leak).

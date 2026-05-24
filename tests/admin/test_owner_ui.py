@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 
 @allure.title("Админка владельца: вкладка настроек содержит поля ввода")
-def test_owner_settings_tab_has_inputs(owner_page: Page, pages: PageFactory):
+def test_owner_settings_tab_has_inputs(owner_page: Page, pages: PageFactory) -> None:
     """F-OU-2: settings tab has site_name input and save button."""
     with step("действие: открытие вкладки настроек"):
         owner = pages.navigate_to(OwnerPage)
@@ -42,7 +42,7 @@ def test_owner_settings_tab_has_inputs(owner_page: Page, pages: PageFactory):
 
 
 @allure.title("Админка владельца: сохранение site_name попадает в бэкенд")
-def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_client, pages: PageFactory):
+def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_client, pages: PageFactory) -> None:
     """F-OU-2: save site_name → backend reflects the new value via /api/site/config.
 
     Awaits the WRITE specifically — a non-GET /api/site/config response,
@@ -71,7 +71,7 @@ def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_clien
 
 
 @allure.title("Экспорт: GEDCOM содержит заголовок 5.5.1 и SOUR проекта")
-def test_owner_export_gedcom_returns_valid_dump(owner_user, tenant_client):
+def test_owner_export_gedcom_returns_valid_dump(owner_user, tenant_client) -> None:
     """F-OU-4 / TC-EXPORT-1: GEDCOM export returns a 5.5.1-shaped text dump
     with attachment Content-Disposition and the canonical SOUR identifier."""
     with step("действие: экспорт GEDCOM"):
@@ -97,7 +97,7 @@ def test_owner_export_gedcom_returns_valid_dump(owner_user, tenant_client):
 
 
 @allure.title("Экспорт: ZIP содержит people.json и MANIFEST.txt")
-def test_owner_export_zip_contains_manifest_and_people(owner_user, tenant_client):
+def test_owner_export_zip_contains_manifest_and_people(owner_user, tenant_client) -> None:
     """F-OU-4 / TC-EXPORT-1: ZIP export carries application/zip with magic-bytes
     `50 4b 03 04` and includes people.json + MANIFEST.txt."""
     with step("действие: экспорт ZIP"):
