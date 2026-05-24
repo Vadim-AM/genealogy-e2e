@@ -20,6 +20,7 @@ import allure
 
 from tests.constants import unique_email
 from tests.helpers.auth.session_helpers import NEW_PASSWORD, me_status, trigger_password_reset
+from tests.step import step
 
 
 @allure.title("Сброс пароля инвалидирует текущую активную сессию")
@@ -31,24 +32,25 @@ def test_password_reset_invalidates_active_session(
 
     Was xfail until upstream commit `5b4c674`. Regression-trail.
     """
-    email = unique_email("sess")
-    user = signup_via_api(email=email)
+    with step("подготовка: signup и проверка активной сессии"):
+        email = unique_email("sess")
+        user = signup_via_api(email=email)
+        assert me_status(base_url, user.cookies) == 200, \
+            "session must be active immediately after signup"
 
-    # Sanity: сессия активна сразу после signup.
-    assert me_status(base_url, user.cookies) == 200, \
-        "session must be active immediately after signup"
+    with step("действие: сброс пароля"):
+        trigger_password_reset(
+            base_url, email=email, new_password=NEW_PASSWORD,
+            read_email_token=read_email_token,
+        )
 
-    trigger_password_reset(
-        base_url, email=email, new_password=NEW_PASSWORD,
-        read_email_token=read_email_token,
-    )
-
-    after = me_status(base_url, user.cookies)
-    assert after == 401, (
-        f"INV-AUTH-001 regression: stolen session NOT invalidated after "
-        f"password reset. Cookie still returns {after}. Defeats the "
-        f"security purpose of reset."
-    )
+    with step("проверка: старая сессия инвалидирована (401)"):
+        after = me_status(base_url, user.cookies)
+        assert after == 401, (
+            f"INV-AUTH-001 regression: stolen session NOT invalidated after "
+            f"password reset. Cookie still returns {after}. Defeats the "
+            f"security purpose of reset."
+        )
 
 
 @allure.title("Сброс пароля отзывает сессии на всех устройствах")
@@ -61,29 +63,28 @@ def test_password_reset_invalidates_all_devices_sessions(
     Was xfail at Run security 28.04 night. Closed by upstream batch-2.
     Regression-trail для `revoke_all_user_sessions(user_id)` контракта.
     """
-    email = unique_email("mdev")
-    user = signup_via_api(email=email)
+    with step("подготовка: signup и создание двух параллельных сессий"):
+        email = unique_email("mdev")
+        user = signup_via_api(email=email)
+        device_a_cookies = user.cookies
+        device_b_cookies = login_existing(email)
 
-    # «Device A»: первая сессия (атакующий мог украсть эту cookie).
-    device_a_cookies = user.cookies
+    with step("подготовка: проверка что обе сессии активны"):
+        assert me_status(base_url, device_a_cookies) == 200, \
+            "device A session must be active before reset"
+        assert me_status(base_url, device_b_cookies) == 200, \
+            "device B session must be active before reset"
 
-    # «Device B»: жертва залогинена параллельно с того же email.
-    device_b_cookies = login_existing(email)
+    with step("действие: сброс пароля"):
+        trigger_password_reset(
+            base_url, email=email, new_password=NEW_PASSWORD,
+            read_email_token=read_email_token,
+        )
 
-    # Sanity: обе валидны.
-    assert me_status(base_url, device_a_cookies) == 200, \
-        "device A session must be active before reset"
-    assert me_status(base_url, device_b_cookies) == 200, \
-        "device B session must be active before reset"
-
-    trigger_password_reset(
-        base_url, email=email, new_password=NEW_PASSWORD,
-        read_email_token=read_email_token,
-    )
-
-    a_after = me_status(base_url, device_a_cookies)
-    assert a_after == 401, (
-        f"INV-MULTIDEVICE-001a regression: device A session NOT "
-        f"invalidated after reset initiated elsewhere. Cookie "
-        f"returns {a_after}."
-    )
+    with step("проверка: сессия device A инвалидирована (401)"):
+        a_after = me_status(base_url, device_a_cookies)
+        assert a_after == 401, (
+            f"INV-MULTIDEVICE-001a regression: device A session NOT "
+            f"invalidated after reset initiated elsewhere. Cookie "
+            f"returns {a_after}."
+        )

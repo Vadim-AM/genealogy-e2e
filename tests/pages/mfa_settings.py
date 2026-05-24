@@ -17,6 +17,8 @@ Layout:
 
 from __future__ import annotations
 
+from typing import Self
+
 import pyotp
 from playwright.sync_api import Page, expect
 
@@ -37,7 +39,8 @@ class MfaSettings:
         self.stepup_code = page.locator("#mfaStepUpCode")
         self._secret: str | None = None
 
-    def open_tab(self) -> "MfaSettings":
+    def open_tab(self) -> Self:
+        """Click the Security tab to reveal MFA controls."""
         self.tab.click()
         return self
 

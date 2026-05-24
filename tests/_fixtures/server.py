@@ -10,6 +10,7 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -49,12 +50,14 @@ def uvicorn_server(base_url: str) -> str:
 
 
 def _post_reset(uvicorn_server: str) -> None:
+    """POST /api/_test/reset to wipe backend state."""
     httpx.post(
         f"{uvicorn_server}{API.TEST_RESET}", timeout=TIMEOUTS.api_request
     ).raise_for_status()
 
 
 def _set_ai_search_on(uvicorn_server: str) -> None:
+    """Enable AI search via /api/_test/set-platform-setting."""
     httpx.post(
         f"{uvicorn_server}{API.TEST_SET_PLATFORM_SETTING}",
         json={"enable_ai_search": True},
@@ -63,7 +66,7 @@ def _set_ai_search_on(uvicorn_server: str) -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _baseline_reset(uvicorn_server: str, tmp_path_factory) -> None:
+def _baseline_reset(uvicorn_server: str, tmp_path_factory: pytest.TempPathFactory) -> None:
     """One global `/api/_test/reset` for the whole run — a single clean
     baseline, NOT per-test (that was the parallelization blocker and the
     O(n) wedge tax). Tenants then accumulate across the run on purpose:
@@ -91,7 +94,7 @@ def _baseline_reset(uvicorn_server: str, tmp_path_factory) -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def install_mock_ai(_baseline_reset, uvicorn_server: str) -> None:
+def install_mock_ai(_baseline_reset: None, uvicorn_server: str) -> None:
     """Install AI fixture (survives `/reset` — not touched by it). After
     `_baseline_reset` so ordering is deterministic; idempotent, so the
     once-per-xdist-worker re-POST is harmless."""
@@ -104,7 +107,7 @@ def install_mock_ai(_baseline_reset, uvicorn_server: str) -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _ai_search_on_session(install_mock_ai, uvicorn_server: str) -> None:
+def _ai_search_on_session(install_mock_ai: None, uvicorn_server: str) -> None:
     """platform_settings.enable_ai_search → True once per session.
 
     Beta DB default is False (migration `r6s7t8u9v0w1`), but most e2e
@@ -123,7 +126,7 @@ def _ai_search_on_session(install_mock_ai, uvicorn_server: str) -> None:
 
 
 @pytest.fixture(autouse=True)
-def reset_state(request, uvicorn_server: str) -> None:
+def reset_state(request: pytest.FixtureRequest, uvicorn_server: str) -> None:
     """Per-test global wipe — ONLY for `serial`-marked tests.
 
     Serial tests run single-worker (`-m serial -p no:xdist`), so the
@@ -138,7 +141,7 @@ def reset_state(request, uvicorn_server: str) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _ai_search_on_serial(request, reset_state, uvicorn_server: str) -> None:
+def _ai_search_on_serial(request: pytest.FixtureRequest, reset_state: None, uvicorn_server: str) -> None:
     """Serial group keeps per-test reset, which wipes platform_settings →
     `enable_ai_search` back to the False DB default. Re-enable it for
     serial tests; `test_ai_disabled_flow.py`'s file-local autouse flips it
@@ -151,7 +154,7 @@ def _ai_search_on_serial(request, reset_state, uvicorn_server: str) -> None:
 
 
 @pytest.fixture(scope="session")
-def browser_context_args(browser_context_args: dict, base_url: str) -> dict:
+def browser_context_args(browser_context_args: dict[str, Any], base_url: str) -> dict[str, Any]:
     return {
         **browser_context_args,
         "base_url": base_url,

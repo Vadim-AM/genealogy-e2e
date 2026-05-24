@@ -5,14 +5,13 @@ Public landing page rendering, headers, content guarantees.
 
 from __future__ import annotations
 
-import pytest
-from playwright.sync_api import Page, expect
-
 import allure
+from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
 from tests.messages import PII, Brand, t
 from tests.pages.tree_page import TreePage
+from tests.step import step
 
 
 @allure.title("Лендинг: заголовок страницы содержит название бренда")
@@ -24,10 +23,14 @@ def test_landing_title_has_brand(page: Page):
     через polling, не требует `networkidle`.
     """
     import re
-    page.goto("/")
-    fragments = t(Brand.TITLE_FRAGMENTS)
-    pattern = re.compile("|".join(re.escape(f) for f in fragments))
-    expect(page).to_have_title(pattern)
+
+    with step("действие: открыть главную"):
+        page.goto("/")
+
+    with step("проверка: заголовок содержит бренд"):
+        fragments = t(Brand.TITLE_FRAGMENTS)
+        pattern = re.compile("|".join(re.escape(f) for f in fragments))
+        expect(page).to_have_title(pattern)
 
 
 @allure.title("Лендинг: нет JS-ошибок в консоли при загрузке")
@@ -40,27 +43,30 @@ def test_landing_no_console_errors(page: Page):
         endpoints are allowlisted by URL (browser console error text alone
         does not include the URL).
     """
-    js_errors: list[str] = []
-    bad_responses: list[tuple[str, int]] = []
+    with step("подготовка: подключить listeners на ошибки"):
+        js_errors: list[str] = []
+        bad_responses: list[tuple[str, int]] = []
 
-    EXPECTED_401_URLS = (API.ACCOUNT_ME, API.TREE)
+        EXPECTED_401_URLS = (API.ACCOUNT_ME, API.TREE)
 
-    page.on("pageerror", lambda exc: js_errors.append(str(exc)))
+        page.on("pageerror", lambda exc: js_errors.append(str(exc)))
 
-    def _on_response(resp):
-        if resp.status >= 400 and resp.status != 404:  # 404 covered by static-assets test
-            url = resp.url
-            if resp.status == 401 and any(u in url for u in EXPECTED_401_URLS):
-                return
-            bad_responses.append((url, resp.status))
+        def _on_response(resp):
+            if resp.status >= 400 and resp.status != 404:  # 404 covered by static-assets test
+                url = resp.url
+                if resp.status == 401 and any(u in url for u in EXPECTED_401_URLS):
+                    return
+                bad_responses.append((url, resp.status))
 
-    page.on("response", _on_response)
+        page.on("response", _on_response)
 
-    page.goto("/")
-    page.wait_for_load_state("domcontentloaded")
+    with step("действие: загрузить главную страницу"):
+        page.goto("/")
+        page.wait_for_load_state("domcontentloaded")
 
-    assert not js_errors, f"JS pageerrors on landing: {js_errors}"
-    assert not bad_responses, f"unexpected network errors: {bad_responses}"
+    with step("проверка: нет JS-ошибок и неожиданных сетевых ошибок"):
+        assert not js_errors, f"JS pageerrors on landing: {js_errors}"
+        assert not bad_responses, f"unexpected network errors: {bad_responses}"
 
 
 @allure.title("Лендинг: гость видит вкладки Древо и О проекте")
@@ -70,10 +76,13 @@ def test_landing_has_main_tabs(page: Page):
     Guests see only `tree` and `about`; map/sources/timeline are auth-gated
     by `updateGuestUI()` in index.html.
     """
-    tree = TreePage(page).goto()
-    page.wait_for_load_state("domcontentloaded")
-    expect(tree.tab_tree).to_be_visible()
-    expect(tree.tab_about).to_be_visible()
+    with step("действие: открыть лендинг"):
+        tree = TreePage(page).goto()
+        page.wait_for_load_state("domcontentloaded")
+
+    with step("проверка: вкладки Древо и О проекте видны"):
+        expect(tree.tab_tree).to_be_visible()
+        expect(tree.tab_about).to_be_visible()
 
 
 @allure.title("Лендинг: на главной нет персональных данных владельца")
@@ -85,26 +94,33 @@ def test_landing_no_personal_owner_data(page: Page):
     dev on 28.04. Now a regular regression — the page MUST stay clean
     of any owner family names (`PII.OWNER_FAMILY_NAMES`).
     """
-    page.goto("/")
-    page.wait_for_load_state("domcontentloaded")
-    body = page.content()
-    for needle in PII.OWNER_FAMILY_NAMES:
-        assert needle not in body, f"PII leak: '{needle}' visible on /"
+    with step("действие: загрузить главную"):
+        page.goto("/")
+        page.wait_for_load_state("domcontentloaded")
+        body = page.content()
+
+    with step("проверка: нет PII владельца в контенте"):
+        for needle in PII.OWNER_FAMILY_NAMES:
+            assert needle not in body, f"PII leak: '{needle}' visible on /"
 
 
 @allure.title("Лендинг: CSS/JS-ресурсы загружаются без ошибок")
 def test_static_assets_load(page: Page):
     """F-LND-5: critical CSS/JS bundles return 200."""
-    statuses: dict[str, int] = {}
+    with step("подготовка: подключить listener на статику"):
+        statuses: dict[str, int] = {}
 
-    def _track(response):
-        url = response.url
-        if any(seg in url for seg in ("/css/", "/js/", "/assets/", "/fonts/")):
-            statuses[url] = response.status
+        def _track(response):
+            url = response.url
+            if any(seg in url for seg in ("/css/", "/js/", "/assets/", "/fonts/")):
+                statuses[url] = response.status
 
-    page.on("response", _track)
-    page.goto("/")
-    page.wait_for_load_state("domcontentloaded")
+        page.on("response", _track)
 
-    bad = {url: status for url, status in statuses.items() if status >= 400}
-    assert not bad, f"static assets returned errors: {bad}"
+    with step("действие: загрузить главную"):
+        page.goto("/")
+        page.wait_for_load_state("domcontentloaded")
+
+    with step("проверка: все статические ресурсы отдали 2xx/3xx"):
+        bad = {url: status for url, status in statuses.items() if status >= 400}
+        assert not bad, f"static assets returned errors: {bad}"

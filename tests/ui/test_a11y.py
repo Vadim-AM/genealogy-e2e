@@ -19,12 +19,11 @@ Two distinct fails for screen-reader users:
 
 from __future__ import annotations
 
-import pytest
+import allure
 from playwright.sync_api import Page, expect
 
-import allure
-
 from tests.pages.signup_page import SignupPage
+from tests.step import step
 from tests.timeouts import TIMEOUTS
 
 
@@ -41,30 +40,34 @@ def test_signup_short_password_sets_aria_invalid(page: Page):
     P0.4 (ФЗ-156, май 2026): форма имеет 4 раздельных consent чекбокса
     вместо одного `#agree`. Поле `#full_name` удалено в commit 814d5f8 (I4).
     """
-    page.goto("/signup")
-    page.wait_for_load_state("domcontentloaded")
-    # Снимаем HTML5 ограничение minlength="8" на #password — иначе native
-    # validity блокирует submit ДО fetch, JS error-handler не запускается,
-    # тест проверяет уровень `aria-invalid` который ставится только из
-    # response-handler. Server-side валидация (zxcvbn-python score>=2) —
-    # источник истины, который мы и тестируем.
-    signup = SignupPage(page)
-    page.evaluate("document.getElementById('password').removeAttribute('minlength')")
-    signup.email.fill("a11y-server@e2e.example.com")
-    signup.password.fill("short")  # < 8 chars — server rejects
-    # Wave-9: privacy/cross-border объединены с terms_accepted.
-    signup.agree_terms.check()
+    with step("подготовка: открыть signup и снять minlength"):
+        page.goto("/signup")
+        page.wait_for_load_state("domcontentloaded")
+        # Снимаем HTML5 ограничение minlength="8" на #password — иначе native
+        # validity блокирует submit ДО fetch, JS error-handler не запускается,
+        # тест проверяет уровень `aria-invalid` который ставится только из
+        # response-handler. Server-side валидация (zxcvbn-python score>=2) —
+        # источник истины, который мы и тестируем.
+        signup = SignupPage(page)
+        page.evaluate("document.getElementById('password').removeAttribute('minlength')")
 
-    # Wait for server response, then check aria state.
-    with page.expect_response("**/api/account/signup") as resp_info:
-        signup.submit_btn.click()
-    assert resp_info.value.status >= 400, (
-        f"expected server validation error; got {resp_info.value.status}"
-    )
+    with step("действие: заполнить форму коротким паролем и отправить"):
+        signup.email.fill("a11y-server@e2e.example.com")
+        signup.password.fill("short")  # < 8 chars — server rejects
+        # Wave-9: privacy/cross-border объединены с terms_accepted.
+        signup.agree_terms.check()
 
-    expect(signup.password).to_have_attribute(
-        "aria-invalid", "true", timeout=TIMEOUTS.api_request * 1000
-    )
+        # Wait for server response, then check aria state.
+        with page.expect_response("**/api/account/signup") as resp_info:
+            signup.submit_btn.click()
+        assert resp_info.value.status >= 400, (
+            f"expected server validation error; got {resp_info.value.status}"
+        )
+
+    with step("проверка: поле пароля получило aria-invalid"):
+        expect(signup.password).to_have_attribute(
+            "aria-invalid", "true", timeout=TIMEOUTS.api_request * 1000
+        )
 
 
 @allure.title("A11y: honeypot-поле скрыто от скринридера (aria-hidden)")
@@ -73,7 +76,10 @@ def test_signup_honeypot_is_aria_hidden(page: Page):
 
     Was xfail until upstream batch-6/7. Now regular regression.
     """
-    page.goto("/signup")
-    page.wait_for_load_state("domcontentloaded")
-    signup = SignupPage(page)
-    expect(signup.honeypot).to_have_attribute("aria-hidden", "true")
+    with step("действие: открыть signup"):
+        page.goto("/signup")
+        page.wait_for_load_state("domcontentloaded")
+        signup = SignupPage(page)
+
+    with step("проверка: honeypot имеет aria-hidden"):
+        expect(signup.honeypot).to_have_attribute("aria-hidden", "true")

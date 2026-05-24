@@ -20,7 +20,7 @@ from tests.api_paths import API
 from tests.constants import unique_email
 from tests.messages import TestData
 from tests.response import expect_response
-
+from tests.step import step
 
 # ─────────────────────────────────────────────────────────────────────────
 # INV-DOMAIN-001 / INV-DOMAIN-004 / INV-DATE-001 — date validation
@@ -48,19 +48,21 @@ def test_patch_parent_birth_after_child_is_422(signup_via_api, tenant_client):
     Was xfail (partial fix until PATCH-handler validation). Closed by
     upstream batch-6/7. Now regular regression.
     """
-    user = signup_via_api(email=unique_email("dom004"))
-    api = tenant_client(user)
+    with step("подготовка: создание ребёнка (1985) и родителя (1960) со связью"):
+        user = signup_via_api(email=unique_email("dom004"))
+        api = tenant_client(user)
 
-    api.post(API.PEOPLE, json=person_payload(
-        "dom004-child", "Ребёнок", branch="subject", birth="1985"
-    )).raise_for_status()
-    api.post(API.PEOPLE, json=person_payload(
-        "dom004-parent", "Родитель", birth="1960"
-    )).raise_for_status()
-    api.post(API.RELATIONSHIPS, json=parent_rel("dom004-parent", "dom004-child")).raise_for_status()
+        api.post(API.PEOPLE, json=person_payload(
+            "dom004-child", "Ребёнок", branch="subject", birth="1985"
+        )).raise_for_status()
+        api.post(API.PEOPLE, json=person_payload(
+            "dom004-parent", "Родитель", birth="1960"
+        )).raise_for_status()
+        api.post(API.RELATIONSHIPS, json=parent_rel("dom004-parent", "dom004-child")).raise_for_status()
 
-    r = api.patch(API.person("dom004-parent"), json={"birth": "2000"})
-    expect_response(r, label="parent birth after child").status(400, 422)
+    with step("проверка: PATCH birth=2000 отклонён (400/422)"):
+        r = api.patch(API.person("dom004-parent"), json={"birth": "2000"})
+        expect_response(r, label="parent birth after child").status(400, 422)
 
 
 @allure.title("Бэкенд отклоняет непарсируемую дату рождения")
@@ -89,18 +91,20 @@ def test_third_parent_relationship_is_rejected(signup_via_api, tenant_client):
 
     Was xfail until upstream commit `7499d92`. Now regression.
     """
-    user = signup_via_api(email=unique_email("dom002"))
-    api = tenant_client(user)
+    with step("подготовка: создание ребёнка и трёх родителей, привязка двух"):
+        user = signup_via_api(email=unique_email("dom002"))
+        api = tenant_client(user)
 
-    api.post(API.PEOPLE, json=person_payload("dom002-child", "Ребёнок", branch="subject")).raise_for_status()
-    for pid, pname in (("dom002-p1", "Родитель-1"), ("dom002-p2", "Родитель-2"), ("dom002-p3", "Родитель-3")):
-        api.post(API.PEOPLE, json=person_payload(pid, pname)).raise_for_status()
+        api.post(API.PEOPLE, json=person_payload("dom002-child", "Ребёнок", branch="subject")).raise_for_status()
+        for pid, pname in (("dom002-p1", "Родитель-1"), ("dom002-p2", "Родитель-2"), ("dom002-p3", "Родитель-3")):
+            api.post(API.PEOPLE, json=person_payload(pid, pname)).raise_for_status()
 
-    api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p1", "dom002-child")).raise_for_status()
-    api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p2", "dom002-child")).raise_for_status()
+        api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p1", "dom002-child")).raise_for_status()
+        api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p2", "dom002-child")).raise_for_status()
 
-    r = api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p3", "dom002-child"))
-    expect_response(r, label="3rd parent").status(400, 409, 422)
+    with step("проверка: третий родитель отклонён"):
+        r = api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p3", "dom002-child"))
+        expect_response(r, label="3rd parent").status(400, 409, 422)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -114,16 +118,18 @@ def test_parent_cycle_is_rejected(signup_via_api, tenant_client):
 
     Was xfail until upstream commit `7499d92`. Now regression.
     """
-    user = signup_via_api(email=unique_email("dom003"))
-    api = tenant_client(user)
+    with step("подготовка: создание A, B и связи A→B"):
+        user = signup_via_api(email=unique_email("dom003"))
+        api = tenant_client(user)
 
-    api.post(API.PEOPLE, json=person_payload("dom003-a", "Цикл-A")).raise_for_status()
-    api.post(API.PEOPLE, json=person_payload("dom003-b", "Цикл-B")).raise_for_status()
+        api.post(API.PEOPLE, json=person_payload("dom003-a", "Цикл-A")).raise_for_status()
+        api.post(API.PEOPLE, json=person_payload("dom003-b", "Цикл-B")).raise_for_status()
 
-    api.post(API.RELATIONSHIPS, json=parent_rel("dom003-a", "dom003-b")).raise_for_status()
+        api.post(API.RELATIONSHIPS, json=parent_rel("dom003-a", "dom003-b")).raise_for_status()
 
-    r2 = api.post(API.RELATIONSHIPS, json=parent_rel("dom003-b", "dom003-a"))
-    expect_response(r2, label="parent cycle B->A->B").status(400, 409, 422)
+    with step("проверка: обратная связь B→A отклонена"):
+        r2 = api.post(API.RELATIONSHIPS, json=parent_rel("dom003-b", "dom003-a"))
+        expect_response(r2, label="parent cycle B->A->B").status(400, 409, 422)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -157,18 +163,20 @@ def test_delete_non_root_person_with_relationship_does_not_500(
 
     Was xfail at Run security 28.04 night. Closed by upstream batch-2.
     """
-    user = signup_via_api(email=unique_email("cascade"))
-    api = tenant_client(user)
+    with step("подготовка: создание ребёнка, родителя и связи"):
+        user = signup_via_api(email=unique_email("cascade"))
+        api = tenant_client(user)
 
-    api.post(API.PEOPLE, json=person_payload("cascade-child", "Ребёнок", branch="subject")).raise_for_status()
-    api.post(API.PEOPLE, json=person_payload("cascade-parent", "Родитель")).raise_for_status()
-    api.post(API.RELATIONSHIPS, json=parent_rel("cascade-parent", "cascade-child")).raise_for_status()
+        api.post(API.PEOPLE, json=person_payload("cascade-child", "Ребёнок", branch="subject")).raise_for_status()
+        api.post(API.PEOPLE, json=person_payload("cascade-parent", "Родитель")).raise_for_status()
+        api.post(API.RELATIONSHIPS, json=parent_rel("cascade-parent", "cascade-child")).raise_for_status()
 
-    r = api.delete(API.person("cascade-parent"))
-    assert r.status_code < 500, (
-        f"DELETE /api/people/cascade-parent crashed {r.status_code} — "
-        f"cascade not handled. Body: {r.text[:300]}"
-    )
+    with step("проверка: DELETE не вызывает 500"):
+        r = api.delete(API.person("cascade-parent"))
+        assert r.status_code < 500, (
+            f"DELETE /api/people/cascade-parent crashed {r.status_code} -- "
+            f"cascade not handled. Body: {r.text[:300]}"
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -185,16 +193,17 @@ def test_relationship_with_orphan_person_id_returns_404_not_500(
 
     Was xfail until upstream commit `4007a3a`. Now regression.
     """
-    user = signup_via_api(email=unique_email("txn001"))
-    api = tenant_client(user)
+    with step("подготовка: создание реальной персоны"):
+        user = signup_via_api(email=unique_email("txn001"))
+        api = tenant_client(user)
+        api.post(API.PEOPLE, json=person_payload("txn001-real", "Реальный")).raise_for_status()
 
-    api.post(API.PEOPLE, json=person_payload("txn001-real", "Реальный")).raise_for_status()
-
-    r = api.post(
-        API.RELATIONSHIPS,
-        json={"type": "parent", "person1_id": "txn001-real", "person2_id": "NONEXIST-ORPHAN-ID"},
-    )
-    expect_response(r, label="orphan FK relationship").status(400, 404, 422)
+    with step("проверка: связь с несуществующим ID возвращает 400/404/422"):
+        r = api.post(
+            API.RELATIONSHIPS,
+            json={"type": "parent", "person1_id": "txn001-real", "person2_id": "NONEXIST-ORPHAN-ID"},
+        )
+        expect_response(r, label="orphan FK relationship").status(400, 404, 422)
 
 
 # ─────────────────────────────────────────────────────────────────────────

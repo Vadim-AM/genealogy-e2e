@@ -29,6 +29,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from tests.pages.tree_page import TreePage
+from tests.step import step
 
 
 @allure.title("Вкладка 'Карта' скрыта по умолчанию до включения фичи")
@@ -39,9 +40,10 @@ def test_map_tab_is_hidden_by_default(owner_page: Page):
     Реальный контракт: map disabled by default. Если кто-то уберёт
     `hidden` — фича утекает в prod без готовности.
     """
-    tree = TreePage(owner_page).goto()
+    with step("действие: переход на главную"):
+        tree = TreePage(owner_page).goto()
 
-    # Tab existует в DOM (markup готов), но скрыт через атрибут hidden.
-    expect(tree.tab_map).to_have_count(1)
-    expect(tree.tab_map).to_be_hidden()
-    expect(tree.tab_map).to_have_attribute("hidden", "")
+    with step("проверка: tab map в DOM, но скрыт через hidden"):
+        expect(tree.tab_map).to_have_count(1)
+        expect(tree.tab_map).to_be_hidden()
+        expect(tree.tab_map).to_have_attribute("hidden", "")

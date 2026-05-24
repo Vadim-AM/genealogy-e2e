@@ -1,0 +1,55 @@
+name: Flakiness report (weekly)
+
+# Analyzes recent CI artifacts for flaky tests (pass+fail without code change).
+# Creates a GitHub issue if flaky tests are found.
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # every Monday 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download recent artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p collected-results
+          # Fetch artifacts from last 20 workflow runs of pr-check
+          for run_id in $(gh api repos/${{ github.repository }}/actions/workflows/pr-check.yml/runs \
+            --jq '.workflow_runs[:20] | .[].id' 2>/dev/null); do
+            gh run download "$run_id" -D "collected-results/run-$run_id" 2>/dev/null || true
+          done
+          echo "Collected $(find collected-results -name '*.xml' | wc -l) XML files"
+
+      - name: Run flakiness analysis
+        id: flakiness
+        run: |
+          result=$(python scripts/flakiness_report.py --results-dir collected-results --threshold 2 2>&1) || true
+          echo "$result"
+          if echo "$result" | grep -q "flaky test"; then
+            echo "has_flaky=true" >> "$GITHUB_OUTPUT"
+            echo "$result" > flakiness-report.txt
+          else
+            echo "has_flaky=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create issue for flaky tests
+        if: steps.flakiness.outputs.has_flaky == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "Flaky tests detected ($(date +%Y-%m-%d))" \
+            --body "$(cat flakiness-report.txt)" \
+            --label "flaky"

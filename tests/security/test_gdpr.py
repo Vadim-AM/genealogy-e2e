@@ -17,6 +17,7 @@ import allure
 from tests.api_paths import API
 from tests.constants import unique_email
 from tests.response import expect_response
+from tests.step import step
 
 
 @allure.title("GDPR: удаление тенанта инвалидирует сессию владельца")
@@ -29,16 +30,15 @@ def test_delete_tenant_invalidates_owner_session(
     Was xfail until upstream commit `771b1c0` ("fix(gdpr): invalidate
     sessions + login через deleting tenant"). Now plain regression.
     """
-    user = signup_via_api(email=unique_email("gdpr"))
-    api = tenant_client(user)
+    with step("подготовка: создать пользователя и проверить валидность сессии"):
+        user = signup_via_api(email=unique_email("gdpr"))
+        api = tenant_client(user)
+        expect_response(api.get(API.ACCOUNT_ME), label="pre-delete /me").status(200)
 
-    # 1. Sanity: сессия валидна сейчас.
-    expect_response(api.get(API.ACCOUNT_ME), label="pre-delete /me").status(200)
+    with step("действие: удалить тенант через soft-delete"):
+        r = api.post(API.DELETE_TENANT, json={"confirm_slug": user.slug})
+        expect_response(r, label="delete-tenant").status(200)
 
-    # 2. POST delete-tenant — soft-delete с подтверждением через slug.
-    r = api.post(API.DELETE_TENANT, json={"confirm_slug": user.slug})
-    expect_response(r, label="delete-tenant").status(200)
-
-    # 3. Cookie должна быть отозвана.
-    me_after = api.get(API.ACCOUNT_ME)
-    expect_response(me_after, label="INV-GDPR-001a: post-delete /me").status(401)
+    with step("проверка: cookie отозвана, /me возвращает 401"):
+        me_after = api.get(API.ACCOUNT_ME)
+        expect_response(me_after, label="INV-GDPR-001a: post-delete /me").status(401)

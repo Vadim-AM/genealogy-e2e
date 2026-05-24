@@ -12,15 +12,20 @@ that keeps tests stable when the BUG-SEC-002 sweep moves these handlers to
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from playwright.sync_api import Locator, Page, expect
 
 from tests.messages import Buttons, FamilyGroups, TestData, t
 
+if TYPE_CHECKING:
+    from tests.pages.person_editor import PersonEditor
+
 
 def open_editor_for(
-    page: "Page",
+    page: Page,
     person_id: str = TestData.DEMO_PERSON_ID,
-) -> "PersonEditor":
+) -> PersonEditor:
     """Navigate to a person's profile and switch to edit mode.
 
     Returns the ready-to-use PersonEditor. Shared helper — replaces the
@@ -56,15 +61,22 @@ class ProfilePanel:
         self.accepted_facts_block = page.locator("#profileAiAccepted")
 
     def expect_visible(self) -> None:
+        """Assert the profile container is visible."""
         expect(self.container).to_be_visible()
 
-    def open_editor(self) -> None:
+    def open_editor(self) -> PersonEditor:
+        """Click Edit and return the person editor."""
         self.btn_edit.click()
+        from tests.pages.person_editor import PersonEditor
+
+        return PersonEditor(self.page)
 
     def trigger_enrichment(self) -> None:
+        """Click the enrichment button to start AI search."""
         self.btn_enrich.click()
 
     def close(self) -> None:
+        """Click the back button to close the profile panel."""
         self.btn_back.click()
 
     # ──────────────────────────────────────────────────────────────────
@@ -85,12 +97,15 @@ class ProfilePanel:
         )
 
     def click_add_sibling(self) -> None:
+        """Click the add-sibling button in the siblings group."""
         self.add_relative_button(t(FamilyGroups.SIBLINGS)).click()
 
     def click_add_child(self) -> None:
+        """Click the add-child button in the children group."""
         self.add_relative_button(t(FamilyGroups.CHILDREN)).click()
 
     def click_add_spouse(self) -> None:
+        """Click the add-spouse button in the spouse group."""
         self.add_relative_button(t(FamilyGroups.SPOUSE)).click()
 
     def click_add_parent(self) -> None:
@@ -102,7 +117,7 @@ class ProfilePanel:
     # ──────────────────────────────────────────────────────────────────
 
     @staticmethod
-    def navigate_to(page: Page, person_id: str) -> "ProfilePanel":
+    def navigate_to(page: Page, person_id: str) -> ProfilePanel:
         """Go to a person's profile page and wait for it to render."""
         page.goto(f"/#/p/{person_id}")
         page.wait_for_load_state("domcontentloaded")
@@ -117,6 +132,6 @@ class ProfilePanel:
             .filter(has_text=group_label)
         )
         group.locator(
-            f'a[data-action="open-profile"]'
+            'a[data-action="open-profile"]'
         ).filter(has_text=name_substring).click()
         expect(self.container).to_be_visible()

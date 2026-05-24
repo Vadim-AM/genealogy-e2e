@@ -15,6 +15,7 @@ import allure
 from tests.api_paths import API
 from tests.messages import TestData
 from tests.response import expect_response
+from tests.step import step
 
 
 @allure.title("Роли: viewer может читать дерево владельца")
@@ -23,9 +24,12 @@ def test_viewer_can_read_tree(viewer_in_owners_tenant, tenant_client):
 
     Was xfail until upstream commit `fded6c7`. Regression-trail.
     """
-    _, viewer = viewer_in_owners_tenant
-    r = tenant_client(viewer).get(API.TREE)
-    expect_response(r, label="viewer GET tree").status(200)
+    with step("действие: viewer запрашивает дерево"):
+        _, viewer = viewer_in_owners_tenant
+        r = tenant_client(viewer).get(API.TREE)
+
+    with step("проверка: 200 OK"):
+        expect_response(r, label="viewer GET tree").status(200)
 
 
 @allure.title("Роли: viewer может читать профиль персоны")

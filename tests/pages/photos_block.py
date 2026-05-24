@@ -30,6 +30,7 @@ class PhotosBlock:
         self.thumbs = self.grid.locator('[data-testid="photo-thumb"]')
 
     def thumb_count(self) -> int:
+        """Return the current number of photo thumbnails."""
         return self.thumbs.count()
 
     def remove_last_thumb(self) -> Locator:
@@ -38,4 +39,5 @@ class PhotosBlock:
         return self.thumbs.last.locator('[data-testid="photo-remove"]')
 
     def expect_thumb_count(self, n: int) -> None:
+        """Assert exactly n thumbnails are present in the grid."""
         expect(self.thumbs).to_have_count(n)

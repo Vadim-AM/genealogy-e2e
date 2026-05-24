@@ -14,11 +14,8 @@ from __future__ import annotations
 import json
 import re
 
-import pytest
-
-from playwright.sync_api import Page, Route, expect
-
 import allure
+from playwright.sync_api import Page, Route, expect
 
 from tests.messages import AboutTab, Placeholders, TestData, t
 from tests.pages.base import custom_select_for, wait_for_authed_shell
@@ -26,7 +23,7 @@ from tests.pages.confirm_dialog import ConfirmDialog
 from tests.pages.person_editor import AddRelativeModal, PersonEditor
 from tests.pages.profile_panel import ProfilePanel, open_editor_for
 from tests.pages.tree_page import TreePage
-
+from tests.step import step
 
 # ─────────────────────────────────────────────────────────────────────────
 # TC-04.05 — Minimap visible на tree tab у logged-in юзера (desktop)
@@ -83,17 +80,18 @@ def test_custom_select_opens_on_arrow_down_keyboard(owner_page: Page):
     select.js:101 — Enter / Space / ArrowDown открывают dropdown когда
     `!isOpen`.
     """
-    _open_editor(owner_page)
+    with step("подготовка: открыть редактор персоны"):
+        _open_editor(owner_page)
 
-    wrapper = custom_select_for(owner_page, "gender")
-    expect(wrapper).to_be_visible()
+    with step("действие: фокус на gender select и ArrowDown"):
+        wrapper = custom_select_for(owner_page, "gender")
+        expect(wrapper).to_be_visible()
+        wrapper.focus()
+        owner_page.keyboard.press("ArrowDown")
 
-    # focus на wrapper (он tabindex'ed по select.js) → ArrowDown открывает.
-    wrapper.focus()
-    owner_page.keyboard.press("ArrowDown")
-    # После открытия dropdown options становятся visible.
-    dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')
-    expect(dropdown).to_be_visible()
+    with step("проверка: dropdown открылся"):
+        dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')
+        expect(dropdown).to_be_visible()
 
 
 @allure.title("Редактор: Escape закрывает выпадающий список")
@@ -101,15 +99,19 @@ def test_custom_select_closes_on_escape_keyboard(owner_page: Page):
     """TC-25.06 (продолжение): Esc после открытия закрывает dropdown.
     select.js:122 — `else if (e.key === 'Escape')` закрытие.
     """
-    _open_editor(owner_page)
-    wrapper = custom_select_for(owner_page, "gender")
-    wrapper.focus()
-    owner_page.keyboard.press("ArrowDown")
-    dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')
-    expect(dropdown).to_be_visible()
+    with step("подготовка: открыть редактор и dropdown"):
+        _open_editor(owner_page)
+        wrapper = custom_select_for(owner_page, "gender")
+        wrapper.focus()
+        owner_page.keyboard.press("ArrowDown")
+        dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')
+        expect(dropdown).to_be_visible()
 
-    owner_page.keyboard.press("Escape")
-    expect(dropdown).not_to_be_visible()
+    with step("действие: нажать Escape"):
+        owner_page.keyboard.press("Escape")
+
+    with step("проверка: dropdown закрылся"):
+        expect(dropdown).not_to_be_visible()
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -126,24 +128,29 @@ def test_confirm_dialog_escape_cancels(owner_page: Page):
     Note: на demo-self (subject root) кнопки delete нет, поэтому
     используем grandpa. Если seed изменится — тест падает информативно.
     """
-    editor = _open_editor(owner_page, person_id="demo-grandpa")
-    delete_responses: list[int] = []
-    owner_page.on(
-        "response",
-        lambda r: delete_responses.append(r.status)
-        if "/api/people/" in r.url and r.request.method == "DELETE"
-        else None,
-    )
-    editor.btn_delete.click()
-    dialog = ConfirmDialog(owner_page)
-    dialog.expect_visible()
+    with step("подготовка: открыть editor и listener на DELETE"):
+        editor = _open_editor(owner_page, person_id="demo-grandpa")
+        delete_responses: list[int] = []
+        owner_page.on(
+            "response",
+            lambda r: delete_responses.append(r.status)
+            if "/api/people/" in r.url and r.request.method == "DELETE"
+            else None,
+        )
 
-    # confirm-dialog.js:137 — Escape → cleanup(false). Никаких DELETE.
-    dialog.dismiss_via_escape()
-    dialog.expect_hidden()
-    assert not delete_responses, (
-        f"Esc должен отменить delete; backend получил DELETE: {delete_responses}"
-    )
+    with step("действие: открыть confirm-dialog через delete"):
+        editor.btn_delete.click()
+        dialog = ConfirmDialog(owner_page)
+        dialog.expect_visible()
+
+    with step("действие: нажать Escape"):
+        dialog.dismiss_via_escape()
+
+    with step("проверка: диалог закрыт и DELETE не ушёл"):
+        dialog.expect_hidden()
+        assert not delete_responses, (
+            f"Esc должен отменить delete; backend получил DELETE: {delete_responses}"
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -162,20 +169,21 @@ def test_add_parent_button_hidden_when_two_parents_exist(owner_page: Page):
     «+ Родители» (`.profile-family-group:has-text(Родители) .profile-rel-add`)
     либо отсутствует в DOM, либо not_visible. RELATIVE_LIMITS.parents=2.
     """
-    owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-    owner_page.wait_for_load_state("domcontentloaded")
+    with step("действие: открыть профиль demo-персоны"):
+        owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
+        owner_page.wait_for_load_state("domcontentloaded")
+        panel = ProfilePanel(owner_page)
+        panel.expect_visible()
 
-    panel = ProfilePanel(owner_page)
-    panel.expect_visible()
-
-    # add_relative_button даёт scoped Locator — `.first` не нужен,
-    # filter по тексту уже сужает. Контракт: count == 0 при limit hit.
-    add_parent = panel.add_relative_button("Родители")
-    assert add_parent.count() == 0, (
-        "demo seed имеет 2 родителя, кнопка `+ Родители` должна быть удалена "
-        f"из DOM (RELATIVE_LIMITS.parents=2); найдено {add_parent.count()} "
-        "кнопок"
-    )
+    with step("проверка: кнопка + Родители отсутствует в DOM"):
+        # add_relative_button даёт scoped Locator — `.first` не нужен,
+        # filter по тексту уже сужает. Контракт: count == 0 при limit hit.
+        add_parent = panel.add_relative_button("Родители")
+        assert add_parent.count() == 0, (
+            "demo seed имеет 2 родителя, кнопка `+ Родители` должна быть удалена "
+            f"из DOM (RELATIVE_LIMITS.parents=2); найдено {add_parent.count()} "
+            "кнопок"
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -189,21 +197,23 @@ def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page):
     `.footer-ornament` с тремя bullet-точками. Это design-system
     маркер, регрессия = пустой/неструктурированный footer.
     """
-    owner_page.goto("/")
-    owner_page.wait_for_load_state("domcontentloaded")
+    with step("действие: загрузить главную"):
+        owner_page.goto("/")
+        owner_page.wait_for_load_state("domcontentloaded")
 
-    sources_ornament = owner_page.locator('#tab-sources [data-testid="footer-ornament"]')
-    timeline_ornament = owner_page.locator('#tab-timeline [data-testid="footer-ornament"]')
-    assert sources_ornament.count() == 1, (
-        f"#tab-sources должен содержать ровно один footer-ornament; "
-        f"got {sources_ornament.count()}"
-    )
-    assert timeline_ornament.count() == 1, (
-        f"#tab-timeline должен содержать ровно один footer-ornament; "
-        f"got {timeline_ornament.count()}"
-    )
-    # Три bullet'а как design-decision (· · · — index.html:164,183).
-    expect(sources_ornament).to_contain_text("•")
+    with step("проверка: footer-ornament в sources и timeline"):
+        sources_ornament = owner_page.locator('#tab-sources [data-testid="footer-ornament"]')
+        timeline_ornament = owner_page.locator('#tab-timeline [data-testid="footer-ornament"]')
+        assert sources_ornament.count() == 1, (
+            f"#tab-sources должен содержать ровно один footer-ornament; "
+            f"got {sources_ornament.count()}"
+        )
+        assert timeline_ornament.count() == 1, (
+            f"#tab-timeline должен содержать ровно один footer-ornament; "
+            f"got {timeline_ornament.count()}"
+        )
+        # Три bullet'а как design-decision (· · · — index.html:164,183).
+        expect(sources_ornament).to_contain_text("•")
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -217,24 +227,26 @@ def test_timeline_river_filters_render_five_branches(owner_page: Page):
     (`[data-testid="river-filter-btn"]`): Все / По матери / По отцу / Другие / История.
     Default active = «Все» (data-branch=all).
     """
-    tree = TreePage(owner_page).goto()
-    tree.switch_tab("timeline")
+    with step("действие: переключиться на timeline"):
+        tree = TreePage(owner_page).goto()
+        tree.switch_tab("timeline")
 
-    filters = owner_page.locator('#riverFilters button[data-testid^="river-filter"]')
-    expect(filters).to_have_count(5)
+    with step("проверка: 5 фильтров в правильном порядке"):
+        filters = owner_page.locator('#riverFilters button[data-testid^="river-filter"]')
+        expect(filters).to_have_count(5)
 
-    expected_branches = ["all", "maternal", "paternal", "other", "historical"]
-    actual_branches = [
-        filters.nth(i).get_attribute("data-branch")
-        for i in range(5)
-    ]
-    assert actual_branches == expected_branches, (
-        f"river-filter порядок изменился; expected {expected_branches}, "
-        f"got {actual_branches}"
-    )
+        expected_branches = ["all", "maternal", "paternal", "other", "historical"]
+        actual_branches = [
+            filters.nth(i).get_attribute("data-branch")
+            for i in range(5)
+        ]
+        assert actual_branches == expected_branches, (
+            f"river-filter порядок изменился; expected {expected_branches}, "
+            f"got {actual_branches}"
+        )
 
-    # Active по умолчанию = первый (data-branch=all).
-    expect(filters.nth(0)).to_have_class(re.compile(r"\bactive\b"))
+    with step("проверка: active по умолчанию = all"):
+        expect(filters.nth(0)).to_have_class(re.compile(r"\bactive\b"))
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -249,13 +261,15 @@ def test_about_tab_shows_placeholder_when_about_text_is_empty(owner_page: Page):
     текстом «Это семейное древо…». `[data-config-html="about_text"]`
     скрыт через `data-empty-hidden`.
     """
-    tree = TreePage(owner_page).goto()
-    wait_for_authed_shell(owner_page)
-    tree.switch_tab("about")
+    with step("действие: открыть вкладку About"):
+        tree = TreePage(owner_page).goto()
+        wait_for_authed_shell(owner_page)
+        tree.switch_tab("about")
 
-    placeholder = owner_page.locator('[data-config-empty="about_text"]')
-    expect(placeholder).to_be_visible()
-    expect(placeholder).to_contain_text(t(AboutTab.FAMILY_TREE_KEYWORD))
+    with step("проверка: placeholder виден с текстом-подсказкой"):
+        placeholder = owner_page.locator('[data-config-empty="about_text"]')
+        expect(placeholder).to_be_visible()
+        expect(placeholder).to_contain_text(t(AboutTab.FAMILY_TREE_KEYWORD))
 
 
 @allure.title("Родственник: при 409-конфликте модалка остаётся открытой")
@@ -269,31 +283,33 @@ def test_add_relative_shows_error_on_409_conflict(owner_page: Page):
     add-relative-modal.js). Modal остаётся открыта при non-200 ответе.
     """
 
-    def conflict_handler(route: Route) -> None:
-        route.fulfill(
-            status=409,
-            content_type="application/json",
-            body=json.dumps({"detail": "Duplicate person"}),
-        )
+    with step("подготовка: подменить API на 409 через route"):
+        def conflict_handler(route: Route) -> None:
+            route.fulfill(
+                status=409,
+                content_type="application/json",
+                body=json.dumps({"detail": "Duplicate person"}),
+            )
 
-    # Перехватываем все POST на person/relationship create endpoints.
-    owner_page.route("**/api/admin/people", conflict_handler)
-    owner_page.route("**/api/admin/relationships**", conflict_handler)
-    owner_page.route("**/api/relationships", conflict_handler)
+        # Перехватываем все POST на person/relationship create endpoints.
+        owner_page.route("**/api/admin/people", conflict_handler)
+        owner_page.route("**/api/admin/relationships**", conflict_handler)
+        owner_page.route("**/api/relationships", conflict_handler)
 
-    owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-    owner_page.wait_for_load_state("domcontentloaded")
+    with step("действие: открыть профиль и добавить родственника"):
+        owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
+        owner_page.wait_for_load_state("domcontentloaded")
 
-    panel = ProfilePanel(owner_page)
-    panel.expect_visible()
-    panel.click_add_sibling()
+        panel = ProfilePanel(owner_page)
+        panel.expect_visible()
+        panel.click_add_sibling()
 
-    modal = AddRelativeModal(owner_page)
-    modal.expect_visible()
-    modal.fill_and_save(surname="Дубликат", given="Тест")
+        modal = AddRelativeModal(owner_page)
+        modal.expect_visible()
+        modal.fill_and_save(surname="Дубликат", given="Тест")
 
-    # После 409: модалка остаётся видимой (silent-close = регрессия).
-    expect(modal.container).to_be_visible()
+    with step("проверка: модалка осталась открытой при 409"):
+        expect(modal.container).to_be_visible()
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -308,26 +324,27 @@ def test_custom_select_arrow_down_then_enter_selects_option(owner_page: Page):
     выбирает highlighted option и закрывает dropdown. Native select
     `data-field=gender` обновляется (form submission корректность).
     """
-    _open_editor(owner_page)
-    wrapper = custom_select_for(owner_page, "gender")
-    wrapper.focus()
-    owner_page.keyboard.press("ArrowDown")
-    dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')
-    expect(dropdown).to_be_visible()
+    with step("подготовка: открыть редактор и dropdown"):
+        _open_editor(owner_page)
+        wrapper = custom_select_for(owner_page, "gender")
+        wrapper.focus()
+        owner_page.keyboard.press("ArrowDown")
+        dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')
+        expect(dropdown).to_be_visible()
 
-    # ArrowDown ещё раз — переход на следующий option (если уже не последний).
-    owner_page.keyboard.press("ArrowDown")
-    owner_page.keyboard.press("Enter")
-    expect(dropdown).not_to_be_visible()
+    with step("действие: ArrowDown + Enter для выбора опции"):
+        owner_page.keyboard.press("ArrowDown")
+        owner_page.keyboard.press("Enter")
 
-    # Native select должен иметь selected value (не пустой) после выбора.
-    native = owner_page.locator('select[data-field="gender"]')
-    selected_value = native.evaluate("(el) => el.value")
-    assert selected_value, (
-        f"select[data-field=gender] value не установлен после Enter; "
-        f"got {selected_value!r}. Native select должен sync'аться с custom UI "
-        f"для form submission."
-    )
+    with step("проверка: dropdown закрылся и native select обновился"):
+        expect(dropdown).not_to_be_visible()
+        native = owner_page.locator('select[data-field="gender"]')
+        selected_value = native.evaluate("(el) => el.value")
+        assert selected_value, (
+            f"select[data-field=gender] value не установлен после Enter; "
+            f"got {selected_value!r}. Native select должен sync'аться с custom UI "
+            f"для form submission."
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -342,18 +359,17 @@ def test_confirm_dialog_enter_confirms_delete(owner_page: Page):
     Делаем delete на demo-grandpa и проверяем что DELETE действительно
     ушёл — через `expect_request` (network ждёт fetch'а явно).
     """
-    editor = _open_editor(owner_page, person_id="demo-grandpa")
-    editor.btn_delete.click()
-    dialog = ConfirmDialog(owner_page)
-    dialog.expect_visible()
+    with step("подготовка: открыть confirm-dialog через delete"):
+        editor = _open_editor(owner_page, person_id="demo-grandpa")
+        editor.btn_delete.click()
+        dialog = ConfirmDialog(owner_page)
+        dialog.expect_visible()
 
-    # expect_request ждёт фактический DELETE на /api/people/{id} —
-    # покрывает async chain confirmDialog → resolve(true) → onDelete →
-    # fetchWithTimeout (см. components/profile.js:599-603).
-    with owner_page.expect_request(
-        lambda req: re.search(r"/api/people/[^/?]+", req.url)
-        and req.method == "DELETE"
-    ):
+    with step("действие: подтвердить Enter и проверить DELETE"), \
+         owner_page.expect_request(
+             lambda req: bool(re.search(r"/api/people/[^/?]+", req.url)
+             and req.method == "DELETE")
+         ):
         dialog.confirm()
 
 
@@ -366,30 +382,30 @@ def test_confirm_dialog_backdrop_click_cancels(owner_page: Page):
     backdrop-click handler, либо нет. Если контракт «не поддерживается»,
     тест fail'ится явно.
     """
-    editor = _open_editor(owner_page, person_id="demo-grandpa")
-    delete_responses: list[int] = []
-    owner_page.on(
-        "response",
-        lambda r: delete_responses.append(r.status)
-        if "/api/people/" in r.url and r.request.method == "DELETE"
-        else None,
-    )
-    editor.btn_delete.click()
-    dialog = ConfirmDialog(owner_page)
-    dialog.expect_visible()
+    with step("подготовка: открыть editor и listener на DELETE"):
+        editor = _open_editor(owner_page, person_id="demo-grandpa")
+        delete_responses: list[int] = []
+        owner_page.on(
+            "response",
+            lambda r: delete_responses.append(r.status)
+            if "/api/people/" in r.url and r.request.method == "DELETE"
+            else None,
+        )
 
-    # Click на backdrop (родительский контейнер dialog'а, вне самой панели).
-    # Контракт `js/components/confirm-dialog.js`: backdrop-элемент `.confirm-dialog-backdrop`
-    # существует и его click закрывает dialog. Если backend сменит implementation
-    # — тест fail и его надо переписать осознанно. Используем `.first` потому что
-    # gedcom-import widget может оставить второй backdrop на странице.
-    dialog.dismiss_via_backdrop()
+    with step("действие: открыть confirm-dialog"):
+        editor.btn_delete.click()
+        dialog = ConfirmDialog(owner_page)
+        dialog.expect_visible()
 
-    dialog.expect_hidden()
-    assert not delete_responses, (
-        f"Backdrop click должен отменить delete; backend получил DELETE: "
-        f"{delete_responses}"
-    )
+    with step("действие: кликнуть по backdrop"):
+        dialog.dismiss_via_backdrop()
+
+    with step("проверка: диалог закрыт и DELETE не ушёл"):
+        dialog.expect_hidden()
+        assert not delete_responses, (
+            f"Backdrop click должен отменить delete; backend получил DELETE: "
+            f"{delete_responses}"
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -403,17 +419,20 @@ def test_timeline_river_filter_click_switches_active(owner_page: Page):
     → active class переходит с дефолтного `all` на `maternal`.
     Контракт: только одна кнопка active в каждый момент.
     """
-    tree = TreePage(owner_page).goto()
-    wait_for_authed_shell(owner_page)
-    tree.switch_tab("timeline")
+    with step("подготовка: переключиться на timeline"):
+        tree = TreePage(owner_page).goto()
+        wait_for_authed_shell(owner_page)
+        tree.switch_tab("timeline")
 
-    all_btn = owner_page.locator('[data-testid="river-filter-all"]')
-    maternal_btn = owner_page.locator('[data-testid="river-filter-maternal"]')
-    expect(all_btn).to_have_class(re.compile(r"\bactive\b"))
+    with step("действие: кликнуть по фильтру maternal"):
+        all_btn = owner_page.locator('[data-testid="river-filter-all"]')
+        maternal_btn = owner_page.locator('[data-testid="river-filter-maternal"]')
+        expect(all_btn).to_have_class(re.compile(r"\bactive\b"))
+        maternal_btn.click()
 
-    maternal_btn.click()
-    expect(maternal_btn).to_have_class(re.compile(r"\bactive\b"))
-    expect(all_btn).not_to_have_class(re.compile(r"\bactive\b"))
+    with step("проверка: active переключился на maternal"):
+        expect(maternal_btn).to_have_class(re.compile(r"\bactive\b"))
+        expect(all_btn).not_to_have_class(re.compile(r"\bactive\b"))
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -427,21 +446,24 @@ def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page):
     содержит search input (#evidenceSearch) с placeholder «Поиск...»
     и хотя бы одну `.filter-btn[data-filter=all]` (default active).
     """
-    tree = TreePage(owner_page).goto()
-    wait_for_authed_shell(owner_page)
-    tree.switch_tab("sources")
+    with step("действие: переключиться на sources"):
+        tree = TreePage(owner_page).goto()
+        wait_for_authed_shell(owner_page)
+        tree.switch_tab("sources")
 
-    search = owner_page.locator("#evidenceSearch")
-    expect(search).to_be_visible()
-    placeholder = search.get_attribute("placeholder")
-    assert placeholder and t(Placeholders.SEARCH) in placeholder, (
-        f"#evidenceSearch placeholder should contain {t(Placeholders.SEARCH)!r}; "
-        f"got {placeholder!r}"
-    )
+    with step("проверка: поле поиска с placeholder"):
+        search = owner_page.locator("#evidenceSearch")
+        expect(search).to_be_visible()
+        placeholder = search.get_attribute("placeholder")
+        assert placeholder and t(Placeholders.SEARCH) in placeholder, (
+            f"#evidenceSearch placeholder should contain {t(Placeholders.SEARCH)!r}; "
+            f"got {placeholder!r}"
+        )
 
-    all_btn = owner_page.locator('.filter-btn[data-filter="all"]')
-    expect(all_btn).to_be_visible()
-    expect(all_btn).to_have_class(re.compile(r"\bactive\b"))
+    with step("проверка: фильтр all активен по умолчанию"):
+        all_btn = owner_page.locator('.filter-btn[data-filter="all"]')
+        expect(all_btn).to_be_visible()
+        expect(all_btn).to_have_class(re.compile(r"\bactive\b"))
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -455,15 +477,17 @@ def test_minimap_hidden_on_mobile_viewport(owner_page: Page):
     display:none !important; } }` (css/inline.css). Меняем viewport
     на 375×800 (iPhone SE-class) и проверяем computed display.
     """
-    owner_page.set_viewport_size({"width": 375, "height": 800})
-    tree = TreePage(owner_page).goto()
+    with step("действие: установить mobile viewport и открыть древо"):
+        owner_page.set_viewport_size({"width": 375, "height": 800})
+        tree = TreePage(owner_page).goto()
 
-    display = tree.minimap.evaluate("(el) => getComputedStyle(el).display")
-    assert display == "none", (
-        f"#minimap должен быть display:none на mobile (≤720px); "
-        f"got {display!r}. Если правило @media (max-width:720px) удалено "
-        f"в css/inline.css — регрессия mobile UX."
-    )
+    with step("проверка: minimap скрыт через display:none"):
+        display = tree.minimap.evaluate("(el) => getComputedStyle(el).display")
+        assert display == "none", (
+            f"#minimap должен быть display:none на mobile (≤720px); "
+            f"got {display!r}. Если правило @media (max-width:720px) удалено "
+            f"в css/inline.css — регрессия mobile UX."
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -490,21 +514,22 @@ def test_about_contact_box_shows_placeholder_when_contacts_empty(owner_page: Pag
     Positive case (contact_text задан) требует PATCH /api/site/config —
     отдельный тест.
     """
-    tree = TreePage(owner_page).goto()
-    wait_for_authed_shell(owner_page)
-    tree.switch_tab("about")
+    with step("действие: открыть вкладку About"):
+        tree = TreePage(owner_page).goto()
+        wait_for_authed_shell(owner_page)
+        tree.switch_tab("about")
 
-    # Default seed (после reset_state): contact_text и contact_email пустые.
-    contact_text_p = owner_page.locator('[data-testid="contact-text"]')
-    contact_email_a = owner_page.locator('[data-testid="contact-email"]')
-    assert (contact_text_p.text_content() or "").strip() == "", \
-        f"expected empty contact_text on default seed; got {contact_text_p.text_content()!r}"
-    assert (contact_email_a.text_content() or "").strip() == "", \
-        f"expected empty contact_email on default seed; got {contact_email_a.text_content()!r}"
+    with step("проверка: контактные данные пусты"):
+        contact_text_p = owner_page.locator('[data-testid="contact-text"]')
+        contact_email_a = owner_page.locator('[data-testid="contact-email"]')
+        assert (contact_text_p.text_content() or "").strip() == "", \
+            f"expected empty contact_text on default seed; got {contact_text_p.text_content()!r}"
+        assert (contact_email_a.text_content() or "").strip() == "", \
+            f"expected empty contact_email on default seed; got {contact_email_a.text_content()!r}"
 
-    # Когда оба контакта empty — placeholder visible (для owner'а).
-    placeholder = owner_page.locator("#contactBoxPlaceholder")
-    expect(placeholder).to_be_visible()
+    with step("проверка: placeholder контактов виден"):
+        placeholder = owner_page.locator("#contactBoxPlaceholder")
+        expect(placeholder).to_be_visible()
 
 
 @allure.title("Древо: клик по карточке орбиты центрирует на персону")
@@ -515,21 +540,21 @@ def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page)
     на нового центра. Это re-center логика, **не** SPA-навигация в
     profile (последняя триггерится отдельным data-action="open-profile").
     """
-    owner_page.goto("/")
-    owner_page.wait_for_load_state("domcontentloaded")
+    with step("подготовка: открыть главную и найти не-центральную карту"):
+        owner_page.goto("/")
+        owner_page.wait_for_load_state("domcontentloaded")
+        target_card = owner_page.locator(
+            '#treeContainer [data-testid="orbit-card"][data-person-id]:not([data-testid="orbit-center-card"])'
+        ).first
+        expect(target_card).to_be_visible()
+        target_pid = target_card.get_attribute("data-person-id")
+        assert target_pid, "non-center orbit card has no data-person-id attribute"
 
-    # Найдём не-центральную карту (родитель / ребёнок).
-    target_card = owner_page.locator(
-        '#treeContainer [data-testid="orbit-card"][data-person-id]:not([data-testid="orbit-center-card"])'
-    ).first
-    expect(target_card).to_be_visible()
-    target_pid = target_card.get_attribute("data-person-id")
-    assert target_pid, "non-center orbit card has no data-person-id attribute"
+    with step("действие: кликнуть по не-центральной карте"):
+        target_card.click()
 
-    target_card.click()
-
-    # После re-center центральная карта меняется на target_pid.
-    new_center = owner_page.locator(
-        f'.orbit-zone-center [data-testid="orbit-center-card"][data-person-id=\'{target_pid}\']'
-    )
-    expect(new_center).to_be_visible()
+    with step("проверка: центр орбиты переместился на кликнутую персону"):
+        new_center = owner_page.locator(
+            f'.orbit-zone-center [data-testid="orbit-center-card"][data-person-id=\'{target_pid}\']'
+        )
+        expect(new_center).to_be_visible()

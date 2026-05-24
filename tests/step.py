@@ -13,15 +13,19 @@ from __future__ import annotations
 
 import logging
 from contextlib import contextmanager
-from typing import Iterator
+from typing import TYPE_CHECKING
 
 import allure
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 _log = logging.getLogger("e2e.step")
 
 
 @contextmanager
 def step(title: str) -> Iterator[None]:
+    """Context manager that logs and reports a named test phase via Allure."""
     _log.info("STEP → %s", title)
     try:
         with allure.step(title):

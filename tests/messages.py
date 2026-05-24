@@ -23,7 +23,6 @@ from __future__ import annotations
 
 from tests.settings import settings
 
-
 _LOCALE = settings.locale
 
 
@@ -36,10 +35,10 @@ class _Catalogue:
 
 
 class Buttons(_Catalogue):
-    """Button names — used in `get_by_role("button", name=...)` until we
-    move products to `data-testid`."""
+    """Button names — used in `get_by_role("button", name=...)`."""
 
     LOGIN = {"ru": "Войти", "en": "Sign in"}
+    SIGNUP = {"ru": "Создать аккаунт", "en": "Create account"}
     SAVE = {"ru": "Сохранить", "en": "Save"}
     CANCEL = {"ru": "Отмена", "en": "Cancel"}
     DELETE = {"ru": "Удалить", "en": "Delete"}
@@ -49,6 +48,8 @@ class Buttons(_Catalogue):
     REJECT = {"ru": "Отклонить", "en": "Reject"}
     ENRICH = {"ru": "Найти больше", "en": "Find more"}
     ADD = {"ru": "Добавить", "en": "Add"}
+    RESET_PASSWORD = {"ru": "Сбросить пароль", "en": "Reset password"}
+    WAITLIST_SUBMIT = {"ru": "Записаться в ранний доступ", "en": "Join early access"}
 
 
 class Links(_Catalogue):
@@ -233,10 +234,24 @@ class RelationLabels(_Catalogue):
     MOTHER = {"ru": "мать", "en": "mother"}
 
 
+class Labels(_Catalogue):
+    """Form input labels — used in `get_by_label(...)`."""
+
+    EMAIL = "Email"
+    PASSWORD = {"ru": "Пароль", "en": "Password"}
+    SITE_NAME = {"ru": "Название", "en": "Name"}
+    FAMILY_NAME = {"ru": "Фамилия", "en": "Family name"}
+    REGIONS = {"ru": "Регионы", "en": "Regions"}
+    CONTACT_EMAIL = {"ru": "Контактный email", "en": "Contact email"}
+    ABOUT = {"ru": "О проекте", "en": "About"}
+    WAITLIST_EMAIL = {"ru": "Email для уведомления о запуске", "en": "Email for launch notification"}
+
+
 class Placeholders(_Catalogue):
     """Placeholder text on input fields."""
 
     SEARCH = {"ru": "Поиск", "en": "Search"}
+    SEARCH_TREE = {"ru": "Найти...", "en": "Find..."}
 
 
 class AboutTab(_Catalogue):
@@ -250,7 +265,7 @@ class AboutTab(_Catalogue):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-def t(value):  # noqa: ANN001
+def t(value):
     """Pick the active-locale string (or pass through if not localised).
 
     Examples:

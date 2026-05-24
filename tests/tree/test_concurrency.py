@@ -14,6 +14,7 @@ import allure
 from tests.api_paths import API
 from tests.messages import TestData
 from tests.response import expect_response
+from tests.step import step
 
 
 @allure.title("GET персоны возвращает ETag для контроля конкурентности")
@@ -22,11 +23,14 @@ def test_get_person_returns_etag_for_concurrency(owner_user, tenant_client):
 
     Was xfail until upstream batch-6/7. Now regular regression.
     """
-    api = tenant_client(owner_user)
-    r = api.get(API.person(TestData.DEMO_PERSON_ID))
-    expect_response(r, label="GET person").status_ok()
-    etag = r.headers.get("etag")
-    assert etag, (
-        f"INV-EDIT-001: GET person missing ETag header. Concurrent "
-        f"PATCH ведут к lost update без conflict-signal'а."
-    )
+    with step("действие: GET person"):
+        api = tenant_client(owner_user)
+        r = api.get(API.person(TestData.DEMO_PERSON_ID))
+        expect_response(r, label="GET person").status_ok()
+
+    with step("проверка: ETag header присутствует"):
+        etag = r.headers.get("etag")
+        assert etag, (
+            "INV-EDIT-001: GET person missing ETag header. Concurrent "
+            "PATCH ведут к lost update без conflict-signal'а."
+        )

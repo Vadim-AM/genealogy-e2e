@@ -31,6 +31,10 @@ class Settings(BaseSettings):
         default="ru",
         description="UI locale for the messages catalogue",
     )
+    record_video: bool = Field(
+        default=False,
+        description="Record browser video on test failure (default off, enable in CI for debug)",
+    )
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]

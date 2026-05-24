@@ -8,14 +8,13 @@ from __future__ import annotations
 
 import re
 
+import allure
 import httpx
 import pytest
 
-import allure
-
 from tests.response import expect_response
+from tests.step import step
 from tests.timeouts import TIMEOUTS
-
 
 # ─────────────────────────────────────────────────────────────────────────
 # TC-SEC-1: Anonymous → 401 на закрытых endpoints
@@ -42,8 +41,11 @@ def test_anonymous_get_returns_401_on_private_endpoints(base_url: str, endpoint:
     Public surface is allowed (e.g. `/api/tree` returns 200 with the demo
     showcase) — those are tested separately in `test_landing.py`.
     """
-    r = httpx.get(f"{base_url}{endpoint}", timeout=TIMEOUTS.api_request)
-    expect_response(r, label=f"GET {endpoint}").status(401)
+    with step(f"действие: анонимный GET {endpoint}"):
+        r = httpx.get(f"{base_url}{endpoint}", timeout=TIMEOUTS.api_request)
+
+    with step("проверка: 401 — доступ запрещён"):
+        expect_response(r, label=f"GET {endpoint}").status(401)
 
 
 @allure.title("Безопасность: /api/tree публично доступен гостю (200)")
@@ -73,27 +75,32 @@ def test_security_headers_present_on_api_responses(base_url: str):
     response, including error ones, so attackers cannot get a privileged
     response without protection.
     """
-    r = httpx.get(f"{base_url}/api/account/me", timeout=TIMEOUTS.api_request)
-    # Auth state irrelevant — we test headers, not body.
-    headers = {k.lower(): v for k, v in r.headers.items()}
+    with step("действие: запросить /api/account/me (заголовки на любом ответе)"):
+        r = httpx.get(f"{base_url}/api/account/me", timeout=TIMEOUTS.api_request)
+        # Auth state irrelevant — we test headers, not body.
+        headers = {k.lower(): v for k, v in r.headers.items()}
 
-    for header, expected in REQUIRED_HEADERS.items():
-        actual = headers.get(header)
-        assert actual == expected, \
-            f"{header}: expected {expected!r}, got {actual!r}"
+    with step("проверка: nosniff, X-Frame-Options, Referrer-Policy"):
+        for header, expected in REQUIRED_HEADERS.items():
+            actual = headers.get(header)
+            assert actual == expected, \
+                f"{header}: expected {expected!r}, got {actual!r}"
 
 
 @allure.title("CSP: script-src-attr 'none' запрещает inline-обработчики")
 def test_csp_header_disables_inline_event_handlers(base_url: str):
     """TC-SEC-2 / BUG-SEC-002: CSP must include `script-src-attr 'none'`
     so inline `onclick=` event handlers cannot execute (XSS hardening)."""
-    r = httpx.get(f"{base_url}/api/account/me", timeout=TIMEOUTS.api_request)
-    csp = r.headers.get("content-security-policy", "")
-    assert csp, "Content-Security-Policy header missing"
-    # Look for the directive — quoted 'none' may or may not appear depending
-    # on serialisation. Use a regex tolerant of single-quotes / spacing.
-    assert re.search(r"script-src-attr\s+'none'", csp), \
-        f"CSP missing `script-src-attr 'none'`: {csp[:200]}"
+    with step("действие: запросить /api/account/me и извлечь CSP"):
+        r = httpx.get(f"{base_url}/api/account/me", timeout=TIMEOUTS.api_request)
+        csp = r.headers.get("content-security-policy", "")
+
+    with step("проверка: CSP содержит script-src-attr 'none'"):
+        assert csp, "Content-Security-Policy header missing"
+        # Look for the directive — quoted 'none' may or may not appear depending
+        # on serialisation. Use a regex tolerant of single-quotes / spacing.
+        assert re.search(r"script-src-attr\s+'none'", csp), \
+            f"CSP missing `script-src-attr 'none'`: {csp[:200]}"
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -111,23 +118,25 @@ def test_landing_html_has_no_inline_event_handlers(base_url: str):
     ловит **факт** наличия inline event handlers в shipped HTML — это
     регрессия BUG-SEC-002 sweep.
     """
-    r = httpx.get(f"{base_url}/", timeout=TIMEOUTS.api_request)
-    expect_response(r, label="GET /").status_ok()
-    html = r.text
+    with step("действие: загрузить HTML лендинга"):
+        r = httpx.get(f"{base_url}/", timeout=TIMEOUTS.api_request)
+        expect_response(r, label="GET /").status_ok()
+        html = r.text
 
-    # Match `on<lowercase-ident>=` as HTML attribute (whitespace before,
-    # `=` after). Exclude false positives like `name="oncall"` because
-    # those have `=` after `name`, not after the `on*` substring.
-    pattern = re.compile(r'\s(on[a-z]+)\s*=', re.IGNORECASE)
-    matches = pattern.findall(html)
-    unique = sorted(set(m.lower() for m in matches))
+    with step("проверка: нет inline on*= атрибутов"):
+        # Match `on<lowercase-ident>=` as HTML attribute (whitespace before,
+        # `=` after). Exclude false positives like `name="oncall"` because
+        # those have `=` after `name`, not after the `on*` substring.
+        pattern = re.compile(r'\s(on[a-z]+)\s*=', re.IGNORECASE)
+        matches = pattern.findall(html)
+        unique = sorted(set(m.lower() for m in matches))
 
-    assert not matches, (
-        f"inline event handlers found in /: {unique}. CSP `script-src-attr "
-        f"'none'` blocks them at runtime, but the HTML still ships them — "
-        f"this is a BUG-SEC-002 sweep regression. Use addEventListener "
-        f"instead of inline `on*=` attributes."
-    )
+        assert not matches, (
+            f"inline event handlers found in /: {unique}. CSP `script-src-attr "
+            f"'none'` blocks them at runtime, but the HTML still ships them — "
+            f"this is a BUG-SEC-002 sweep regression. Use addEventListener "
+            f"instead of inline `on*=` attributes."
+        )
 
 
 @allure.title("HSTS: заголовок отсутствует при работе по HTTP")
@@ -138,8 +147,11 @@ def test_hsts_header_only_on_https(base_url: str):
     it would lock browsers into a stale config). On HTTPS deploys the
     header is added by `security_headers` middleware.
     """
-    assert base_url.startswith("http://"), \
-        "this test assumes local dev (HTTP); HTTPS path is verified by deployment smoke"
-    r = httpx.get(f"{base_url}/api/account/me", timeout=TIMEOUTS.api_request)
-    assert "strict-transport-security" not in {k.lower() for k in r.headers.keys()}, \
-        "HSTS must not be sent on HTTP responses (only HTTPS)"
+    with step("подготовка: проверяем что тест запущен по HTTP"):
+        assert base_url.startswith("http://"), \
+            "this test assumes local dev (HTTP); HTTPS path is verified by deployment smoke"
+
+    with step("проверка: HSTS-заголовок отсутствует"):
+        r = httpx.get(f"{base_url}/api/account/me", timeout=TIMEOUTS.api_request)
+        assert "strict-transport-security" not in {k.lower() for k in r.headers}, \
+            "HSTS must not be sent on HTTP responses (only HTTPS)"

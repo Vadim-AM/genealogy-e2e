@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Self
+
 from playwright.sync_api import Page, expect
+
+from tests.messages import Buttons, Labels, t
 
 from .base import BasePage
 
@@ -14,19 +18,19 @@ class OwnerPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self.tab_settings = page.locator('[data-tab="settings"]')
-        self.tab_invites = page.locator('[data-tab="invites"]')
-        self.tab_export = page.locator('[data-tab="export"]')
-        self.tab_subscription = page.locator('[data-tab="subscription"]')
-        self.tab_danger = page.locator('[data-tab="danger"]')
+        self.tab_settings = page.locator('[data-tab="settings"]')  # no semantic: programmatic tab switching
+        self.tab_invites = page.locator('[data-tab="invites"]')  # no semantic: programmatic tab switching
+        self.tab_export = page.locator('[data-tab="export"]')  # no semantic: programmatic tab switching
+        self.tab_subscription = page.locator('[data-tab="subscription"]')  # no semantic: programmatic tab switching
+        self.tab_danger = page.locator('[data-tab="danger"]')  # no semantic: programmatic tab switching
 
         # Settings tab inputs.
-        self.cfg_site_name = page.locator("#cfg_site_name")
-        self.cfg_family_name = page.locator("#cfg_family_name")
-        self.cfg_regions = page.locator("#cfg_regions")
-        self.cfg_contact_email = page.locator("#cfg_contact_email")
-        self.cfg_about_text = page.locator("#cfg_about_text")
-        self.cfg_save = page.locator("#cfgSave")
+        self.cfg_site_name = page.get_by_label(t(Labels.SITE_NAME))
+        self.cfg_family_name = page.get_by_label(t(Labels.FAMILY_NAME))
+        self.cfg_regions = page.get_by_label(t(Labels.REGIONS))
+        self.cfg_contact_email = page.get_by_label(t(Labels.CONTACT_EMAIL))
+        self.cfg_about_text = page.get_by_label(t(Labels.ABOUT))
+        self.cfg_save = page.get_by_role("button", name=t(Buttons.SAVE))
 
         # Invite tab locators omitted — invite flow is exercised via API
         # fixtures (create_invite / accept_invite in _fixtures/users.py).
@@ -54,11 +58,13 @@ class OwnerPage(BasePage):
         self.confirm_dialog_cancel = self.confirm_dialog.locator('[data-act="cancel"]')
         self.confirm_dialog_ok = self.confirm_dialog.locator('[data-act="ok"]')  # alertDialog
 
-    def open_tab(self, name: str) -> "OwnerPage":
+    def open_tab(self, name: str) -> Self:
+        """Click a tab by its data-tab name."""
         self.page.locator(f'[data-tab="{name}"]').click()
         return self
 
-    def update_settings(self, *, site_name: str | None = None) -> "OwnerPage":
+    def update_settings(self, *, site_name: str | None = None) -> Self:
+        """Open the settings tab, optionally set site name, and save."""
         self.open_tab("settings")
         if site_name is not None:
             # The settings tab populates #cfg_site_name asynchronously
@@ -73,6 +79,7 @@ class OwnerPage(BasePage):
         return self
 
     def soft_check_all_tabs(self, soft) -> None:
+        """Soft-assert all owner dashboard tabs are visible."""
         for tab in self.TABS:
             soft(self.page.locator(f'[data-tab="{tab}"]')).to_be_visible()
 
@@ -88,7 +95,7 @@ class OwnerPage(BasePage):
     def upload_ged(self, *, filename: str, content: bytes) -> None:
         """Set the file input via in-memory buffer, then click Upload."""
         self.import_file_input.set_input_files(
-            files=[
+            files=[  # type: ignore[arg-type]
                 {
                     "name": filename,
                     "mimeType": "application/octet-stream",
