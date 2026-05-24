@@ -13,6 +13,7 @@ empty-password validation, login form readiness, success copy.
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
@@ -110,7 +111,7 @@ def test_forgot_password_unknown_email_shows_silent_success_message(
             params={"to": unknown_email},
             timeout=TIMEOUTS.api_short,
         )
-        expect_response(r, label="unknown email: no reset sent").status(404)
+        expect_response(r, label="unknown email: no reset sent").status(HTTPStatus.NOT_FOUND)
 
 
 @allure.title("Повторное открытие ссылки сброса пароля показывает ошибку")

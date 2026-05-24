@@ -6,6 +6,8 @@ the session for tab 1 — a subsequent /api/account/me call returns 401.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 
 from tests._core.api_paths import API
@@ -32,7 +34,7 @@ def test_logout_invalidates_session_across_tabs(owner_user, tenant_client):
 
     with step("действие: logout из tab0"):
         logout = tab0.post(API.LOGOUT)
-        assert logout.status_code == 200, \
+        assert logout.status_code == HTTPStatus.OK, \
             f"logout returned {logout.status_code} {logout.text[:200]}"
 
     with step("проверка: сессия tab1 инвалидирована после logout tab0"):
@@ -40,6 +42,6 @@ def test_logout_invalidates_session_across_tabs(owner_user, tenant_client):
         # cookie that was minted before the logout even though the cookie value
         # itself hasn't changed.
         me2 = tab1.get(API.ACCOUNT_ME)
-        assert me2.status_code == 401, \
+        assert me2.status_code == HTTPStatus.UNAUTHORIZED, \
             f"session still valid in tab 1 after tab 0 logout: " \
             f"{me2.status_code} {me2.text[:200]}"

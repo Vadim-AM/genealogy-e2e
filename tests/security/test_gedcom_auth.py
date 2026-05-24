@@ -7,6 +7,8 @@ owner для photos и GEDCOM"). Now plain regression — auth_v2 owner
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 
 from tests._core.api_paths import API
@@ -23,7 +25,7 @@ def test_owner_can_export_gedcom_via_auth_v2(owner_user, tenant_client):
         r = api.get(API.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long)
 
     with step("проверка: 200 и тело начинается с '0 HEAD'"):
-        expect_response(r, label="GEDCOM export auth_v2").status(200)
+        expect_response(r, label="GEDCOM export auth_v2").status(HTTPStatus.OK)
         # GEDCOM-формат начинается с '0 HEAD'. Response charset=utf-8
         # (см. test_owner_ui::test_owner_export_gedcom_returns_valid_dump),
         # так что r.text — корректно декодированная строка.
@@ -53,4 +55,4 @@ def test_owner_can_import_gedcom_via_auth_v2(owner_user, tenant_client):
         )
 
     with step("проверка: импорт принят (200)"):
-        expect_response(r, label="GEDCOM import auth_v2").status(200)
+        expect_response(r, label="GEDCOM import auth_v2").status(HTTPStatus.OK)

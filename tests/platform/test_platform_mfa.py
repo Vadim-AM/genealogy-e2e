@@ -19,6 +19,7 @@ Hard rules:
 from __future__ import annotations
 
 import re
+from http import HTTPStatus
 
 import allure
 import pyotp
@@ -42,7 +43,7 @@ _BASE32_RE = re.compile(r"^[A-Z2-7]+$")
 def test_mfa_setup_requires_superadmin(owner_user, tenant_client):
     """TC-PA-MFA-1: regular owner → 401/403 на /mfa/setup."""
     r = tenant_client(owner_user).post(API.MFA_SETUP)
-    expect_response(r, label="owner MFA setup").status(403)
+    expect_response(r, label="owner MFA setup").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("MFA: setup возвращает secret, otpauth-ссылку и issuer")
@@ -71,7 +72,7 @@ def test_mfa_setup_409_when_already_configured(superadmin_user, tenant_client):
 
     with step("проверка: повторный setup отклоняется 409"):
         r2 = api.post(API.MFA_SETUP)
-        expect_response(r2, label="MFA setup duplicate").status(409)
+        expect_response(r2, label="MFA setup duplicate").status(HTTPStatus.CONFLICT)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -108,14 +109,14 @@ def test_mfa_verify_wrong_code_401(superadmin_user, tenant_client):
 
     with step("проверка: неверный код отклоняется 401"):
         r = api.post(API.MFA_VERIFY, json={"code": "000000"})
-        expect_response(r, label="MFA verify wrong code").status(401)
+        expect_response(r, label="MFA verify wrong code").status(HTTPStatus.UNAUTHORIZED)
 
 
 @allure.title("MFA: verify без предварительного setup отклоняется (409)")
 def test_mfa_verify_409_without_setup(superadmin_user, tenant_client):
     """TC-PA-MFA-6: verify без предшествующего setup → 409 (mfa_not_configured)."""
     r = tenant_client(superadmin_user).post(API.MFA_VERIFY, json={"code": "123456"})
-    expect_response(r, label="MFA verify without setup").status(409)
+    expect_response(r, label="MFA verify without setup").status(HTTPStatus.CONFLICT)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -208,7 +209,7 @@ def test_recovery_redeem_consumes_one_code(superadmin_user, tenant_client):
 
     with step("проверка: повторный redeem того же кода — 401"):
         r2 = api.post(API.MFA_RECOVERY_REDEEM, json={"code": one})
-        expect_response(r2, label="recovery redeem reuse").status(401)
+        expect_response(r2, label="recovery redeem reuse").status(HTTPStatus.UNAUTHORIZED)
 
 
 @allure.title("MFA: перегенерация инвалидирует старые резервные коды")
@@ -227,4 +228,4 @@ def test_recovery_regenerate_invalidates_old_codes(superadmin_user, tenant_clien
 
     with step("проверка: старый код больше не валиден — 401"):
         r = api.post(API.MFA_RECOVERY_REDEEM, json={"code": old_codes[0]})
-        expect_response(r, label="old recovery code").status(401)
+        expect_response(r, label="old recovery code").status(HTTPStatus.UNAUTHORIZED)

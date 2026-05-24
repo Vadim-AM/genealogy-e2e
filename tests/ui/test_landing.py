@@ -5,6 +5,7 @@ Public landing page rendering, headers, content guarantees.
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
@@ -58,9 +59,9 @@ def test_landing_no_console_errors(page: Page, anon_pages: PageFactory):
         page.on("pageerror", lambda exc: js_errors.append(str(exc)))
 
         def _on_response(resp):
-            if resp.status >= 400 and resp.status != 404:  # 404 covered by static-assets test
+            if resp.status >= HTTPStatus.BAD_REQUEST and resp.status != HTTPStatus.NOT_FOUND:  # 404 covered by static-assets test
                 url = resp.url
-                if resp.status == 401 and any(u in url for u in EXPECTED_401_URLS):
+                if resp.status == HTTPStatus.UNAUTHORIZED and any(u in url for u in EXPECTED_401_URLS):
                     return
                 bad_responses.append((url, resp.status))
 
@@ -124,5 +125,5 @@ def test_static_assets_load(page: Page, anon_pages: PageFactory):
         _ = anon_pages.navigate_to(TreePage)
 
     with step("проверка: все статические ресурсы отдали 2xx/3xx"):
-        bad = {url: status for url, status in statuses.items() if status >= 400}
+        bad = {url: status for url, status in statuses.items() if status >= HTTPStatus.BAD_REQUEST}
         assert not bad, f"static assets returned errors: {bad}"

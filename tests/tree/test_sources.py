@@ -7,6 +7,8 @@ for the source record itself (a source has no dedicated edit UI).
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 from playwright.sync_api import Page, expect
 
@@ -81,7 +83,7 @@ def test_source_record_crud_lifecycle(owner_user, tenant_client):
 
     with step("действие: удалить источник"):
         deleted = api.delete(API.source(sid))
-        expect_response(deleted, label="DELETE source").status(204)
+        expect_response(deleted, label="DELETE source").status(HTTPStatus.NO_CONTENT)
 
     with step("проверка: источник отсутствует в списке"):
         sources = site_api.get_sources(api)

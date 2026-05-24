@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +28,7 @@ def _wait_for_health(base_url: str, *, timeout: float) -> None:
     deadline = time.time() + timeout
     while time.time() < deadline:
         response = httpx.get(f"{base_url}{API.HEALTH}", timeout=TIMEOUTS.api_short)
-        if response.status_code == 200:
+        if response.status_code == HTTPStatus.OK:
             return
         time.sleep(TIMEOUTS.polling_interval)
     raise TimeoutError(

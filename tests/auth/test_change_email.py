@@ -16,6 +16,8 @@ POST /me/email, PATCH /me, POST change-email — все 404/405.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 
 from tests._core.api_paths import API
@@ -45,7 +47,7 @@ def test_change_email_endpoint_initiates_confirmation(
         )
 
     with step("проверка: статус 200 и токен подтверждения отправлен"):
-        assert r.status_code == 200, (
+        assert r.status_code == HTTPStatus.OK, (
             f"change-email should return 200/202 to initiate confirmation, "
             f"got {r.status_code} {r.text[:200]}"
         )

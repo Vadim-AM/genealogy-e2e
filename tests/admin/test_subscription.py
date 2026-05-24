@@ -6,6 +6,8 @@ period_end, soft_warn, exhausted} in /api/subscription/usage.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 import httpx
 
@@ -55,4 +57,4 @@ def test_subscription_usage_shape_for_free_owner(owner_user, tenant_client):
 def test_subscription_usage_requires_auth(base_url: str):
     """Anonymous request to /api/subscription/usage → 401."""
     r = httpx.get(f"{base_url}{API.SUBSCRIPTION_USAGE_LEGACY}", timeout=TIMEOUTS.api_request)
-    expect_response(r, label="anon subscription/usage").status(401)
+    expect_response(r, label="anon subscription/usage").status(HTTPStatus.UNAUTHORIZED)

@@ -6,6 +6,7 @@ Covers: F-SU-1..7, X-SU-1..11, F-EV-1..8, S-SU-3 (rate-limit), S-SU-4 (honeypot)
 from __future__ import annotations
 
 import re
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
@@ -45,7 +46,7 @@ def test_signup_happy_path_sends_verification_email(page: Page, base_url: str, a
                 password=TestConfig.DEFAULT_PASSWORD,
                 full_name="Иванов Иван",
             ).submit()
-        assert resp_info.value.status == 200, \
+        assert resp_info.value.status == HTTPStatus.OK, \
             f"signup endpoint returned {resp_info.value.status}"
 
         signup.expect_verification_message()
@@ -158,12 +159,12 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str, anon_pages:
 
         with page.expect_response("**/api/account/signup") as resp_info:
             page.locator("#signupBtn").click()
-        assert resp_info.value.status == 200, \
+        assert resp_info.value.status == HTTPStatus.OK, \
             f"signup with honeypot returned {resp_info.value.status} (expected 200 silent)"
 
     with step("проверка: письмо не отправлено"):
         r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
-        expect_response(r, label="honeypot: no email sent").status(404)
+        expect_response(r, label="honeypot: no email sent").status(HTTPStatus.NOT_FOUND)
 
 
 @allure.title("Одноразовый email отклоняется с ошибкой в поле ввода")
@@ -192,7 +193,7 @@ def test_disposable_email_rejected_inline(page: Page, base_url: str, anon_pages:
         expect(page.locator("#email"), ErrMsg.wrong_attribute).to_have_attribute("aria-invalid", "true")
 
         r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": disposable_email})
-        expect_response(r, label="disposable: no email sent").status(404)
+        expect_response(r, label="disposable: no email sent").status(HTTPStatus.NOT_FOUND)
 
 
 @allure.title("Слишком короткий пароль не проходит валидацию формы")
@@ -212,4 +213,4 @@ def test_password_too_short_rejected_inline(page: Page, base_url: str, anon_page
             f"password input must fail HTML5 minlength validity, got {pwd_valid!r}"
 
         r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
-        expect_response(r, label="short-pw: no email sent").status(404)
+        expect_response(r, label="short-pw: no email sent").status(HTTPStatus.NOT_FOUND)

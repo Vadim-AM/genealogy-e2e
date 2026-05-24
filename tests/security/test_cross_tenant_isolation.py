@@ -15,6 +15,7 @@ session leak.
 from __future__ import annotations
 
 import concurrent.futures as cf
+from http import HTTPStatus
 
 import allure
 
@@ -85,7 +86,7 @@ def test_tenant_b_cannot_read_tenant_a_person_by_id(
 
     with step("проверка: тенант B получает 404 при чтении чужого person"):
         r = api_b.get(API.person(created["id"]))
-        expect_response(r, label="cross-tenant read person").status(404)
+        expect_response(r, label="cross-tenant read person").status(HTTPStatus.NOT_FOUND)
 
 
 @allure.title("Изоляция: редактирование чужой персоны возвращает 404")
@@ -102,7 +103,7 @@ def test_tenant_b_cannot_patch_tenant_a_person(signup_via_api, tenant_client):
 
     with step("проверка: тенант B получает 404 при PATCH чужого person"):
         r = api_b.patch(API.person(created["id"]), json={"summary": "MUTATED by B"})
-        expect_response(r, label="cross-tenant write person").status(404)
+        expect_response(r, label="cross-tenant write person").status(HTTPStatus.NOT_FOUND)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -126,12 +127,12 @@ def test_same_display_slug_allowed_across_tenants(signup_via_api, tenant_client)
             API.PEOPLE,
             json={"name": "A Иван", "display_slug": "ivan-ivanov", "gender": "m"},
         )
-        expect_response(r_a, label="create person A with slug").status(201)
+        expect_response(r_a, label="create person A with slug").status(HTTPStatus.CREATED)
         r_b = api_b.post(
             API.PEOPLE,
             json={"name": "B Иван", "display_slug": "ivan-ivanov", "gender": "m"},
         )
-        expect_response(r_b, label="cross-tenant slug reuse").status(201)
+        expect_response(r_b, label="cross-tenant slug reuse").status(HTTPStatus.CREATED)
 
     with step("проверка: UUID'ы разные, коллизии нет"):
         assert r_a.json()["id"] != r_b.json()["id"], \
@@ -214,7 +215,7 @@ def test_gedcom_import_creates_persons_only_in_uploading_tenant(
         )
         # Hard pin: import endpoint должен принимать auth_v2 owner cookie (200).
         # Любой другой статус — regression auth_v2-bridge → fail loud, не skip.
-        expect_response(r, label="GEDCOM import preview auth_v2").status(200)
+        expect_response(r, label="GEDCOM import preview auth_v2").status(HTTPStatus.OK)
         preview = r.json()
         confirm = {k: preview.get(k, []) for k in ("people", "relationships", "sources")}
         api_a.post(API.ADMIN_IMPORT_GEDCOM_CONFIRM, json=confirm)

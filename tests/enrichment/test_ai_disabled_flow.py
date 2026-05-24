@@ -20,6 +20,7 @@ API часть (TC-N3, TC-N4) — backend invariant без UI surface: router-le
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
@@ -144,7 +145,7 @@ def test_features_endpoint_public_returns_ai_disabled_flag(uvicorn_server: str):
         )
 
     with step("проверка: public доступ и ai_search_enabled=false"):
-        assert r.status_code == 200, (
+        assert r.status_code == HTTPStatus.OK, (
             f"endpoint должен быть public, получили {r.status_code}"
         )
         body = r.json()
@@ -184,7 +185,7 @@ def test_enrich_endpoint_returns_503_when_ai_disabled(
     выполнился.
     """
     r = httpx.request(method, f"{uvicorn_server}{path}", json={}, timeout=TIMEOUTS.api_request)
-    assert r.status_code == 503, (
+    assert r.status_code == HTTPStatus.SERVICE_UNAVAILABLE, (
         f"{method} {path}: ожидали 503, получили {r.status_code}. "
         f"Detail: {r.text[:200]}"
     )

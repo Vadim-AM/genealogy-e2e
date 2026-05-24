@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import re
+from http import HTTPStatus
 
 import allure
 
@@ -22,7 +23,7 @@ from tests.helpers.api import platform_api
 def test_audit_log_403_for_non_super(owner_user, tenant_client):
     """TC-PA-AUDIT-1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_AUDIT_LOG)
-    expect_response(r, label="owner audit-log").status(403)
+    expect_response(r, label="owner audit-log").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("Аудит: ответ содержит items, count и limit")
@@ -63,7 +64,7 @@ def test_audit_log_invalid_since_iso_returns_400(superadmin_user, tenant_client)
         )
 
     with step("проверка: 400 — не silent fallback"):
-        expect_response(r, label="audit-log invalid since_iso").status(400)
+        expect_response(r, label="audit-log invalid since_iso").status(HTTPStatus.BAD_REQUEST)
 
 
 @allure.title("Аудит: изменение настроек создаёт запись settings_patch")

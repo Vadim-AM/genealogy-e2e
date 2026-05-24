@@ -22,6 +22,7 @@ Backend uri:
 from __future__ import annotations
 
 import re
+from http import HTTPStatus
 
 import allure
 import httpx
@@ -46,7 +47,7 @@ def test_dashboard_has_feature_flags_section(auth_context_factory, superadmin_us
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
         r = page.goto("/platform/dashboard")
-        assert r is not None and r.status == 200, (
+        assert r is not None and r.status == HTTPStatus.OK, (
             f"/platform/dashboard navigation failed: response={r and r.status}"
         )
 
@@ -255,7 +256,7 @@ def test_patch_settings_validates_llm_provider_enum(superadmin_user, tenant_clie
         r = api.patch(API.PLATFORM_SETTINGS, json={"llm_provider": "openai"})
 
     with step("проверка: 400 и упоминание канонических provider'ов"):
-        assert r.status_code == 400, \
+        assert r.status_code == HTTPStatus.BAD_REQUEST, \
             f"Ожидали 400 для llm_provider='openai' (не в enum), получили {r.status_code}"
         body = r.text.lower()
         canonical_providers = {"anthropic", "yandex", "gigachat"}

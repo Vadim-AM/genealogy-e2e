@@ -17,6 +17,8 @@ state machine, preview rendering, encoding-badge, error paths, idempotency.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 from playwright.sync_api import Page, expect
 
@@ -230,7 +232,7 @@ def test_retry_after_error_resets_to_idle(owner_page: Page, owner_user):
         # Перехватываем POST /import-gedcom и возвращаем 500
         def _block_500(route):
             if route.request.method == "POST":
-                route.fulfill(status=500, body='{"detail":"server boom"}',
+                route.fulfill(status=HTTPStatus.INTERNAL_SERVER_ERROR, body='{"detail":"server boom"}',
                               content_type="application/json")
             else:
                 route.continue_()
@@ -334,7 +336,7 @@ def test_backend_400_shows_friendly_error(owner_page: Page, owner_user):
         def _block_400(route):
             if route.request.method == "POST":
                 route.fulfill(
-                    status=400,
+                    status=HTTPStatus.BAD_REQUEST,
                     body='{"detail":"GEDCOM parse error: line 5 unexpected token"}',
                     content_type="application/json",
                 )

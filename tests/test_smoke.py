@@ -7,6 +7,7 @@ before bothering with the rest.
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
@@ -67,6 +68,6 @@ def test_health_endpoint_via_browser(page: Page):
 
     with step("проверка: endpoint доступен и отвечает 200"):
         assert response is not None, "page.goto(/api/health) returned None"
-        assert response.status == 200, (
+        assert response.status == HTTPStatus.OK, (
             f"/api/health returned {response.status}, backend may be down"  # noqa: drift
         )
