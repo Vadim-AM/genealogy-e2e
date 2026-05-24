@@ -30,7 +30,7 @@ def patch_site_config(api: httpx.Client, **fields: object) -> SiteConfigResponse
 
 def create_share(api: httpx.Client, person_id: str) -> ShareCreateResponse:
     """POST /api/share/create → validated ShareCreateResponse."""
-    r = api.post(API.SHARE_CREATE, json={"person_id": person_id})
+    r = api.post(API.SHARE_CREATE, json={"scope": "person", "person_id": person_id})
     return expect_response(r, label="create share").status_ok().schema(ShareCreateResponse)
 
 

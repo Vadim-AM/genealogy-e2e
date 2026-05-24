@@ -23,7 +23,7 @@ class ForgotPasswordPage(BasePage):
         super().__init__(page)
         self.form = page.locator("#fpForm")  # no semantic: form container
         self.email = page.locator("#email")  # no semantic: no <label>
-        self.submit_btn = page.get_by_role("button", name=t(Buttons.RESET_PASSWORD))
+        self.submit_btn = page.get_by_role("button", name=t(Buttons.SEND_RESET_LINK))
         self.msg = page.get_by_role("status")
 
     def request_reset(self, email: str) -> Self:

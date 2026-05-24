@@ -48,7 +48,7 @@ class Buttons(_Catalogue):
     REJECT = {"ru": "Отклонить", "en": "Reject"}
     ENRICH = {"ru": "Найти больше", "en": "Find more"}
     ADD = {"ru": "Добавить", "en": "Add"}
-    RESET_PASSWORD = {"ru": "Сбросить пароль", "en": "Reset password"}
+    SEND_RESET_LINK = {"ru": "Прислать ссылку", "en": "Send reset link"}
     WAITLIST_SUBMIT = {"ru": "Записаться в ранний доступ", "en": "Join early access"}
 
 
