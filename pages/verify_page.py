@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Self
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 from config.timeouts import TIMEOUTS
 
@@ -16,7 +16,11 @@ class VerifyPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self.next_link = page.locator("#link")  # no semantic: dynamically populated link, no stable text
+
+    @property
+    def next_link(self) -> Locator:
+        """no semantic: dynamically populated link, no stable text"""
+        return self.page.locator("#link")
 
     def open_with_token(self, token: str) -> Self:
         """Navigate to the verify page with the given token."""

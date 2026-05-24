@@ -18,36 +18,113 @@ class PersonEditor:
 
     def __init__(self, page: Page):
         self.page = page
-        self.container = page.locator("#personEditor")  # no semantic: form container without role
 
-        # FIO group — no semantic: inputs keyed by data-field, no label
-        self.surname = self.container.locator('[data-field="surname"]')
-        self.given_name = self.container.locator('[data-field="given_name"]')
-        self.patronymic = self.container.locator('[data-field="patronymic"]')
-        self.maiden_name = self.container.locator('[data-field="maiden_name"]')
+    # ── Container ─────────────────────────────────────────────────────
 
-        # Dates / places — no semantic: inputs keyed by data-field, no label
-        self.birth = self.container.locator('[data-field="birth"]')
-        self.birth_place = self.container.locator('[data-field="birth_place"]')
-        self.death = self.container.locator('[data-field="death"]')
+    @property
+    def container(self) -> Locator:
+        """no semantic: form container without role"""
+        return self.page.locator("#personEditor")
 
-        # Misc — no semantic: inputs keyed by data-field, no label
-        self.badge = self.container.locator('[data-field="badge"]')
-        self.summary = self.container.locator('[data-field="summary"]')
-        self.notes = self.container.locator('[data-field="notes"]')
-        self.gender = self.container.locator('[data-field="gender"]')  # no semantic: custom select widget, no label
-        self.branch = self.container.locator('[data-field="branch"]')  # no semantic: custom select widget, no label
-        self.status = self.container.locator('[data-field="status"]')  # no semantic: custom select widget, no label
+    # ── FIO group ─────────────────────────────────────────────────────
 
-        # Action buttons — no semantic: buttons identified by data-action
-        self.btn_save = self.container.locator('[data-action="save"]')
-        self.btn_cancel = self.container.locator('[data-action="cancel"]')
-        self.btn_delete = self.container.locator('[data-action="delete"]')
+    @property
+    def surname(self) -> Locator:
+        """no semantic: input keyed by data-field, no label"""
+        return self.container.locator('[data-field="surname"]')
 
-        # Inline warning (date-validity, etc.) — no semantic: warning text, no ARIA role
-        self.warning = self.container.locator('[data-testid="editor-warning"]')
-        # Native hidden <select> — used to verify custom-select sync
-        self.native_gender = page.locator('select[data-field="gender"]')  # no semantic: hidden native select
+    @property
+    def given_name(self) -> Locator:
+        """no semantic: input keyed by data-field, no label"""
+        return self.container.locator('[data-field="given_name"]')
+
+    @property
+    def patronymic(self) -> Locator:
+        """no semantic: input keyed by data-field, no label"""
+        return self.container.locator('[data-field="patronymic"]')
+
+    @property
+    def maiden_name(self) -> Locator:
+        """no semantic: input keyed by data-field, no label"""
+        return self.container.locator('[data-field="maiden_name"]')
+
+    # ── Dates / places ────────────────────────────────────────────────
+
+    @property
+    def birth(self) -> Locator:
+        """no semantic: input keyed by data-field, no label"""
+        return self.container.locator('[data-field="birth"]')
+
+    @property
+    def birth_place(self) -> Locator:
+        """no semantic: input keyed by data-field, no label"""
+        return self.container.locator('[data-field="birth_place"]')
+
+    @property
+    def death(self) -> Locator:
+        """no semantic: input keyed by data-field, no label"""
+        return self.container.locator('[data-field="death"]')
+
+    # ── Misc fields ───────────────────────────────────────────────────
+
+    @property
+    def badge(self) -> Locator:
+        """no semantic: input keyed by data-field, no label"""
+        return self.container.locator('[data-field="badge"]')
+
+    @property
+    def summary(self) -> Locator:
+        """no semantic: input keyed by data-field, no label"""
+        return self.container.locator('[data-field="summary"]')
+
+    @property
+    def notes(self) -> Locator:
+        """no semantic: input keyed by data-field, no label"""
+        return self.container.locator('[data-field="notes"]')
+
+    @property
+    def gender(self) -> Locator:
+        """no semantic: custom select widget, no label"""
+        return self.container.locator('[data-field="gender"]')
+
+    @property
+    def branch(self) -> Locator:
+        """no semantic: custom select widget, no label"""
+        return self.container.locator('[data-field="branch"]')
+
+    @property
+    def status(self) -> Locator:
+        """no semantic: custom select widget, no label"""
+        return self.container.locator('[data-field="status"]')
+
+    # ── Action buttons ────────────────────────────────────────────────
+
+    @property
+    def btn_save(self) -> Locator:
+        """no semantic: button identified by data-action"""
+        return self.container.locator('[data-action="save"]')
+
+    @property
+    def btn_cancel(self) -> Locator:
+        """no semantic: button identified by data-action"""
+        return self.container.locator('[data-action="cancel"]')
+
+    @property
+    def btn_delete(self) -> Locator:
+        """no semantic: button identified by data-action"""
+        return self.container.locator('[data-action="delete"]')
+
+    # ── Inline warning + native select ────────────────────────────────
+
+    @property
+    def warning(self) -> Locator:
+        """no semantic: warning text, no ARIA role"""
+        return self.container.locator('[data-testid="editor-warning"]')
+
+    @property
+    def native_gender(self) -> Locator:
+        """no semantic: hidden native select"""
+        return self.page.locator('select[data-field="gender"]')
 
     def native_gender_value(self) -> str:
         """Return the current value of the hidden native gender <select>."""
@@ -97,59 +174,141 @@ class AddRelativeModal:
     `[data-action="cancel|save|save-then-edit"]`.
 
     FEATURE-PARENT-SEARCH-001 (link-existing): inline-autocomplete dropdown
-    под FIO-grid'ом (`#addRelExistingResults` role=listbox), «linked» chip
-    `.add-rel-linked-chip[data-linked-id]`, unlink-кнопка
-    `[data-action="unlink-existing"]`. Та же фича унифицировала
-    graph-aware suggestion-cards: `data-action="pick-suggestion"` →
-    `pick-existing`, `data-suggestion-id` → `data-person-id` — один
-    контракт и для карточек, и для dropdown-строк.
+    under FIO-grid (`#addRelExistingResults` role=listbox), linked chip
+    `.add-rel-linked-chip[data-linked-id]`, unlink button
+    `[data-action="unlink-existing"]`. The same feature unified
+    graph-aware suggestion-cards: `data-action="pick-suggestion"` ->
+    `pick-existing`, `data-suggestion-id` -> `data-person-id` -- one
+    contract for both cards and dropdown rows.
     """
 
     def __init__(self, page: Page):
         self.page = page
-        # no semantic: overlay/modal identified by data-testid, no ARIA
-        self.overlay = page.locator('[data-testid="add-rel-overlay"]')
-        self.container = self.overlay.locator('[data-testid="add-rel-modal"]')
-        self.title = self.container.locator("#add-rel-title")  # no semantic: heading without role
-        # no semantic: close button, no accessible name
-        self.btn_close = self.container.locator('[data-testid="add-rel-close"]')
 
-        # Fields
-        self.surname = self.container.locator("#addRelSurname")  # no semantic: input without label
-        self.given_name = self.container.locator("#addRelGiven")  # no semantic: input without label
-        self.patronymic = self.container.locator("#addRelPatronymic")  # no semantic: input without label
-        self.gender = self.container.locator("#addRelGender")  # no semantic: custom select widget, no label
-        self.birth = self.container.locator("#addRelBirth")  # no semantic: input without label
-        self.death_known = self.container.locator("#addRelDeathKnown")  # no semantic: checkbox without label
-        self.death = self.container.locator("#addRelDeath")  # no semantic: input without label
-        self.error = self.container.locator("#addRelError")  # no semantic: error text, no ARIA role
+    # ── Container / chrome ────────────────────────────────────────────
 
-        # Actions — no semantic: buttons identified by data-action
-        self.btn_save = self.container.locator('[data-action="save"]')
-        # no semantic: button identified by data-action
-        self.btn_save_and_edit = self.container.locator('[data-action="save-then-edit"]')
-        self.btn_cancel = self.container.locator('[data-action="cancel"]')
+    @property
+    def overlay(self) -> Locator:
+        """no semantic: overlay identified by data-testid, no ARIA"""
+        return self.page.locator('[data-testid="add-rel-overlay"]')
 
-        # Suggestion block (Фаза 1 — graph-aware dedup): рендерится только если
-        # у currentPerson есть siblings с уже-привязанными parents того же пола,
-        # что фронт-форма предлагает. Иначе slot пуст.
-        # no semantic: suggestion slot/block, no ARIA
-        self.suggest_slot = self.container.locator("[data-suggest-slot]")
-        self.suggest_block = self.container.locator("[data-suggest-block]")
-        # Graph-card scoped по классу — `data-action="pick-existing"` теперь
-        # общий с dropdown-строками (см. FEATURE-PARENT-SEARCH-001).
-        # no semantic: card/divider elements, no ARIA role
-        self.suggest_cards = self.container.locator('[data-testid="add-rel-suggest-card"]')
-        self.suggest_divider = self.container.locator('[data-testid="add-rel-suggest-divider"]')
+    @property
+    def container(self) -> Locator:
+        """no semantic: modal identified by data-testid, no ARIA"""
+        return self.overlay.locator('[data-testid="add-rel-modal"]')
 
-        # FEATURE-PARENT-SEARCH-001: inline-autocomplete dropdown + linked-chip.
-        # no semantic: listbox/row/chip elements without ARIA role
-        self.dropdown = self.container.locator("#addRelExistingResults")
-        self.dropdown_rows = self.dropdown.locator('[data-testid="add-rel-existing-row"]')
-        self.linked_chip = self.container.locator('[data-testid="add-rel-linked-chip"]')
-        self.btn_unlink = self.linked_chip.locator(
-            '[data-action="unlink-existing"]'  # no semantic: button identified by data-action
-        )
+    @property
+    def title(self) -> Locator:
+        """no semantic: heading without role"""
+        return self.container.locator("#add-rel-title")
+
+    @property
+    def btn_close(self) -> Locator:
+        """no semantic: close button, no accessible name"""
+        return self.container.locator('[data-testid="add-rel-close"]')
+
+    # ── Fields ────────────────────────────────────────────────────────
+
+    @property
+    def surname(self) -> Locator:
+        """no semantic: input without label"""
+        return self.container.locator("#addRelSurname")
+
+    @property
+    def given_name(self) -> Locator:
+        """no semantic: input without label"""
+        return self.container.locator("#addRelGiven")
+
+    @property
+    def patronymic(self) -> Locator:
+        """no semantic: input without label"""
+        return self.container.locator("#addRelPatronymic")
+
+    @property
+    def gender(self) -> Locator:
+        """no semantic: custom select widget, no label"""
+        return self.container.locator("#addRelGender")
+
+    @property
+    def birth(self) -> Locator:
+        """no semantic: input without label"""
+        return self.container.locator("#addRelBirth")
+
+    @property
+    def death_known(self) -> Locator:
+        """no semantic: checkbox without label"""
+        return self.container.locator("#addRelDeathKnown")
+
+    @property
+    def death(self) -> Locator:
+        """no semantic: input without label"""
+        return self.container.locator("#addRelDeath")
+
+    @property
+    def error(self) -> Locator:
+        """no semantic: error text, no ARIA role"""
+        return self.container.locator("#addRelError")
+
+    # ── Action buttons ────────────────────────────────────────────────
+
+    @property
+    def btn_save(self) -> Locator:
+        """no semantic: button identified by data-action"""
+        return self.container.locator('[data-action="save"]')
+
+    @property
+    def btn_save_and_edit(self) -> Locator:
+        """no semantic: button identified by data-action"""
+        return self.container.locator('[data-action="save-then-edit"]')
+
+    @property
+    def btn_cancel(self) -> Locator:
+        """no semantic: button identified by data-action"""
+        return self.container.locator('[data-action="cancel"]')
+
+    # ── Suggestion block (graph-aware dedup) ──────────────────────────
+
+    @property
+    def suggest_slot(self) -> Locator:
+        """no semantic: suggestion slot, no ARIA"""
+        return self.container.locator("[data-suggest-slot]")
+
+    @property
+    def suggest_block(self) -> Locator:
+        """no semantic: suggestion block, no ARIA"""
+        return self.container.locator("[data-suggest-block]")
+
+    @property
+    def suggest_cards(self) -> Locator:
+        """no semantic: card elements, no ARIA role"""
+        return self.container.locator('[data-testid="add-rel-suggest-card"]')
+
+    @property
+    def suggest_divider(self) -> Locator:
+        """no semantic: divider element, no ARIA role"""
+        return self.container.locator('[data-testid="add-rel-suggest-divider"]')
+
+    # ── FEATURE-PARENT-SEARCH-001: inline-autocomplete dropdown ──────
+
+    @property
+    def dropdown(self) -> Locator:
+        """no semantic: listbox without ARIA role"""
+        return self.container.locator("#addRelExistingResults")
+
+    @property
+    def dropdown_rows(self) -> Locator:
+        """no semantic: row elements without ARIA role"""
+        return self.dropdown.locator('[data-testid="add-rel-existing-row"]')
+
+    @property
+    def linked_chip(self) -> Locator:
+        """no semantic: chip element without ARIA role"""
+        return self.container.locator('[data-testid="add-rel-linked-chip"]')
+
+    @property
+    def btn_unlink(self) -> Locator:
+        """no semantic: button identified by data-action"""
+        return self.linked_chip.locator('[data-action="unlink-existing"]')
 
     def expect_visible(self) -> None:
         """Assert the add-relative modal is visible."""
@@ -214,22 +373,19 @@ class AddRelativeModal:
 
     @property
     def share_parents_input(self) -> Locator:
-        return self.container.locator("#addRelSiblingShareParents")  # no semantic: hidden checkbox, no label
+        """no semantic: hidden checkbox, no label"""
+        return self.container.locator("#addRelSiblingShareParents")
 
     @property
     def share_parents_label(self) -> Locator:
-        """Кастомная обёртка чекбокса — `<label class="checkbox">` со span'ом
-        `.checkbox-box`. Нативный input visually-hidden через CSS обёртки,
-        поэтому Playwright не может clicknуть его напрямую (element-not-visible).
-        Кликаем по label — стандартный HTML toggles bound input."""
-        # no semantic: custom checkbox wrapper, native input hidden
+        """no semantic: custom checkbox wrapper, native input hidden"""
         return self.container.locator(
             'label.checkbox:has(#addRelSiblingShareParents)'
         )
 
     def uncheck_share_parents(self) -> None:
-        """Снять отметку «общие родители». No-op если row отсутствует
-        (например, у currentPerson нет parents — row не рендерится)."""
+        """Uncheck 'share parents'. No-op if the row is absent
+        (e.g. currentPerson has no parents -- row is not rendered)."""
         if self.share_parents_input.count() == 0:
             return
         if self.share_parents_input.is_checked():
@@ -237,14 +393,14 @@ class AddRelativeModal:
             expect(self.share_parents_input).not_to_be_checked()
 
     # ──────────────────────────────────────────────────────────────────
-    # Suggestion-block helpers (Фаза 1 dedup)
+    # Suggestion-block helpers (dedup)
     # ──────────────────────────────────────────────────────────────────
 
     def suggestion_card_by_id(self, person_id: str) -> Locator:
         """Suggestion card scoped to a specific person.id.
 
-        FEATURE-PARENT-SEARCH-001 унифицировала атрибут: `data-suggestion-id`
-        → `data-person-id` (один контракт с dropdown-строками).
+        FEATURE-PARENT-SEARCH-001 unified the attribute: `data-suggestion-id`
+        -> `data-person-id` (one contract with dropdown rows).
         """
         # no semantic: card element, no ARIA role
         return self.container.locator(
@@ -252,11 +408,11 @@ class AddRelativeModal:
         )
 
     def click_suggestion(self, person_id: str) -> None:
-        """Click a suggestion-card — enters link-mode (chip + readonly form).
+        """Click a suggestion-card -- enters link-mode (chip + readonly form).
 
-        Поведение изменено FEATURE-PARENT-SEARCH-001: клик больше НЕ
-        выполняет POST /relationships немедленно, а ставит форму в
-        link-mode; подтверждение — через Save (см. `linked_chip`).
+        Changed by FEATURE-PARENT-SEARCH-001: click no longer POSTs
+        /relationships immediately; it puts the form into link-mode and
+        confirmation happens via Save (see `linked_chip`).
         """
         self.suggestion_card_by_id(person_id).click()
 
@@ -268,7 +424,7 @@ class AddRelativeModal:
     def expect_no_suggestions(self) -> None:
         """The slot is always present (data-suggest-slot) but should be empty.
 
-        We don't assert slot itself is hidden — it's an always-mounted DIV.
+        We don't assert slot itself is hidden -- it's an always-mounted DIV.
         Instead: zero suggestion-cards and the suggest-block element is absent.
         """
         expect(self.suggest_block).to_have_count(0)
@@ -281,7 +437,7 @@ class AddRelativeModal:
     def search_existing(self, *, surname: str = "", given: str = "") -> None:
         """Type into the FIO inputs to trigger the inline-autocomplete dropdown.
 
-        The dropdown opens automatically once `surname + given` ≥ 2 chars
+        The dropdown opens automatically once `surname + given` >= 2 chars
         (debounce 150ms). Mode must be `create` (default on open) and a
         currentPerson must exist (root-creation has no link target).
         """
@@ -307,13 +463,13 @@ class AddRelativeModal:
         )
 
     def pick_existing(self, person_id: str) -> None:
-        """Click the dropdown row for `person_id` — enters link-mode (chip
+        """Click the dropdown row for `person_id` -- enters link-mode (chip
         appears, fields go readonly, Save now POSTs only /api/relationships)."""
         self.row_by_person_id(person_id).click()
 
     def pick_first(self) -> None:
         """Click the first dropdown row (used when the test doesn't care which
-        candidate — only that *some* match exists)."""
+        candidate -- only that *some* match exists)."""
         self.dropdown_rows.first.click()
 
     def expect_linked_to(self, person_id: str) -> None:
@@ -326,7 +482,7 @@ class AddRelativeModal:
         expect(self.linked_chip).not_to_be_visible()
 
     def unlink_existing(self) -> None:
-        """Click «Отвязать» on the chip — exits link-mode (form editable)."""
+        """Click unlink on the chip -- exits link-mode (form editable)."""
         self.btn_unlink.click()
 
     def expect_field_readonly(self, field: str) -> None:

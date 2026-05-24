@@ -6,7 +6,7 @@ revoked or invalid, a `.share-error` block is shown instead.
 
 from __future__ import annotations
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 
 class SharePage:
@@ -14,9 +14,21 @@ class SharePage:
 
     def __init__(self, page: Page):
         self.page = page
-        self.person_name = page.locator('[data-testid="share-name"]')
-        self.error = page.locator('[data-testid="share-error"]')
-        self.edit_button = page.locator('[data-action="profile-edit"]')
+
+    @property
+    def person_name(self) -> Locator:
+        """Shared person name element."""
+        return self.page.locator('[data-testid="share-name"]')
+
+    @property
+    def error(self) -> Locator:
+        """Share error block."""
+        return self.page.locator('[data-testid="share-error"]')
+
+    @property
+    def edit_button(self) -> Locator:
+        """Edit button (should not be present on shared page)."""
+        return self.page.locator('[data-action="profile-edit"]')
 
     def expect_person_visible(self, name_substring: str) -> None:
         """Assert the shared person name contains the given substring."""

@@ -17,31 +17,68 @@ class SignupPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self.email = page.get_by_label(t(Labels.EMAIL))
-        self.password = page.locator("#password")  # no semantic: get_by_label("Пароль") matches toggle button too
-        # `full_name` и `birth_year` поля удалены из signup-формы в commit
-        # 814d5f8 (feat(signup): убрать поле ФИО — display_name заполняется
-        # из карточки). Backend всё ещё принимает их в JSON-теле от API
-        # (signup_via_api fixture отправляет full_name через payload), но в
-        # UI они отсутствуют. Тесты, использовавшие SignupPage.full_name и
-        # .birth_year, должны быть переписаны либо удалены.
-        self.honeypot = page.locator("#website")  # no semantic: hidden honeypot field
-        # Stage-0 (RU-бета, Wave-9): отдельные `#agreePrivacy`/`#agreeCrossBorder`
-        # удалены из формы — privacy объединён с terms_accepted (см. backend
-        # auth_v2/router.py:208-422). Остался один `#agreeTerms` обязательный.
-        # API endpoint всё ещё принимает privacy_consent / cross_border_consent
-        # / marketing_consent в payload как optional bool (default False),
-        # т.е. signup_via_api продолжает работать с 3-field payload.
-        self.agree_terms = page.locator("#agreeTerms")  # no semantic: custom checkbox wrapper
-        # Backward-compat (старые тесты используют `.agree` как короткий алиас).
-        self.agree = self.agree_terms
-        self.submit_btn = page.get_by_role("button", name=t(Buttons.SIGNUP))
-        self.password_toggle = page.locator("#pwToggle")  # no semantic: icon-only toggle
-        self.password_strength = page.locator('[data-testid="signup-pw-meter"]')  # no semantic: custom meter widget
-        self.signup_msg = page.locator("#signupMsg")  # no semantic: no ARIA role
-        self.email_error = page.locator("#email-err")  # no semantic: dynamic content, no ARIA
-        # no semantic: checkbox group container
-        self.agree_group = page.locator('[data-testid="signup-agree-group"]')
+
+    # ── Locator properties ──────────────────────────────────────────
+
+    @property
+    def email(self) -> Locator:
+        """Поле email."""
+        return self.page.get_by_label(t(Labels.EMAIL))
+
+    @property
+    def password(self) -> Locator:
+        """no semantic: get_by_label("Пароль") matches toggle button too"""
+        return self.page.locator("#password")
+
+    @property
+    def honeypot(self) -> Locator:
+        """no semantic: hidden honeypot field"""
+        return self.page.locator("#website")
+
+    @property
+    def agree_terms(self) -> Locator:
+        """no semantic: custom checkbox wrapper
+
+        Stage-0 (RU-бета, Wave-9): отдельные #agreePrivacy/#agreeCrossBorder
+        удалены из формы — privacy объединён с terms_accepted (см. backend
+        auth_v2/router.py:208-422). Остался один #agreeTerms обязательный.
+        """
+        return self.page.locator("#agreeTerms")
+
+    @property
+    def agree(self) -> Locator:
+        """Backward-compat alias for agree_terms."""
+        return self.agree_terms
+
+    @property
+    def submit_btn(self) -> Locator:
+        """Кнопка отправки формы регистрации."""
+        return self.page.get_by_role("button", name=t(Buttons.SIGNUP))
+
+    @property
+    def password_toggle(self) -> Locator:
+        """no semantic: icon-only toggle"""
+        return self.page.locator("#pwToggle")
+
+    @property
+    def password_strength(self) -> Locator:
+        """no semantic: custom meter widget"""
+        return self.page.locator('[data-testid="signup-pw-meter"]')
+
+    @property
+    def signup_msg(self) -> Locator:
+        """no semantic: no ARIA role"""
+        return self.page.locator("#signupMsg")
+
+    @property
+    def email_error(self) -> Locator:
+        """no semantic: dynamic content, no ARIA"""
+        return self.page.locator("#email-err")
+
+    @property
+    def agree_group(self) -> Locator:
+        """no semantic: checkbox group container"""
+        return self.page.locator('[data-testid="signup-agree-group"]')
 
     def fill_required(
         self,

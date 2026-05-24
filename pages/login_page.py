@@ -20,14 +20,31 @@ class LoginPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self.email = page.locator('input[name="email"]')  # no semantic: login form has no <label>
-        self.password = page.locator('input[name="password"]')  # no semantic: login form has no <label>
-        self.submit_btn = page.get_by_role("button", name=t(Buttons.LOGIN))
-        # Login error / status text container — main.py:602 renders it as
-        # `<div id="msg" role="status" aria-live="polite"></div>`. JS sets
-        # textContent on failure (no class change for error vs success — text
-        # presence is the signal).
-        self.error_msg = page.get_by_role("status")
+
+    @property
+    def email(self) -> Locator:
+        """no semantic: login form has no <label>"""
+        return self.page.locator('input[name="email"]')
+
+    @property
+    def password(self) -> Locator:
+        """no semantic: login form has no <label>"""
+        return self.page.locator('input[name="password"]')
+
+    @property
+    def submit_btn(self) -> Locator:
+        """Login submit button."""
+        return self.page.get_by_role("button", name=t(Buttons.LOGIN))
+
+    @property
+    def error_msg(self) -> Locator:
+        """Login error / status text container."""
+        return self.page.get_by_role("status")
+
+    @property
+    def form(self) -> Locator:
+        """no semantic: form element by ID"""
+        return self.page.locator("#loginForm")
 
     def login(self, email: str, password: str) -> Self:
         """Fill credentials and click the login button."""
@@ -42,12 +59,6 @@ class LoginPage(BasePage):
         expect(self.password).to_be_visible()
         expect(self.submit_btn).to_be_visible()
 
-    @property
-    def form(self) -> Locator:
-        """Return the login form locator."""
-        return self.page.locator("#loginForm")  # no semantic: form element by ID
-
     def expect_error(self) -> None:
         """Assert the status message contains a non-empty error text."""
-        # Error visible = #msg has non-empty text content.
         expect(self.error_msg).not_to_have_text("")

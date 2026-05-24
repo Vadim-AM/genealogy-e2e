@@ -5,14 +5,14 @@ on first open. 2FA is opt-in; the product has no login-time TOTP prompt —
 2FA gates critical ops via a 5-minute step-up window instead.
 
 Layout:
-    [data-tab="security"]      ← opens the Security tab
-      #mfaStatusText           ← "✅ 2FA включена" / "❌ 2FA отключена"
+    [data-tab="security"]      <- opens the Security tab
+      #mfaStatusText           <- status text
       #mfaEnableBtn #mfaDisableBtn #mfaRegenerateBtn
-      #mfaSetupSecret          ← TOTP secret (setup dialog)
-      #mfaVerifyCode           ← 6-digit code input
-      #mfaRecoveryList > li    ← 10 recovery codes
+      #mfaSetupSecret          <- TOTP secret (setup dialog)
+      #mfaVerifyCode           <- 6-digit code input
+      #mfaRecoveryList > li    <- 10 recovery codes
       #mfaRecoveryDoneBtn
-      #mfaStepUpCode           ← step-up code input (disable)
+      #mfaStepUpCode           <- step-up code input (disable)
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Self
 
 import pyotp
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 
 class MfaSettings:
@@ -28,16 +28,56 @@ class MfaSettings:
 
     def __init__(self, page: Page):
         self.page = page
-        self.tab = page.locator('[data-tab="security"]')  # no semantic: tab without role=tab
-        self.status_text = page.locator("#mfaStatusText")  # no semantic: status display, no ARIA
-        self.btn_enable = page.locator("#mfaEnableBtn")  # no semantic: button without accessible name
-        self.btn_disable = page.locator("#mfaDisableBtn")  # no semantic: button without accessible name
-        self.setup_secret = page.locator("#mfaSetupSecret")  # no semantic: secret display, no ARIA
-        self.verify_code = page.locator("#mfaVerifyCode")  # no semantic: TOTP input without label
-        self.recovery_codes = page.locator("#mfaRecoveryList li")  # no semantic: code list items, no ARIA
-        self.recovery_done = page.locator("#mfaRecoveryDoneBtn")  # no semantic: button without accessible name
-        self.stepup_code = page.locator("#mfaStepUpCode")  # no semantic: TOTP input without label
         self._secret: str | None = None
+
+    # ── Locators ──────────────────────────────────────────────────────
+
+    @property
+    def tab(self) -> Locator:
+        """no semantic: tab without role=tab"""
+        return self.page.locator('[data-tab="security"]')
+
+    @property
+    def status_text(self) -> Locator:
+        """no semantic: status display, no ARIA"""
+        return self.page.locator("#mfaStatusText")
+
+    @property
+    def btn_enable(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#mfaEnableBtn")
+
+    @property
+    def btn_disable(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#mfaDisableBtn")
+
+    @property
+    def setup_secret(self) -> Locator:
+        """no semantic: secret display, no ARIA"""
+        return self.page.locator("#mfaSetupSecret")
+
+    @property
+    def verify_code(self) -> Locator:
+        """no semantic: TOTP input without label"""
+        return self.page.locator("#mfaVerifyCode")
+
+    @property
+    def recovery_codes(self) -> Locator:
+        """no semantic: code list items, no ARIA"""
+        return self.page.locator("#mfaRecoveryList li")
+
+    @property
+    def recovery_done(self) -> Locator:
+        """no semantic: button without accessible name"""
+        return self.page.locator("#mfaRecoveryDoneBtn")
+
+    @property
+    def stepup_code(self) -> Locator:
+        """no semantic: TOTP input without label"""
+        return self.page.locator("#mfaStepUpCode")
+
+    # ── Methods ───────────────────────────────────────────────────────
 
     def open_tab(self) -> Self:
         """Click the Security tab to reveal MFA controls."""
@@ -45,7 +85,7 @@ class MfaSettings:
         return self
 
     def enable_with_totp(self) -> None:
-        """Click Enable → read the TOTP secret → submit a generated code."""
+        """Click Enable -> read the TOTP secret -> submit a generated code."""
         self.btn_enable.click()
         expect(self.setup_secret).to_be_visible()
         self._secret = self.setup_secret.inner_text().strip()
@@ -53,12 +93,12 @@ class MfaSettings:
         self.verify_code.press("Enter")
 
     def finish_recovery(self) -> None:
-        """The verify step shows 10 recovery codes — acknowledge them."""
+        """The verify step shows 10 recovery codes -- acknowledge them."""
         expect(self.recovery_codes).to_have_count(10)
         self.recovery_done.click()
 
     def disable_with_stepup(self) -> None:
-        """Click Disable → step-up dialog → submit a generated TOTP code."""
+        """Click Disable -> step-up dialog -> submit a generated TOTP code."""
         self.btn_disable.click()
         expect(self.stepup_code).to_be_visible()
         assert self._secret, "enable_with_totp must run before disable"  # precondition

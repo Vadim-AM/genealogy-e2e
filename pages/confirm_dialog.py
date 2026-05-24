@@ -13,7 +13,7 @@ Layout:
 
 from __future__ import annotations
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 from src.texts import Buttons, t
 
@@ -23,8 +23,16 @@ class ConfirmDialog:
 
     def __init__(self, page: Page):
         self.page = page
-        self.container = page.locator('[data-testid="confirm-dialog"]').first
-        self.backdrop = page.locator('[data-testid="confirm-dialog-backdrop"]').first
+
+    @property
+    def container(self) -> Locator:
+        """Confirm dialog panel."""
+        return self.page.locator('[data-testid="confirm-dialog"]').first
+
+    @property
+    def backdrop(self) -> Locator:
+        """Confirm dialog backdrop overlay."""
+        return self.page.locator('[data-testid="confirm-dialog-backdrop"]').first
 
     def expect_visible(self) -> None:
         """Assert the confirm dialog is visible."""
