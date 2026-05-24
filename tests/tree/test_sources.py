@@ -7,10 +7,13 @@ for the source record itself (a source has no dedicated edit UI).
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import TestData
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -43,7 +46,7 @@ def test_owner_attaches_and_unlinks_a_source(
         sources.expect_attached(src_name)
 
     with step("проверка: источник привязан в бэкенде"):
-        linked = api.get(API.person_sources(pid))
+        linked = api.get(routes.person_sources(pid))
         linked_sources = expect_response(linked, label="GET person-sources").status_ok().list_schema(SourceResponse)
         assert any(s.name == src_name for s in linked_sources), \
             f"source not linked backend-side: {[s.name for s in linked_sources]}"
@@ -51,10 +54,10 @@ def test_owner_attaches_and_unlinks_a_source(
     with step("действие: отвязать источник"):
         with owner_page.expect_response("**/api/person-sources/**"):
             sources.unlink_first()
-        expect(sources.items).to_have_count(0)
+        expect(sources.items, ErrMsg.wrong_count).to_have_count(0)
 
     with step("проверка: источник отвязан в бэкенде"):
-        after = api.get(API.person_sources(pid))
+        after = api.get(routes.person_sources(pid))
         after_sources = expect_response(
             after, label="GET person-sources after unlink",
         ).status_ok().list_schema(SourceResponse)
@@ -73,14 +76,14 @@ def test_source_record_crud_lifecycle(owner_user, tenant_client):
         sid = created.id
 
     with step("действие: переименовать источник"):
-        patched = api.patch(API.source(sid), json={"name": TestData.SOURCE_NAME_PATCHED})
+        patched = api.patch(routes.source(sid), json={"name": TestData.SOURCE_NAME_PATCHED})
         patched_src = expect_response(patched, label="PATCH source").status_ok().schema(SourceResponse)
         assert patched_src.name == TestData.SOURCE_NAME_PATCHED, \
             f"patched name: expected {TestData.SOURCE_NAME_PATCHED!r}, got {patched_src.name!r}"
 
     with step("действие: удалить источник"):
-        deleted = api.delete(API.source(sid))
-        expect_response(deleted, label="DELETE source").status(204)
+        deleted = api.delete(routes.source(sid))
+        expect_response(deleted, label="DELETE source").status(HTTPStatus.NO_CONTENT)
 
     with step("проверка: источник отсутствует в списке"):
         sources = site_api.get_sources(api)

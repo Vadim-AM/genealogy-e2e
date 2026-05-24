@@ -9,7 +9,8 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import TestData
 from tests._core.step import step
 from tests.pages.person_editor import AddRelativeModal
@@ -27,7 +28,7 @@ def test_add_sibling_via_profile_creates_person_and_relationship(
     """
     with step("подготовка: запомнить количество персон в дереве"):
         api = tenant_client(owner_user)
-        tree_before = api.get(API.TREE)
+        tree_before = api.get(routes.TREE)
         tree_before.raise_for_status()
         count_before = len(tree_before.json()["people"])
 
@@ -44,10 +45,10 @@ def test_add_sibling_via_profile_creates_person_and_relationship(
         assert create_response.ok, \
             f"POST /api/people failed: {create_response.status} {create_response.text()[:200]}"
 
-        expect(modal.overlay).not_to_be_visible()
+        expect(modal.overlay, ErrMsg.overlay_should_be_closed).not_to_be_visible()
 
     with step("проверка: новая персона появилась в дереве"):
-        tree_after = api.get(API.TREE)
+        tree_after = api.get(routes.TREE)
         tree_after.raise_for_status()
         people_after = tree_after.json()["people"]
         assert len(people_after) == count_before + 1, \

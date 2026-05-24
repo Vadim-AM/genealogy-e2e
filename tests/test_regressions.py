@@ -16,11 +16,12 @@ Removed (28.04 sanitize):
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import make_email
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -47,9 +48,9 @@ def test_bug_auth_001_authv2_owner_reads_enrichment(
         pid = tree.people[0].id
 
     with step("проверка: history и acceptances доступны (200/204)"):
-        for path in (API.enrich_history(pid), API.enrich_acceptances(pid)):
+        for path in (routes.enrich_history(pid), routes.enrich_acceptances(pid)):
             r = api.get(path)
-            expect_response(r, label=f"GET {path}").status(200, 204)
+            expect_response(r, label=f"GET {path}").status(HTTPStatus.OK, HTTPStatus.NO_CONTENT)
 
 
 @allure.title("Регрессия: аналитика page_view не падает с 500")
@@ -62,12 +63,12 @@ def test_bug_auth_002_pageview_platform_session_no_500(owner_user, tenant_client
     with step("действие: отправка page_view аналитики"):
         api = tenant_client(owner_user)
         r = api.post(
-            API.ANALYTICS_LOG,
+            routes.ANALYTICS_LOG,
             json={"event": "page_view", "path": "/", "context": {"section": "tree"}},
         )
 
     with step("проверка: endpoint вернул 200"):
-        expect_response(r, label="BUG-AUTH-002 analytics log").status(200)
+        expect_response(r, label="BUG-AUTH-002 analytics log").status(HTTPStatus.OK)
 
 
 @allure.title("Регрессия: /signup не запрашивает /api/csrf-token (404)")
@@ -78,10 +79,10 @@ def test_bug_csrf_001_console_clean_on_signup(page: Page, anon_pages: PageFactor
         page.on(
             "response",
             lambda r: bad_404.append(r.url)
-            if r.status == 404 and "/api/csrf-token" in r.url
+            if r.status == HTTPStatus.NOT_FOUND and "/api/csrf-token" in r.url  # noqa: drift
             else None,
         )
-        anon_pages.navigate_to(SignupPage)
+        _ = anon_pages.navigate_to(SignupPage)
 
     with step("проверка: нет 404 на /api/csrf-token"):
         assert not bad_404, f"BUG-CSRF-001 regression: {bad_404}"
@@ -123,16 +124,16 @@ def test_bug_auth_003_sse_reconnect_recovers(
 
     with step("действие: первый streaming enrichment POST"):
         r1 = api.post(
-            API.enrich(pid),
+            routes.enrich(pid),
             json={"streaming": True, "force_refresh": False},
             timeout=TIMEOUTS.api_long,
         )
-        expect_response(r1, label="first enrich POST").status(200)
+        expect_response(r1, label="first enrich POST").status(HTTPStatus.OK)
 
     with step("проверка: повторный POST возвращает 200, не 409"):
         r2 = api.post(
-            API.enrich(pid),
+            routes.enrich(pid),
             json={"streaming": True, "force_refresh": False},
             timeout=TIMEOUTS.api_long,
         )
-        expect_response(r2, label="BUG-AUTH-003 reconnect").status(200)
+        expect_response(r2, label="BUG-AUTH-003 reconnect").status(HTTPStatus.OK)

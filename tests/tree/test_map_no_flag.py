@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.err_msg import ErrMsg
 from tests._core.step import step
 from tests.pages.tree_page import TreePage
 
@@ -49,6 +50,6 @@ def test_map_tab_is_hidden_by_default(owner_page: Page, pages: PageFactory):
         tree = pages.navigate_to(TreePage)
 
     with step("проверка: tab map в DOM, но скрыт через hidden"):
-        expect(tree.tab_map).to_have_count(1)
-        expect(tree.tab_map).to_be_hidden()
-        expect(tree.tab_map).to_have_attribute("hidden", "")
+        expect(tree.tab_map, ErrMsg.wrong_count).to_have_count(1)
+        expect(tree.tab_map, ErrMsg.tab_should_be_hidden).to_be_hidden()
+        expect(tree.tab_map, ErrMsg.wrong_attribute).to_have_attribute("hidden", "")

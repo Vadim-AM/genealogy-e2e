@@ -17,10 +17,13 @@ state machine, preview rendering, encoding-badge, error paths, idempotency.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import GedcomImport, t
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -33,7 +36,7 @@ from tests.helpers.admin.gedcom_ui import open_import_tab
 from tests.helpers.tree.tree_api import people_count
 
 # ─────────────────────────────────────────────────────────────────────────
-# Happy path
+# Основной сценарий (happy path)
 # ─────────────────────────────────────────────────────────────────────────
 
 
@@ -49,33 +52,33 @@ def test_round_trip_export_then_import(owner_page: Page, owner_user, tenant_clie
     """
     with step("подготовка: экспорт текущего дерева через API"):
         api = tenant_client(owner_user)
-        # 1. Export current tree via API (returns .ged text body)
-        r = api.get(API.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long)
+        # 1. Экспорт текущего дерева через API (возвращает .ged текстом)
+        r = api.get(routes.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long)
         assert r.is_success, f"export GEDCOM failed: {r.status_code} {r.text[:200]}"
         ged_text = r.text
         assert "0 HEAD" in ged_text[:100], f"exported GEDCOM missing header: {ged_text[:100]!r}"
         count_before = people_count(api)
 
     with step("действие: upload экспортированного файла обратно через UI"):
-        # 2. Open /owner → Import/Export tab → upload exported file back
+        # 2. Открываем /owner → вкладка «Импорт/Экспорт» → загружаем экспортированный файл обратно
         owner = open_import_tab(owner_page)
         owner.upload_ged(filename="round-trip.ged", content=ged_text.encode("utf-8"))
 
-        # 3. Preview state — counts визибл
+        # 3. Состояние preview — счётчики видимы
         owner.expect_import_state("PREVIEW")
-        expect(owner.import_stats).to_be_visible()
-        expect(owner.import_confirm_btn).to_be_visible()
+        expect(owner.import_stats, ErrMsg.gedcom_stats_not_visible).to_be_visible()
+        expect(owner.import_confirm_btn, ErrMsg.button_not_visible).to_be_visible()
 
-        # 4. Confirm via confirmDialog gate
+        # 4. Подтверждение через confirmDialog
         owner.confirm_import_via_dialog()
         owner.expect_import_state("DONE")
 
     with step("проверка: DONE показывает «Пропущено» и count не изменился"):
-        # 5. DONE summary mentions «Пропущено» — нет реально-новых persons
+        # 5. DONE-сводка содержит «Пропущено» — нет реально-новых persons
         summary_text = owner.import_summary.text_content() or ""
         assert t(GedcomImport.SKIPPED_LABEL) in summary_text, f"expected skipped count in DONE: {summary_text!r}"
 
-        # API: count не изменился — backend skipnул всех (idempotent)
+        # API: count не изменился — backend пропустил всех (idempotent)
         count_after = people_count(api)
         assert count_after == count_before, (
             f"round-trip leaked new persons: before={count_before}, after={count_after}"
@@ -98,7 +101,7 @@ def test_import_new_persons_visible_in_tree(owner_page: Page, owner_user, tenant
 
     with step("проверка: новые персоны появились в /api/tree"):
         api = tenant_client(owner_user)
-        tree_after = api.get(API.TREE).json()
+        tree_after = api.get(routes.TREE).json()
         assert len(tree_after["people"]) >= count_before + 2, (
             f"expected ≥2 new persons; before={count_before}, after={len(tree_after['people'])}"
         )
@@ -125,12 +128,14 @@ def test_cp1251_shows_cyrillic_correctly(owner_page: Page, owner_user):
         owner.expect_import_state("PREVIEW")
 
     with step("проверка: encoding badge и кириллица без mojibake"):
-        # Encoding badge says "cp1251"
-        expect(owner.import_encoding_badge).to_have_attribute("data-gedcom-encoding", "cp1251")
-        expect(owner.import_encoding_badge).to_contain_text("Windows-1251")
-        # Preview list (collapsible details) contains cyrillic name — ловит mojibake
-        expect(owner.import_root).to_contain_text("Иван")
-        expect(owner.import_root).to_contain_text("Кириллов")
+        # Бейдж кодировки показывает "cp1251"
+        expect(
+            owner.import_encoding_badge, ErrMsg.gedcom_encoding_wrong,
+        ).to_have_attribute("data-gedcom-encoding", "cp1251")
+        expect(owner.import_encoding_badge, ErrMsg.gedcom_encoding_wrong).to_contain_text("Windows-1251")
+        # Список preview (раскрываемый details) содержит кириллическое имя — ловит mojibake
+        expect(owner.import_root, ErrMsg.wrong_text_content).to_contain_text("Иван")
+        expect(owner.import_root, ErrMsg.wrong_text_content).to_contain_text("Кириллов")
 
 
 @allure.title("GEDCOM: UTF-8 файл показывает нейтральный encoding badge")
@@ -140,11 +145,11 @@ def test_utf8_encoding_badge_is_neutral(owner_page: Page, owner_user):
     owner = open_import_tab(owner_page)
     owner.upload_ged(filename="utf8.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
     owner.expect_import_state("PREVIEW")
-    expect(owner.import_encoding_badge).to_have_attribute("data-gedcom-encoding", "utf-8")
+    expect(owner.import_encoding_badge, ErrMsg.gedcom_encoding_wrong).to_have_attribute("data-gedcom-encoding", "utf-8")
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# State machine
+# Стейт-машина
 # ─────────────────────────────────────────────────────────────────────────
 
 
@@ -181,12 +186,12 @@ def test_confirm_dialog_cancel_blocks_import(owner_page: Page, owner_user, tenan
         owner.expect_import_state("PREVIEW")
 
     with step("действие: открыть confirmDialog и нажать Отмена"):
-        # Click widget's Confirm — confirmDialog появляется на body
+        # Кликаем Confirm виджета — confirmDialog появляется на body
         owner.import_confirm_btn.click()
-        expect(owner.confirm_dialog).to_be_visible()
-        # Click Cancel в dialog — должен закрыть dialog, оставить в PREVIEW
+        expect(owner.confirm_dialog, ErrMsg.dialog_not_visible).to_be_visible()
+        # Кликаем Отмена в dialog — должен закрыть dialog, оставить в PREVIEW
         owner.confirm_dialog_cancel.click()
-        expect(owner.confirm_dialog).to_have_count(0)
+        expect(owner.confirm_dialog, ErrMsg.dialog_should_be_closed).to_have_count(0)
         owner.expect_import_state("PREVIEW")
 
     with step("проверка: count не изменился после отмены"):
@@ -205,7 +210,7 @@ def test_done_shows_skipped_count_on_reimport(owner_page: Page, owner_user, tena
         owner.upload_ged(filename="first.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
         owner.confirm_import_via_dialog()
         owner.expect_import_state("DONE")
-        # Reset via "Импортировать ещё файл"
+        # Сброс через «Импортировать ещё файл»
         owner.import_again_btn.click()
         owner.expect_import_state("IDLE")
 
@@ -227,17 +232,17 @@ def test_retry_after_error_resets_to_idle(owner_page: Page, owner_user):
         # Перехватываем POST /import-gedcom и возвращаем 500
         def _block_500(route):
             if route.request.method == "POST":
-                route.fulfill(status=500, body='{"detail":"server boom"}',
+                route.fulfill(status=HTTPStatus.INTERNAL_SERVER_ERROR, body='{"detail":"server boom"}',
                               content_type="application/json")
             else:
                 route.continue_()
-        owner_page.route(f"**{API.ADMIN_IMPORT_GEDCOM}", _block_500)
+        owner_page.route(f"**{routes.ADMIN_IMPORT_GEDCOM}", _block_500)
         try:
             owner.upload_ged(filename="boom.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
             owner.expect_import_state("ERROR")
-            expect(owner.import_error).to_be_visible()
+            expect(owner.import_error, ErrMsg.gedcom_import_state_wrong).to_be_visible()
         finally:
-            owner_page.unroute(f"**{API.ADMIN_IMPORT_GEDCOM}")
+            owner_page.unroute(f"**{routes.ADMIN_IMPORT_GEDCOM}")
 
     with step("проверка: Retry сбрасывает в IDLE"):
         owner.import_retry_btn.click()
@@ -245,7 +250,7 @@ def test_retry_after_error_resets_to_idle(owner_page: Page, owner_user):
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# Sad paths (client-side validation)
+# Негативные сценарии (клиентская валидация)
 # ─────────────────────────────────────────────────────────────────────────
 
 
@@ -266,8 +271,8 @@ def test_rejects_non_ged_extension(owner_page: Page, owner_user):
         )
 
     with step("проверка: alertDialog появился и POST не отправлен"):
-        expect(owner.confirm_dialog).to_be_visible()
-        expect(owner.confirm_dialog).to_contain_text(GedcomImport.FILE_EXTENSION_HINT)
+        expect(owner.confirm_dialog, ErrMsg.dialog_not_visible).to_be_visible()
+        expect(owner.confirm_dialog, ErrMsg.wrong_text_content).to_contain_text(GedcomImport.FILE_EXTENSION_HINT)
         assert posted == [], f"unexpected POSTs: {posted}"
         owner.confirm_dialog_ok.click()
         owner.expect_import_state("IDLE")
@@ -283,8 +288,8 @@ def test_rejects_empty_file(owner_page: Page, owner_user):
         )
 
     with step("проверка: alertDialog «пустой» и возврат в IDLE"):
-        expect(owner.confirm_dialog).to_be_visible()
-        expect(owner.confirm_dialog).to_contain_text(t(GedcomImport.EMPTY_LABEL))
+        expect(owner.confirm_dialog, ErrMsg.dialog_not_visible).to_be_visible()
+        expect(owner.confirm_dialog, ErrMsg.wrong_text_content).to_contain_text(t(GedcomImport.EMPTY_LABEL))
         owner.confirm_dialog_ok.click()
         owner.expect_import_state("IDLE")
 
@@ -311,14 +316,14 @@ def test_rejects_oversize_file(owner_page: Page, owner_user):
         )
 
     with step("проверка: alertDialog «слишком большой» и возврат в IDLE"):
-        expect(owner.confirm_dialog).to_be_visible()
-        expect(owner.confirm_dialog).to_contain_text(t(GedcomImport.TOO_LARGE_LABEL))
+        expect(owner.confirm_dialog, ErrMsg.dialog_not_visible).to_be_visible()
+        expect(owner.confirm_dialog, ErrMsg.wrong_text_content).to_contain_text(t(GedcomImport.TOO_LARGE_LABEL))
         owner.confirm_dialog_ok.click()
         owner.expect_import_state("IDLE")
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# Sad paths (server / network)
+# Негативные сценарии (сервер / сеть)
 # ─────────────────────────────────────────────────────────────────────────
 
 
@@ -331,22 +336,22 @@ def test_backend_400_shows_friendly_error(owner_page: Page, owner_user):
         def _block_400(route):
             if route.request.method == "POST":
                 route.fulfill(
-                    status=400,
+                    status=HTTPStatus.BAD_REQUEST,
                     body='{"detail":"GEDCOM parse error: line 5 unexpected token"}',
                     content_type="application/json",
                 )
             else:
                 route.continue_()
 
-        owner_page.route(f"**{API.ADMIN_IMPORT_GEDCOM}", _block_400)
+        owner_page.route(f"**{routes.ADMIN_IMPORT_GEDCOM}", _block_400)
 
     with step("проверка: UI показывает ERROR с detail от бэкенда"):
         try:
             owner.upload_ged(filename="malformed.ged", content=SAMPLE_GEDCOM_MALFORMED)
             owner.expect_import_state("ERROR")
-            expect(owner.import_error).to_contain_text("GEDCOM parse error")
+            expect(owner.import_error, ErrMsg.wrong_text_content).to_contain_text("GEDCOM parse error")
         finally:
-            owner_page.unroute(f"**{API.ADMIN_IMPORT_GEDCOM}")
+            owner_page.unroute(f"**{routes.ADMIN_IMPORT_GEDCOM}")
 
 
 @allure.title("GEDCOM: обрыв сети показывает понятное сообщение об ошибке")
@@ -354,13 +359,13 @@ def test_network_error_shows_friendly_message(owner_page: Page, owner_user):
     """Полный network fail (route.abort) → ERROR с friendly message."""
     with step("подготовка: перехват POST с abort"):
         owner = open_import_tab(owner_page)
-        owner_page.route(f"**{API.ADMIN_IMPORT_GEDCOM}", lambda r: r.abort())
+        owner_page.route(f"**{routes.ADMIN_IMPORT_GEDCOM}", lambda r: r.abort())
 
     with step("проверка: ERROR с friendly message"):
         try:
             owner.upload_ged(filename="fail.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
             owner.expect_import_state("ERROR")
-            # Message — friendly, не raw stacktrace
-            expect(owner.import_error).to_be_visible()
+            # Сообщение — понятное, не сырой stacktrace
+            expect(owner.import_error, ErrMsg.gedcom_import_state_wrong).to_be_visible()
         finally:
-            owner_page.unroute(f"**{API.ADMIN_IMPORT_GEDCOM}")
+            owner_page.unroute(f"**{routes.ADMIN_IMPORT_GEDCOM}")

@@ -14,6 +14,7 @@ rows, switch back to fixed addresses.
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
@@ -51,7 +52,7 @@ def test_wait_submit_email_success(page: Page, anon_pages: PageFactory):
             wait.submit_email(unique_email("waitlist1"))
 
     with step("проверка: 200 и success-сообщение"):
-        assert r_info.value.status == 200, (
+        assert r_info.value.status == HTTPStatus.OK, (
             f"subscribe must be 200: {r_info.value.status} {r_info.value.text()[:200]}"
         )
         wait.expect_success()
@@ -61,7 +62,7 @@ def test_wait_submit_email_success(page: Page, anon_pages: PageFactory):
 def test_wait_no_owner_personal_data(page: Page, anon_pages: PageFactory):
     """BUG-COPY-001: /wait must not mention owner family names (PII)."""
     with step("действие: загрузить /wait"):
-        anon_pages.navigate_to(WaitPage)
+        _ = anon_pages.navigate_to(WaitPage)
         body = page.content()
 
     with step("проверка: нет PII владельца"):
@@ -107,7 +108,7 @@ def test_wait_duplicate_email_idempotent_status_field(page: Page, anon_pages: Pa
 
     with step("проверка: первый submit -> status=ok"):
         r1 = r1_info.value
-        assert r1.status == 200, f"first subscribe must be 200: {r1.status} {r1.text()[:200]}"
+        assert r1.status == HTTPStatus.OK, f"first subscribe must be 200: {r1.status} {r1.text()[:200]}"
         body1 = r1.json()
         assert body1.get("status") == "ok", (
             f"first subscribe must return status=ok: {body1}"
@@ -121,7 +122,7 @@ def test_wait_duplicate_email_idempotent_status_field(page: Page, anon_pages: Pa
 
     with step("проверка: дубликат -> status=already_subscribed"):
         r2 = r2_info.value
-        assert r2.status == 200, f"duplicate subscribe must be 200: {r2.status} {r2.text()[:200]}"
+        assert r2.status == HTTPStatus.OK, f"duplicate subscribe must be 200: {r2.status} {r2.text()[:200]}"
         body2 = r2.json()
         assert body2.get("status") == "already_subscribed", (
             f"duplicate subscribe must return status=already_subscribed: {body2}"

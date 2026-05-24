@@ -166,13 +166,21 @@ data = r.json()
 assert "tenant_slug" in data
 
 # good
-from tests.response import expect_response
-expect_response(r).status(200).json_has("tenant_slug")
+from tests._core.response import expect_response
+expect_response(r).status(HTTPStatus.OK).json_has("tenant_slug")
 ```
 
 `expect_response(r)` chains `.status()`, `.status_ok()`, `.json_has()`,
-`.json_eq()`. Every failure automatically includes: method, URL, status,
-body excerpt. Use in tests; fixtures keep `.raise_for_status()`.
+`.json_eq()`, `.schema(Model)`. Every failure automatically includes:
+method, URL, status, sanitised body excerpt (tokens/passwords masked).
+Use in tests; fixtures keep `.raise_for_status()`.
+
+For API helpers returning typed responses, use `ApiResponse` wrapper:
+```python
+from tests._core.response import ApiResponse
+resp = ApiResponse(raw_response)
+data = resp.expect(label="create person").status(HTTPStatus.CREATED).schema(PersonResponse)
+```
 
 ### 9. No raw `httpx.*` calls — go through `tenant_client(user)`
 
@@ -183,24 +191,24 @@ in `tenant_client(user)` factory in conftest:
 ```python
 def test_x(owner_user, tenant_client):
     api = tenant_client(owner_user)
-    r = api.get(API.TREE)
-    api.patch(API.person(pid), json={"summary": "..."})
+    r = api.get(routes.TREE)
+    api.patch(routes.person(pid), json={"summary": "..."})
 ```
 
 Per-request override (`api.post(..., timeout=TIMEOUTS.api_long)`) is fine
 when `enrichment` job needs longer. Multiple users in one test → multiple
 factory calls (each closed automatically on teardown).
 
-**Anonymous calls** (lending, public health) — pass `httpx.get(f"{base_url}{API.HEALTH}")`
+**Anonymous calls** (lending, public health) — pass `httpx.get(f"{base_url}{routes.HEALTH}")`
 directly; no client needed. Or use a top-level `httpx.Client(base_url=base_url)`.
 
-### 10. No raw URL strings — go through `tests/api_paths.py::API`
+### 10. No raw URL strings — go through `tests/_core/api_paths`
 
 ```python
 # bad
 api.get(f"/api/people/{pid}")
 # good
-api.get(API.person(pid))
+api.get(routes.person(pid))
 ```
 
 When backend renames an endpoint — one place to update, IDE autocomplete,
@@ -233,7 +241,7 @@ If your test needs:
 - accepting that invite → `accept_invite(token, cookies=...)`.
 - AI consent stamp on owner → `grant_ai_consent(user)`.
 
-**Never** inline `c.post(API.SIGNUP, ...) → c.post(API.VERIFY_EMAIL, ...) → c.post(API.LOGIN, ...)` —
+**Never** inline `c.post(routes.SIGNUP, ...) → c.post(routes.VERIFY_EMAIL, ...) → c.post(routes.LOGIN, ...)` —
 that's 8+ lines of plumbing per test, and changes in the auth flow ripple through every test.
 
 ### 13. Green or it doesn't exist — no xfail/skip
@@ -386,7 +394,7 @@ self.honeypot = page.locator("#website")  # no semantic: hidden field
 
 ```python
 # bad — raw API call with inline JSON and untyped response
-r = api.post(API.PEOPLE, json={"id": pid, "name": name, "branch": "paternal", "gender": "m"})
+r = api.post(routes.PEOPLE, json={"id": pid, "name": name, "branch": "paternal", "gender": "m"})
 r.raise_for_status()
 people = r.json()["people"]
 
@@ -423,6 +431,66 @@ expect(locator).to_be_visible()
 from tests._core.err_msg import ErrMsg
 expect(locator, ErrMsg.profile_not_visible).to_be_visible()
 ```
+
+### 25. No `assert` in Page Objects — only `expect()` in tests
+
+Page Objects contain only locators and actions, never test assertions. All
+test assertions live in test functions via `expect(locator, ErrMsg.x).to_*()`.
+Precondition guards (`assert self._secret, "must call setup first"`) are
+allowed — they protect against programmer error, not test outcomes.
+
+```python
+# bad — assert in POM
+class TreePage(BasePage):
+    def verify_rendered(self):
+        assert self.h1.is_visible()  # ← never
+
+# good — POM returns locator, test asserts
+class TreePage(BasePage):
+    @property
+    def h1(self) -> Locator:
+        return self._page.locator("h1")
+
+def test_tree(pages):
+    tree = pages.navigate_to(TreePage)
+    expect(tree.h1, ErrMsg.tree_not_rendered).to_be_visible()
+```
+
+### 26. No private PO properties from tests
+
+If a test needs a POM locator, the property must be public. Don't access
+`page._internal_field` from a test file — make it a `@property`.
+
+### 27. POM methods must guarantee stable state on return
+
+Every POM method that changes page state must wait for the result to
+stabilise before returning. If the result can be one of two states (list
+appeared OR "no results" label appeared), wait for one of them explicitly
+(e.g. `expect(list_or_empty.first).to_be_visible()`) — otherwise
+`not_to_be_visible()` after the method gives a false positive (element
+not yet in DOM → check passes instantly).
+
+### 28. Max 2 levels of PO inheritance; decompose via components
+
+`BasePage → FeaturePage` is the maximum. A third level is a signal to
+extract a component. Repeated UI blocks (modals, panels, dropdowns)
+become standalone classes in `tests/pages/` that receive a `root: Locator`.
+
+### 29. Files > 500 lines → decompose
+
+A test file or POM exceeding 500 lines is a signal to split by domain or
+component. One POM = one UI domain.
+
+### 30. Diagnostics: MCP browser first, throwaway scripts second
+
+When debugging UI, use the Playwright MCP browser
+(`mcp__plugin_playwright_playwright__browser_*`) for interactive
+iterations: navigate → snapshot → evaluate → click. This is faster than
+the cycle of edit code → run pytest → wait → read screenshot.
+
+Don't create throwaway scripts in `/tmp/` for debugging — MCP browser
+covers most scenarios. On test failure — trace viewer
+(`playwright show-trace`) + Allure screenshots.
 
 ## Project structure
 
@@ -661,7 +729,7 @@ already cost a near-lost rewrite.
 | A global fixture | `tests/_fixtures/<topic>.py` |
 | A domain fixture | `tests/<domain>/conftest.py` |
 | A UI string | `tests/messages.py` (class + `t()`) |
-| An API path | `tests/api_paths.py` (class `API`) |
+| An API path | `tests/_core/api_paths.py` (module-level constants + builders) |
 | An env var | `tests/settings.py` (Pydantic field) |
 
 ## When in doubt
@@ -673,3 +741,29 @@ already cost a near-lost rewrite.
   component once, would the test still pass? If no, refactor.
 - Is the timeout right? → Use the catalogue. If you want a different value,
   add a category, don't inline a number.
+
+## Claude Code инструменты
+
+### Hooks (`.claude/settings.json`)
+
+PostToolUse hook автоматически запускает `ruff format` + `ruff check --fix`
+после каждого редактирования `.py` файла.
+
+### Агенты (`.claude/agents/`)
+
+| Агент | Назначение |
+|-------|-----------|
+| `test-runner` | Запуск pytest, анализ падений, диагностика |
+
+### Команды (`.claude/commands/`)
+
+| Команда | Назначение |
+|---------|-----------|
+| `/verifier` | Верификация: drift-lint + ruff + import-check + правила |
+
+### Скиллы (`.claude/skills/`)
+
+| Скилл | Назначение |
+|-------|-----------|
+| `/gen-test` | Генерация нового теста по конвенциям (30 правил) |
+| `/refactor` | Пошаговый рефакторинг: анализ → сводка → подтверждение → реализация |

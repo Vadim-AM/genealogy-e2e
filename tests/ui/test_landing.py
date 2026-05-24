@@ -5,12 +5,14 @@ Public landing page rendering, headers, content guarantees.
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import PII, Brand, t
 from tests._core.step import step
 from tests.pages.tree_page import TreePage
@@ -30,12 +32,12 @@ def test_landing_title_has_brand(page: Page, anon_pages: PageFactory):
     import re
 
     with step("действие: открыть главную"):
-        anon_pages.navigate_to(TreePage)
+        _ = anon_pages.navigate_to(TreePage)
 
     with step("проверка: заголовок содержит бренд"):
         fragments = t(Brand.TITLE_FRAGMENTS)
         pattern = re.compile("|".join(re.escape(f) for f in fragments))
-        expect(page).to_have_title(pattern)
+        expect(page, ErrMsg.page_title_wrong).to_have_title(pattern)
 
 
 @allure.title("Лендинг: нет JS-ошибок в консоли при загрузке")
@@ -52,21 +54,22 @@ def test_landing_no_console_errors(page: Page, anon_pages: PageFactory):
         js_errors: list[str] = []
         bad_responses: list[tuple[str, int]] = []
 
-        EXPECTED_401_URLS = (API.ACCOUNT_ME, API.TREE)
+        EXPECTED_401_URLS = (routes.ACCOUNT_ME, routes.TREE)
 
         page.on("pageerror", lambda exc: js_errors.append(str(exc)))
 
         def _on_response(resp):
-            if resp.status >= 400 and resp.status != 404:  # 404 covered by static-assets test
+            # 404 covered by static-assets test
+            if resp.status >= HTTPStatus.BAD_REQUEST and resp.status != HTTPStatus.NOT_FOUND:
                 url = resp.url
-                if resp.status == 401 and any(u in url for u in EXPECTED_401_URLS):
+                if resp.status == HTTPStatus.UNAUTHORIZED and any(u in url for u in EXPECTED_401_URLS):
                     return
                 bad_responses.append((url, resp.status))
 
         page.on("response", _on_response)
 
     with step("действие: загрузить главную страницу"):
-        anon_pages.navigate_to(TreePage)
+        _ = anon_pages.navigate_to(TreePage)
 
     with step("проверка: нет JS-ошибок и неожиданных сетевых ошибок"):
         assert not js_errors, f"JS pageerrors on landing: {js_errors}"
@@ -84,8 +87,8 @@ def test_landing_has_main_tabs(page: Page, anon_pages: PageFactory):
         tree = anon_pages.navigate_to(TreePage)
 
     with step("проверка: вкладки Древо и О проекте видны"):
-        expect(tree.tab_tree).to_be_visible()
-        expect(tree.tab_about).to_be_visible()
+        expect(tree.tab_tree, ErrMsg.tab_not_visible).to_be_visible()
+        expect(tree.tab_about, ErrMsg.tab_not_visible).to_be_visible()
 
 
 @allure.title("Лендинг: на главной нет персональных данных владельца")
@@ -98,7 +101,7 @@ def test_landing_no_personal_owner_data(page: Page, anon_pages: PageFactory):
     of any owner family names (`PII.OWNER_FAMILY_NAMES`).
     """
     with step("действие: загрузить главную"):
-        anon_pages.navigate_to(TreePage)
+        _ = anon_pages.navigate_to(TreePage)
         body = page.content()
 
     with step("проверка: нет PII владельца в контенте"):
@@ -120,8 +123,8 @@ def test_static_assets_load(page: Page, anon_pages: PageFactory):
         page.on("response", _track)
 
     with step("действие: загрузить главную"):
-        anon_pages.navigate_to(TreePage)
+        _ = anon_pages.navigate_to(TreePage)
 
     with step("проверка: все статические ресурсы отдали 2xx/3xx"):
-        bad = {url: status for url, status in statuses.items() if status >= 400}
+        bad = {url: status for url, status in statuses.items() if status >= HTTPStatus.BAD_REQUEST}
         assert not bad, f"static assets returned errors: {bad}"

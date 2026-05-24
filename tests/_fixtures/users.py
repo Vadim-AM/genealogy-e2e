@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 import pytest
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import EMAIL_TOKEN_RE, TestConfig, unique_email
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -55,10 +55,10 @@ def signup_unverified(uvicorn_server: str) -> Callable[..., str]:
     ) -> str:
         with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
             c.post(
-                API.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short
+                routes.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short
             ).raise_for_status()
             r = c.post(
-                API.SIGNUP,
+                routes.SIGNUP,
                 json={
                     "email": email,
                     "password": password,
@@ -86,7 +86,7 @@ def login_existing(uvicorn_server: str) -> Callable[..., dict[str, str]]:
     def _do(email: str, password: str = TestConfig.DEFAULT_PASSWORD) -> dict[str, str]:
         with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
             r = c.post(
-                API.LOGIN,
+                routes.LOGIN,
                 json={"email": email, "password": password},
             )
             r.raise_for_status()
@@ -105,7 +105,7 @@ def read_email_token(uvicorn_server: str) -> Callable[[str], str]:
 
     def _read(email: str) -> str:
         with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
-            r = c.get(API.TEST_LAST_EMAIL, params={"to": email})
+            r = c.get(routes.TEST_LAST_EMAIL, params={"to": email})
             r.raise_for_status()
             return _extract_token_from_email(r.json().get("text_body") or "")
 
@@ -121,7 +121,7 @@ def create_invite(uvicorn_server: str) -> Callable[..., str]:
 
     def _do(owner: AuthUser, *, role: str = "viewer", name: str = "Гость") -> str:
         r = httpx.post(
-            f"{uvicorn_server}{API.TENANT_INVITES}",
+            f"{uvicorn_server}{routes.TENANT_INVITES}",
             json={"name": name, "role": role},
             cookies=owner.cookies,
             headers={"X-Tenant-Slug": owner.slug},
@@ -142,7 +142,7 @@ def accept_invite(uvicorn_server: str) -> Callable[..., None]:
 
     def _do(invite_token: str, *, cookies: dict[str, str]) -> dict[str, str]:
         r = httpx.post(
-            f"{uvicorn_server}{API.tenant_invite_accept(invite_token)}",
+            f"{uvicorn_server}{routes.tenant_invite_accept(invite_token)}",
             cookies=cookies,
             timeout=TIMEOUTS.api_request,
         )
@@ -158,7 +158,7 @@ def accept_invite(uvicorn_server: str) -> Callable[..., None]:
 
 @pytest.fixture
 def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
-    """Factory: full signup → verify → login → onboarding-complete via API.
+    """Factory: full signup → verify → login → onboarding-complete via routes.
 
     Linear flow. Any deviation from the canonical path raises AssertionError
     via `raise_for_status()` or explicit assert — never silently degrades.
@@ -181,7 +181,7 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
             email = unique_email("owner")
         with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
             with step(f"reset signup throttle for {email}"):
-                c.post(API.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short).raise_for_status()
+                c.post(routes.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short).raise_for_status()
 
             with step(f"signup {email}"):
                 payload = {
@@ -193,21 +193,21 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
                     "cross_border_consent": True,
                     **profile,
                 }
-                r = c.post(API.SIGNUP, json=payload)
+                r = c.post(routes.SIGNUP, json=payload)
                 r.raise_for_status()
                 assert r.json().get("status") == "verification_sent", \
                     f"signup did not enter verification flow: {r.json()}"
 
             with step(f"read verification token for {email}"):
-                mail = c.get(API.TEST_LAST_EMAIL, params={"to": email})
+                mail = c.get(routes.TEST_LAST_EMAIL, params={"to": email})
                 mail.raise_for_status()
                 token = _extract_token_from_email(mail.json()["text_body"] or "")
 
             with step(f"verify email {email}"):
-                c.post(API.VERIFY_EMAIL, json={"token": token}).raise_for_status()
+                c.post(routes.VERIFY_EMAIL, json={"token": token}).raise_for_status()
 
             with step(f"login {email}"):
-                r = c.post(API.LOGIN, json={"email": email, "password": password})
+                r = c.post(routes.LOGIN, json={"email": email, "password": password})
                 r.raise_for_status()
                 data = r.json()
                 slug = data["tenant_slug"]
@@ -215,7 +215,7 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
 
             with step(f"onboarding-complete {slug}"):
                 c.post(
-                    API.ONBOARDING_COMPLETE,
+                    routes.ONBOARDING_COMPLETE,
                     cookies=cookies,
                     headers={"X-Tenant-Slug": slug},
                     timeout=TIMEOUTS.api_short,
@@ -256,11 +256,11 @@ def grant_ai_consent(tenant_client: Callable[[AuthUser], httpx.Client]) -> Calla
         def test_x(owner_user, grant_ai_consent, tenant_client):
             grant_ai_consent(owner_user)
             api = tenant_client(owner_user)
-            api.post(API.enrich(pid), json={...})
+            api.post(routes.enrich(pid), json={...})
     """
 
     def _grant(user: AuthUser) -> None:
-        tenant_client(user).post(API.ACCOUNT_AI_CONSENT).raise_for_status()
+        tenant_client(user).post(routes.ACCOUNT_AI_CONSENT).raise_for_status()
 
     return _grant
 
@@ -269,9 +269,9 @@ def setup_and_verify_mfa(api: httpx.Client) -> str:
     """Setup + verify TOTP for the given client. Returns plaintext secret."""
     import pyotp
 
-    setup = api.post(API.MFA_SETUP).json()
+    setup = api.post(routes.MFA_SETUP).json()
     code = pyotp.TOTP(setup["secret"]).now()
-    api.post(API.MFA_VERIFY, json={"code": code}).raise_for_status()
+    api.post(routes.MFA_VERIFY, json={"code": code}).raise_for_status()
     return setup["secret"]  # type: ignore[no-any-return]
 
 
@@ -281,7 +281,7 @@ def admin_login_via_api(uvicorn_server: str) -> Callable[[], dict[str, str]]:
 
     def _login() -> dict[str, str]:
         with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
-            r = c.post(API.ADMIN_LOGIN, json={"password": TestConfig.ADMIN_PASSWORD})
+            r = c.post(routes.ADMIN_LOGIN, json={"password": TestConfig.ADMIN_PASSWORD})
             r.raise_for_status()
             return dict(r.cookies)
 

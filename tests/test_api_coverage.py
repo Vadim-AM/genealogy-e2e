@@ -1,7 +1,7 @@
 """Coverage gate — backend API surface must not silently drift from the suite.
 
 Not a functional test. Compares the live OpenAPI schema of the backend
-against the paths the suite knows about (`tests.api_paths.API`) and a
+against the paths the suite knows about (`tests._core.api_paths`) and a
 registry of accepted gaps (`KNOWN_GAPS`). When the backend grows a NEW
 endpoint covered by neither a test nor the whitelist, this gate goes red —
 and the author decides which user-journey should exercise it.
@@ -21,22 +21,24 @@ from __future__ import annotations
 import inspect
 import re
 
+from http import HTTPStatus
+
 import allure
 import httpx
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
 
-# Accepted coverage gaps — the debt registry. Each line is tagged with its
-# journey-roadmap group. A gap is closed by a new journey test exercising
-# the endpoint + a constant in `tests/api_paths.py::API`; the line then
-# leaves this set. Do NOT add a line here just to silence the gate for a
-# brand-new endpoint without recording which journey will own it.
+# Принятые пробелы покрытия — реестр долга. Каждая строка помечена
+# группой roadmap. Пробел закрывается новым journey-тестом, проверяющим
+# endpoint + константой в `tests/_core/api_paths.py`; после этого строка
+# удаляется. НЕ добавляйте строку только чтобы заглушить gate для
+# нового endpoint'а без указания, какой journey его покроет.
 KNOWN_GAPS: frozenset[str] = frozenset()
-# Empty: every backend /api/* path is exercised by a journey or a
-# backend-invariant test. New endpoints must land here with a roadmap
-# tag, or (preferably) with their covering test in the same change.
+# Пусто: каждый backend `/api/*` путь покрыт journey- или
+# backend-invariant тестом. Новые endpoint'ы должны попадать сюда с
+# roadmap-тегом, или (предпочтительно) с покрывающим тестом в том же изменении.
 
 
 _PARAM_RE = re.compile(r"\{[^}]+\}")
@@ -52,22 +54,23 @@ def _normalise(path: str) -> str:
 
 
 def _catalogue_paths() -> set[str]:
-    """Every `/api/*` path the suite knows via `tests.api_paths.API`.
+    """Every `/api/*` path the suite knows via `tests._core.api_paths`.
 
-    String constants are taken verbatim; `staticmethod` builders are
-    invoked with a sentinel argument to recover the path template.
+    Module-level string constants are taken verbatim; builder functions
+    are invoked with a sentinel argument to recover the path template.
     """
     paths: set[str] = set()
-    for name, value in vars(API).items():
+    for name, value in vars(routes).items():
         if name.startswith("_"):
             continue
         if isinstance(value, str) and value.startswith("/api/"):
             paths.add(_normalise(value))
-        elif isinstance(value, staticmethod):
-            fn = value.__func__
-            argc = len(inspect.signature(fn).parameters)
-            rendered = fn(*(["{X}"] * argc))
-            if rendered.startswith("/api/"):
+        elif callable(value) and not isinstance(value, type):
+            argc = len(inspect.signature(value).parameters)
+            if argc == 0:
+                continue
+            rendered = value(*(["{X}"] * argc))
+            if isinstance(rendered, str) and rendered.startswith("/api/"):
                 paths.add(_normalise(rendered))
     return paths
 
@@ -79,7 +82,7 @@ def _backend_api_paths(base_url: str) -> set[str]:
     product surface the suite must cover.
     """
     r = httpx.get(f"{base_url}/openapi.json", timeout=TIMEOUTS.api_request)
-    assert r.status_code == 200, (
+    assert r.status_code == HTTPStatus.OK, (
         f"GET /openapi.json → {r.status_code}; the backend must be booted "
         f"with GENEALOGY_DOCS_ENABLED=1 (see CLAUDE.md 'Running locally')."
     )
@@ -93,7 +96,7 @@ def _backend_api_paths(base_url: str) -> set[str]:
 
 @allure.title("Покрытие: все backend API-пути известны каталогу тестов")
 def test_every_backend_api_path_is_known(base_url: str):
-    """Every backend `/api/*` endpoint is in the `API` catalogue or `KNOWN_GAPS`.
+    """Every backend `/api/*` endpoint is in the routes catalogue or `KNOWN_GAPS`.
 
     Goes red when the backend grows a NEW endpoint the suite has never
     seen — the signal that a user-journey touching it is needed (and the
@@ -109,7 +112,7 @@ def test_every_backend_api_path_is_known(base_url: str):
             "New backend endpoints outside the catalogue and outside KNOWN_GAPS:\n  "
             + "\n  ".join(sorted(unknown))
             + "\n\nAdd a user-journey test exercising the endpoint plus a "
-            "constant in tests/api_paths.py::API — or, if coverage is "
+            "constant in tests/_core/api_paths.py — or, if coverage is "
             "deferred, a line in KNOWN_GAPS tagged with its roadmap group."
         )
 
@@ -119,7 +122,7 @@ def test_known_gaps_not_stale(base_url: str):
     """`KNOWN_GAPS` must not rot.
 
     A path leaves the registry once (a) the backend dropped it, or (b) it
-    reached the `API` catalogue (i.e. it is covered) — otherwise the
+    reached the routes catalogue (i.e. it is covered) — otherwise the
     whitelist accumulates noise and masks real gaps.
     """
     with step("действие: проверить KNOWN_GAPS на устаревшие записи"):

@@ -17,7 +17,8 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import TestData
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -38,8 +39,8 @@ def test_owner_settings_tab_has_inputs(owner_page: Page, pages: PageFactory):
         owner.open_tab("settings")
 
     with step("проверка: поле site_name и кнопка сохранения видны"):
-        expect(owner.cfg_site_name).to_be_visible()
-        expect(owner.cfg_save).to_be_visible()
+        expect(owner.cfg_site_name, ErrMsg.element_not_visible).to_be_visible()
+        expect(owner.cfg_save, ErrMsg.button_not_visible).to_be_visible()
 
 
 @allure.title("Админка владельца: сохранение site_name попадает в бэкенд")
@@ -57,7 +58,7 @@ def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_clien
 
         new_name = TestData.SAMPLE_SITE_NAME
         with owner_page.expect_response(
-            lambda r: r.url.endswith(API.SITE_CONFIG)
+            lambda r: r.url.endswith(routes.SITE_CONFIG)
             and r.request.method != "GET"
         ) as resp_info:
             owner.update_settings(site_name=new_name)
@@ -77,7 +78,7 @@ def test_owner_export_gedcom_returns_valid_dump(owner_user, tenant_client):
     with attachment Content-Disposition and the canonical SOUR identifier."""
     with step("действие: экспорт GEDCOM"):
         api = tenant_client(owner_user)
-        r = api.get(API.TENANT_EXPORT, params={"format": "gedcom"}, timeout=TIMEOUTS.api_long)
+        r = api.get(routes.TENANT_EXPORT, params={"format": "gedcom"}, timeout=TIMEOUTS.api_long)
         expect_response(r, label="GEDCOM export").status_ok()
 
     with step("проверка: заголовки Content-Type и Content-Disposition"):
@@ -103,7 +104,7 @@ def test_owner_export_zip_contains_manifest_and_people(owner_user, tenant_client
     `50 4b 03 04` and includes people.json + MANIFEST.txt."""
     with step("действие: экспорт ZIP"):
         api = tenant_client(owner_user)
-        r = api.get(API.TENANT_EXPORT, params={"format": "zip"}, timeout=TIMEOUTS.api_long)
+        r = api.get(routes.TENANT_EXPORT, params={"format": "zip"}, timeout=TIMEOUTS.api_long)
         expect_response(r, label="ZIP export").status_ok()
 
     with step("проверка: ZIP содержит people.json и MANIFEST.txt"):

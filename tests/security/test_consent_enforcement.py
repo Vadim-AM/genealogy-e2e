@@ -11,9 +11,11 @@ GDPR compliance.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.response import expect_response
 from tests._core.step import step
 
@@ -34,12 +36,12 @@ def test_post_enrich_without_consent_is_forbidden(
     with step("подготовка: получить ID первой персоны из дерева"):
         # Берём any person, пробуем enrich — НЕ дёргая ACCOUNT_AI_CONSENT.
         # Свежий user → ai_consent_at = NULL. Backend должен отбивать.
-        r = api.get(API.TREE)
+        r = api.get(routes.TREE)
         expect_response(r, label="GET tree").status_ok()
         pid = (r.json().get("people") or [])[0]["id"]
 
     with step("действие: вызвать enrich без consent"):
-        r = api.post(API.enrich(pid), json={"streaming": False, "force_refresh": True})
+        r = api.post(routes.enrich(pid), json={"streaming": False, "force_refresh": True})
 
     with step("проверка: backend отбивает 403"):
-        expect_response(r, label="INV-AI-005: enrich without consent").status(403)
+        expect_response(r, label="INV-AI-005: enrich without consent").status(HTTPStatus.FORBIDDEN)

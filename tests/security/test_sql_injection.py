@@ -7,13 +7,14 @@ triggering a backend 500 or raw SQL error in the response body.
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from uuid import uuid4
 
 import allure
 import httpx
 import pytest
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.step import step
 from tests._data.payloads.injection import SQL_PAYLOADS
 
@@ -31,7 +32,7 @@ def test_person_name_sql_injection_safe(
     pid = f"sqli-{uuid4().hex[:8]}"
 
     with step("создать персону с SQL-payload в имени"):
-        r = api.post(API.PEOPLE, json={
+        r = api.post(routes.PEOPLE, json={
             "id": pid,
             "name": payload,
             "branch": "paternal",
@@ -39,7 +40,7 @@ def test_person_name_sql_injection_safe(
         })
 
     with step("проверить что backend не упал"):
-        assert r.status_code < 500, (
+        assert r.status_code < HTTPStatus.INTERNAL_SERVER_ERROR, (
             f"SQL injection caused server error {r.status_code}: {r.text[:300]}"
         )
         assert "syntax error" not in r.text.lower(), (
@@ -60,7 +61,7 @@ def test_signup_email_sql_injection_safe(
     """SEC-INJ-6: SQL in signup email → 422 (validation), never 500."""
     with step("отправить signup с SQL-payload в email"):
         r = httpx.post(
-            f"{base_url}{API.SIGNUP}",
+            f"{base_url}{routes.SIGNUP}",
             json={
                 "email": payload,
                 "password": "test_password_8plus",
@@ -73,7 +74,7 @@ def test_signup_email_sql_injection_safe(
         )
 
     with step("проверить что backend вернул 4xx, не 500"):
-        assert r.status_code < 500, (
+        assert r.status_code < HTTPStatus.INTERNAL_SERVER_ERROR, (
             f"SQL injection in email caused server error {r.status_code}: {r.text[:300]}"
         )
         assert "syntax error" not in r.text.lower(), (
@@ -95,13 +96,13 @@ def test_person_patch_sql_injection_safe(
     with step("обновить summary демо-персоны с SQL-payload"):
         from tests._core.messages import TestData
 
-        r = api.patch(API.person(TestData.DEMO_PERSON_ID), json={
+        r = api.patch(routes.person(TestData.DEMO_PERSON_ID), json={
             "summary": payload,
             "notes": payload,
         })
 
     with step("проверить что backend не упал и не утёк SQL"):
-        assert r.status_code < 500, (
+        assert r.status_code < HTTPStatus.INTERNAL_SERVER_ERROR, (
             f"SQL injection caused server error {r.status_code}: {r.text[:300]}"
         )
         assert "syntax error" not in r.text.lower(), (

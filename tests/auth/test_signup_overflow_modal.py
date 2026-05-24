@@ -23,6 +23,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from tests._core.constants import unique_email
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import Waitlist, t
 from tests._core.step import step
 from tests.helpers.auth.signup_helpers import fill_and_submit, mock_signup_overflow
@@ -46,16 +47,16 @@ def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page, a
     """
     with step("подготовка: мок overflow response и submit формы"):
         test_email = unique_email("overflow-modal")
-        anon_pages.navigate_to(SignupPage)
+        _ = anon_pages.navigate_to(SignupPage)
         mock_signup_overflow(page, email=test_email)
         fill_and_submit(page, test_email)
 
     with step("проверка: модалка открылась с email и правильным title"):
         overlay = page.locator("#waitlistOverlay")
-        expect(overlay).to_have_class(_IS_OPEN)
-        expect(page.locator("#waitlistTitle")).to_contain_text(t(Waitlist.OVERFLOW_TITLE))
-        expect(page.locator("#waitlistBody2")).to_contain_text(test_email)
-        expect(page.locator("#waitlistBody2")).to_contain_text(t(Waitlist.WAITLIST_KEYWORD))
+        expect(overlay, ErrMsg.wrong_css_class).to_have_class(_IS_OPEN)
+        expect(page.locator("#waitlistTitle"), ErrMsg.wrong_text_content).to_contain_text(t(Waitlist.OVERFLOW_TITLE))
+        expect(page.locator("#waitlistBody2"), ErrMsg.wrong_text_content).to_contain_text(test_email)
+        expect(page.locator("#waitlistBody2"), ErrMsg.wrong_text_content).to_contain_text(t(Waitlist.WAITLIST_KEYWORD))
 
 
 @allure.title("Кнопка 'Понятно' в модалке ожидания ведёт на главную")
@@ -65,12 +66,12 @@ def test_waitlist_modal_ok_button_redirects_to_landing(page: Page, anon_pages: P
     """
     with step("подготовка: вызов overflow модалки"):
         test_email = unique_email("overflow-ok")
-        anon_pages.navigate_to(SignupPage)
+        _ = anon_pages.navigate_to(SignupPage)
         mock_signup_overflow(page, email=test_email)
         fill_and_submit(page, test_email)
 
     with step("действие: клик 'Понятно' и проверка redirect"):
-        expect(page.locator("#waitlistOverlay")).to_have_class(_IS_OPEN)
+        expect(page.locator("#waitlistOverlay"), ErrMsg.wrong_css_class).to_have_class(_IS_OPEN)
         page.locator("#waitlistOk").click()
         page.wait_for_url(re.compile(r"/$"))
 
@@ -83,18 +84,18 @@ def test_waitlist_modal_esc_closes_without_redirect(page: Page, anon_pages: Page
     """
     with step("подготовка: вызов overflow модалки"):
         test_email = unique_email("overflow-esc")
-        anon_pages.navigate_to(SignupPage)
+        _ = anon_pages.navigate_to(SignupPage)
         mock_signup_overflow(page, email=test_email)
         fill_and_submit(page, test_email)
 
         overlay = page.locator("#waitlistOverlay")
-        expect(overlay).to_have_class(_IS_OPEN)
+        expect(overlay, ErrMsg.wrong_css_class).to_have_class(_IS_OPEN)
 
     with step("действие: нажатие Esc"):
         page.keyboard.press("Escape")
 
     with step("проверка: модалка закрылась, URL остался /signup"):
-        expect(overlay).not_to_have_class(_IS_OPEN)
+        expect(overlay, ErrMsg.overlay_should_be_closed).not_to_have_class(_IS_OPEN)
         assert page.url.rstrip("/").endswith("/signup"), (
             f"Esc должен закрыть модалку без redirect, но URL стал {page.url!r}"
         )
@@ -108,11 +109,11 @@ def test_waitlist_modal_shows_wait_link_when_auto_subscribe_failed(page: Page, a
     """
     with step("подготовка: вызов overflow модалки (subscribed=false)"):
         test_email = unique_email("overflow-fallback")
-        anon_pages.navigate_to(SignupPage)
+        _ = anon_pages.navigate_to(SignupPage)
         mock_signup_overflow(page, email=test_email, subscribed=False)
         fill_and_submit(page, test_email)
 
     with step("проверка: модалка показывает fallback-ссылку /wait"):
-        expect(page.locator("#waitlistOverlay")).to_have_class(_IS_OPEN)
+        expect(page.locator("#waitlistOverlay"), ErrMsg.wrong_css_class).to_have_class(_IS_OPEN)
         fallback_link = page.locator('#waitlistBody2 a[href*="/wait"]')
-        expect(fallback_link).to_be_visible()
+        expect(fallback_link, ErrMsg.link_not_visible).to_be_visible()

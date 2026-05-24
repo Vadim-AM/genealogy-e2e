@@ -6,9 +6,11 @@ Superadmin = email in PLATFORM_SUPERADMIN_EMAILS env. Suite ships
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.step import step
 from tests.pages.platform_dashboard_page import PlatformDashboardPage
 
@@ -29,7 +31,7 @@ def test_platform_dashboard_loads_for_superadmin(
     with step("проверка: дашборд отвечает 200"):
         response = page.goto("/platform/dashboard")
         assert response is not None, "page.goto('/platform/dashboard') returned None"
-        assert response.status == 200, \
+        assert response.status == HTTPStatus.OK, \
             f"/platform/dashboard returned {response.status} (regression)"
 
 
@@ -50,8 +52,8 @@ def test_platform_metrics_visible(auth_context_factory, superadmin_user, soft_ch
 @allure.title("Метрики платформы: обычный владелец получает 403")
 def test_platform_metrics_endpoint_403_for_non_super(owner_user, tenant_client):
     """TC-PA-3: regular owner gets 401 or 403 on /api/platform/metrics."""
-    r = tenant_client(owner_user).get(API.PLATFORM_METRICS)
-    assert r.status_code == 403, \
+    r = tenant_client(owner_user).get(routes.PLATFORM_METRICS)
+    assert r.status_code == HTTPStatus.FORBIDDEN, \
         f"non-superadmin reached platform metrics: {r.status_code} {r.text[:200]}"
 
 
@@ -65,7 +67,7 @@ def test_platform_metrics_endpoint_200_for_super(superadmin_user, tenant_client)
     backend renames, the test fails loud.
     """
     with step("действие: запрашиваем метрики платформы"):
-        r = tenant_client(superadmin_user).get(API.PLATFORM_METRICS)
+        r = tenant_client(superadmin_user).get(routes.PLATFORM_METRICS)
         r.raise_for_status()
         data = r.json()
 

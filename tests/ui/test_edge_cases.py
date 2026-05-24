@@ -8,11 +8,14 @@ is confirmed open.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
+from tests._core.err_msg import ErrMsg
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
 
@@ -22,7 +25,7 @@ def test_f5_on_nonexistent_profile_id_does_not_crash(owner_page: Page):
     """TC-EDGE-004: F5 on /#/p/<unknown> shows tree, no JS crash."""
     owner_page.goto("/#/p/nonexistent_xyz_123")
     owner_page.wait_for_load_state("domcontentloaded")
-    expect(owner_page.locator('[data-tab="tree"]')).to_be_visible()
+    expect(owner_page.locator('[data-tab="tree"]'), ErrMsg.tab_not_visible).to_be_visible()
 
 
 @allure.title("Edge: персона с единственным полем name корректно читается")
@@ -41,12 +44,12 @@ def test_old_person_with_only_name_field_renders(owner_user, tenant_client):
             "branch": "subject",
             "gender": "m",
         }
-        r = api.post(API.PEOPLE, json=payload)
-        assert r.status_code in (200, 201), \
-            f"POST {API.PEOPLE} legacy payload rejected: {r.status_code} {r.text[:200]}"
+        r = api.post(routes.PEOPLE, json=payload)
+        assert r.status_code in (HTTPStatus.OK, HTTPStatus.CREATED), \
+            f"POST {routes.PEOPLE} legacy payload rejected: {r.status_code} {r.text[:200]}"
 
     with step("проверка: имя сохранилось при чтении"):
-        r = api.get(API.person("edge-old-name"))
+        r = api.get(routes.person("edge-old-name"))
         r.raise_for_status()
         name = r.json().get("name") or ""
         assert "Иван" in name, f"name not preserved: {name!r}"
@@ -62,7 +65,7 @@ def test_health_endpoint_does_not_require_auth(base_url: str):
     is: reachable without credentials + `status == "ok"`.
     """
     with step("действие: запросить /api/health без авторизации"):
-        r = httpx.get(f"{base_url}{API.HEALTH}", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.HEALTH}", timeout=TIMEOUTS.api_request)
         r.raise_for_status()
 
     with step("проверка: статус ok"):

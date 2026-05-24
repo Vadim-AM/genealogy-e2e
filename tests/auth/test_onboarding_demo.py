@@ -33,7 +33,7 @@ def test_owner_clears_demo_relatives(owner_page: Page, owner_user, tenant_client
         assert len(before) > 1, "a fresh tenant seeds demo relatives"
 
     with step("действие: удаление демо-родственников через UI"):
-        pages.navigate_to(OwnerPage)
+        _ = pages.navigate_to(OwnerPage)
         dialog = ConfirmDialog(owner_page)
         with owner_page.expect_response("**/api/onboarding/clear-demo"):
             owner_page.locator("#clearDemo").click()
@@ -56,7 +56,7 @@ def test_owner_keeps_demo_as_template(owner_page: Page, owner_user, tenant_clien
         assert len(before) > 1, "a fresh tenant seeds demo relatives"
 
     with step("действие: сохранение демо-данных как шаблона"):
-        pages.navigate_to(OwnerPage)
+        _ = pages.navigate_to(OwnerPage)
         dialog = ConfirmDialog(owner_page)
         with owner_page.expect_response("**/api/onboarding/keep-demo"):
             owner_page.locator("#keepDemo").click()

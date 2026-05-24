@@ -18,6 +18,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from tests._core.constants import make_email
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import Invite, TestData, t
 from tests._core.step import step
 from tests.helpers.api import auth_api
@@ -52,14 +53,14 @@ def test_invitee_lands_on_accept_page_sees_success_with_tenant_name(
 
     with step("проверка: success-копия с именем древа и ссылка на дерево"):
         # Success title + tenant_display_name в #msg.
-        expect(invite_page.title_el).to_contain_text(t(Invite.ACCEPT_SUCCESS_TITLE))
+        expect(invite_page.title_el, ErrMsg.invite_title_wrong).to_contain_text(t(Invite.ACCEPT_SUCCESS_TITLE))
         # display_name = full_name owner'а (выставлен при signup).
-        expect(invite_page.message).to_contain_text(TestData.DEFAULT_FULL_NAME)
+        expect(invite_page.message, ErrMsg.invite_message_wrong).to_contain_text(TestData.DEFAULT_FULL_NAME)
 
         # «Открыть древо» link появилась и ведёт на /.
         link = invite_page.link
-        expect(link).to_be_visible()
-        expect(link).to_have_text(t(Invite.OPEN_TREE_LINK))
+        expect(link, ErrMsg.invite_link_not_visible).to_be_visible()
+        expect(link, ErrMsg.wrong_text_content).to_have_text(t(Invite.OPEN_TREE_LINK))
         href = link.get_attribute("href") or ""
         assert href in ("/", ""), f"open-tree link must point to /; got {href!r}"
 
@@ -89,12 +90,12 @@ def test_invitee_clicks_open_tree_lands_on_tree_with_authed_indicator(
     with step("действие: принятие приглашения и клик 'Открыть древо'"):
         InviteAcceptPage(page).open_with_token(invite_token)
         open_link = page.locator("#link")
-        expect(open_link).to_be_visible()
+        expect(open_link, ErrMsg.invite_link_not_visible).to_be_visible()
         open_link.click()
 
     with step("проверка: redirect на главную с авторизованным пользователем"):
         page.wait_for_url("**/")
-        expect(auth_name(page)).to_have_text(
+        expect(auth_name(page), ErrMsg.auth_name_wrong).to_have_text(
             TestData.DEFAULT_FULL_NAME
         )
 
@@ -126,7 +127,7 @@ def test_owner_opens_own_invite_sees_warning_with_display_name(
         invite_page = InviteAcceptPage(owner_page).open_with_token(invite_token)
 
     with step("проверка: предупреждение с display_name без slug"):
-        expect(invite_page.message).to_contain_text(t(Invite.OWNER_WARNING))
+        expect(invite_page.message, ErrMsg.invite_message_wrong).to_contain_text(t(Invite.OWNER_WARNING))
 
         msg_text = invite_page.message.text_content() or ""
         expected_display = TestData.DEFAULT_FULL_NAME
@@ -162,12 +163,12 @@ def test_anonymous_invitee_sees_login_links_with_token_in_next(
         invite_page = InviteAcceptPage(page).open_with_token(invite_token)
 
     with step("проверка: ссылки входа/регистрации с токеном в next"):
-        expect(invite_page.message).to_contain_text(t(Invite.LOGIN_REQUIRED_MSG))
+        expect(invite_page.message, ErrMsg.invite_message_wrong).to_contain_text(t(Invite.LOGIN_REQUIRED_MSG))
 
         login_link = page.get_by_role("link", name=t(Invite.LOGIN_LINK), exact=False).first
         signup_link = page.get_by_role("link", name=t(Invite.SIGNUP_LINK), exact=False).first
-        expect(login_link).to_be_visible()
-        expect(signup_link).to_be_visible()
+        expect(login_link, ErrMsg.link_not_visible).to_be_visible()
+        expect(signup_link, ErrMsg.link_not_visible).to_be_visible()
 
         login_href = login_link.get_attribute("href") or ""
         signup_href = signup_link.get_attribute("href") or ""
@@ -202,9 +203,9 @@ def test_anonymous_emailed_invite_is_magic_link_auto_accepted(
         invite_page = InviteAcceptPage(page).open_with_token(invite_token)
 
     with step("проверка: auto-accept без логина, success с display_name"):
-        expect(invite_page.title_el).to_contain_text(t(Invite.ACCEPT_SUCCESS_TITLE))
-        expect(invite_page.message).to_contain_text(t(Invite.ADDED_TO_TREE))
+        expect(invite_page.title_el, ErrMsg.invite_title_wrong).to_contain_text(t(Invite.ACCEPT_SUCCESS_TITLE))
+        expect(invite_page.message, ErrMsg.invite_message_wrong).to_contain_text(t(Invite.ADDED_TO_TREE))
         # Tenant display_name (owner full_name) rendered, not raw slug.
-        expect(invite_page.message).to_contain_text(TestData.DEFAULT_FULL_NAME)
+        expect(invite_page.message, ErrMsg.invite_message_wrong).to_contain_text(TestData.DEFAULT_FULL_NAME)
         assert owner_user.slug not in (invite_page.message.text_content() or ""), \
             "raw slug leaked into magic-link success copy"

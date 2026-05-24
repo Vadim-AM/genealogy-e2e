@@ -44,9 +44,9 @@ def test_lang_switcher_containers_are_hidden_when_only_one_language(page: Page, 
     Селектор по классу — устойчив к этой особенности.
     """
     with step("действие: открыть главную и найти lang-switcher контейнеры"):
-        anon_pages.navigate_to(TreePage)
+        _ = anon_pages.navigate_to(TreePage)
 
-        containers = page.locator('[data-testid="lang-switcher"]').all()
+        containers = page.locator('[data-testid="lang-switcher"]').all()  # no semantic: switcher container, no role
         assert containers, 'не найдено ни одного [data-testid="lang-switcher"] container на /'
 
     with step("проверка: все контейнеры пусты и скрыты"):
@@ -69,7 +69,7 @@ def test_html_lang_attribute_is_ru(page: Page, anon_pages: PageFactory):
     Это контракт: пока локализация отложена, документ всегда RU.
     """
     with step("действие: открыть главную"):
-        anon_pages.navigate_to(TreePage)
+        _ = anon_pages.navigate_to(TreePage)
 
     with step("проверка: html lang равен ru"):
         html_lang = page.evaluate("() => document.documentElement.lang")
@@ -94,7 +94,7 @@ def test_localstorage_genealogy_lang_seed_does_not_change_active_lang(page: Page
         page.add_init_script("try { localStorage.setItem('genealogy_lang', 'en'); } catch (e) {}")
 
     with step("действие: открыть главную"):
-        anon_pages.navigate_to(TreePage)
+        _ = anon_pages.navigate_to(TreePage)
 
     with step("проверка: язык остался ru"):
         html_lang = page.evaluate("() => document.documentElement.lang")

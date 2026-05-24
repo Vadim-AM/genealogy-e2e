@@ -28,6 +28,8 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core import api_paths as routes
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import LinkedChip, TestData, t
 from tests._core.step import step
 from tests.helpers.tree.tree_api import people_count, seed_person
@@ -69,7 +71,7 @@ def test_link_existing_sibling_creates_only_relationship(
 
         modal.search_existing(surname="Иван")
         modal.expect_dropdown_open()
-        expect(modal.row_by_person_id(existing_id)).to_be_visible()
+        expect(modal.row_by_person_id(existing_id), ErrMsg.search_results_not_visible).to_be_visible()
 
         modal.pick_existing(existing_id)
         modal.expect_linked_to(existing_id)
@@ -77,8 +79,8 @@ def test_link_existing_sibling_creates_only_relationship(
         modal.expect_field_readonly("given_name")
 
     with step("проверка: linked-chip содержит ожидаемые keywords"):
-        expect(modal.linked_chip).to_contain_text(t(LinkedChip.TITLE_KEYWORD))
-        expect(modal.linked_chip).to_contain_text(t(LinkedChip.HINT_KEYWORD))
+        expect(modal.linked_chip, ErrMsg.wrong_text_content).to_contain_text(t(LinkedChip.TITLE_KEYWORD))
+        expect(modal.linked_chip, ErrMsg.wrong_text_content).to_contain_text(t(LinkedChip.HINT_KEYWORD))
 
     with step("действие: Save и проверка что POST /people не было"):
         post_people_count = 0
@@ -86,7 +88,7 @@ def test_link_existing_sibling_creates_only_relationship(
         def _track(response):
             nonlocal post_people_count
             if response.request.method == "POST" and response.url.endswith(
-                "/api/people"
+                routes.PEOPLE
             ):
                 post_people_count += 1
 
@@ -100,7 +102,7 @@ def test_link_existing_sibling_creates_only_relationship(
             f"expected POST /api/relationships, got {rel_resp.request.method}"
         )
 
-        expect(modal.overlay).not_to_be_visible()
+        expect(modal.overlay, ErrMsg.overlay_should_be_closed).not_to_be_visible()
         assert post_people_count == 0, (
             f"link-mode triggered POST /api/people {post_people_count}x -- "
             "должен быть строго 0 (дубликата не должно быть)"
@@ -146,12 +148,12 @@ def test_unlink_existing_returns_to_create_mode(
     with step("действие: отвязка и правка фамилии"):
         modal.unlink_existing()
         modal.expect_not_linked()
-        expect(modal.surname).not_to_have_attribute("readonly", "readonly")
+        expect(modal.surname, ErrMsg.wrong_attribute).not_to_have_attribute("readonly", "readonly")
         modal.surname.fill("Семёнов-Новый")
 
     with step("действие: сохранение нового человека"):
         with owner_page.expect_response(
-            lambda r: "/api/people" in r.url and r.request.method == "POST"
+            lambda r: routes.PEOPLE in r.url and r.request.method == "POST"
         ) as person_info:
             modal.btn_save.click()
         assert person_info.value.ok, (
@@ -159,7 +161,7 @@ def test_unlink_existing_returns_to_create_mode(
         )
 
     with step("проверка: ровно один новый person создан"):
-        expect(modal.overlay).not_to_be_visible()
+        expect(modal.overlay, ErrMsg.overlay_should_be_closed).not_to_be_visible()
         assert people_count(api) == count_before + 1, (
             "после unlink + правка + Save должен быть РОВНО один новый person"
         )
@@ -186,7 +188,8 @@ def test_dropdown_excludes_self(owner_page: Page, owner_user, tenant_client):
 
     with step("проверка: текущая персона исключена из результатов"):
         expect(
-            modal.row_by_person_id(TestData.DEMO_PERSON_ID)
+            modal.row_by_person_id(TestData.DEMO_PERSON_ID),
+            ErrMsg.element_should_be_hidden,
         ).not_to_be_visible()
 
 
@@ -258,4 +261,4 @@ def test_escape_closes_dropdown_keeps_modal(
 
     with step("проверка: dropdown закрыт, модалка осталась открытой"):
         modal.expect_dropdown_closed()
-        expect(modal.container).to_be_visible()
+        expect(modal.container, ErrMsg.modal_not_visible).to_be_visible()

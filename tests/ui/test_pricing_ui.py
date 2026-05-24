@@ -24,13 +24,15 @@ Backend endpoints, на которые опираются эти тесты:
 from __future__ import annotations
 
 import re
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
+from tests._core.err_msg import ErrMsg
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -48,8 +50,8 @@ if TYPE_CHECKING:
 def test_public_tiers_endpoint_returns_four_paid_tiers(uvicorn_server: str):
     """TC-N2: GET /api/tiers/public должен отдавать 4 publik-тарифа в ₽."""
     with step("действие: запросить /api/tiers/public"):
-        r = httpx.get(f"{uvicorn_server}{API.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request)
-        expect_response(r, label="GET /api/tiers/public").status(200)
+        r = httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request)
+        expect_response(r, label="GET /api/tiers/public").status(HTTPStatus.OK)
         body = r.json()
 
     with step("проверка: 4 публичных тарифа без служебных"):
@@ -76,7 +78,7 @@ def test_public_tiers_have_display_name_and_numeric_prices(uvicorn_server: str):
     integer-значения.
     """
     with step("действие: запросить тарифы"):
-        body = httpx.get(f"{uvicorn_server}{API.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request).json()
+        body = httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request).json()
         by_name = {i["tier_name"]: i for i in body["items"]}
 
     with step("проверка: display_name и цены корректны"):
@@ -103,7 +105,7 @@ def test_public_tiers_have_display_name_and_numeric_prices(uvicorn_server: str):
 @allure.title("Тарифы API: тарифы отсортированы по возрастанию цены")
 def test_public_tiers_sorted_by_price_ascending(uvicorn_server: str):
     """TC-N1: тарифы отсортированы по цене (free → pro)."""
-    body = httpx.get(f"{uvicorn_server}{API.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request).json()
+    body = httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request).json()
     prices = [i["price_rub_month"] for i in body["items"]]
     assert prices == sorted(prices), \
         f"Тарифы не отсортированы по цене: {prices}"
@@ -122,7 +124,7 @@ def test_pricing_page_loads_html(page: Page):
         assert r is not None, "page.goto returned None (navigation failed)"
 
     with step("проверка: 200 и content-type text/html"):
-        assert r.status == 200, f"GET /pricing.html: expected 200, got {r.status}"
+        assert r.status == HTTPStatus.OK, f"GET /pricing.html: expected 200, got {r.status}"
         ct = (r.headers.get("content-type") or "").lower()
         assert "text/html" in ct, f"content-type={ct!r}"
 
@@ -147,7 +149,7 @@ def test_pricing_cards_have_non_empty_headings(anon_pages: PageFactory):
     """
     with step("действие: загрузить страницу тарифов"):
         pricing = anon_pages.navigate_to(PricingPage)
-        expect(pricing.cards().first).to_be_visible()
+        expect(pricing.cards().first, ErrMsg.pricing_card_not_visible).to_be_visible()
 
     with step("проверка: 4 уникальных непустых заголовка"):
         found = pricing.card_titles()
@@ -164,7 +166,7 @@ def test_pricing_cards_show_rub_symbol(page: Page, anon_pages: PageFactory):
     """TC-N1: на странице должен быть символ ₽."""
     with step("действие: загрузить страницу тарифов"):
         pricing = anon_pages.navigate_to(PricingPage)
-        expect(pricing.cards().first).to_be_visible()
+        expect(pricing.cards().first, ErrMsg.pricing_card_not_visible).to_be_visible()
 
     with step("проверка: символ ₽ присутствует"):
         body_html = page.content()
@@ -185,7 +187,7 @@ def test_pricing_researcher_card_is_featured_by_position(
     """
     with step("подготовка: определить позицию researcher в API"):
         body = httpx.get(
-            f"{uvicorn_server}{API.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request
+            f"{uvicorn_server}{routes.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request
         ).json()
         items = body["items"]
         researcher_idx = next(
@@ -198,15 +200,15 @@ def test_pricing_researcher_card_is_featured_by_position(
 
     with step("действие: загрузить страницу тарифов"):
         pricing = anon_pages.navigate_to(PricingPage)
-        expect(pricing.cards().first).to_be_visible()
+        expect(pricing.cards().first, ErrMsg.pricing_card_not_visible).to_be_visible()
         pricing.expect_cards_visible(len(items))
 
     with step("проверка: researcher-карточка имеет класс featured"):
-        expect(pricing.featured).to_have_count(1)
+        expect(pricing.featured, ErrMsg.wrong_count).to_have_count(1)
         researcher_card = pricing.cards().nth(researcher_idx)
         # to_have_class matches the full class attribute string, поэтому
         # regex substring `\\bfeatured\\b`.
-        expect(researcher_card).to_have_class(re.compile(r"\bfeatured\b"))
+        expect(researcher_card, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bfeatured\b"))
 
 
 @allure.title("Тарифы: нет JS-ошибок в консоли на /pricing")
@@ -221,7 +223,7 @@ def test_pricing_no_console_errors(page: Page, anon_pages: PageFactory):
         )
 
     with step("действие: загрузить /pricing.html"):
-        anon_pages.navigate_to(PricingPage)
+        _ = anon_pages.navigate_to(PricingPage)
 
     with step("проверка: нет JS-ошибок в консоли"):
         real = [e for e in errors if "favicon" not in e.lower()]

@@ -12,6 +12,8 @@ import allure
 import httpx
 from playwright.sync_api import Page, expect
 
+from tests._core import api_paths as routes
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import Links, t
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -47,7 +49,7 @@ def test_login_with_correct_credentials_succeeds(
         assert session_cookie, f"no platform_session/session_id cookie set after login: {cookies}"
 
     with step("проверка: /me возвращает правильный tenant"):
-        me = httpx.get(f"{base_url}/api/account/me", cookies=cookies, timeout=TIMEOUTS.api_request)
+        me = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", cookies=cookies, timeout=TIMEOUTS.api_request)
         expect_response(me, label="/me after login").status_ok()
         assert me.json()["tenant"]["slug"] == owner_user.slug, \
             f"/me tenant slug: expected {owner_user.slug!r}, got {me.json()['tenant']['slug']!r}"
@@ -61,8 +63,8 @@ def test_login_with_wrong_password_shows_error(page: Page, owner_user, anon_page
         login.login(owner_user.email, "wrong_password_xyz")
 
     with step("проверка: ошибка видна и URL остался /login"):
-        expect(login.error_msg).to_be_visible()
-        expect(page).to_have_url(re.compile(r"/login"))
+        expect(login.error_msg, ErrMsg.login_error_not_visible).to_be_visible()
+        expect(page, ErrMsg.url_wrong).to_have_url(re.compile(r"/login"))
 
 
 @allure.title("Ошибки для неизвестного email и неверного пароля одинаковы")
@@ -73,22 +75,24 @@ def test_login_unknown_email_returns_same_error_as_wrong_password(
 
     No reverse-engineerable signal that an account does/does-not exist.
     """
-    # `to_be_visible` would pass while the element is still rendering its
-    # text; under `-n auto` parallel load that race yields a spurious empty
-    # `text_content()`. Wait for non-empty text so the comparison is
-    # between two settled strings.
+    # `to_be_visible` пройдёт, пока элемент ещё рендерит свой текст;
+    # под `-n auto` при параллельной нагрузке эта гонка даёт ложный пустой
+    # `text_content()`. Ждём непустой текст, чтобы сравнение было
+    # между двумя устоявшимися строками.
     _NON_EMPTY = re.compile(r"\S")
 
     with step("действие: вход с неверным паролем для известного email"):
         login = anon_pages.navigate_to(LoginPage)
         login.login(owner_user.email, "wrong_pw_2026")
-        expect(login.error_msg).to_have_text(_NON_EMPTY, timeout=TIMEOUTS.pw_action_ms)
+        expect(login.error_msg, ErrMsg.wrong_text_content).to_have_text(_NON_EMPTY, timeout=TIMEOUTS.pw_action_ms)
         msg_known = login.error_msg.text_content()
 
     with step("действие: вход с неизвестным email"):
         login_unknown = anon_pages.navigate_to(LoginPage)
         login_unknown.login("does-not-exist@e2e.example.com", "any_password_2026")
-        expect(login_unknown.error_msg).to_have_text(_NON_EMPTY, timeout=TIMEOUTS.pw_action_ms)
+        expect(
+            login_unknown.error_msg, ErrMsg.wrong_text_content,
+        ).to_have_text(_NON_EMPTY, timeout=TIMEOUTS.pw_action_ms)
         msg_unknown = login_unknown.error_msg.text_content()
 
     with step("проверка: тексты ошибок идентичны (anti-enumeration)"):
@@ -102,8 +106,8 @@ def test_login_unknown_email_returns_same_error_as_wrong_password(
 def test_login_links_to_signup_and_forgot(page: Page, anon_pages: PageFactory):
     """X-LG-1, X-LG-2: signup and forgot-password links visible on /login."""
     with step("действие: переход на /login"):
-        anon_pages.navigate_to(LoginPage)
+        _ = anon_pages.navigate_to(LoginPage)
 
     with step("проверка: ссылки на регистрацию и сброс пароля видны"):
-        expect(page.get_by_role("link", name=t(Links.SIGNUP))).to_be_visible()
-        expect(page.get_by_role("link", name=t(Links.FORGOT_PASSWORD))).to_be_visible()
+        expect(page.get_by_role("link", name=t(Links.SIGNUP)), ErrMsg.link_not_visible).to_be_visible()
+        expect(page.get_by_role("link", name=t(Links.FORGOT_PASSWORD)), ErrMsg.link_not_visible).to_be_visible()

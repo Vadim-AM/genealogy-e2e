@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python_file=\"$CLAUDE_FILE_PATH\"; if [[ \"$python_file\" == *.py ]]; then ruff format --quiet \"$python_file\"; ruff check --fix --quiet \"$python_file\" || true; fi",
+            "description": "Автоформат и автофикс через ruff после редактирования .py файлов"
+          }
+        ]
+      }
+    ]
+  }
+}

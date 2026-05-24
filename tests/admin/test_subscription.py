@@ -6,10 +6,12 @@ period_end, soft_warn, exhausted} in /api/subscription/usage.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 import httpx
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -31,7 +33,7 @@ def test_subscription_usage_shape_for_free_owner(owner_user, tenant_client):
     """TC-AI-2: /api/subscription/usage returns the canonical free-tier shape."""
     with step("действие: запросить usage для free-tier owner"):
         api = tenant_client(owner_user)
-        r = api.get(API.SUBSCRIPTION_USAGE_LEGACY)
+        r = api.get(routes.SUBSCRIPTION_USAGE_LEGACY)
         expect_response(r, label="GET subscription/usage").status_ok()
         data = r.json()
 
@@ -54,5 +56,5 @@ def test_subscription_usage_shape_for_free_owner(owner_user, tenant_client):
 @allure.title("Подписка: анонимный запрос к usage возвращает 401")
 def test_subscription_usage_requires_auth(base_url: str):
     """Anonymous request to /api/subscription/usage → 401."""
-    r = httpx.get(f"{base_url}{API.SUBSCRIPTION_USAGE_LEGACY}", timeout=TIMEOUTS.api_request)
-    expect_response(r, label="anon subscription/usage").status(401)
+    r = httpx.get(f"{base_url}{routes.SUBSCRIPTION_USAGE_LEGACY}", timeout=TIMEOUTS.api_request)
+    expect_response(r, label="anon subscription/usage").status(HTTPStatus.UNAUTHORIZED)

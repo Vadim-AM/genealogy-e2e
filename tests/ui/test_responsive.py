@@ -17,6 +17,7 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.err_msg import ErrMsg
 from tests._core.step import step
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -64,8 +65,8 @@ def test_signup_password_eye_toggle_visible_on_iphone_se(mobile_page: Page):
         mobile_page.wait_for_load_state("domcontentloaded")
 
     with step("проверка: pwToggle виден и достаточного размера"):
-        toggle = mobile_page.locator("#pwToggle")
-        expect(toggle).to_be_visible()
+        toggle = mobile_page.locator("#pwToggle")  # no semantic: toggle without ARIA
+        expect(toggle, ErrMsg.element_not_visible).to_be_visible()
 
         box = toggle.bounding_box()
         assert box is not None, "pwToggle has no bounding box (display:none?)"
@@ -93,8 +94,8 @@ def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
         mobile_page.wait_for_load_state("domcontentloaded")
 
     with step("проверка: чекбоксы согласия не выходят за viewport"):
-        agree_rows = mobile_page.locator('[data-testid="signup-agree-group"]')
-        expect(agree_rows.first).to_be_visible()
+        agree_rows = mobile_page.locator('[data-testid="signup-agree-group"]')  # no semantic: checkbox group container
+        expect(agree_rows.first, ErrMsg.element_not_visible).to_be_visible()
         count = agree_rows.count()
         assert count >= 1, f'Ожидали ≥1 [data-testid="signup-agree-group"] блок, нашли {count}'
 

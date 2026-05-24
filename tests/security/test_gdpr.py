@@ -12,9 +12,11 @@ setup и пока не автоматизируется.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import unique_email
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -34,12 +36,12 @@ def test_delete_tenant_invalidates_owner_session(
     with step("подготовка: создать пользователя и проверить валидность сессии"):
         user = signup_via_api(email=unique_email("gdpr"))
         api = tenant_client(user)
-        expect_response(api.get(API.ACCOUNT_ME), label="pre-delete /me").status_ok().schema(AccountMe)
+        expect_response(api.get(routes.ACCOUNT_ME), label="pre-delete /me").status_ok().schema(AccountMe)
 
     with step("действие: удалить тенант через soft-delete"):
-        r = api.post(API.DELETE_TENANT, json={"confirm_slug": user.slug})
+        r = api.post(routes.DELETE_TENANT, json={"confirm_slug": user.slug})
         expect_response(r, label="delete-tenant").status_ok()
 
     with step("проверка: cookie отозвана, /me возвращает 401"):
-        me_after = api.get(API.ACCOUNT_ME)
-        expect_response(me_after, label="INV-GDPR-001a: post-delete /me").status(401)
+        me_after = api.get(routes.ACCOUNT_ME)
+        expect_response(me_after, label="INV-GDPR-001a: post-delete /me").status(HTTPStatus.UNAUTHORIZED)

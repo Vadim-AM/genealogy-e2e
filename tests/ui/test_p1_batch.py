@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, Route, expect
 
+from tests._core import api_paths as routes
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import AboutTab, Placeholders, TestData, t
 from tests._core.step import step
 from tests.pages.base import custom_select_for, wait_for_authed_shell
@@ -45,8 +47,8 @@ def test_minimap_visible_on_tree_tab_for_authed_owner(pages: PageFactory):
     """
     tree = pages.navigate_to(TreePage)
 
-    expect(tree.minimap).to_be_visible()
-    expect(tree.minimap).to_have_class(re.compile(r"\bvisible\b"))
+    expect(tree.minimap, ErrMsg.minimap_not_visible).to_be_visible()
+    expect(tree.minimap, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bvisible\b"))
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -65,7 +67,7 @@ def test_branch_legend_is_hidden_when_tree_has_less_than_3_generations(
     """
     tree = pages.navigate_to(TreePage)
 
-    expect(tree.branch_legend).not_to_be_visible()
+    expect(tree.branch_legend, ErrMsg.element_should_be_hidden).not_to_be_visible()
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -89,13 +91,13 @@ def test_custom_select_opens_on_arrow_down_keyboard(owner_page: Page):
 
     with step("действие: фокус на gender select и ArrowDown"):
         wrapper = custom_select_for(owner_page, "gender")
-        expect(wrapper).to_be_visible()
+        expect(wrapper, ErrMsg.dropdown_not_visible).to_be_visible()
         wrapper.focus()
         owner_page.keyboard.press("ArrowDown")
 
     with step("проверка: dropdown открылся"):
-        dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')
-        expect(dropdown).to_be_visible()
+        dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')  # no semantic: JS widget, no ARIA role
+        expect(dropdown, ErrMsg.dropdown_not_visible).to_be_visible()
 
 
 @allure.title("Редактор: Escape закрывает выпадающий список")
@@ -108,14 +110,14 @@ def test_custom_select_closes_on_escape_keyboard(owner_page: Page):
         wrapper = custom_select_for(owner_page, "gender")
         wrapper.focus()
         owner_page.keyboard.press("ArrowDown")
-        dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')
-        expect(dropdown).to_be_visible()
+        dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')  # no semantic: JS widget, no ARIA role
+        expect(dropdown, ErrMsg.dropdown_not_visible).to_be_visible()
 
     with step("действие: нажать Escape"):
         owner_page.keyboard.press("Escape")
 
     with step("проверка: dropdown закрылся"):
-        expect(dropdown).not_to_be_visible()
+        expect(dropdown, ErrMsg.dropdown_should_be_closed).not_to_be_visible()
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -138,7 +140,7 @@ def test_confirm_dialog_escape_cancels(owner_page: Page):
         owner_page.on(
             "response",
             lambda r: delete_responses.append(r.status)
-            if "/api/people/" in r.url and r.request.method == "DELETE"
+            if routes.PEOPLE in r.url and r.request.method == "DELETE"
             else None,
         )
 
@@ -199,9 +201,10 @@ def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page, 
     маркер, регрессия = пустой/неструктурированный footer.
     """
     with step("действие: загрузить главную"):
-        pages.navigate_to(TreePage)
+        _ = pages.navigate_to(TreePage)
 
     with step("проверка: footer-ornament в sources и timeline"):
+        # no semantic: tab without role="tab"; decorative element
         sources_ornament = owner_page.locator('#tab-sources [data-testid="footer-ornament"]')
         timeline_ornament = owner_page.locator('#tab-timeline [data-testid="footer-ornament"]')
         assert sources_ornament.count() == 1, (
@@ -213,7 +216,7 @@ def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page, 
             f"got {timeline_ornament.count()}"
         )
         # Три bullet'а как design-decision (· · · — index.html:164,183).
-        expect(sources_ornament).to_contain_text("•")
+        expect(sources_ornament, ErrMsg.wrong_text_content).to_contain_text("•")
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -232,8 +235,11 @@ def test_timeline_river_filters_render_five_branches(owner_page: Page, pages: Pa
         tree.switch_tab("timeline")
 
     with step("проверка: 5 фильтров в правильном порядке"):
-        filters = owner_page.locator('#riverFilters button[data-testid^="river-filter"]')
-        expect(filters).to_have_count(5)
+        # no semantic: custom filter, no button role
+        filters = owner_page.locator(
+            '#riverFilters button[data-testid^="river-filter"]',
+        )
+        expect(filters, ErrMsg.wrong_count).to_have_count(5)
 
         expected_branches = ["all", "maternal", "paternal", "other", "historical"]
         actual_branches = [
@@ -246,7 +252,7 @@ def test_timeline_river_filters_render_five_branches(owner_page: Page, pages: Pa
         )
 
     with step("проверка: active по умолчанию = all"):
-        expect(filters.nth(0)).to_have_class(re.compile(r"\bactive\b"))
+        expect(filters.nth(0), ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -268,8 +274,8 @@ def test_about_tab_shows_placeholder_when_about_text_is_empty(owner_page: Page, 
 
     with step("проверка: placeholder виден с текстом-подсказкой"):
         placeholder = owner_page.locator('[data-config-empty="about_text"]')
-        expect(placeholder).to_be_visible()
-        expect(placeholder).to_contain_text(t(AboutTab.FAMILY_TREE_KEYWORD))
+        expect(placeholder, ErrMsg.element_not_visible).to_be_visible()
+        expect(placeholder, ErrMsg.wrong_text_content).to_contain_text(t(AboutTab.FAMILY_TREE_KEYWORD))
 
 
 @allure.title("Родственник: при 409-конфликте модалка остаётся открытой")
@@ -305,7 +311,7 @@ def test_add_relative_shows_error_on_409_conflict(owner_page: Page):
         modal.fill_and_save(surname="Дубликат", given="Тест")
 
     with step("проверка: модалка осталась открытой при 409"):
-        expect(modal.container).to_be_visible()
+        expect(modal.container, ErrMsg.modal_not_visible).to_be_visible()
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -325,15 +331,15 @@ def test_custom_select_arrow_down_then_enter_selects_option(owner_page: Page):
         wrapper = custom_select_for(owner_page, "gender")
         wrapper.focus()
         owner_page.keyboard.press("ArrowDown")
-        dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')
-        expect(dropdown).to_be_visible()
+        dropdown = wrapper.locator('[data-testid="custom-select-dropdown"]')  # no semantic: JS widget, no ARIA role
+        expect(dropdown, ErrMsg.dropdown_not_visible).to_be_visible()
 
     with step("действие: ArrowDown + Enter для выбора опции"):
         owner_page.keyboard.press("ArrowDown")
         owner_page.keyboard.press("Enter")
 
     with step("проверка: dropdown закрылся и native select обновился"):
-        expect(dropdown).not_to_be_visible()
+        expect(dropdown, ErrMsg.dropdown_should_be_closed).not_to_be_visible()
         native = owner_page.locator('select[data-field="gender"]')
         selected_value = native.evaluate("(el) => el.value")
         assert selected_value, (
@@ -363,7 +369,7 @@ def test_confirm_dialog_enter_confirms_delete(owner_page: Page):
 
     with step("действие: подтвердить Enter и проверить DELETE"), \
          owner_page.expect_request(
-             lambda req: bool(re.search(r"/api/people/[^/?]+", req.url)
+             lambda req: bool(re.search(rf"{routes.PEOPLE}/[^/?]+", req.url)
              and req.method == "DELETE")
          ):
         dialog.confirm()
@@ -384,7 +390,7 @@ def test_confirm_dialog_backdrop_click_cancels(owner_page: Page):
         owner_page.on(
             "response",
             lambda r: delete_responses.append(r.status)
-            if "/api/people/" in r.url and r.request.method == "DELETE"
+            if routes.PEOPLE in r.url and r.request.method == "DELETE"
             else None,
         )
 
@@ -421,14 +427,15 @@ def test_timeline_river_filter_click_switches_active(owner_page: Page, pages: Pa
         tree.switch_tab("timeline")
 
     with step("действие: кликнуть по фильтру maternal"):
+        # no semantic: custom filter, no button role
         all_btn = owner_page.locator('[data-testid="river-filter-all"]')
         maternal_btn = owner_page.locator('[data-testid="river-filter-maternal"]')
-        expect(all_btn).to_have_class(re.compile(r"\bactive\b"))
+        expect(all_btn, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
         maternal_btn.click()
 
     with step("проверка: active переключился на maternal"):
-        expect(maternal_btn).to_have_class(re.compile(r"\bactive\b"))
-        expect(all_btn).not_to_have_class(re.compile(r"\bactive\b"))
+        expect(maternal_btn, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
+        expect(all_btn, ErrMsg.wrong_css_class).not_to_have_class(re.compile(r"\bactive\b"))
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -448,8 +455,8 @@ def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page, p
         tree.switch_tab("sources")
 
     with step("проверка: поле поиска с placeholder"):
-        search = owner_page.locator("#evidenceSearch")
-        expect(search).to_be_visible()
+        search = owner_page.locator("#evidenceSearch")  # no semantic: input without label
+        expect(search, ErrMsg.input_not_visible).to_be_visible()
         placeholder = search.get_attribute("placeholder")
         assert placeholder and t(Placeholders.SEARCH) in placeholder, (
             f"#evidenceSearch placeholder should contain {t(Placeholders.SEARCH)!r}; "
@@ -458,8 +465,8 @@ def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page, p
 
     with step("проверка: фильтр all активен по умолчанию"):
         all_btn = owner_page.locator('.filter-btn[data-filter="all"]')
-        expect(all_btn).to_be_visible()
-        expect(all_btn).to_have_class(re.compile(r"\bactive\b"))
+        expect(all_btn, ErrMsg.button_not_visible).to_be_visible()
+        expect(all_btn, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -516,16 +523,16 @@ def test_about_contact_box_shows_placeholder_when_contacts_empty(owner_page: Pag
         tree.switch_tab("about")
 
     with step("проверка: контактные данные пусты"):
-        contact_text_p = owner_page.locator('[data-testid="contact-text"]')
-        contact_email_a = owner_page.locator('[data-testid="contact-email"]')
+        contact_text_p = owner_page.locator('[data-testid="contact-text"]')  # no semantic: content container
+        contact_email_a = owner_page.locator('[data-testid="contact-email"]')  # no semantic: content container
         assert (contact_text_p.text_content() or "").strip() == "", \
             f"expected empty contact_text on default seed; got {contact_text_p.text_content()!r}"
         assert (contact_email_a.text_content() or "").strip() == "", \
             f"expected empty contact_email on default seed; got {contact_email_a.text_content()!r}"
 
     with step("проверка: placeholder контактов виден"):
-        placeholder = owner_page.locator("#contactBoxPlaceholder")
-        expect(placeholder).to_be_visible()
+        placeholder = owner_page.locator("#contactBoxPlaceholder")  # no semantic: placeholder container
+        expect(placeholder, ErrMsg.element_not_visible).to_be_visible()
 
 
 @allure.title("Древо: клик по карточке орбиты центрирует на персону")
@@ -537,11 +544,12 @@ def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page,
     profile (последняя триггерится отдельным data-action="open-profile").
     """
     with step("подготовка: открыть главную и найти не-центральную карту"):
-        pages.navigate_to(TreePage)
+        _ = pages.navigate_to(TreePage)
+        # no semantic: canvas container; canvas card, no ARIA
         target_card = owner_page.locator(
             '#treeContainer [data-testid="orbit-card"][data-person-id]:not([data-testid="orbit-center-card"])'
         ).first
-        expect(target_card).to_be_visible()
+        expect(target_card, ErrMsg.orbit_card_not_visible).to_be_visible()
         target_pid = target_card.get_attribute("data-person-id")
         assert target_pid, "non-center orbit card has no data-person-id attribute"
 
@@ -549,7 +557,8 @@ def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page,
         target_card.click()
 
     with step("проверка: центр орбиты переместился на кликнутую персону"):
+        # no semantic: canvas card, no ARIA
         new_center = owner_page.locator(
             f'.orbit-zone-center [data-testid="orbit-center-card"][data-person-id=\'{target_pid}\']'
         )
-        expect(new_center).to_be_visible()
+        expect(new_center, ErrMsg.orbit_card_not_visible).to_be_visible()

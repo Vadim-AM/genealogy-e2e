@@ -13,14 +13,16 @@ empty-password validation, login form readiness, success copy.
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import make_email
+from tests._core.err_msg import ErrMsg
 from tests._core.messages import TestData
 from tests._core.response import expect_response
 from tests._core.step import step
@@ -77,7 +79,7 @@ def test_forgot_password_full_flow_user_logs_in_with_new_password(
         # Новый пароль — успех. После login redirect на / + indicator authed.
         login.login(owner_user.email, _NEW_PASSWORD)
         page.wait_for_url("**/")
-        expect(auth_name(page)).to_have_text(
+        expect(auth_name(page), ErrMsg.auth_name_wrong).to_have_text(
             TestData.DEFAULT_FULL_NAME
         )
 
@@ -105,11 +107,11 @@ def test_forgot_password_unknown_email_shows_silent_success_message(
 
     with step("проверка: письмо не отправлено для неизвестного email"):
         r = httpx.get(
-            f"{base_url}{API.TEST_LAST_EMAIL}",
+            f"{base_url}{routes.TEST_LAST_EMAIL}",
             params={"to": unknown_email},
             timeout=TIMEOUTS.api_short,
         )
-        expect_response(r, label="unknown email: no reset sent").status(404)
+        expect_response(r, label="unknown email: no reset sent").status(HTTPStatus.NOT_FOUND)
 
 
 @allure.title("Повторное открытие ссылки сброса пароля показывает ошибку")

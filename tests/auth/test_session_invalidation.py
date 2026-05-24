@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 
 from tests._core.constants import unique_email
@@ -35,7 +37,7 @@ def test_password_reset_invalidates_active_session(
     with step("подготовка: signup и проверка активной сессии"):
         email = unique_email("sess")
         user = signup_via_api(email=email)
-        assert me_status(base_url, user.cookies) == 200, \
+        assert me_status(base_url, user.cookies) == HTTPStatus.OK, \
             "session must be active immediately after signup"
 
     with step("действие: сброс пароля"):
@@ -46,7 +48,7 @@ def test_password_reset_invalidates_active_session(
 
     with step("проверка: старая сессия инвалидирована (401)"):
         after = me_status(base_url, user.cookies)
-        assert after == 401, (
+        assert after == HTTPStatus.UNAUTHORIZED, (
             f"INV-AUTH-001 regression: stolen session NOT invalidated after "
             f"password reset. Cookie still returns {after}. Defeats the "
             f"security purpose of reset."
@@ -70,9 +72,9 @@ def test_password_reset_invalidates_all_devices_sessions(
         device_b_cookies = login_existing(email)
 
     with step("подготовка: проверка что обе сессии активны"):
-        assert me_status(base_url, device_a_cookies) == 200, \
+        assert me_status(base_url, device_a_cookies) == HTTPStatus.OK, \
             "device A session must be active before reset"
-        assert me_status(base_url, device_b_cookies) == 200, \
+        assert me_status(base_url, device_b_cookies) == HTTPStatus.OK, \
             "device B session must be active before reset"
 
     with step("действие: сброс пароля"):
@@ -83,7 +85,7 @@ def test_password_reset_invalidates_all_devices_sessions(
 
     with step("проверка: сессия device A инвалидирована (401)"):
         a_after = me_status(base_url, device_a_cookies)
-        assert a_after == 401, (
+        assert a_after == HTTPStatus.UNAUTHORIZED, (
             f"INV-MULTIDEVICE-001a regression: device A session NOT "
             f"invalidated after reset initiated elsewhere. Cookie "
             f"returns {a_after}."

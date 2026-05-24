@@ -18,10 +18,12 @@ gettext-like layer или просто Russian strings в auth handler).
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 import httpx
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import unique_email
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -34,7 +36,7 @@ def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
     with step("действие: отправить login с неверными credentials"), \
          httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
             r = c.post(
-                API.LOGIN,
+                routes.LOGIN,
                 json={
                     "email": unique_email("i18n"),
                     "password": "any-password-here",
@@ -43,7 +45,7 @@ def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
             )
 
     with step("проверка: ошибка содержит кириллицу"):
-        assert r.status_code == 401, f"expected 401 for unknown user; got {r.status_code}"
+        assert r.status_code == HTTPStatus.UNAUTHORIZED, f"expected 401 for unknown user; got {r.status_code}"
         body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
         detail = body.get("detail") or body.get("message") or ""
 
@@ -57,9 +59,9 @@ def test_signup_validation_error_detail_in_russian(uvicorn_server: str):
     """Signup с слишком коротким паролем → 422 с detail на русском."""
     with step("действие: отправить signup с коротким паролем"), \
          httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
-            c.post(API.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short).raise_for_status()
+            c.post(routes.TEST_RESET_SIGNUP_RATE, timeout=TIMEOUTS.api_short).raise_for_status()
             r = c.post(
-                API.SIGNUP,
+                routes.SIGNUP,
                 json={
                     "email": unique_email("i18n-sg"),
                     "password": "short",
@@ -69,7 +71,9 @@ def test_signup_validation_error_detail_in_russian(uvicorn_server: str):
             )
 
     with step("проверка: validation detail на русском"):
-        assert r.status_code == 422, f"expected 422 Pydantic validation for short password; got {r.status_code}"
+        assert r.status_code == HTTPStatus.UNPROCESSABLE_ENTITY, (
+            f"expected 422 Pydantic validation for short password; got {r.status_code}"
+        )
         body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
 
         # Backend форматирует validation detail двумя способами:

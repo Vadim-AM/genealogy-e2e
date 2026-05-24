@@ -7,31 +7,33 @@ required for the beta launch.
 from __future__ import annotations
 
 import re
+from http import HTTPStatus
 
 import allure
 import httpx
 import pytest
 
+from tests._core import api_paths as routes
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
 
 # ─────────────────────────────────────────────────────────────────────────
-# TC-SEC-1: Anonymous → 401 на закрытых endpoints
+# TC-SEC-1: Аноним → 401 на закрытых endpoints
 # ─────────────────────────────────────────────────────────────────────────
 
 
-# `/api/admin/invites` dropped: the legacy admin surface was removed
-# upstream in v2-Phase2 (commit `dac8535`, admin_password retired) — the
-# route now 404s, so it is no longer a "private endpoint" to gate. The v2
-# invites surface `/api/account/tenant/invites` (kept below) covers the
-# same auth boundary.
+# `/api/admin/invites` удалён: legacy admin-поверхность убрана в
+# v2-Phase2 (commit `dac8535`, admin_password упразднён) — роут теперь
+# отдаёт 404, он больше не является «закрытым endpoint» для проверки.
+# v2-поверхность `/api/account/tenant/invites` (ниже) покрывает ту же
+# auth-границу.
 @pytest.mark.parametrize(
     "endpoint",
     [
-        "/api/people",
-        "/api/account/tenant/invites",
-        "/api/platform/metrics",
+        routes.PEOPLE,
+        routes.TENANT_INVITES,
+        routes.PLATFORM_METRICS,
     ],
 )
 @allure.title("Безопасность: аноним получает 401 на закрытом endpoint")
@@ -45,18 +47,18 @@ def test_anonymous_get_returns_401_on_private_endpoints(base_url: str, endpoint:
         r = httpx.get(f"{base_url}{endpoint}", timeout=TIMEOUTS.api_request)
 
     with step("проверка: 401 — доступ запрещён"):
-        expect_response(r, label=f"GET {endpoint}").status(401)
+        expect_response(r, label=f"GET {endpoint}").status(HTTPStatus.UNAUTHORIZED)
 
 
 @allure.title("Безопасность: /api/tree публично доступен гостю (200)")
 def test_anonymous_get_tree_returns_200_minimal_showcase(base_url: str):
     """TC-SEC-1 inverse: /api/tree IS public — guest sees the showcase tree."""
-    r = httpx.get(f"{base_url}/api/tree", timeout=TIMEOUTS.api_request)
-    expect_response(r, label="GET /api/tree (public)").status(200)
+    r = httpx.get(f"{base_url}{routes.TREE}", timeout=TIMEOUTS.api_request)
+    expect_response(r, label="GET /api/tree (public)").status(HTTPStatus.OK)
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# TC-SEC-2: Security headers
+# TC-SEC-2: Заголовки безопасности
 # ─────────────────────────────────────────────────────────────────────────
 
 
@@ -76,8 +78,8 @@ def test_security_headers_present_on_api_responses(base_url: str):
     response without protection.
     """
     with step("действие: запросить /api/account/me (заголовки на любом ответе)"):
-        r = httpx.get(f"{base_url}/api/account/me", timeout=TIMEOUTS.api_request)
-        # Auth state irrelevant — we test headers, not body.
+        r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", timeout=TIMEOUTS.api_request)
+        # Состояние авторизации неважно — проверяем заголовки, не тело.
         headers = {k.lower(): v for k, v in r.headers.items()}
 
     with step("проверка: nosniff, X-Frame-Options, Referrer-Policy"):
@@ -92,19 +94,19 @@ def test_csp_header_disables_inline_event_handlers(base_url: str):
     """TC-SEC-2 / BUG-SEC-002: CSP must include `script-src-attr 'none'`
     so inline `onclick=` event handlers cannot execute (XSS hardening)."""
     with step("действие: запросить /api/account/me и извлечь CSP"):
-        r = httpx.get(f"{base_url}/api/account/me", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", timeout=TIMEOUTS.api_request)
         csp = r.headers.get("content-security-policy", "")
 
     with step("проверка: CSP содержит script-src-attr 'none'"):
         assert csp, "Content-Security-Policy header missing"
-        # Look for the directive — quoted 'none' may or may not appear depending
-        # on serialisation. Use a regex tolerant of single-quotes / spacing.
+        # Ищем директиву — 'none' в кавычках может быть или не быть в
+        # зависимости от сериализации. Regex толерантен к кавычкам / пробелам.
         assert re.search(r"script-src-attr\s+'none'", csp), \
             f"CSP missing `script-src-attr 'none'`: {csp[:200]}"
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# TC-CSP-2 / BUG-CSP-001: inline event handlers in served HTML
+# TC-CSP-2 / BUG-CSP-001: inline event handlers в отдаваемом HTML
 # ─────────────────────────────────────────────────────────────────────────
 
 
@@ -124,9 +126,9 @@ def test_landing_html_has_no_inline_event_handlers(base_url: str):
         html = r.text
 
     with step("проверка: нет inline on*= атрибутов"):
-        # Match `on<lowercase-ident>=` as HTML attribute (whitespace before,
-        # `=` after). Exclude false positives like `name="oncall"` because
-        # those have `=` after `name`, not after the `on*` substring.
+        # Матчим `on<lowercase-ident>=` как HTML-атрибут (пробел перед,
+        # `=` после). Исключаем ложные срабатывания вроде `name="oncall"`,
+        # т.к. у них `=` после `name`, а не после подстроки `on*`.
         pattern = re.compile(r'\s(on[a-z]+)\s*=', re.IGNORECASE)
         matches = pattern.findall(html)
         unique = sorted(set(m.lower() for m in matches))
@@ -152,6 +154,6 @@ def test_hsts_header_only_on_https(base_url: str):
             "this test assumes local dev (HTTP); HTTPS path is verified by deployment smoke"
 
     with step("проверка: HSTS-заголовок отсутствует"):
-        r = httpx.get(f"{base_url}/api/account/me", timeout=TIMEOUTS.api_request)
+        r = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", timeout=TIMEOUTS.api_request)
         assert "strict-transport-security" not in {k.lower() for k in r.headers}, \
             "HSTS must not be sent on HTTP responses (only HTTPS)"

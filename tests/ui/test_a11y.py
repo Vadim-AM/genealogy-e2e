@@ -19,11 +19,13 @@ Two distinct fails for screen-reader users:
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.err_msg import ErrMsg
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
 from tests.pages.signup_page import SignupPage
@@ -60,15 +62,15 @@ def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFac
         # Wave-9: privacy/cross-border объединены с terms_accepted.
         signup.agree_terms.check()
 
-        # Wait for server response, then check aria state.
+        # Ждём ответ сервера, затем проверяем aria-состояние.
         with page.expect_response("**/api/account/signup") as resp_info:
             signup.submit_btn.click()
-        assert resp_info.value.status >= 400, (
+        assert resp_info.value.status >= HTTPStatus.BAD_REQUEST, (
             f"expected server validation error; got {resp_info.value.status}"
         )
 
     with step("проверка: поле пароля получило aria-invalid"):
-        expect(signup.password).to_have_attribute(
+        expect(signup.password, ErrMsg.wrong_attribute).to_have_attribute(
             "aria-invalid", "true", timeout=TIMEOUTS.api_request * 1000
         )
 
@@ -83,4 +85,4 @@ def test_signup_honeypot_is_aria_hidden(page: Page, anon_pages: PageFactory):
         signup = anon_pages.navigate_to(SignupPage)
 
     with step("проверка: honeypot имеет aria-hidden"):
-        expect(signup.honeypot).to_have_attribute("aria-hidden", "true")
+        expect(signup.honeypot, ErrMsg.wrong_attribute).to_have_attribute("aria-hidden", "true")

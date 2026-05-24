@@ -34,7 +34,7 @@ import allure
 import httpx
 import pytest
 
-from tests._core.api_paths import API
+from tests._core import api_paths as routes
 from tests._core.constants import TestConfig, unique_email
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
@@ -63,7 +63,7 @@ def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_ap
     so the rate-limit doesn't dominate latency.
     """
     with step("подготовка: зарегистрировать существующего пользователя"):
-        reset_url = f"{uvicorn_server}{API.TEST_RESET_SIGNUP_RATE}"
+        reset_url = f"{uvicorn_server}{routes.TEST_RESET_SIGNUP_RATE}"
 
         existing_email = unique_email("timing-existing")
         signup_via_api(email=existing_email)
@@ -75,11 +75,11 @@ def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_ap
 
     with step("действие: замерить latency для existing и new email"):
         def call_existing(c: httpx.Client) -> None:
-            c.post(API.SIGNUP, json={**payload_template, "email": existing_email})
+            c.post(routes.SIGNUP, json={**payload_template, "email": existing_email})
 
         def call_new(c: httpx.Client) -> None:
             c.post(
-                API.SIGNUP,
+                routes.SIGNUP,
                 json={**payload_template, "email": unique_email("timing-new")},
             )
 
@@ -108,20 +108,20 @@ def test_login_no_timing_account_enumeration(uvicorn_server: str, signup_via_api
     bcrypt for missing user.
     """
     with step("подготовка: зарегистрировать существующего пользователя"):
-        reset_url = f"{uvicorn_server}{API.TEST_RESET_SIGNUP_RATE}"
+        reset_url = f"{uvicorn_server}{routes.TEST_RESET_SIGNUP_RATE}"
         existing_email = unique_email("timing-login")
         signup_via_api(email=existing_email)
 
     with step("действие: замерить latency для existing и nonexistent email"):
         def call_existing_wrong_pwd(c: httpx.Client) -> None:
             c.post(
-                API.LOGIN,
+                routes.LOGIN,
                 json={"email": existing_email, "password": "wrong-password-here"},
             )
 
         def call_nonexistent(c: httpx.Client) -> None:
             c.post(
-                API.LOGIN,
+                routes.LOGIN,
                 json={
                     "email": unique_email("timing-nope"),
                     "password": "wrong-password-here",
