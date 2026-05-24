@@ -26,9 +26,12 @@ from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
 from tests.helpers.api import person_api, site_api
+from tests.pages.signup_page import SignupPage
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
+
+    from tests._fixtures.page_factory import PageFactory
 
 
 @allure.title("Регрессия: auth_v2 владелец читает историю обогащения")
@@ -68,7 +71,7 @@ def test_bug_auth_002_pageview_platform_session_no_500(owner_user, tenant_client
 
 
 @allure.title("Регрессия: /signup не запрашивает /api/csrf-token (404)")
-def test_bug_csrf_001_console_clean_on_signup(page: Page):
+def test_bug_csrf_001_console_clean_on_signup(page: Page, anon_pages: PageFactory):
     """TC-BUG-CSRF-001: opening /signup → no 404 on /api/csrf-token in console."""
     with step("действие: открыть /signup и слушать 404 на /api/csrf-token"):
         bad_404: list[str] = []
@@ -78,8 +81,7 @@ def test_bug_csrf_001_console_clean_on_signup(page: Page):
             if r.status == 404 and "/api/csrf-token" in r.url
             else None,
         )
-        page.goto("/signup")
-        page.wait_for_load_state("domcontentloaded")
+        anon_pages.navigate_to(SignupPage)
 
     with step("проверка: нет 404 на /api/csrf-token"):
         assert not bad_404, f"BUG-CSRF-001 regression: {bad_404}"

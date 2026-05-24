@@ -15,6 +15,8 @@ plain regression.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 from playwright.sync_api import Page, expect
 
@@ -22,6 +24,11 @@ from tests._core.api_paths import API
 from tests._core.constants import TestConfig, unique_email
 from tests._core.messages import Buttons, t
 from tests._core.step import step
+from tests.pages.login_page import LoginPage
+from tests.pages.signup_page import SignupPage
+
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
 
 
 def _is_submit_request(url: str, expected_path: str) -> bool:
@@ -29,11 +36,10 @@ def _is_submit_request(url: str, expected_path: str) -> bool:
 
 
 @allure.title("Формы: регистрация отправляется методом POST, не GET")
-def test_signup_form_submits_via_post(page: Page):
+def test_signup_form_submits_via_post(page: Page, anon_pages: PageFactory):
     """Submit signup form → request method MUST be POST."""
     with step("подготовка: заполнить форму регистрации"):
-        page.goto("/signup")
-        page.wait_for_load_state("domcontentloaded")
+        anon_pages.navigate_to(SignupPage)
         page.locator("#email").fill(unique_email("formpost"))
         page.locator("#password").fill(TestConfig.DEFAULT_PASSWORD)
         # Wave-9: privacy/cross-border объединены с terms_accepted (см. backend
@@ -56,11 +62,10 @@ def test_signup_form_submits_via_post(page: Page):
 
 
 @allure.title("Формы: вход отправляется методом POST, не GET")
-def test_login_form_submits_via_post(page: Page):
+def test_login_form_submits_via_post(page: Page, anon_pages: PageFactory):
     """Submit login form → request method MUST be POST."""
     with step("подготовка: заполнить форму входа"):
-        page.goto("/login")
-        page.wait_for_load_state("domcontentloaded")
+        anon_pages.navigate_to(LoginPage)
         page.locator("#email").fill(unique_email("formpost-li"))
         page.locator("#password").fill("any-password-here")
 

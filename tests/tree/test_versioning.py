@@ -6,6 +6,8 @@ of truth in `js/init.js:286`), not be hardcoded in HTML.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 import httpx
 from playwright.sync_api import Page, expect
@@ -15,6 +17,10 @@ from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
 from tests._models.site import SiteConfigResponse
+from tests.pages.tree_page import TreePage
+
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
 
 
 @allure.title("Конфиг сайта содержит непустую версию приложения")
@@ -27,7 +33,7 @@ def test_site_config_exposes_app_version(base_url: str):
 
 
 @allure.title("Версия в футере совпадает с версией из API")
-def test_footer_version_matches_api_app_version(page: Page, base_url: str):
+def test_footer_version_matches_api_app_version(page: Page, base_url: str, anon_pages: PageFactory):
     """TC-BUG-VER-001: footer version equals `/api/site/config.app_version`.
 
     Strict equality with the API source-of-truth — catches any new hardcoding,
@@ -39,6 +45,5 @@ def test_footer_version_matches_api_app_version(page: Page, base_url: str):
         api_version = config.app_version
 
     with step("проверка: футер показывает ту же версию"):
-        page.goto("/")
-        page.wait_for_load_state("domcontentloaded")
+        anon_pages.navigate_to(TreePage)
         expect(page.locator('[data-testid="footer-version"]').first).to_have_text(f"v{api_version}")
