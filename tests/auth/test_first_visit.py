@@ -10,7 +10,7 @@ from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
 from tests.pages.tree_page import TreePage
-
+from tests.step import step
 
 # Demo seed has demo-self + 2 parents around the centred subject =
 # 2 orbit cards rendered in the ring view (the centred subject card
@@ -26,9 +26,12 @@ def test_first_visit_renders_tree_with_demo_seed(owner_page: Page):
     "loading indicator hid" smoke. Backend seeds 5 persons; orbit shows
     the centered subject plus immediate ring (parents) = 2 cards visible.
     """
-    tree = TreePage(owner_page).goto()
-    owner_page.wait_for_load_state("domcontentloaded")
-    tree.expect_tree_rendered(min_cards=DEMO_SEED_RING_CARDS)
+    with step("действие: переход на главную"):
+        tree = TreePage(owner_page).goto()
+        owner_page.wait_for_load_state("domcontentloaded")
+
+    with step("проверка: orbit-view отрисовал демо-карточки"):
+        tree.expect_tree_rendered(min_cards=DEMO_SEED_RING_CARDS)
 
 
 @allure.title("Авторизованному пользователю видны навигационные вкладки")
@@ -39,12 +42,15 @@ def test_first_visit_shows_authed_tabs(owner_page: Page):
     спрятана за feature-flag, который пока выключен на дефолте). Проверяем
     остальные 4 вкладки; Map-теста отдельно (xfail) — см. test_map_no_flag.
     """
-    tree = TreePage(owner_page).goto()
-    owner_page.wait_for_load_state("domcontentloaded")
-    expect(tree.tab_tree).to_be_visible()
-    expect(tree.tab_sources).to_be_visible()
-    expect(tree.tab_timeline).to_be_visible()
-    expect(tree.tab_about).to_be_visible()
+    with step("действие: переход на главную"):
+        tree = TreePage(owner_page).goto()
+        owner_page.wait_for_load_state("domcontentloaded")
+
+    with step("проверка: навигационные вкладки видны"):
+        expect(tree.tab_tree).to_be_visible()
+        expect(tree.tab_sources).to_be_visible()
+        expect(tree.tab_timeline).to_be_visible()
+        expect(tree.tab_about).to_be_visible()
 
 
 @allure.title("Поле поиска отображается в шапке после входа")
@@ -66,8 +72,11 @@ def test_first_visit_tour_replay_button_visible(owner_page: Page):
 @allure.title("Эндпоинт /me возвращает slug тенанта после авторизации")
 def test_me_endpoint_returns_tenant_after_login(owner_user, tenant_client):
     """F-FV-1 backend check: /api/account/me returns user + tenant slug."""
-    api = tenant_client(owner_user)
-    r = api.get(API.ACCOUNT_ME)
-    r.raise_for_status()
-    assert r.json()["tenant"]["slug"] == owner_user.slug, \
-        f"/me tenant slug: expected {owner_user.slug!r}, got {r.json()['tenant']['slug']!r}"
+    with step("действие: запрос /me"):
+        api = tenant_client(owner_user)
+        r = api.get(API.ACCOUNT_ME)
+        r.raise_for_status()
+
+    with step("проверка: slug тенанта совпадает"):
+        assert r.json()["tenant"]["slug"] == owner_user.slug, \
+            f"/me tenant slug: expected {owner_user.slug!r}, got {r.json()['tenant']['slug']!r}"

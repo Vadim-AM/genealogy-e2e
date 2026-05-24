@@ -9,15 +9,14 @@ FROM mcr.microsoft.com/playwright/python:v1.58.0-noble
 WORKDIR /e2e
 
 # Install Python deps first to keep layer caching effective.
-COPY requirements.txt ./
+COPY pyproject.toml ./
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir . && \
     # `playwright install` is a no-op on the base image (browsers preinstalled),
     # but the dependency-check step ensures the Python wheels match the binaries.
     playwright install --with-deps chromium
 
 # Copy test sources last — code changes don't bust the deps layer.
-COPY pytest.ini ./
 COPY tests ./tests
 
 # Default: run the full suite. Compose overrides with `command:` for partial runs.

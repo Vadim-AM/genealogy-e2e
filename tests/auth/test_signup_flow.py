@@ -9,7 +9,6 @@ import re
 
 import allure
 import httpx
-import pytest
 from playwright.sync_api import Page, expect
 
 from tests.api_paths import API
@@ -17,6 +16,7 @@ from tests.constants import TestConfig, make_email
 from tests.pages.signup_page import SignupPage
 from tests.pages.verify_page import VerifyPage
 from tests.response import expect_response
+from tests.step import step
 
 
 @allure.title("Форма регистрации содержит обязательные поля и honeypot")
@@ -30,24 +30,26 @@ def test_signup_form_has_required_inputs(page: Page, soft_check):
 @allure.title("Успешная регистрация отправляет письмо с токеном верификации")
 def test_signup_happy_path_sends_verification_email(page: Page, base_url: str):
     """F-SU-1, F-EV-1: submit form → backend sends verification email."""
-    email = make_email("happy")
-    signup = SignupPage(page).goto()
+    with step("действие: заполнение и отправка формы регистрации"):
+        email = make_email("happy")
+        signup = SignupPage(page).goto()
 
-    with page.expect_response("**/api/account/signup") as resp_info:
-        signup.fill_required(
-            email=email,
-            password=TestConfig.DEFAULT_PASSWORD,
-            full_name="Иванов Иван",
-        ).submit()
-    assert resp_info.value.status == 200, \
-        f"signup endpoint returned {resp_info.value.status}"
+        with page.expect_response("**/api/account/signup") as resp_info:
+            signup.fill_required(
+                email=email,
+                password=TestConfig.DEFAULT_PASSWORD,
+                full_name="Иванов Иван",
+            ).submit()
+        assert resp_info.value.status == 200, \
+            f"signup endpoint returned {resp_info.value.status}"
 
-    signup.expect_verification_message()
+        signup.expect_verification_message()
 
-    r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
-    expect_response(r, label="last-email").status_ok()
-    assert "token=" in (r.json()["text_body"] or ""), \
-        f"no verification token in email: {r.json()!r}"
+    with step("проверка: письмо с токеном верификации отправлено"):
+        r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
+        expect_response(r, label="last-email").status_ok()
+        assert "token=" in (r.json()["text_body"] or ""), \
+            f"no verification token in email: {r.json()!r}"
 
 
 @allure.title("Подтверждение email автоматически авторизует пользователя")
@@ -57,70 +59,77 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str):
 
     Regression for UX-FLOW-002 (closed in commit 264db9e).
     """
-    email = make_email("autologin")
-    signup = SignupPage(page).goto()
-    signup.fill_required(
-        email=email,
-        password=TestConfig.DEFAULT_PASSWORD,
-        full_name="Автологин Тестов",
-    ).submit()
-    signup.expect_verification_message()
+    with step("подготовка: signup и получение токена верификации"):
+        email = make_email("autologin")
+        signup = SignupPage(page).goto()
+        signup.fill_required(
+            email=email,
+            password=TestConfig.DEFAULT_PASSWORD,
+            full_name="Автологин Тестов",
+        ).submit()
+        signup.expect_verification_message()
 
-    mail = httpx.get(
-        f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email}
-    )
-    expect_response(mail, label="last-email").status_ok()
-    token = re.search(r"token=([\w\-]+)", mail.json()["text_body"]).group(1)
+        mail = httpx.get(
+            f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email}
+        )
+        expect_response(mail, label="last-email").status_ok()
+        m = re.search(r"token=([\w\-]+)", mail.json()["text_body"])
+        assert m is not None, "verify token not found in email body"
+        token = m.group(1)
 
-    # POST /verify-email directly — checking that the response carries a
-    # session cookie + the auto_login=true contract.
-    verify = httpx.post(
-        f"{base_url}{API.VERIFY_EMAIL}", json={"token": token}
-    )
-    expect_response(verify, label="verify-email").status_ok()
-    body = verify.json()
-    assert body.get("auto_login") is True, \
-        f"verify response must include auto_login=true: {body!r}"
-    assert body.get("tenant_slug"), f"verify response missing tenant_slug: {body!r}"
+    with step("действие: verify-email и проверка auto_login"):
+        verify = httpx.post(
+            f"{base_url}{API.VERIFY_EMAIL}", json={"token": token}
+        )
+        expect_response(verify, label="verify-email").status_ok()
+        body = verify.json()
+        assert body.get("auto_login") is True, \
+            f"verify response must include auto_login=true: {body!r}"
+        assert body.get("tenant_slug"), f"verify response missing tenant_slug: {body!r}"
 
-    cookies = dict(verify.cookies)
-    session_cookie = cookies.get("platform_session") or cookies.get("session_id")
-    assert session_cookie, \
-        f"verify-email response must Set-Cookie a session: got {list(cookies)}"
+    with step("проверка: session cookie установлена и /me доступен"):
+        cookies = dict(verify.cookies)
+        session_cookie = cookies.get("platform_session") or cookies.get("session_id")
+        assert session_cookie, \
+            f"verify-email response must Set-Cookie a session: got {list(cookies)}"
 
-    # The cookie alone (no separate login call) should authenticate /me.
-    me = httpx.get(f"{base_url}{API.ACCOUNT_ME}", cookies=cookies)
-    expect_response(me, label="/me after verify").status_ok()
-    assert me.json()["tenant"]["slug"] == body["tenant_slug"], \
-        f"/me slug mismatch: expected {body['tenant_slug']!r}, got {me.json()['tenant']['slug']!r}"
+        me = httpx.get(f"{base_url}{API.ACCOUNT_ME}", cookies=cookies)
+        expect_response(me, label="/me after verify").status_ok()
+        assert me.json()["tenant"]["slug"] == body["tenant_slug"], \
+            f"/me slug mismatch: expected {body['tenant_slug']!r}, got {me.json()['tenant']['slug']!r}"
 
 
 @allure.title("После верификации email создаётся тенант для пользователя")
 def test_signup_then_verify_creates_tenant(page: Page, base_url: str):
     """F-EV-4: after verify, login succeeds and tenant_slug is returned."""
-    email = make_email("verify")
-    signup = SignupPage(page).goto()
-    signup.fill_required(
-        email=email,
-        password=TestConfig.DEFAULT_PASSWORD,
-        full_name="Петр Петров",
-    ).submit()
-    signup.expect_verification_message()
+    with step("подготовка: signup и получение токена"):
+        email = make_email("verify")
+        signup = SignupPage(page).goto()
+        signup.fill_required(
+            email=email,
+            password=TestConfig.DEFAULT_PASSWORD,
+            full_name="Петр Петров",
+        ).submit()
+        signup.expect_verification_message()
 
-    mail = httpx.get(
-        f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email}
-    )
-    expect_response(mail, label="last-email").status_ok()
-    token = re.search(r"token=([\w\-]+)", mail.json()["text_body"]).group(1)
+        mail = httpx.get(
+            f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email}
+        )
+        expect_response(mail, label="last-email").status_ok()
+        m = re.search(r"token=([\w\-]+)", mail.json()["text_body"])
+        assert m is not None, "verify token not found in email body"
+        token = m.group(1)
 
-    VerifyPage(page).open_with_token(token).expect_success()
+    with step("действие: верификация email через UI"):
+        VerifyPage(page).open_with_token(token).expect_success()
 
-    me = httpx.post(
-        f"{base_url}{API.LOGIN}",
-        json={"email": email, "password": TestConfig.DEFAULT_PASSWORD},
-    )
-    expect_response(me, label="login after verify").status_ok()
-    assert me.json()["tenant_slug"], f"no tenant_slug in login response: {me.json()}"
+    with step("проверка: login возвращает tenant_slug"):
+        me = httpx.post(
+            f"{base_url}{API.LOGIN}",
+            json={"email": email, "password": TestConfig.DEFAULT_PASSWORD},
+        )
+        expect_response(me, label="login after verify").status_ok()
+        assert me.json()["tenant_slug"], f"no tenant_slug in login response: {me.json()}"
 
 
 @allure.title("Заполненный honeypot даёт тихий 200 без отправки письма")
@@ -130,26 +139,26 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str):
     We wait for the signup response (no fixed sleep) and assert the
     backend treats it as silent success.
     """
-    email = make_email("bot")
-    page.goto("/signup")
-    # Wave-9: privacy/cross-border объединены с terms_accepted — в форме
-    # один `#agreeTerms`. Honeypot `#website` остался.
-    page.evaluate(
-        f"""
-        document.querySelector('#email').value = {email!r};
-        document.querySelector('#password').value = {TestConfig.DEFAULT_PASSWORD!r};
-        document.querySelector('#website').value = 'http://spam.example.com';
-        document.querySelector('#agreeTerms').checked = true;
-        """
-    )
+    with step("действие: заполнение формы с honeypot и отправка"):
+        email = make_email("bot")
+        page.goto("/signup")
+        page.evaluate(
+            f"""
+            document.querySelector('#email').value = {email!r};
+            document.querySelector('#password').value = {TestConfig.DEFAULT_PASSWORD!r};
+            document.querySelector('#website').value = 'http://spam.example.com';
+            document.querySelector('#agreeTerms').checked = true;
+            """
+        )
 
-    with page.expect_response("**/api/account/signup") as resp_info:
-        page.locator("#signupBtn").click()
-    assert resp_info.value.status == 200, \
-        f"signup with honeypot returned {resp_info.value.status} (expected 200 silent)"
+        with page.expect_response("**/api/account/signup") as resp_info:
+            page.locator("#signupBtn").click()
+        assert resp_info.value.status == 200, \
+            f"signup with honeypot returned {resp_info.value.status} (expected 200 silent)"
 
-    r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
-    expect_response(r, label="honeypot: no email sent").status(404)
+    with step("проверка: письмо не отправлено"):
+        r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
+        expect_response(r, label="honeypot: no email sent").status(404)
 
 
 @allure.title("Одноразовый email отклоняется с ошибкой в поле ввода")
@@ -164,34 +173,38 @@ def test_disposable_email_rejected_inline(page: Page, base_url: str):
     """
     # Intentional non-`e2e.example.com` domain — `mailinator.com` is on the
     # backend's disposable-email blocklist, which is what this test exercises.
-    disposable_email = "spam@mailinator.com"
-    signup = SignupPage(page).goto()
-    signup.fill_required(
-        email=disposable_email,
-        password=TestConfig.DEFAULT_PASSWORD,
-    ).submit()
+    with step("действие: попытка регистрации с одноразовым email"):
+        disposable_email = "spam@mailinator.com"
+        signup = SignupPage(page).goto()
+        signup.fill_required(
+            email=disposable_email,
+            password=TestConfig.DEFAULT_PASSWORD,
+        ).submit()
 
-    email_err = page.locator("#email-err")
-    expect(email_err).not_to_have_text("")
-    expect(page.locator("#email")).to_have_attribute("aria-invalid", "true")
+    with step("проверка: inline-ошибка в поле email и письмо не отправлено"):
+        email_err = page.locator("#email-err")
+        expect(email_err).not_to_have_text("")
+        expect(page.locator("#email")).to_have_attribute("aria-invalid", "true")
 
-    r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": disposable_email})
-    expect_response(r, label="disposable: no email sent").status(404)
+        r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": disposable_email})
+        expect_response(r, label="disposable: no email sent").status(404)
 
 
 @allure.title("Слишком короткий пароль не проходит валидацию формы")
 def test_password_too_short_rejected_inline(page: Page, base_url: str):
     """S-SU-8: password < 8 chars — HTML5 validity blocks submit, no email sent."""
-    email = make_email("shortpw")
-    signup = SignupPage(page).goto()
-    signup.fill_required(
-        email=email,
-        password="123",
-    ).submit()
+    with step("действие: попытка регистрации с коротким паролем"):
+        email = make_email("shortpw")
+        signup = SignupPage(page).goto()
+        signup.fill_required(
+            email=email,
+            password="123",
+        ).submit()
 
-    pwd_valid = page.evaluate("() => document.getElementById('password').checkValidity()")
-    assert pwd_valid is False, \
-        f"password input must fail HTML5 minlength validity, got {pwd_valid!r}"
+    with step("проверка: HTML5 validation не пропускает и письмо не отправлено"):
+        pwd_valid = page.evaluate("() => document.getElementById('password').checkValidity()")
+        assert pwd_valid is False, \
+            f"password input must fail HTML5 minlength validity, got {pwd_valid!r}"
 
-    r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
-    expect_response(r, label="short-pw: no email sent").status(404)
+        r = httpx.get(f"{base_url}{API.TEST_LAST_EMAIL}", params={"to": email})
+        expect_response(r, label="short-pw: no email sent").status(404)

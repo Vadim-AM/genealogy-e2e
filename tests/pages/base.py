@@ -8,6 +8,8 @@ Pattern:
 
 from __future__ import annotations
 
+from typing import Self
+
 from playwright.sync_api import Locator, Page, expect
 
 
@@ -48,7 +50,8 @@ class BasePage:
     def __init__(self, page: Page):
         self.page = page
 
-    def goto(self, *, query: str = "") -> "BasePage":
+    def goto(self, *, query: str = "") -> Self:
+        """Navigate to the page URL and return self for chaining."""
         url = self.URL + (f"?{query}" if query else "")
         self.page.goto(url)
         return self

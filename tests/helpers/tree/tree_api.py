@@ -2,22 +2,27 @@
 
 from __future__ import annotations
 
-import httpx
+from typing import TYPE_CHECKING, Any
 
 from tests.api_paths import API
 from tests.messages import TestData
 
+if TYPE_CHECKING:
+    import httpx
 
-def people(api: httpx.Client) -> list[dict]:
+
+def people(api: httpx.Client) -> list[dict[str, Any]]:
+    """Fetch all people from /api/tree."""
     r = api.get(API.TREE)
     r.raise_for_status()
-    return r.json()["people"]
+    return r.json()["people"]  # type: ignore[no-any-return]
 
 
-def relationships(api: httpx.Client) -> list[dict]:
+def relationships(api: httpx.Client) -> list[dict[str, Any]]:
+    """Fetch all relationships from /api/relationships."""
     r = api.get(API.RELATIONSHIPS)
     r.raise_for_status()
-    return r.json()
+    return r.json()  # type: ignore[no-any-return]
 
 
 def demo_parents_of_self(api: httpx.Client) -> dict[str, str]:
@@ -42,7 +47,7 @@ def demo_parents_of_self(api: httpx.Client) -> dict[str, str]:
     return result
 
 
-def find_person_by_name(api: httpx.Client, *substrings: str) -> dict:
+def find_person_by_name(api: httpx.Client, *substrings: str) -> dict[str, Any]:
     """Find a person whose name contains ALL given substrings. Asserts uniqueness."""
     matches = [
         p for p in people(api)
@@ -56,12 +61,13 @@ def find_person_by_name(api: httpx.Client, *substrings: str) -> dict:
 
 
 def people_count(api: httpx.Client) -> int:
+    """Return the number of people in the tree."""
     r = api.get(API.TREE)
     r.raise_for_status()
     return len(r.json()["people"])
 
 
-def seed_person(api: httpx.Client, *, pid: str, name: str, **extra) -> str:
+def seed_person(api: httpx.Client, *, pid: str, name: str, **extra: Any) -> str:
     """POST /api/people с предсказуемым id (упрощает selectors внутри тестов).
 
     Backend (POST /api/people в main.py) принимает client-supplied id или
@@ -81,4 +87,4 @@ def demo_pid(api: httpx.Client) -> str:
     r.raise_for_status()
     ppl = r.json()["people"]
     assert ppl, "fresh tenant must have demo people seeded"
-    return ppl[0]["id"]
+    return ppl[0]["id"]  # type: ignore[no-any-return]

@@ -11,6 +11,7 @@ import httpx
 from playwright.sync_api import Page, expect
 
 from tests.response import expect_response
+from tests.step import step
 
 
 @allure.title("Конфиг сайта содержит непустую версию приложения")
@@ -30,7 +31,10 @@ def test_footer_version_matches_api_app_version(page: Page, base_url: str):
     Strict equality with the API source-of-truth — catches any new hardcoding,
     not just the original `v2.1.0`.
     """
-    api_version = httpx.get(f"{base_url}/api/site/config").json()["app_version"]
-    page.goto("/")
-    page.wait_for_load_state("domcontentloaded")
-    expect(page.locator('[data-testid="footer-version"]').first).to_have_text(f"v{api_version}")
+    with step("подготовка: получить версию из API"):
+        api_version = httpx.get(f"{base_url}/api/site/config").json()["app_version"]
+
+    with step("проверка: футер показывает ту же версию"):
+        page.goto("/")
+        page.wait_for_load_state("domcontentloaded")
+        expect(page.locator('[data-testid="footer-version"]').first).to_have_text(f"v{api_version}")

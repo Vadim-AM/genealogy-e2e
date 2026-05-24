@@ -27,9 +27,10 @@ import allure
 from playwright.sync_api import Page, expect
 
 from tests.helpers.tree.photos import upload_jpeg
-from tests.messages import Buttons, TestData, t
+from tests.messages import Buttons, t
 from tests.pages.photos_block import PhotosBlock
 from tests.pages.profile_panel import open_editor_for
+from tests.step import step
 
 
 @allure.title("Блок фото отображается в редакторе с кнопкой добавления")
@@ -37,22 +38,24 @@ def test_photos_block_renders_inside_editor(owner_page: Page):
     """TC-08.01 (precondition): `.photos-block` есть в editor'е,
     содержит file-input + label-кнопку «Добавить фото» + drag-drop zone.
     """
-    open_editor_for(owner_page)
-    photos = PhotosBlock(owner_page)
+    with step("действие: открытие редактора"):
+        open_editor_for(owner_page)
+        photos = PhotosBlock(owner_page)
 
-    expect(photos.container).to_be_visible()
-    expect(photos.add_btn).to_be_visible()
-    expect(photos.add_btn).to_contain_text(t(Buttons.ADD))
-    assert photos.add_btn.get_attribute("for") == "photoFileInput", (
-        "label#photoAddBtn должен иметь for=photoFileInput для нативного "
-        "click-to-open-file-chooser flow"
-    )
+    with step("проверка: кнопка добавления и file-input видны"):
+        expect(photos.container).to_be_visible()
+        expect(photos.add_btn).to_be_visible()
+        expect(photos.add_btn).to_contain_text(t(Buttons.ADD))
+        assert photos.add_btn.get_attribute("for") == "photoFileInput", (
+            "label#photoAddBtn должен иметь for=photoFileInput для нативного "
+            "click-to-open-file-chooser flow"
+        )
 
-    assert photos.file_input.count() == 1, "ожидаем ровно один #photoFileInput"
-    accept = photos.file_input.get_attribute("accept")
-    assert accept and "image" in accept, (
-        f"#photoFileInput accept должен фильтровать images; got accept={accept!r}"
-    )
+        assert photos.file_input.count() == 1, "ожидаем ровно один #photoFileInput"
+        accept = photos.file_input.get_attribute("accept")
+        assert accept and "image" in accept, (
+            f"#photoFileInput accept должен фильтровать images; got accept={accept!r}"
+        )
 
 
 @allure.title("Загрузка фото добавляет миниатюру в сетку")
@@ -62,19 +65,18 @@ def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page):
     `.photo-thumb`. Перед upload — `<span>Нет фото</span>` placeholder
     или пустой grid (в зависимости от seed).
     """
-    open_editor_for(owner_page)
-    photos = PhotosBlock(owner_page)
-    initial_thumbs = photos.thumb_count()
+    with step("подготовка: открытие редактора и подсчёт миниатюр"):
+        open_editor_for(owner_page)
+        photos = PhotosBlock(owner_page)
+        initial_thumbs = photos.thumb_count()
 
-    # Wait for upload XHR fulfillment перед thumb-проверкой.
-    with owner_page.expect_response(
+    with step("действие: загрузка JPEG"), owner_page.expect_response(
         lambda r: "/api/admin/upload-photo" in r.url and r.status == 200
     ):
         upload_jpeg(owner_page)
 
-    # После успешного upload JS перерендеривает grid — thumb count
-    # вырастает на 1.
-    photos.expect_thumb_count(initial_thumbs + 1)
+    with step("проверка: миниатюра добавлена в сетку"):
+        photos.expect_thumb_count(initial_thumbs + 1)
 
 
 @allure.title("Удаление фото убирает миниатюру из сетки")
@@ -83,24 +85,22 @@ def test_photo_remove_button_drops_thumb_from_grid(owner_page: Page):
     /api/admin/people/{id} (photos без удалённой) → JS перерендеривает
     grid — thumb count уменьшается обратно.
     """
-    open_editor_for(owner_page)
-    photos = PhotosBlock(owner_page)
-    initial = photos.thumb_count()
+    with step("подготовка: открыть редактор и загрузить фото"):
+        open_editor_for(owner_page)
+        photos = PhotosBlock(owner_page)
+        initial = photos.thumb_count()
 
-    # Сначала добавим фото, чтобы было что удалять. expect_response даёт
-    # backend OK, но render — async; ждём через expect.to_have_count.
-    with owner_page.expect_response(
-        lambda r: "/api/admin/upload-photo" in r.url and r.status == 200
-    ):
-        upload_jpeg(owner_page)
-    photos.expect_thumb_count(initial + 1)
-    after_upload = initial + 1
+        with owner_page.expect_response(
+            lambda r: "/api/admin/upload-photo" in r.url and r.status == 200
+        ):
+            upload_jpeg(owner_page)
+        photos.expect_thumb_count(initial + 1)
+        after_upload = initial + 1
 
-    # Click крестик последнего thumb — JS делает PATCH /api/people/{id}
-    # (см. photos-block.js:289). На backend это hard-delete файла.
-    with owner_page.expect_response(
-        lambda r: re.search(r"/api/people/[^/]+$", r.url) and r.request.method == "PATCH"
+    with step("действие: удалить последнюю миниатюру"), owner_page.expect_response(
+        lambda r: bool(re.search(r"/api/people/[^/]+$", r.url) and r.request.method == "PATCH")
     ):
         photos.remove_last_thumb().click()
 
-    photos.expect_thumb_count(after_upload - 1)
+    with step("проверка: миниатюра убрана из сетки"):
+        photos.expect_thumb_count(after_upload - 1)

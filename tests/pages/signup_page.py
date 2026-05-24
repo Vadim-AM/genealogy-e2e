@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import re
+from typing import Self
 
 from playwright.sync_api import Page, expect
+
+from tests.messages import Buttons, Labels, t
 
 from .base import BasePage
 
@@ -14,28 +17,28 @@ class SignupPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self.email = page.locator("#email")
-        self.password = page.locator("#password")
+        self.email = page.get_by_label(t(Labels.EMAIL))
+        self.password = page.get_by_label(t(Labels.PASSWORD))
         # `full_name` и `birth_year` поля удалены из signup-формы в commit
         # 814d5f8 (feat(signup): убрать поле ФИО — display_name заполняется
         # из карточки). Backend всё ещё принимает их в JSON-теле от API
         # (signup_via_api fixture отправляет full_name через payload), но в
         # UI они отсутствуют. Тесты, использовавшие SignupPage.full_name и
         # .birth_year, должны быть переписаны либо удалены.
-        self.honeypot = page.locator("#website")
+        self.honeypot = page.locator("#website")  # no semantic: hidden honeypot field
         # Stage-0 (RU-бета, Wave-9): отдельные `#agreePrivacy`/`#agreeCrossBorder`
         # удалены из формы — privacy объединён с terms_accepted (см. backend
         # auth_v2/router.py:208-422). Остался один `#agreeTerms` обязательный.
         # API endpoint всё ещё принимает privacy_consent / cross_border_consent
         # / marketing_consent в payload как optional bool (default False),
         # т.е. signup_via_api продолжает работать с 3-field payload.
-        self.agree_terms = page.locator("#agreeTerms")
+        self.agree_terms = page.locator("#agreeTerms")  # no semantic: custom checkbox wrapper
         # Backward-compat (старые тесты используют `.agree` как короткий алиас).
         self.agree = self.agree_terms
-        self.submit_btn = page.locator("#signupBtn")
-        self.password_toggle = page.locator("#pwToggle")
-        self.password_strength = page.locator('[data-testid="signup-pw-meter"]')
-        self.signup_msg = page.locator("#signupMsg")
+        self.submit_btn = page.get_by_role("button", name=t(Buttons.SIGNUP))
+        self.password_toggle = page.locator("#pwToggle")  # no semantic: icon-only toggle
+        self.password_strength = page.locator('[data-testid="signup-pw-meter"]')  # no semantic: custom meter widget
+        self.signup_msg = page.locator("#signupMsg")  # no semantic: no ARIA role
 
     def fill_required(
         self,
@@ -45,7 +48,7 @@ class SignupPage(BasePage):
         full_name: str | None = None,  # accepted for backward-compat, ignored (поле удалено в I4)
         birth_year: int | None = None,  # accepted for backward-compat, ignored
         agree: bool = True,
-    ) -> "SignupPage":
+    ) -> Self:
         """Заполняет минимально-валидную signup форму.
 
         `agree=True` ставит обязательный `#agreeTerms` — без него
@@ -67,7 +70,8 @@ class SignupPage(BasePage):
             self.agree_terms.check()
         return self
 
-    def submit(self) -> "SignupPage":
+    def submit(self) -> Self:
+        """Click the signup submit button."""
         self.submit_btn.click()
         return self
 
@@ -77,6 +81,7 @@ class SignupPage(BasePage):
         expect(self.signup_msg).to_have_class(re.compile(r"\bsuccess\b"))
 
     def expect_visible_form(self) -> None:
+        """Assert email, password and submit button are visible."""
         expect(self.email).to_be_visible()
         expect(self.password).to_be_visible()
         expect(self.submit_btn).to_be_visible()

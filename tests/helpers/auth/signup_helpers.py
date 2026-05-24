@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
-
-from playwright.sync_api import Page, Route
+from typing import TYPE_CHECKING
 
 from tests.constants import TestConfig
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page, Route
 
 
 def mock_signup_overflow(page: Page, *, email: str, subscribed: bool = True) -> None:
@@ -31,6 +33,7 @@ def mock_signup_overflow(page: Page, *, email: str, subscribed: bool = True) -> 
 
 
 def fill_and_submit(page: Page, email: str) -> None:
+    """Fill signup form fields and click submit."""
     page.locator("#email").fill(email)
     page.locator("#password").fill(TestConfig.DEFAULT_PASSWORD)
     # Wave-9: privacy/cross-border объединены с terms_accepted; в форме

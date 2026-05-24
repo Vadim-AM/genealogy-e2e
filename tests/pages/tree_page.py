@@ -7,7 +7,11 @@ Selectors verified against js/views/orbit.js + js/search.js (28.04 review):
 
 from __future__ import annotations
 
+from typing import Self
+
 from playwright.sync_api import Page, expect
+
+from tests.messages import Placeholders, t
 
 from .base import BasePage
 
@@ -21,25 +25,25 @@ class TreePage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self.h1 = page.locator("h1").first
-        self.tab_tree = page.locator('[data-tab="tree"]')
-        self.tab_map = page.locator('[data-tab="map"]')
-        self.tab_sources = page.locator('[data-tab="sources"]')
-        self.tab_timeline = page.locator('[data-tab="timeline"]')
-        self.tab_about = page.locator('[data-tab="about"]')
-        self.search_input = page.locator("#personSearch")
-        self.search_results_container = page.locator("#personSearchResults")
-        self.search_results = self.search_results_container.locator(
+        self.h1 = page.get_by_role("heading", level=1)
+        self.tab_tree = page.locator('[data-tab="tree"]')  # no semantic: switch_tab() uses data-tab
+        self.tab_map = page.locator('[data-tab="map"]')  # no semantic: switch_tab() uses data-tab
+        self.tab_sources = page.locator('[data-tab="sources"]')  # no semantic: switch_tab() uses data-tab
+        self.tab_timeline = page.locator('[data-tab="timeline"]')  # no semantic: switch_tab() uses data-tab
+        self.tab_about = page.locator('[data-tab="about"]')  # no semantic: switch_tab() uses data-tab
+        self.search_input = page.get_by_placeholder(t(Placeholders.SEARCH_TREE))
+        self.search_results_container = page.locator("#personSearchResults")  # no semantic: container div
+        self.search_results = self.search_results_container.locator(  # no semantic: data-testid items
             '[data-testid="search-result-item"]'
         )
-        self.tree_container = page.locator("#treeContainer")
-        self.orbit_cards = self.tree_container.locator('[data-testid="orbit-card"]')
-        self.minimap = page.locator("#minimap")
-        self.branch_legend = page.locator("#branchLegend")
-        self.auth_indicator = page.locator("#authIndicator")
-        self.tour_replay_btn = page.locator("#tourReplayBtn")
+        self.tree_container = page.locator("#treeContainer")  # no semantic: canvas container
+        self.orbit_cards = self.tree_container.locator('[data-testid="orbit-card"]')  # no semantic: custom canvas cards
+        self.minimap = page.locator("#minimap")  # no semantic: custom widget
+        self.branch_legend = page.locator("#branchLegend")  # no semantic: custom widget
+        self.auth_indicator = page.locator("#authIndicator")  # no semantic: custom widget
+        self.tour_replay_btn = page.locator("#tourReplayBtn")  # no semantic: dynamically shown
 
-    def switch_tab(self, tab_name: str) -> "TreePage":
+    def switch_tab(self, tab_name: str) -> Self:
         """Click a tab and wait for the page to settle.
 
         tab_name: 'tree' | 'map' | 'sources' | 'timeline' | 'about'.
@@ -67,7 +71,8 @@ class TreePage(BasePage):
         assert count >= min_cards, \
             f"orbit rendered {count} cards, expected at least {min_cards}"
 
-    def search_person(self, query: str) -> "TreePage":
+    def search_person(self, query: str) -> Self:
+        """Type a search query into the tree search input."""
         self.search_input.fill(query)
         return self
 

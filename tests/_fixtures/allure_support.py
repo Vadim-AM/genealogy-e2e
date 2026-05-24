@@ -10,7 +10,7 @@ from tests.settings import settings
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _allure_environment(tmp_path_factory) -> None:
+def _allure_environment(tmp_path_factory: pytest.TempPathFactory) -> None:
     results_dir = Path("allure-results")
     results_dir.mkdir(exist_ok=True)
     props_path = results_dir / "environment.properties"

@@ -23,6 +23,7 @@ from __future__ import annotations
 import allure
 import pytest
 
+from tests.step import step
 
 _RESERVED_SLUGS = ("admin", "api", "www", "root", "mail", "ftp", "support")
 
@@ -36,14 +37,15 @@ def test_signup_does_not_assign_reserved_slug(signup_via_api, reserved: str):
     напрямую из email local-part); фикс сейчас на dev tip uses
     suffix/blocklist. Тест держит контракт.
     """
-    # Email crafted чтобы deriver выбрал ровно reserved slug —
-    # local-part = reserved word без суффикса.
-    email = f"{reserved}@e2e.example.com"
+    with step(f"действие: signup с email '{reserved}@e2e.example.com'"):
+        # Email crafted чтобы deriver выбрал ровно reserved slug —
+        # local-part = reserved word без суффикса.
+        email = f"{reserved}@e2e.example.com"
+        user = signup_via_api(email=email)
 
-    user = signup_via_api(email=email)
-
-    assert user.slug != reserved, (
-        f"INV-SLUG-001a: tenant slug derived to reserved word {reserved!r}. "
-        f"Subdomain routing → {reserved}.nasharodoslovnaya.ru would belong "
-        f"to this user (phishing/impersonation)."
-    )
+    with step(f"проверка: slug не совпадает с reserved '{reserved}'"):
+        assert user.slug != reserved, (
+            f"INV-SLUG-001a: tenant slug derived to reserved word {reserved!r}. "
+            f"Subdomain routing → {reserved}.nasharodoslovnaya.ru would belong "
+            f"to this user (phishing/impersonation)."
+        )

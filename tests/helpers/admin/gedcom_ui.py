@@ -24,6 +24,7 @@ def import_via_ui(owner_page: Page, ged_content: str, filename: str) -> None:
 
 
 def open_import_tab(owner_page: Page) -> OwnerPage:
+    """Navigate to /owner and open the GEDCOM import tab."""
     owner = OwnerPage(owner_page)
     owner_page.goto("/owner")
     # `networkidle` нужен здесь специально: GEDCOM widget mount'ится async

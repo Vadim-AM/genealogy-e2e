@@ -12,6 +12,8 @@ NB: PR-4 убрала старый ASCII-funnel (`#funnel`) — заменён �
 
 from __future__ import annotations
 
+from typing import Self
+
 from playwright.sync_api import Page, expect
 
 from .base import BasePage
@@ -22,6 +24,8 @@ class PlatformDashboardPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
+        # no semantic: dashboard metrics/widgets are ID-only cells without labels or ARIA roles.
+        # MFA modal inputs have no <label> — stay on IDs. Migrate when upstream adds aria-label.
         # ── Original metric cards (TC-PA-2 contract) ─────────────────
         self.m_tenants = page.locator("#m_tenants")
         self.m_signups = page.locator("#m_signups")
@@ -112,12 +116,14 @@ class PlatformDashboardPage(BasePage):
         self.stepup_cancel = page.locator("#stepup_cancel")
 
     # ── Action helpers ───────────────────────────────────────────────
-    def grant_free_license(self, email: str) -> "PlatformDashboardPage":
+    def grant_free_license(self, email: str) -> Self:
+        """Fill the grant email and click the grant button."""
         self.grant_email.fill(email)
         self.grant_btn.click()
         return self
 
     def soft_check_metrics_loaded(self, soft) -> None:
+        """Soft-assert core metric cards and tenants table are visible."""
         for loc in (self.m_tenants, self.m_signups, self.tenants_table):
             soft(loc).to_be_visible()
 
@@ -141,8 +147,10 @@ class PlatformDashboardPage(BasePage):
             soft(loc).to_be_visible()
 
     def expect_mfa_overlay_open(self) -> None:
+        """Assert the MFA overlay is showing."""
         expect(self.mfa_overlay).to_have_class("mfa-overlay show")
 
     def expect_no_mfa_overlay(self) -> None:
+        """Assert the MFA overlay is not showing."""
         # Когда MFA пройден / отключён — overlay не должен иметь класс show
         expect(self.mfa_overlay).not_to_have_class("mfa-overlay show")

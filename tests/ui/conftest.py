@@ -1,13 +1,18 @@
 """UI domain fixtures — viewport-specific page factories."""
 from __future__ import annotations
 
-from collections.abc import Iterator
+import contextlib
+from typing import TYPE_CHECKING
 
 import allure
 import pytest
-from playwright.sync_api import Browser, BrowserContext, Page
 
 from tests.helpers.ui.viewport import make_page
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from playwright.sync_api import Browser, Page
 
 
 @pytest.fixture
@@ -19,10 +24,8 @@ def mobile_page(request, browser: Browser, base_url: str) -> Iterator[Page]:
     try:
         yield page
     finally:
-        try:
+        with contextlib.suppress(StopIteration):
             next(gen)
-        except StopIteration:
-            pass
 
 
 @pytest.fixture
@@ -61,8 +64,6 @@ def tablet_owner_page(
                 extension="zip",
             )
     else:
-        try:
+        with contextlib.suppress(Exception):
             ctx.tracing.stop()
-        except Exception:
-            pass
     ctx.close()

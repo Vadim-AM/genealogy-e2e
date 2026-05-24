@@ -12,9 +12,11 @@ import itself triggers the patch — there is no fixture to depend on.
 
 from __future__ import annotations
 
+import contextlib
 import itertools
 import os
 import threading
+from typing import Any
 
 import httpx
 
@@ -44,6 +46,7 @@ _XDIST_WORKER = os.environ.get("PYTEST_XDIST_WORKER")  # "gw3" | None
 
 
 def _worker_octet() -> int:
+    """Extract numeric worker index from PYTEST_XDIST_WORKER and wrap to 0-255."""
     digits = "".join(c for c in (_XDIST_WORKER or "") if c.isdigit())
     return (int(digits) if digits else 0) % 256
 
@@ -76,7 +79,7 @@ def _origin_for(client_base_url: str, request_url: str) -> str:
     return f"{scheme}://{host}"
 
 
-def _patched_request(self, method, url, **kwargs):
+def _patched_request(self: httpx.Client, method: str, url: object, **kwargs: Any) -> httpx.Response:
     """Inject suite-required headers into every httpx-request:
 
     1. `X-Test-Token` for `/api/_test/*` — bypasses test-endpoint gate.
@@ -104,17 +107,15 @@ def _patched_request(self, method, url, **kwargs):
         xff = getattr(self, "_e2e_xff", None)
         if xff is None:
             xff = _next_synthetic_xff()
-            try:
-                self._e2e_xff = xff
-            except Exception:
-                pass
+            with contextlib.suppress(Exception):
+                self._e2e_xff = xff  # type: ignore[attr-defined]
         headers.setdefault("X-Forwarded-For", xff)
 
     kwargs["headers"] = headers
-    return _orig_httpx_request(self, method, url, **kwargs)
+    return _orig_httpx_request(self, method, url, **kwargs)  # type: ignore[arg-type]
 
 
-httpx.Client.request = _patched_request
+httpx.Client.request = _patched_request  # type: ignore[method-assign]
 
 # Apply the timeout multiplier to Playwright's `expect()` once per session.
 set_playwright_default_expect_timeout()

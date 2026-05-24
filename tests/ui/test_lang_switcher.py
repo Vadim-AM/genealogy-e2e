@@ -17,8 +17,14 @@ persist).
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
-from playwright.sync_api import Page, expect
+
+from tests.step import step
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Page
 
 
 @allure.title("Язык: переключатель языка скрыт пока доступен только RU")
@@ -34,23 +40,25 @@ def test_lang_switcher_containers_are_hidden_when_only_one_language(page: Page):
     (init.js + footer init), поэтому оба контейнера должны быть скрыты.
     Селектор по классу — устойчив к этой особенности.
     """
-    page.goto("/")
-    page.wait_for_load_state("domcontentloaded")
+    with step("действие: открыть главную и найти lang-switcher контейнеры"):
+        page.goto("/")
+        page.wait_for_load_state("domcontentloaded")
 
-    containers = page.locator('[data-testid="lang-switcher"]').all()
-    assert containers, 'не найдено ни одного [data-testid="lang-switcher"] container на /'
+        containers = page.locator('[data-testid="lang-switcher"]').all()
+        assert containers, 'не найдено ни одного [data-testid="lang-switcher"] container на /'
 
-    for idx, container in enumerate(containers):
-        inner_html = container.evaluate("(el) => el.innerHTML.trim()")
-        display = container.evaluate("(el) => getComputedStyle(el).display")
-        assert inner_html == "", (
-            f'[data-testid="lang-switcher"][{idx}] должен быть пустым при '
-            f"_LOCALE_PUBLIC_RELEASE=false; innerHTML={inner_html[:80]!r}"
-        )
-        assert display == "none", (
-            f'[data-testid="lang-switcher"][{idx}] должен быть display:none пока '
-            f"мультиязычность не включена; computed display={display!r}"
-        )
+    with step("проверка: все контейнеры пусты и скрыты"):
+        for idx, container in enumerate(containers):
+            inner_html = container.evaluate("(el) => el.innerHTML.trim()")
+            display = container.evaluate("(el) => getComputedStyle(el).display")
+            assert inner_html == "", (
+                f'[data-testid="lang-switcher"][{idx}] должен быть пустым при '
+                f"_LOCALE_PUBLIC_RELEASE=false; innerHTML={inner_html[:80]!r}"
+            )
+            assert display == "none", (
+                f'[data-testid="lang-switcher"][{idx}] должен быть display:none пока '
+                f"мультиязычность не включена; computed display={display!r}"
+            )
 
 
 @allure.title("Язык: атрибут html lang всегда равен ru")
@@ -58,13 +66,16 @@ def test_html_lang_attribute_is_ru(page: Page):
     """initLang() форс-резолвит в 'ru' (igноривает localStorage / navigator).
     Это контракт: пока локализация отложена, документ всегда RU.
     """
-    page.goto("/")
-    page.wait_for_load_state("domcontentloaded")
-    html_lang = page.evaluate("() => document.documentElement.lang")
-    assert html_lang == "ru", (
-        f"document.documentElement.lang должен быть 'ru' пока "
-        f"_LOCALE_PUBLIC_RELEASE=false; got {html_lang!r}"
-    )
+    with step("действие: открыть главную"):
+        page.goto("/")
+        page.wait_for_load_state("domcontentloaded")
+
+    with step("проверка: html lang равен ru"):
+        html_lang = page.evaluate("() => document.documentElement.lang")
+        assert html_lang == "ru", (
+            f"document.documentElement.lang должен быть 'ru' пока "
+            f"_LOCALE_PUBLIC_RELEASE=false; got {html_lang!r}"
+        )
 
 
 @allure.title("Язык: localStorage с en не переключает UI на английский")
@@ -77,13 +88,17 @@ def test_localstorage_genealogy_lang_seed_does_not_change_active_lang(page: Page
     должна включать EN — иначе пользователь увидит частично-переведённую
     версию (BUG-008).
     """
-    # Pre-seed localStorage ДО навигации, через init script
-    page.add_init_script("try { localStorage.setItem('genealogy_lang', 'en'); } catch (e) {}")
-    page.goto("/")
-    page.wait_for_load_state("domcontentloaded")
+    with step("подготовка: засеять localStorage с en"):
+        # Pre-seed localStorage ДО навигации, через init script
+        page.add_init_script("try { localStorage.setItem('genealogy_lang', 'en'); } catch (e) {}")
 
-    html_lang = page.evaluate("() => document.documentElement.lang")
-    assert html_lang == "ru", (
-        f"localStorage.genealogy_lang='en' не должен переключать lang пока "
-        f"_LOCALE_PUBLIC_RELEASE=false; got {html_lang!r}"
-    )
+    with step("действие: открыть главную"):
+        page.goto("/")
+        page.wait_for_load_state("domcontentloaded")
+
+    with step("проверка: язык остался ru"):
+        html_lang = page.evaluate("() => document.documentElement.lang")
+        assert html_lang == "ru", (
+            f"localStorage.genealogy_lang='en' не должен переключать lang пока "
+            f"_LOCALE_PUBLIC_RELEASE=false; got {html_lang!r}"
+        )
