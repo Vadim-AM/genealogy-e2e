@@ -595,28 +595,33 @@ The helpers module becomes unnecessary when POM covers all interactions.
 
 ### 37. Locators as `@property`, not `self.xxx =` in `__init__`
 
-Playwright best practice (and account_ui_autotests pattern): every
-locator is a `@property` method, not an `__init__` assignment. Lazy
-evaluation — locator is created on access, not on POM construction.
+Playwright best practice: every locator is a `@property`, not an
+`__init__` assignment. Lazy evaluation — re-queries DOM on each access.
 
 ```python
-# bad — eager, all locators created at __init__
-class TreePage(BasePage):
-    def __init__(self, page):
-        super().__init__(page)
-        self.h1 = page.get_by_role("heading", level=1)
-        self.tab_map = page.locator('[data-tab="map"]')
+# bad — eager
+def __init__(self, page):
+    self.tab_map = page.locator('[data-tab="map"]')
 
-# good — lazy @property, Playwright re-evaluates on each access
-class TreePage(BasePage):
-    @property
-    def h1(self) -> Locator:
-        return self.page.get_by_role("heading", level=1)
-
-    @property
-    def tab_map(self) -> Locator:
-        return self.page.locator('[data-tab="map"]')  # no semantic: data-tab
+# good — lazy @property
+@property
+def tab_map(self) -> Locator:
+    return self.page.locator('[data-tab="map"]')
 ```
+
+Reusable selector strings → module/class constants with `.format()`:
+```python
+_CS_TRIGGER = '[data-testid="custom-select-trigger"]'
+_CS_OPTION = '[data-testid="custom-select-option"][data-value="{}"]'
+
+def select_dropdown(self, field, value):
+    custom = custom_select_for(self.page, field)
+    custom.locator(_CS_TRIGGER).click()
+    custom.locator(_CS_OPTION.format(value)).click()
+```
+
+**Zero inline locator strings in POM methods** — only in `@property`
+return statements and `.format()` templates.
 
 Methods that use locators reference `self.xxx` — the `@property`
 evaluates lazily. No inline `self.page.locator(...)` in methods.
