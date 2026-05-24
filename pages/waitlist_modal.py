@@ -24,10 +24,26 @@ class WaitlistModal:
 
     def __init__(self, page: Page):
         self.page = page
-        self.overlay = page.locator("#waitlistOverlay")  # no semantic: custom widget, no ARIA
-        self.title = page.locator("#waitlistTitle")  # no semantic: custom widget, no ARIA
-        self.body = page.locator("#waitlistBody2")  # no semantic: dynamic content, no ARIA
-        self.btn_ok = page.locator("#waitlistOk")  # no semantic: custom widget, no ARIA
+
+    @property
+    def overlay(self) -> Locator:
+        """no semantic: custom widget, no ARIA"""
+        return self.page.locator("#waitlistOverlay")
+
+    @property
+    def title(self) -> Locator:
+        """no semantic: custom widget, no ARIA"""
+        return self.page.locator("#waitlistTitle")
+
+    @property
+    def body(self) -> Locator:
+        """no semantic: dynamic content, no ARIA"""
+        return self.page.locator("#waitlistBody2")
+
+    @property
+    def btn_ok(self) -> Locator:
+        """no semantic: custom widget, no ARIA"""
+        return self.page.locator("#waitlistOk")
 
     def expect_open(self) -> None:
         """Assert the waitlist overlay has the is-open class."""

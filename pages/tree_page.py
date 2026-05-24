@@ -31,51 +31,155 @@ class TreePage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self.h1 = page.get_by_role("heading", level=1)
-        self.tab_tree = page.locator('[data-tab="tree"]')  # no semantic: switch_tab() uses data-tab
-        self.tab_map = page.locator('[data-tab="map"]')  # no semantic: switch_tab() uses data-tab
-        self.tab_sources = page.locator('[data-tab="sources"]')  # no semantic: switch_tab() uses data-tab
-        self.tab_timeline = page.locator('[data-tab="timeline"]')  # no semantic: switch_tab() uses data-tab
-        self.tab_about = page.locator('[data-tab="about"]')  # no semantic: switch_tab() uses data-tab
-        self.search_input = page.get_by_placeholder(t(Placeholders.SEARCH_TREE))
-        self.search_results_container = page.locator("#personSearchResults")  # no semantic: container div
-        self.search_results = self.search_results_container.locator(  # no semantic: data-testid items
-            '[data-testid="search-result-item"]'
-        )
-        self.tree_container = page.locator("#treeContainer")  # no semantic: canvas container
-        self.orbit_cards = self.tree_container.locator('[data-testid="orbit-card"]')  # no semantic: custom canvas cards
-        self.minimap = page.locator("#minimap")  # no semantic: custom widget
-        self.branch_legend = page.locator("#branchLegend")  # no semantic: custom widget
-        self.auth_indicator = page.locator("#authIndicator")  # no semantic: custom widget
-        self.tour_replay_btn = page.locator("#tourReplayBtn")  # no semantic: dynamically shown
-        # no semantic: canvas card, no ARIA
-        self.orbit_center = self.tree_container.locator('[data-testid="orbit-center-card"]')
-        # no semantic: auth UI elements, no ARIA roles
-        self.auth_user_name = self.auth_indicator.locator('[data-testid="auth-user-name"]')
-        self.logout_btn = self.auth_indicator.locator('a[data-action="logout"]')
-        self.login_link = page.locator('#authIndicator a[href="/login"]')
 
-        # ── Tab content locators ────────────────────────────────────────
-        # no semantic: tab without role="tab"; decorative element
-        self.sources_footer_ornament = page.locator('#tab-sources [data-testid="footer-ornament"]')
-        # no semantic: decorative element
-        self.timeline_footer_ornament = page.locator('#tab-timeline [data-testid="footer-ornament"]')
-        # no semantic: custom filter, no button role
-        self.river_filters = page.locator('#riverFilters button[data-testid^="river-filter"]')
-        # no semantic: input without label
-        self.sources_search = page.locator("#evidenceSearch")
-        # no semantic: custom filter button
-        self.sources_filter_all = page.locator('.filter-btn[data-filter="all"]')
-        # no semantic: content container
-        self.about_placeholder = page.locator('[data-config-empty="about_text"]')
-        # no semantic: content container
-        self.contact_text = page.locator('[data-testid="contact-text"]')
-        # no semantic: content container
-        self.contact_email = page.locator('[data-testid="contact-email"]')
-        # no semantic: placeholder container
-        self.contact_box_placeholder = page.locator("#contactBoxPlaceholder")
-        # no semantic: content card, no ARIA
-        self.about_beta_card = page.locator("#aboutBetaCard")
+    # ── Locator properties ──────────────────────────────────────────
+
+    @property
+    def h1(self) -> Locator:
+        """Заголовок h1."""
+        return self.page.get_by_role("heading", level=1)
+
+    @property
+    def tab_tree(self) -> Locator:
+        """no semantic: switch_tab() uses data-tab"""
+        return self.page.locator('[data-tab="tree"]')
+
+    @property
+    def tab_map(self) -> Locator:
+        """no semantic: switch_tab() uses data-tab"""
+        return self.page.locator('[data-tab="map"]')
+
+    @property
+    def tab_sources(self) -> Locator:
+        """no semantic: switch_tab() uses data-tab"""
+        return self.page.locator('[data-tab="sources"]')
+
+    @property
+    def tab_timeline(self) -> Locator:
+        """no semantic: switch_tab() uses data-tab"""
+        return self.page.locator('[data-tab="timeline"]')
+
+    @property
+    def tab_about(self) -> Locator:
+        """no semantic: switch_tab() uses data-tab"""
+        return self.page.locator('[data-tab="about"]')
+
+    @property
+    def search_input(self) -> Locator:
+        """Поле поиска по дереву."""
+        return self.page.get_by_placeholder(t(Placeholders.SEARCH_TREE))
+
+    @property
+    def search_results_container(self) -> Locator:
+        """no semantic: container div"""
+        return self.page.locator("#personSearchResults")
+
+    @property
+    def search_results(self) -> Locator:
+        """no semantic: data-testid items"""
+        return self.search_results_container.locator('[data-testid="search-result-item"]')
+
+    @property
+    def tree_container(self) -> Locator:
+        """no semantic: canvas container"""
+        return self.page.locator("#treeContainer")
+
+    @property
+    def orbit_cards(self) -> Locator:
+        """no semantic: custom canvas cards"""
+        return self.tree_container.locator('[data-testid="orbit-card"]')
+
+    @property
+    def minimap(self) -> Locator:
+        """no semantic: custom widget"""
+        return self.page.locator("#minimap")
+
+    @property
+    def branch_legend(self) -> Locator:
+        """no semantic: custom widget"""
+        return self.page.locator("#branchLegend")
+
+    @property
+    def auth_indicator(self) -> Locator:
+        """no semantic: custom widget"""
+        return self.page.locator("#authIndicator")
+
+    @property
+    def tour_replay_btn(self) -> Locator:
+        """no semantic: dynamically shown"""
+        return self.page.locator("#tourReplayBtn")
+
+    @property
+    def orbit_center(self) -> Locator:
+        """no semantic: canvas card, no ARIA"""
+        return self.tree_container.locator('[data-testid="orbit-center-card"]')
+
+    @property
+    def auth_user_name(self) -> Locator:
+        """no semantic: auth UI elements, no ARIA roles"""
+        return self.auth_indicator.locator('[data-testid="auth-user-name"]')
+
+    @property
+    def logout_btn(self) -> Locator:
+        """no semantic: auth UI elements, no ARIA roles"""
+        return self.auth_indicator.locator('a[data-action="logout"]')
+
+    @property
+    def login_link(self) -> Locator:
+        """no semantic: auth login link"""
+        return self.page.locator('#authIndicator a[href="/login"]')
+
+    # ── Tab content locators ────────────────────────────────────────
+
+    @property
+    def sources_footer_ornament(self) -> Locator:
+        """no semantic: tab without role="tab"; decorative element"""
+        return self.page.locator('#tab-sources [data-testid="footer-ornament"]')
+
+    @property
+    def timeline_footer_ornament(self) -> Locator:
+        """no semantic: decorative element"""
+        return self.page.locator('#tab-timeline [data-testid="footer-ornament"]')
+
+    @property
+    def river_filters(self) -> Locator:
+        """no semantic: custom filter, no button role"""
+        return self.page.locator('#riverFilters button[data-testid^="river-filter"]')
+
+    @property
+    def sources_search(self) -> Locator:
+        """no semantic: input without label"""
+        return self.page.locator("#evidenceSearch")
+
+    @property
+    def sources_filter_all(self) -> Locator:
+        """no semantic: custom filter button"""
+        return self.page.locator('.filter-btn[data-filter="all"]')
+
+    @property
+    def about_placeholder(self) -> Locator:
+        """no semantic: content container"""
+        return self.page.locator('[data-config-empty="about_text"]')
+
+    @property
+    def contact_text(self) -> Locator:
+        """no semantic: content container"""
+        return self.page.locator('[data-testid="contact-text"]')
+
+    @property
+    def contact_email(self) -> Locator:
+        """no semantic: content container"""
+        return self.page.locator('[data-testid="contact-email"]')
+
+    @property
+    def contact_box_placeholder(self) -> Locator:
+        """no semantic: placeholder container"""
+        return self.page.locator("#contactBoxPlaceholder")
+
+    @property
+    def about_beta_card(self) -> Locator:
+        """no semantic: content card, no ARIA"""
+        return self.page.locator("#aboutBetaCard")
 
     # ── Сценарные методы (auth state) ─────────────────────────────────
 

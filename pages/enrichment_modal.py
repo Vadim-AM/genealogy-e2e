@@ -27,24 +27,60 @@ class EnrichmentModal:
 
     def __init__(self, page: Page):
         self.page = page
-        self.overlay = page.locator('[data-testid="enrich-overlay"]')  # no semantic: enrichment overlay, no ARIA
-        # no semantic: enrichment overlay, no ARIA
-        self.container = self.overlay.locator('[data-testid="enrich-modal"]')
-        self.title = self.container.locator("#enrich-title")  # no semantic: AI result container
-        # no semantic: enrichment overlay, no ARIA
-        self.btn_close = self.container.locator('[data-testid="enrich-close"]')
-        self.stages_container = self.container.locator("#enrichStages")  # no semantic: AI result container
-        self.heartbeat = self.container.locator("#enrichHeartbeat")  # no semantic: AI result container
 
-        # Result sections (visible after job completes)
-        # no semantic: AI result container
-        self.result_body = self.container.locator('[data-testid="enrich-result-body"]')
-        # no semantic: AI result container
-        self.archives = self.result_body.locator('[data-testid="enrich-archive-item"]')
-        # no semantic: AI result container
-        self.archive_names = self.archives.locator('[data-testid="enrich-archive-name"]')
-        # no semantic: AI result container
-        self.hypotheses = self.result_body.locator('[data-testid="enrich-hypothesis"]')
+    # ── Locator properties ──────────────────────────────────────────
+
+    @property
+    def overlay(self) -> Locator:
+        """no semantic: enrichment overlay, no ARIA"""
+        return self.page.locator('[data-testid="enrich-overlay"]')
+
+    @property
+    def container(self) -> Locator:
+        """no semantic: enrichment modal dialog"""
+        return self.overlay.locator('[data-testid="enrich-modal"]')
+
+    @property
+    def title(self) -> Locator:
+        """no semantic: AI result container"""
+        return self.container.locator("#enrich-title")
+
+    @property
+    def btn_close(self) -> Locator:
+        """no semantic: enrichment close button"""
+        return self.container.locator('[data-testid="enrich-close"]')
+
+    @property
+    def stages_container(self) -> Locator:
+        """no semantic: AI progress stages container"""
+        return self.container.locator("#enrichStages")
+
+    @property
+    def heartbeat(self) -> Locator:
+        """no semantic: AI live progress indicator"""
+        return self.container.locator("#enrichHeartbeat")
+
+    # Result sections (visible after job completes)
+
+    @property
+    def result_body(self) -> Locator:
+        """no semantic: AI result body"""
+        return self.container.locator('[data-testid="enrich-result-body"]')
+
+    @property
+    def archives(self) -> Locator:
+        """no semantic: AI archive items"""
+        return self.result_body.locator('[data-testid="enrich-archive-item"]')
+
+    @property
+    def archive_names(self) -> Locator:
+        """no semantic: AI archive name labels"""
+        return self.archives.locator('[data-testid="enrich-archive-name"]')
+
+    @property
+    def hypotheses(self) -> Locator:
+        """no semantic: AI hypothesis items"""
+        return self.result_body.locator('[data-testid="enrich-hypothesis"]')
 
     def expect_open(self) -> None:
         """Assert the enrichment modal is visible."""

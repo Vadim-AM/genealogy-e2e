@@ -49,22 +49,53 @@ class ProfilePanel:
 
     def __init__(self, page: Page):
         self.page = page
-        self.container = page.locator('[data-testid="profile-page"]')
-        self.title = page.locator('[data-testid="profile-section-title"]')
 
-        # Action buttons via accessible role + name from the catalogue.
-        # Robust to onclick→data-action refactors and locale changes.
-        self.btn_edit = page.get_by_role("button", name=t(Buttons.EDIT), exact=False)
-        self.btn_enrich = page.get_by_role("button", name=t(Buttons.ENRICH), exact=False)
-        self.btn_back = page.locator('[data-testid="profile-back"]')
+    # ── Locator properties ──────────────────────────────────────────
 
-        self.btn_enrich_disabled = page.locator(
-            f'button:has-text("{t(Enrichment.COMING_SOON)}")'
-        )
-        # no semantic: data-action filter
-        self.btn_enrich_active = page.locator('button[data-action="enrich"]:not([disabled])')
-        self.history_block = page.locator("#profileAiHistory")  # no semantic: container
-        self.accepted_facts_block = page.locator("#profileAiAccepted")  # no semantic: container
+    @property
+    def container(self) -> Locator:
+        """no semantic: profile page container"""
+        return self.page.locator('[data-testid="profile-page"]')
+
+    @property
+    def title(self) -> Locator:
+        """no semantic: profile section title"""
+        return self.page.locator('[data-testid="profile-section-title"]')
+
+    @property
+    def btn_edit(self) -> Locator:
+        """Кнопка редактирования профиля."""
+        return self.page.get_by_role("button", name=t(Buttons.EDIT), exact=False)
+
+    @property
+    def btn_enrich(self) -> Locator:
+        """Кнопка запуска AI-поиска."""
+        return self.page.get_by_role("button", name=t(Buttons.ENRICH), exact=False)
+
+    @property
+    def btn_back(self) -> Locator:
+        """no semantic: profile back button"""
+        return self.page.locator('[data-testid="profile-back"]')
+
+    @property
+    def btn_enrich_disabled(self) -> Locator:
+        """Кнопка обогащения в отключённом состоянии."""
+        return self.page.locator(f'button:has-text("{t(Enrichment.COMING_SOON)}")')
+
+    @property
+    def btn_enrich_active(self) -> Locator:
+        """no semantic: data-action filter"""
+        return self.page.locator('button[data-action="enrich"]:not([disabled])')
+
+    @property
+    def history_block(self) -> Locator:
+        """no semantic: AI history container"""
+        return self.page.locator("#profileAiHistory")
+
+    @property
+    def accepted_facts_block(self) -> Locator:
+        """no semantic: AI accepted facts container"""
+        return self.page.locator("#profileAiAccepted")
 
     def expect_visible(self) -> None:
         """Assert the profile container is visible."""

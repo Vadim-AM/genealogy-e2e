@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Self
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 from .base import BasePage
 
@@ -16,45 +16,151 @@ class OwnerPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self.tab_settings = page.locator('[data-tab="settings"]')  # no semantic: programmatic tab switching
-        self.tab_invites = page.locator('[data-tab="invites"]')  # no semantic: programmatic tab switching
-        self.tab_export = page.locator('[data-tab="export"]')  # no semantic: programmatic tab switching
-        self.tab_subscription = page.locator('[data-tab="subscription"]')  # no semantic: programmatic tab switching
-        self.tab_danger = page.locator('[data-tab="danger"]')  # no semantic: programmatic tab switching
 
-        # Settings tab inputs — labels are siblings without for=, get_by_label doesn't match.
-        self.cfg_site_name = page.locator("#cfg_site_name")  # no semantic: <label> is sibling, not wrapper
-        self.cfg_family_name = page.locator("#cfg_family_name")  # no semantic: <label> is sibling
-        self.cfg_regions = page.locator("#cfg_regions")  # no semantic: <label> is sibling
-        self.cfg_contact_email = page.locator("#cfg_contact_email")  # no semantic: <label> is sibling
-        self.cfg_about_text = page.locator("#cfg_about_text")  # no semantic: <label> is sibling
-        self.cfg_save = page.locator("#cfgSave")  # no semantic: button text may change
+    # ── Tabs ──────────────────────────────────────────────────────────
 
-        # Invite tab locators omitted — invite flow is exercised via API
-        # fixtures (create_invite / accept_invite in _fixtures/users.py).
-        # UI locators to be added when product exposes `data-invite-url`.
+    @property
+    def tab_settings(self) -> Locator:
+        """no semantic: programmatic tab switching"""
+        return self.page.locator('[data-tab="settings"]')
 
-        # GEDCOM Import widget (Фаза 2). Стабильные хуки —
-        # data-action и data-gedcom-* атрибуты, не текстовые селекторы.
-        self.import_root = page.locator("#gedcomImportRoot")
-        self.import_file_input = self.import_root.locator("#gedcomImportFile")
-        self.import_upload_btn = self.import_root.locator('[data-action="gedcom-upload"]')
-        self.import_confirm_btn = self.import_root.locator('[data-action="gedcom-confirm"]')
-        self.import_cancel_btn = self.import_root.locator('[data-action="gedcom-cancel"]')
-        self.import_retry_btn = self.import_root.locator('[data-action="gedcom-retry"]')
-        self.import_again_btn = self.import_root.locator('[data-action="gedcom-import-again"]')
-        self.import_open_tree_btn = self.import_root.locator(
-            '[data-action="gedcom-open-tree"]'
-        )
-        self.import_stats = self.import_root.locator("[data-gedcom-stats]")
-        self.import_encoding_badge = self.import_root.locator("[data-gedcom-encoding]")
-        self.import_summary = self.import_root.locator("[data-gedcom-summary]")
-        self.import_error = self.import_root.locator("[data-gedcom-error]")
-        # confirmDialog overlay live на body — не внутри import_root
-        self.confirm_dialog = page.locator('[data-testid="confirm-dialog-backdrop"]')
-        self.confirm_dialog_confirm = self.confirm_dialog.locator('[data-act="confirm"]')
-        self.confirm_dialog_cancel = self.confirm_dialog.locator('[data-act="cancel"]')
-        self.confirm_dialog_ok = self.confirm_dialog.locator('[data-act="ok"]')  # alertDialog
+    @property
+    def tab_invites(self) -> Locator:
+        """no semantic: programmatic tab switching"""
+        return self.page.locator('[data-tab="invites"]')
+
+    @property
+    def tab_export(self) -> Locator:
+        """no semantic: programmatic tab switching"""
+        return self.page.locator('[data-tab="export"]')
+
+    @property
+    def tab_subscription(self) -> Locator:
+        """no semantic: programmatic tab switching"""
+        return self.page.locator('[data-tab="subscription"]')
+
+    @property
+    def tab_danger(self) -> Locator:
+        """no semantic: programmatic tab switching"""
+        return self.page.locator('[data-tab="danger"]')
+
+    # ── Settings tab inputs ───────────────────────────────────────────
+
+    @property
+    def cfg_site_name(self) -> Locator:
+        """no semantic: <label> is sibling, not wrapper"""
+        return self.page.locator("#cfg_site_name")
+
+    @property
+    def cfg_family_name(self) -> Locator:
+        """no semantic: <label> is sibling"""
+        return self.page.locator("#cfg_family_name")
+
+    @property
+    def cfg_regions(self) -> Locator:
+        """no semantic: <label> is sibling"""
+        return self.page.locator("#cfg_regions")
+
+    @property
+    def cfg_contact_email(self) -> Locator:
+        """no semantic: <label> is sibling"""
+        return self.page.locator("#cfg_contact_email")
+
+    @property
+    def cfg_about_text(self) -> Locator:
+        """no semantic: <label> is sibling"""
+        return self.page.locator("#cfg_about_text")
+
+    @property
+    def cfg_save(self) -> Locator:
+        """no semantic: button text may change"""
+        return self.page.locator("#cfgSave")
+
+    # ── GEDCOM Import widget ─────────────────────────────────────────
+
+    @property
+    def import_root(self) -> Locator:
+        """no semantic: import widget container"""
+        return self.page.locator("#gedcomImportRoot")
+
+    @property
+    def import_file_input(self) -> Locator:
+        """no semantic: file input within import widget"""
+        return self.import_root.locator("#gedcomImportFile")
+
+    @property
+    def import_upload_btn(self) -> Locator:
+        """no semantic: button identified by data-action"""
+        return self.import_root.locator('[data-action="gedcom-upload"]')
+
+    @property
+    def import_confirm_btn(self) -> Locator:
+        """no semantic: button identified by data-action"""
+        return self.import_root.locator('[data-action="gedcom-confirm"]')
+
+    @property
+    def import_cancel_btn(self) -> Locator:
+        """no semantic: button identified by data-action"""
+        return self.import_root.locator('[data-action="gedcom-cancel"]')
+
+    @property
+    def import_retry_btn(self) -> Locator:
+        """no semantic: button identified by data-action"""
+        return self.import_root.locator('[data-action="gedcom-retry"]')
+
+    @property
+    def import_again_btn(self) -> Locator:
+        """no semantic: button identified by data-action"""
+        return self.import_root.locator('[data-action="gedcom-import-again"]')
+
+    @property
+    def import_open_tree_btn(self) -> Locator:
+        """no semantic: button identified by data-action"""
+        return self.import_root.locator('[data-action="gedcom-open-tree"]')
+
+    @property
+    def import_stats(self) -> Locator:
+        """no semantic: stats display, no ARIA"""
+        return self.import_root.locator("[data-gedcom-stats]")
+
+    @property
+    def import_encoding_badge(self) -> Locator:
+        """no semantic: encoding badge, no ARIA"""
+        return self.import_root.locator("[data-gedcom-encoding]")
+
+    @property
+    def import_summary(self) -> Locator:
+        """no semantic: summary display, no ARIA"""
+        return self.import_root.locator("[data-gedcom-summary]")
+
+    @property
+    def import_error(self) -> Locator:
+        """no semantic: error display, no ARIA"""
+        return self.import_root.locator("[data-gedcom-error]")
+
+    # ── Confirm dialog (lives on body, not inside import_root) ────────
+
+    @property
+    def confirm_dialog(self) -> Locator:
+        """no semantic: dialog backdrop, no ARIA"""
+        return self.page.locator('[data-testid="confirm-dialog-backdrop"]')
+
+    @property
+    def confirm_dialog_confirm(self) -> Locator:
+        """no semantic: confirm action button"""
+        return self.confirm_dialog.locator('[data-act="confirm"]')
+
+    @property
+    def confirm_dialog_cancel(self) -> Locator:
+        """no semantic: cancel action button"""
+        return self.confirm_dialog.locator('[data-act="cancel"]')
+
+    @property
+    def confirm_dialog_ok(self) -> Locator:
+        """no semantic: alertDialog ok button"""
+        return self.confirm_dialog.locator('[data-act="ok"]')
+
+    # ── Methods ───────────────────────────────────────────────────────
 
     def open_tab(self, name: str) -> Self:
         """Click a tab by its data-tab name."""
@@ -82,7 +188,7 @@ class OwnerPage(BasePage):
             soft(self.page.locator(f'[data-tab="{tab}"]')).to_be_visible()
 
     # ──────────────────────────────────────────────────────────────────
-    # GEDCOM Import widget helpers (Фаза 2)
+    # GEDCOM Import widget helpers
     # ──────────────────────────────────────────────────────────────────
 
     def expect_import_state(self, state: str) -> None:
@@ -104,10 +210,10 @@ class OwnerPage(BasePage):
         self.import_upload_btn.click()
 
     def confirm_import_via_dialog(self) -> None:
-        """Click widget's Confirm → confirmDialog appears → click Импортировать.
+        """Click widget's Confirm -> confirmDialog appears -> click Confirm.
 
-        Two-stage gate by design (Фаза 2): widget triggers confirmDialog
-        перед записью в БД.
+        Two-stage gate by design: widget triggers confirmDialog before
+        writing to DB.
         """
         self.import_confirm_btn.click()
         self.confirm_dialog_confirm.click()

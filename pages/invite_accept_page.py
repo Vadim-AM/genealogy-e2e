@@ -16,9 +16,31 @@ class InviteAcceptPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self.title_el = page.get_by_role("heading", level=2)
-        self.message = page.get_by_role("status")
-        self.link = page.locator("#link")  # no semantic: dynamically populated href
+
+    @property
+    def title_el(self) -> Locator:
+        """Invite accept heading."""
+        return self.page.get_by_role("heading", level=2)
+
+    @property
+    def message(self) -> Locator:
+        """Status message element."""
+        return self.page.get_by_role("status")
+
+    @property
+    def link(self) -> Locator:
+        """no semantic: dynamically populated href"""
+        return self.page.locator("#link")
+
+    @property
+    def login_link(self) -> Locator:
+        """Return the login link inside the invite message."""
+        return self.page.get_by_role("link", name=t(Invite.LOGIN_LINK), exact=False).first
+
+    @property
+    def signup_link(self) -> Locator:
+        """Return the signup link inside the invite message."""
+        return self.page.get_by_role("link", name=t(Invite.SIGNUP_LINK), exact=False).first
 
     def open_with_token(self, token: str) -> Self:
         """Navigate to the invite-accept page with the given token."""
@@ -36,16 +58,6 @@ class InviteAcceptPage(BasePage):
     def click_open_tree(self) -> None:
         """Click the open-tree link to navigate to the tenant tree."""
         self.link.click()
-
-    @property
-    def login_link(self) -> Locator:
-        """Return the login link inside the invite message."""
-        return self.page.get_by_role("link", name=t(Invite.LOGIN_LINK), exact=False).first
-
-    @property
-    def signup_link(self) -> Locator:
-        """Return the signup link inside the invite message."""
-        return self.page.get_by_role("link", name=t(Invite.SIGNUP_LINK), exact=False).first
 
     def get_login_href(self) -> str:
         """Return the href attribute of the login link."""

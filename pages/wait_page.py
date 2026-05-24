@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Self
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 from src.texts import Buttons, Labels, t
 
@@ -16,10 +16,26 @@ class WaitPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self.email = page.get_by_label(t(Labels.WAITLIST_EMAIL))
-        self.submit_btn = page.get_by_role("button", name=t(Buttons.WAITLIST_SUBMIT))
-        self.result = page.locator("#result")  # no semantic: generic result div
-        self.form = page.locator("#waitForm")  # no semantic: form container
+
+    @property
+    def email(self) -> Locator:
+        """Waitlist email input field."""
+        return self.page.get_by_label(t(Labels.WAITLIST_EMAIL))
+
+    @property
+    def submit_btn(self) -> Locator:
+        """Waitlist submit button."""
+        return self.page.get_by_role("button", name=t(Buttons.WAITLIST_SUBMIT))
+
+    @property
+    def result(self) -> Locator:
+        """no semantic: generic result div"""
+        return self.page.locator("#result")
+
+    @property
+    def form(self) -> Locator:
+        """no semantic: form container"""
+        return self.page.locator("#waitForm")
 
     def submit_email(self, email: str) -> Self:
         """Fill the email and click submit to join the waitlist."""

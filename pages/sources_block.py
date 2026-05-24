@@ -6,18 +6,18 @@ source or type a new name and create it on link.
 
 Layout:
     .editor-section.sources-block
-      #sourceSearchInput   ← search / new-source name
-      #sourceDropdown      ← autocomplete results
-      #sourceTypeSelect    ← source type (default: document)
-      #linkSourceBtn       ← "Привязать"
-      #personSourcesList   ← attached sources
+      #sourceSearchInput   <- search / new-source name
+      #sourceDropdown      <- autocomplete results
+      #sourceTypeSelect    <- source type (default: document)
+      #linkSourceBtn       <- "Привязать"
+      #personSourcesList   <- attached sources
         .sources-item[data-link-id] > .sources-item-name
-                              .sources-item-remove (× unlink)
+                              .sources-item-remove (x unlink)
 """
 
 from __future__ import annotations
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 
 class SourcesBlock:
@@ -25,13 +25,29 @@ class SourcesBlock:
 
     def __init__(self, page: Page):
         self.page = page
-        self.search = page.locator("#sourceSearchInput")
-        self.btn_link = page.locator("#linkSourceBtn")
-        self.list = page.locator("#personSourcesList")
-        self.items = self.list.locator('[data-testid="source-item"]')
+
+    @property
+    def search(self) -> Locator:
+        """Source search input."""
+        return self.page.locator("#sourceSearchInput")
+
+    @property
+    def btn_link(self) -> Locator:
+        """Link source button."""
+        return self.page.locator("#linkSourceBtn")
+
+    @property
+    def list(self) -> Locator:
+        """Attached sources list container."""
+        return self.page.locator("#personSourcesList")
+
+    @property
+    def items(self) -> Locator:
+        """Individual source items in the list."""
+        return self.list.locator('[data-testid="source-item"]')
 
     def create_and_link(self, *, name: str) -> None:
-        """Type a new source name and click Привязать. With no dropdown
+        """Type a new source name and click link. With no dropdown
         pick, the block auto-creates the source (default type) and links
         it to the person."""
         self.search.fill(name)
