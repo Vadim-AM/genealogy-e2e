@@ -90,12 +90,19 @@ class EnrichmentModal:
         """Block until the (mock) AI job renders its result body."""
         expect(self.result_body).to_be_visible(timeout=TIMEOUTS.pw_provision_ms)
 
+    def _hyp_accept_btn(self, hyp: Locator) -> Locator:
+        """Кнопка принятия гипотезы."""
+        return hyp.locator('[data-hyp-action="accept"]')
+
+    def _hyp_accepted_badge(self, hyp: Locator) -> Locator:
+        """Бейдж «принято» на гипотезе."""
+        return hyp.locator('[data-testid="enrich-status-accepted"]')
+
     def accept_first_hypothesis(self) -> None:
         """Accept the first AI hypothesis into the person card."""
         first = self.hypotheses.first
-        first.locator('[data-hyp-action="accept"]').click()  # no semantic: AI result container
-        # no semantic: AI result container
-        expect(first.locator('[data-testid="enrich-status-accepted"]')).to_be_visible()
+        self._hyp_accept_btn(first).click()
+        expect(self._hyp_accepted_badge(first)).to_be_visible()
 
     def expect_results(self, *, min_archives: int) -> None:
         """Hard count assertion — caller knows how many archives the mock fixture

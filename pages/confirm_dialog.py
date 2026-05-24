@@ -46,9 +46,14 @@ class ConfirmDialog:
         """Press Enter to confirm (confirm-dialog.js: Enter -> cleanup(true))."""
         self.page.keyboard.press("Enter")
 
+    @property
+    def cancel_btn(self) -> Locator:
+        """Кнопка «Отмена» в диалоге."""
+        return self.container.get_by_role("button", name=t(Buttons.CANCEL))
+
     def cancel(self) -> None:
         """Click the Cancel button inside the dialog."""
-        self.container.get_by_role("button", name=t(Buttons.CANCEL)).click()
+        self.cancel_btn.click()
 
     def cancel_and_settle(self) -> None:
         """Click Cancel and wait for the DOM to settle after dialog closes."""
@@ -68,6 +73,10 @@ class ConfirmDialog:
         """Assert the confirm dialog is no longer visible."""
         expect(self.container).not_to_be_visible()
 
+    def dialog_button(self, name: str) -> Locator:
+        """Return a button inside the dialog by accessible name."""
+        return self.container.get_by_role("button", name=name)
+
     def click_button(self, name: str) -> None:
         """Click a button inside the dialog by its accessible name."""
-        self.container.get_by_role("button", name=name).click()
+        self.dialog_button(name).click()

@@ -53,11 +53,21 @@ class SourcesBlock:
         self.search.fill(name)
         self.btn_link.click()
 
+    @property
+    def item_names(self) -> Locator:
+        """Имена привязанных источников."""
+        return self.items.locator('[data-testid="source-item-name"]')
+
+    @property
+    def item_remove_btns(self) -> Locator:
+        """Кнопки удаления привязанных источников."""
+        return self.items.locator('[data-testid="source-item-remove"]')
+
     def expect_attached(self, name: str) -> None:
         """Assert exactly one source is attached with the given name."""
         expect(self.items).to_have_count(1)
-        expect(self.items.locator('[data-testid="source-item-name"]')).to_contain_text(name)
+        expect(self.item_names).to_contain_text(name)
 
     def unlink_first(self) -> None:
         """Click the remove button on the first attached source."""
-        self.items.locator('[data-testid="source-item-remove"]').first.click()
+        self.item_remove_btns.first.click()
