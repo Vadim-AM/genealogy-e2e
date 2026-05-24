@@ -17,6 +17,8 @@ from src.texts import Placeholders, t
 from .base import BasePage
 
 if TYPE_CHECKING:
+    from playwright.sync_api import Expect
+
     from pages.profile_panel import ProfilePanel
 
 
@@ -214,21 +216,19 @@ class TreePage(BasePage):
         self.page.wait_for_load_state("domcontentloaded")
         return self
 
-    def wait_for_page_load(self) -> None:
-        """Wait for domcontentloaded after navigation."""
-        self.page.wait_for_load_state("domcontentloaded")
+
 
     @property
     def header_search(self) -> Locator:
         """Return the #headerSearch locator."""
         return self.page.locator("#headerSearch")  # no semantic: form input without label
 
-    def soft_check_guest_tabs(self, soft) -> None:
+    def soft_check_guest_tabs(self, soft: Expect) -> None:
         """Tabs visible to anonymous visitors (tree + about)."""
         for tab in self.GUEST_TABS:
             soft(self.page.locator(f'[data-tab="{tab}"]')).to_be_visible()
 
-    def soft_check_authed_tabs(self, soft) -> None:
+    def soft_check_authed_tabs(self, soft: Expect) -> None:
         """All 5 tabs visible to authenticated users."""
         for tab in self.AUTHED_TABS:
             soft(self.page.locator(f'[data-tab="{tab}"]')).to_be_visible()
