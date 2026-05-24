@@ -17,12 +17,10 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.api_paths import API
 from tests._core.constants import make_email
 from tests._core.messages import Invite, TestData, t
-from tests._core.response import expect_response
 from tests._core.step import step
-from tests._models.auth import InviteResponse
+from tests.helpers.api import auth_api
 from tests.helpers.auth.auth_ui import auth_name
 from tests.pages.invite_accept_page import InviteAcceptPage
 
@@ -42,10 +40,7 @@ def test_invitee_lands_on_accept_page_sees_success_with_tenant_name(
     with step("подготовка: создание приглашения и signup invitee"):
         viewer_email = make_email("viewer")
         api = tenant_client(owner_user)
-        invite = expect_response(
-            api.post(API.TENANT_INVITES, json={"email": viewer_email, "role": "editor"}),
-            label="create invite",
-        ).status_ok().schema(InviteResponse)
+        invite = auth_api.create_invite(api, email=viewer_email, role="editor")
         invite_token = invite.token
 
         invitee = signup_via_api(email=viewer_email)
@@ -84,10 +79,7 @@ def test_invitee_clicks_open_tree_lands_on_tree_with_authed_indicator(
     with step("подготовка: создание приглашения и signup invitee"):
         viewer_email = make_email("viewer2")
         api = tenant_client(owner_user)
-        invite = expect_response(
-            api.post(API.TENANT_INVITES, json={"email": viewer_email, "role": "editor"}),
-            label="create invite",
-        ).status_ok().schema(InviteResponse)
+        invite = auth_api.create_invite(api, email=viewer_email, role="editor")
         invite_token = invite.token
 
         invitee = signup_via_api(email=viewer_email)
@@ -127,10 +119,7 @@ def test_owner_opens_own_invite_sees_warning_with_display_name(
     """
     with step("подготовка: создание invite на свой email"):
         api = tenant_client(owner_user)
-        invite = expect_response(
-            api.post(API.TENANT_INVITES, json={"email": owner_user.email, "role": "viewer"}),
-            label="create invite",
-        ).status_ok().schema(InviteResponse)
+        invite = auth_api.create_invite(api, email=owner_user.email, role="viewer")
         invite_token = invite.token
 
     with step("действие: владелец открывает своё приглашение"):
@@ -166,10 +155,7 @@ def test_anonymous_invitee_sees_login_links_with_token_in_next(
     """
     with step("подготовка: создание приглашения без email"):
         api = tenant_client(owner_user)
-        invite = expect_response(
-            api.post(API.TENANT_INVITES, json={"role": "viewer"}),
-            label="create invite",
-        ).status_ok().schema(InviteResponse)
+        invite = auth_api.create_invite(api, role="viewer")
         invite_token = invite.token
 
     with step("действие: анонимный пользователь открывает invite"):
@@ -209,10 +195,7 @@ def test_anonymous_emailed_invite_is_magic_link_auto_accepted(
     with step("подготовка: создание email-приглашения"):
         viewer_email = make_email("magic-invitee")
         api = tenant_client(owner_user)
-        invite = expect_response(
-            api.post(API.TENANT_INVITES, json={"email": viewer_email, "role": "viewer"}),
-            label="create invite",
-        ).status_ok().schema(InviteResponse)
+        invite = auth_api.create_invite(api, email=viewer_email, role="viewer")
         invite_token = invite.token
 
     with step("действие: анонимный пользователь открывает magic-link"):

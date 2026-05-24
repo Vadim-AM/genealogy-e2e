@@ -22,7 +22,7 @@ from tests._core.response import expect_response
 from tests._core.step import step
 from tests._data.payloads.tree import parent_rel
 from tests._models.person import PersonCreate
-from tests.helpers.api import person_api
+from tests.helpers.api import person_api, relationship_api
 
 # ─────────────────────────────────────────────────────────────────────────
 # INV-DOMAIN-001 / INV-DOMAIN-004 / INV-DATE-001 — date validation
@@ -60,10 +60,9 @@ def test_patch_parent_birth_after_child_is_422(signup_via_api, tenant_client):
         person_api.create_person(api, PersonCreate(
             id="dom004-parent", name="Родитель", birth="1960",
         ))
-        expect_response(
-            api.post(API.RELATIONSHIPS, json=parent_rel("dom004-parent", "dom004-child")),
-            label="create parent relationship",
-        ).status_ok()
+        relationship_api.create_relationship(
+            api, rel_type="parent", person1_id="dom004-parent", person2_id="dom004-child",
+        )
 
     with step("проверка: PATCH birth=2000 отклонён (400/422)"):
         r = api.patch(API.person("dom004-parent"), json={"birth": "2000"})
@@ -104,14 +103,12 @@ def test_third_parent_relationship_is_rejected(signup_via_api, tenant_client):
         for pid, pname in (("dom002-p1", "Родитель-1"), ("dom002-p2", "Родитель-2"), ("dom002-p3", "Родитель-3")):
             person_api.create_person(api, PersonCreate(id=pid, name=pname))
 
-        expect_response(
-            api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p1", "dom002-child")),
-            label="create p1 relationship",
-        ).status_ok()
-        expect_response(
-            api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p2", "dom002-child")),
-            label="create p2 relationship",
-        ).status_ok()
+        relationship_api.create_relationship(
+            api, rel_type="parent", person1_id="dom002-p1", person2_id="dom002-child",
+        )
+        relationship_api.create_relationship(
+            api, rel_type="parent", person1_id="dom002-p2", person2_id="dom002-child",
+        )
 
     with step("проверка: третий родитель отклонён"):
         r = api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p3", "dom002-child"))
@@ -136,10 +133,9 @@ def test_parent_cycle_is_rejected(signup_via_api, tenant_client):
         person_api.create_person(api, PersonCreate(id="dom003-a", name="Цикл-A"))
         person_api.create_person(api, PersonCreate(id="dom003-b", name="Цикл-B"))
 
-        expect_response(
-            api.post(API.RELATIONSHIPS, json=parent_rel("dom003-a", "dom003-b")),
-            label="create A->B relationship",
-        ).status_ok()
+        relationship_api.create_relationship(
+            api, rel_type="parent", person1_id="dom003-a", person2_id="dom003-b",
+        )
 
     with step("проверка: обратная связь B→A отклонена"):
         r2 = api.post(API.RELATIONSHIPS, json=parent_rel("dom003-b", "dom003-a"))
@@ -183,10 +179,9 @@ def test_delete_non_root_person_with_relationship_does_not_500(
 
         person_api.create_person(api, PersonCreate(id="cascade-child", name="Ребёнок", branch="subject"))
         person_api.create_person(api, PersonCreate(id="cascade-parent", name="Родитель"))
-        expect_response(
-            api.post(API.RELATIONSHIPS, json=parent_rel("cascade-parent", "cascade-child")),
-            label="create cascade relationship",
-        ).status_ok()
+        relationship_api.create_relationship(
+            api, rel_type="parent", person1_id="cascade-parent", person2_id="cascade-child",
+        )
 
     with step("проверка: DELETE не вызывает 500"):
         r = api.delete(API.person("cascade-parent"))

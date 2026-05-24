@@ -11,6 +11,8 @@ A second backend-invariant test covers the recovery-code lifecycle
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 import pyotp
 from playwright.sync_api import Page, expect
@@ -21,16 +23,19 @@ from tests._core.messages import Mfa, t
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests.pages.mfa_settings import MfaSettings
+from tests.pages.owner_page import OwnerPage
+
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
 
 
 @allure.title("Владелец включает и затем отключает двухфакторную аутентификацию")
-def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user):
+def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user, pages: PageFactory):
     """Owner opens Security settings → enables 2FA with a TOTP code →
     acknowledges recovery codes → status shows on; disables via step-up
     → status shows off."""
     with step("подготовка: открытие вкладки безопасности, статус выключен"):
-        owner_page.goto("/owner")
-        owner_page.wait_for_load_state("domcontentloaded")
+        pages.navigate_to(OwnerPage)
         mfa = MfaSettings(owner_page).open_tab()
         expect(mfa.status_text).to_contain_text(t(Mfa.STATUS_OFF))
 

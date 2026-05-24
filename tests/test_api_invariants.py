@@ -21,7 +21,7 @@ from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
 from tests._models.person import LocationResponse, PersonResponse
 from tests._models.site import RetentionOfferApply, RetentionOfferStatus, SubscriptionResponse
-from tests.helpers.api import platform_api
+from tests.helpers.api import auth_api, platform_api, relationship_api
 
 # Minimal valid 1×1 transparent PNG — for the photo-upload invariant.
 _PNG_1PX = base64.b64decode(
@@ -122,11 +122,10 @@ def test_onboarding_reset_is_idempotent(owner_user, tenant_client):
     can be called twice without error."""
     with step("действие: первый вызов onboarding-reset"):
         api = tenant_client(owner_user)
-        first = api.post(API.ONBOARDING_RESET)
-        expect_response(first, label="onboarding-reset").status_ok().json_eq("status", "reset")
+        auth_api.onboarding_reset(api)
 
     with step("проверка: повторный вызов идемпотентен"):
-        expect_response(api.post(API.ONBOARDING_RESET), label="onboarding-reset idempotent").status_ok()
+        auth_api.onboarding_reset(api)
 
 
 @allure.title("API: поддельный токен смены email отклоняется (400)")
@@ -162,18 +161,15 @@ def test_relationship_delete_removes_the_edge(owner_user, tenant_client):
     tree seeds relationships; deleting one drops the count."""
     with step("подготовка: получить список связей"):
         api = tenant_client(owner_user)
-        r = api.get(API.RELATIONSHIPS)
-        before = expect_response(r, label="GET relationships").status_ok().data
+        before = relationship_api.get_relationships(api)
         assert before, "demo tenant must seed relationships"
-        rel_id = before[0]["id"]
+        rel_id = before[0].id
 
     with step("действие: удалить первую связь"):
-        deleted = api.delete(API.relationship(rel_id))
-        expect_response(deleted, label="DELETE relationship").status(204)
+        relationship_api.delete_relationship(api, rel_id)
 
     with step("проверка: количество связей уменьшилось на 1"):
-        r2 = api.get(API.RELATIONSHIPS)
-        after = expect_response(r2, label="GET relationships after").status_ok().data
+        after = relationship_api.get_relationships(api)
         assert len(after) == len(before) - 1, \
             f"relationship must be gone: {len(before)} → {len(after)}"
 
