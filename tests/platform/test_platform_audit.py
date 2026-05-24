@@ -15,6 +15,7 @@ import allure
 from tests._core.api_paths import API
 from tests._core.response import expect_response
 from tests._core.step import step
+from tests.helpers.api import platform_api
 
 
 @allure.title("Аудит: журнал недоступен обычному владельцу")
@@ -30,8 +31,7 @@ def test_audit_log_returns_canonical_shape(superadmin_user, tenant_client):
     action, target_type, target_id, payload, ip_hash."""
     with step("действие: запрашиваем audit-log с limit=10"):
         r = tenant_client(superadmin_user).get(API.PLATFORM_AUDIT_LOG, params={"limit": 10})
-        expect_response(r, label="audit-log shape").status_ok()
-        data = r.json()
+        data = expect_response(r, label="audit-log shape").status_ok().data
 
     with step("проверка: items, count, limit присутствуют и limit=10"):
         for key in ("items", "count", "limit"):
@@ -76,25 +76,28 @@ def test_settings_patch_writes_audit_entry(superadmin_user, tenant_client):
     new_value = 0.7
 
     with step("действие: патчим soft_warn_threshold"):
-        api.patch(API.PLATFORM_SETTINGS, json={"soft_warn_threshold": new_value}).raise_for_status()
+        expect_response(
+            api.patch(API.PLATFORM_SETTINGS, json={"soft_warn_threshold": new_value}),
+            label="patch settings",
+        ).status_ok()
 
     with step("действие: запрашиваем audit-log по action=settings_patch"):
-        r = api.get(API.PLATFORM_AUDIT_LOG, params={"action": "settings_patch", "limit": 5})
-        expect_response(r, label="audit-log settings_patch").status_ok()
-        items = r.json()["items"]
+        audit = platform_api.get_audit_log(api, action="settings_patch", limit=5)
 
     with step("проверка: audit-запись содержит корректные action, target_type и payload"):
-        assert len(items) >= 1, "settings_patch audit entry not created after PATCH"
-        latest = items[0]
-        assert latest["action"] == "settings_patch", \
-            f"latest audit action: expected 'settings_patch', got {latest.get('action')!r}"
-        assert latest["target_type"] == "platform_settings", \
-            f"target_type: expected 'platform_settings', got {latest.get('target_type')!r}"
+        assert len(audit.items) >= 1, "settings_patch audit entry not created after PATCH"
+        latest = audit.items[0]
+        assert latest.action == "settings_patch", \
+            f"latest audit action: expected 'settings_patch', got {latest.action!r}"
+        target_type = latest.model_extra.get("target_type")
+        assert target_type == "platform_settings", \
+            f"target_type: expected 'platform_settings', got {target_type!r}"
         # Payload содержит changes + before
-        assert "changes" in latest["payload"], \
-            f"audit payload must contain 'changes': {sorted(latest.get('payload', {}))}"
-        assert latest["payload"]["changes"]["soft_warn_threshold"] == new_value, \
-            f"soft_warn_threshold not recorded: {latest['payload'].get('changes')}"
+        payload = latest.model_extra.get("payload", {})
+        assert "changes" in payload, \
+            f"audit payload must contain 'changes': {sorted(payload)}"
+        assert payload["changes"]["soft_warn_threshold"] == new_value, \
+            f"soft_warn_threshold not recorded: {payload.get('changes')}"
 
 
 @allure.title("Аудит GDPR: ip_hash — hex-хеш, а не сырой IP-адрес")
@@ -103,18 +106,19 @@ def test_audit_log_ip_hash_is_hex_not_raw_ip(superadmin_user, tenant_client):
     api = tenant_client(superadmin_user)
 
     with step("подготовка: создаём audit-запись через self-PATCH"):
-        api.patch(API.PLATFORM_SETTINGS, json={"soft_warn_threshold": 0.85}).raise_for_status()
+        expect_response(
+            api.patch(API.PLATFORM_SETTINGS, json={"soft_warn_threshold": 0.85}),
+            label="patch settings",
+        ).status_ok()
 
     with step("действие: запрашиваем последнюю audit-запись"):
-        r = api.get(API.PLATFORM_AUDIT_LOG, params={"limit": 1})
-        expect_response(r, label="audit-log ip_hash").status_ok()
-        items = r.json()["items"]
+        audit = platform_api.get_audit_log(api, limit=1)
 
     with step("проверка: ip_hash — 16-символьный hex, не IPv4"):
-        assert len(items) == 1, (
-            f"expected exactly 1 audit item with limit=1, got {len(items)}"
+        assert len(audit.items) == 1, (
+            f"expected exactly 1 audit item with limit=1, got {len(audit.items)}"
         )
-        ip_hash = items[0]["ip_hash"]
+        ip_hash = audit.items[0].ip_hash
         assert ip_hash is not None, "ip_hash must be present (audit logs requesting client)"
         assert re.match(r"^[0-9a-f]{16}$", ip_hash), \
             f"ip_hash must be 16-char hex, got {ip_hash!r}"
@@ -130,12 +134,13 @@ def test_audit_log_filters_by_action(superadmin_user, tenant_client):
     api = tenant_client(superadmin_user)
 
     with step("подготовка: создаём settings_patch запись"):
-        api.patch(API.PLATFORM_SETTINGS, json={"soft_warn_threshold": 0.9}).raise_for_status()
+        expect_response(
+            api.patch(API.PLATFORM_SETTINGS, json={"soft_warn_threshold": 0.9}),
+            label="patch settings",
+        ).status_ok()
 
     with step("проверка: фильтр по action возвращает только settings_patch"):
-        r = api.get(API.PLATFORM_AUDIT_LOG, params={"action": "settings_patch", "limit": 20})
-        expect_response(r, label="audit-log filter by action").status_ok()
-        items = r.json()["items"]
-        for it in items:
-            assert it["action"] == "settings_patch", \
-                f"filter leak: got action={it['action']!r}"
+        audit = platform_api.get_audit_log(api, action="settings_patch", limit=20)
+        for it in audit.items:
+            assert it.action == "settings_patch", \
+                f"filter leak: got action={it.action!r}"

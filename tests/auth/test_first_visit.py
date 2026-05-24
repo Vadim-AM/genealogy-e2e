@@ -5,12 +5,17 @@ Covers: F-FV-1..6 при первом заходе owner'а в свой tenant.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
 from tests._core.step import step
 from tests.pages.tree_page import TreePage
+
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
 
 # Demo seed has demo-self + 2 parents around the centred subject =
 # 2 orbit cards rendered in the ring view (the centred subject card
@@ -19,7 +24,7 @@ DEMO_SEED_RING_CARDS = 2
 
 
 @allure.title("Первый визит отображает дерево с демо-данными")
-def test_first_visit_renders_tree_with_demo_seed(owner_page: Page):
+def test_first_visit_renders_tree_with_demo_seed(owner_page: Page, pages: PageFactory):
     """F-FV-1, F-FV-2: owner visits / and orbit-view renders the demo ring.
 
     Concrete count assertion via `.orbit-card` selector — beats the prior
@@ -27,7 +32,7 @@ def test_first_visit_renders_tree_with_demo_seed(owner_page: Page):
     the centered subject plus immediate ring (parents) = 2 cards visible.
     """
     with step("действие: переход на главную"):
-        tree = TreePage(owner_page).goto()
+        tree = pages.navigate_to(TreePage)
         owner_page.wait_for_load_state("domcontentloaded")
 
     with step("проверка: orbit-view отрисовал демо-карточки"):
@@ -35,7 +40,7 @@ def test_first_visit_renders_tree_with_demo_seed(owner_page: Page):
 
 
 @allure.title("Авторизованному пользователю видны навигационные вкладки")
-def test_first_visit_shows_authed_tabs(owner_page: Page):
+def test_first_visit_shows_authed_tabs(owner_page: Page, pages: PageFactory):
     """F-FV-4: основные навигационные вкладки видны.
 
     Wave-9: tab `map` скрыт через `hidden=""` (BUG-MAP-001 — фича Map
@@ -43,7 +48,7 @@ def test_first_visit_shows_authed_tabs(owner_page: Page):
     остальные 4 вкладки; Map-теста отдельно (xfail) — см. test_map_no_flag.
     """
     with step("действие: переход на главную"):
-        tree = TreePage(owner_page).goto()
+        tree = pages.navigate_to(TreePage)
         owner_page.wait_for_load_state("domcontentloaded")
 
     with step("проверка: навигационные вкладки видны"):
@@ -54,17 +59,17 @@ def test_first_visit_shows_authed_tabs(owner_page: Page):
 
 
 @allure.title("Поле поиска отображается в шапке после входа")
-def test_first_visit_search_input_visible(owner_page: Page):
+def test_first_visit_search_input_visible(owner_page: Page, pages: PageFactory):
     """F-FV-5: search input is in the header for authed users."""
-    owner_page.goto("/")
+    pages.navigate_to(TreePage)
     owner_page.wait_for_load_state("domcontentloaded")
     expect(owner_page.locator("#headerSearch")).to_be_visible()
 
 
 @allure.title("Кнопка повтора тура видна на главной после входа")
-def test_first_visit_tour_replay_button_visible(owner_page: Page):
+def test_first_visit_tour_replay_button_visible(owner_page: Page, pages: PageFactory):
     """F-FV-6: '?' tour replay button is visible."""
-    owner_page.goto("/")
+    pages.navigate_to(TreePage)
     owner_page.wait_for_load_state("domcontentloaded")
     expect(owner_page.locator("#tourReplayBtn")).to_be_visible()
 

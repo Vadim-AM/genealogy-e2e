@@ -14,6 +14,7 @@ from tests._core.api_paths import API
 from tests._core.messages import Enrichment, TestData, t
 from tests._core.response import expect_response
 from tests._core.step import step
+from tests._models.enrichment import EnrichJobResponse
 from tests.helpers.api import enrichment_api
 from tests.pages.base import wait_for_authed_shell
 from tests.pages.confirm_dialog import ConfirmDialog
@@ -30,12 +31,8 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
     with step("подготовка: consent и открытие профиля"):
         grant_ai_consent(owner_user)
 
-        owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-        owner_page.wait_for_load_state("domcontentloaded")
+        panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         wait_for_authed_shell(owner_page)
-
-        panel = ProfilePanel(owner_page)
-        panel.expect_visible()
 
     with step("действие: запуск enrichment и принятие гипотезы"):
         panel.trigger_enrichment()
@@ -90,12 +87,12 @@ def test_enrichment_cache_and_health_invariants(
 
     with step("проверка: кэш, health, feedback и letters-sent"):
         cached = api.get(API.enrich_cache(enrichment_id))
-        expect_response(cached, label="GET enrich cache").status_ok().json_eq("enrichment_id", enrichment_id)
+        cached_job = expect_response(cached, label="GET enrich cache").status_ok().schema(EnrichJobResponse)
+        assert cached_job.enrichment_id == enrichment_id, \
+            f"cache enrichment_id: expected {enrichment_id}, got {cached_job.enrichment_id}"
 
         health = api.get(API.ENRICH_HEALTH_API_KEY)
-        expect_response(health, label="GET enrich health").status_ok()
-        assert "configured" in health.json(), \
-            "api-key health must report a `configured` flag"
+        expect_response(health, label="GET enrich health").status_ok().json_has("configured")
 
         # Feedback + letter-sent telemetry — both keyed on the enrichment id.
         feedback = api.post(API.enrich_feedback(TestData.DEMO_PERSON_ID), json={

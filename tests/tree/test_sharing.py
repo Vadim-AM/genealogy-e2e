@@ -14,6 +14,7 @@ from tests._core.api_paths import API
 from tests._core.messages import TestData
 from tests._core.response import expect_response
 from tests._core.step import step
+from tests._models.site import ShareListResponse
 from tests.helpers.api import site_api
 from tests.pages.share_page import SharePage
 
@@ -35,11 +36,12 @@ def test_owner_shares_card_anon_views_then_revoke_kills_link(
 
     with step("проверка: ссылка в списке без утечки токена"):
         r_list = api.get(API.SHARE_LIST)
-        items = expect_response(r_list, label="share list").status_ok().data["items"]
-        assert any(s["id"] == share_id for s in items), \
+        share_list = expect_response(r_list, label="share list").status_ok().schema(ShareListResponse)
+        assert any(s.id == share_id for s in share_list.items), \
             "created share must appear in the owner's list"
-        for s in items:
-            assert s.get("url") is None, f"GET /api/share/list leaked a token: {s}"
+        for s in share_list.items:
+            extra = s.model_extra or {}
+            assert "url" not in extra, f"GET /api/share/list leaked a token: {s}"
 
     with step("действие: аноним видит карточку, после отзыва -- ошибку"):
         anon = browser.new_context()
@@ -50,7 +52,7 @@ def test_owner_shares_card_anon_views_then_revoke_kills_link(
             share.expect_person_visible(TestData.DEFAULT_FULL_NAME.split()[0])
             share.expect_no_edit_controls()
 
-            api.delete(API.share(share_id)).raise_for_status()
+            expect_response(api.delete(API.share(share_id)), label="revoke share").status_ok()
 
             page.goto(share_url)
             share.expect_error_visible()
@@ -70,8 +72,9 @@ def test_share_list_never_leaks_tokens(owner_user, tenant_client):
 
     with step("проверка: список не содержит секретных токенов"):
         r_list = api.get(API.SHARE_LIST)
-        listed = expect_response(r_list, label="share list").status_ok().data["items"]
-        assert listed, "the created share must appear in the list (empty list)"
-        for item in listed:
-            assert item.get("url") is None, \
+        share_list = expect_response(r_list, label="share list").status_ok().schema(ShareListResponse)
+        assert share_list.items, "the created share must appear in the list (empty list)"
+        for item in share_list.items:
+            extra = item.model_extra or {}
+            assert "url" not in extra, \
                 f"GET /api/share/list leaked a token url: {item}"

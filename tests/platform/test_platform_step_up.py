@@ -20,6 +20,7 @@ from tests._core.constants import make_email
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._fixtures.users import setup_and_verify_mfa
+from tests.helpers.api import mfa_api, platform_api
 
 
 @allure.title("Step-up: критичное действие без подтверждения — 403")
@@ -94,20 +95,23 @@ def test_step_up_writes_audit_event(superadmin_user, tenant_client):
         api = tenant_client(superadmin_user)
         secret = setup_and_verify_mfa(api)
         code = pyotp.TOTP(secret).now()
-        api.post(API.MFA_STEP_UP, json={"method": "totp", "code": code}).raise_for_status()
+        expect_response(
+            api.post(API.MFA_STEP_UP, json={"method": "totp", "code": code}),
+            label="MFA step-up",
+        ).status_ok()
 
     with step("действие: запрашиваем audit-log"):
-        r = api.get(API.PLATFORM_AUDIT_LOG, params={"action": "step_up_verified", "limit": 5})
-        expect_response(r, label="audit log step-up").status_ok()
-        items = r.json()["items"]
+        audit = platform_api.get_audit_log(api, action="step_up_verified", limit=5)
 
     with step("проверка: запись step_up_verified с method=totp"):
-        assert len(items) >= 1, \
-            f"expected at least 1 audit item, got {len(items)}"
-        assert items[0]["action"] == "step_up_verified", \
-            f"action: expected 'step_up_verified', got {items[0]['action']!r}"
-        assert items[0]["payload"]["method"] == "totp", \
-            f"method: expected 'totp', got {items[0]['payload'].get('method')!r}"
+        assert len(audit.items) >= 1, \
+            f"expected at least 1 audit item, got {len(audit.items)}"
+        first = audit.items[0]
+        assert first.action == "step_up_verified", \
+            f"action: expected 'step_up_verified', got {first.action!r}"
+        payload = first.model_extra.get("payload", {})
+        assert payload.get("method") == "totp", \
+            f"method: expected 'totp', got {payload.get('method')!r}"
 
 
 @allure.title("Step-up: резервный код работает как метод подтверждения")
@@ -117,7 +121,8 @@ def test_recovery_redeem_works_as_step_up_method(superadmin_user, tenant_client)
 
     with step("подготовка: setup MFA + regenerate кодов"):
         setup_and_verify_mfa(api)
-        codes = api.post(API.MFA_RECOVERY_REGENERATE).json()["codes"]
+        recovery = mfa_api.regenerate_recovery_codes(api)
+        codes = recovery.codes
 
     with step("проверка: step-up через recovery-код — 200"):
         r = api.post(API.MFA_STEP_UP, json={"method": "recovery", "code": codes[0]})

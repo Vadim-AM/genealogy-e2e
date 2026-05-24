@@ -20,6 +20,8 @@ API часть (TC-N3, TC-N4) — backend invariant без UI surface: router-le
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 import httpx
 import pytest
@@ -29,6 +31,10 @@ from tests._core.api_paths import API
 from tests._core.messages import Enrichment, t
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
+from tests.pages.tree_page import TreePage
+
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
 
 
 @pytest.fixture(autouse=True)
@@ -54,7 +60,7 @@ def ai_search_disabled(uvicorn_server: str):
 
 @allure.title("AI выключен: кнопка обогащения disabled с подсказкой «скоро»")
 def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
-    owner_page: Page, owner_user,
+    owner_page: Page, owner_user, pages: PageFactory,
 ):
     """TC-N5: настоящий user journey — owner открывает / → клик по центру
     orbit → profile → AI-кнопка disabled c «скоро» и tooltip.
@@ -78,8 +84,7 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
             else None,
         )
 
-        page.goto("/")
-        page.wait_for_load_state("domcontentloaded")
+        pages.navigate_to(TreePage)
 
         # User clicks по центральной orbit-card → opens demo-self profile.
         center = page.locator('[data-testid="orbit-center-card"]')
@@ -185,14 +190,14 @@ def test_enrich_endpoint_returns_503_when_ai_disabled(
 
 
 @allure.title("AI выключен: главная страница запрашивает /api/config/features")
-def test_features_endpoint_fires_on_main_page_bootstrap(page: Page, base_url: str):
+def test_features_endpoint_fires_on_main_page_bootstrap(page: Page, base_url: str, anon_pages: PageFactory):
     """TC-N3: при загрузке `/` frontend дёргает /api/config/features
     (bootstrap `window.__features`). Без этого UI не знает про disabled
     state и default-рендерит active кнопки.
     """
     with step("действие: загрузка / и ожидание /api/config/features"), \
          page.expect_response(f"**{API.CONFIG_FEATURES}") as resp_ctx:
-        page.goto("/")
+        anon_pages.navigate_to(TreePage)
 
     with step("проверка: /api/config/features ответил 200"):
         assert resp_ctx.value.ok, (

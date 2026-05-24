@@ -16,6 +16,8 @@ import allure
 from tests._core.api_paths import API
 from tests._core.response import expect_response
 from tests._core.step import step
+from tests._models.person import PersonResponse
+from tests.helpers.api import person_api
 
 
 @allure.title("Каноническое имя собирается из фамилии, имени и отчества")
@@ -25,21 +27,16 @@ def test_canonical_name_assembled_from_split_fields(owner_user, tenant_client):
     with step("подготовка: получить ID первой персоны из дерева"):
         api = tenant_client(owner_user)
 
-        r = api.get(API.TREE)
-        expect_response(r, label="GET /api/tree").status(200)
-        tree = r.json()
-        assert tree.get("people"), \
-            f"tenant has no demo people seeded — signup_via_api should produce a demo tree; got {tree}"
-        pid = tree["people"][0]["id"]
+        tree = person_api.get_tree(api)
+        assert tree.people, \
+            "tenant has no demo people seeded — signup_via_api should produce a demo tree"
+        pid = tree.people[0].id
 
     with step("действие: PATCH surname/given_name/patronymic"):
-        payload = {"surname": "Иванов", "given_name": "Иван", "patronymic": "Петрович"}
-        r = api.patch(API.person(pid), json=payload)
-        expect_response(r, label=f"PATCH {API.person(pid)}").status(200)
+        person_api.patch_person(api, pid, surname="Иванов", given_name="Иван", patronymic="Петрович")
 
     with step("проверка: каноническое имя содержит все фрагменты"):
         r = api.get(API.person(pid))
-        expect_response(r, label="GET person").status(200)
-        name = r.json().get("name") or ""
+        person = expect_response(r, label="GET person").status_ok().schema(PersonResponse)
         for fragment in ("Иванов", "Иван", "Петрович"):
-            assert fragment in name, f"canonical name missing '{fragment}': {name!r}"
+            assert fragment in (person.name or ""), f"canonical name missing '{fragment}': {person.name!r}"

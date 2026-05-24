@@ -10,6 +10,8 @@ header'е сбрасывает session, и при повторном /login во
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 from playwright.sync_api import Page, expect
 
@@ -18,11 +20,15 @@ from tests._core.step import step
 from tests.helpers.auth.auth_ui import auth_indicator, auth_name, login_link, logout_link
 from tests.pages.base import wait_for_authed_shell
 from tests.pages.login_page import LoginPage
+from tests.pages.tree_page import TreePage
+
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
 
 
 @allure.title("Клик 'Выйти' переключает индикатор в гостевой режим")
 def test_owner_clicks_logout_link_and_indicator_switches_to_guest(
-    owner_page: Page, owner_user,
+    owner_page: Page, owner_user, pages: PageFactory,
 ):
     """F-LO-1: клик по «Выйти» сбрасывает session и переключает UI в guest.
 
@@ -33,8 +39,7 @@ def test_owner_clicks_logout_link_and_indicator_switches_to_guest(
     4. POST /api/account/logout улетел (cookie на server-side dead).
     """
     with step("подготовка: загрузка страницы и проверка authed-состояния"):
-        owner_page.goto("/")
-        owner_page.wait_for_load_state("domcontentloaded")
+        pages.navigate_to(TreePage)
         wait_for_authed_shell(owner_page)
 
         auth_indicator(owner_page)
@@ -62,7 +67,7 @@ def test_owner_clicks_logout_link_and_indicator_switches_to_guest(
 
 @allure.title("Повторный вход после выхода возвращает в тот же тенант")
 def test_user_relogins_via_form_lands_in_same_tenant(
-    owner_page: Page, owner_user,
+    owner_page: Page, owner_user, pages: PageFactory,
 ):
     """F-LO-2: после logout юзер логинится снова через `/login` форму
     и попадает в **тот же tenant** (slug сохраняется).
@@ -71,8 +76,7 @@ def test_user_relogins_via_form_lands_in_same_tenant(
     (он же `full_name` — см. owner_user fixture в conftest).
     """
     with step("подготовка: logout для перехода в guest state"):
-        owner_page.goto("/")
-        owner_page.wait_for_load_state("domcontentloaded")
+        pages.navigate_to(TreePage)
         wait_for_authed_shell(owner_page)
         expect(logout_link(owner_page)).to_be_visible()
         with owner_page.expect_response(
@@ -82,7 +86,7 @@ def test_user_relogins_via_form_lands_in_same_tenant(
         expect(login_link(owner_page)).to_be_visible()
 
     with step("действие: повторный вход через форму /login"):
-        login = LoginPage(owner_page).goto()
+        login = pages.navigate_to(LoginPage)
         login.expect_visible_form()
         with owner_page.expect_response(
             lambda r: "/api/account/login" in r.url and r.request.method == "POST"

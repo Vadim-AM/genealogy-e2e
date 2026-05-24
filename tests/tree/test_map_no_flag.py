@@ -25,15 +25,20 @@ hidden state.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 from playwright.sync_api import Page, expect
 
 from tests._core.step import step
 from tests.pages.tree_page import TreePage
 
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
+
 
 @allure.title("Вкладка 'Карта' скрыта по умолчанию до включения фичи")
-def test_map_tab_is_hidden_by_default(owner_page: Page):
+def test_map_tab_is_hidden_by_default(owner_page: Page, pages: PageFactory):
     """TC-10.02 (Wave-9): map tab `<button data-tab="map">` has `hidden`
     attribute → not visible in tab strip until feature ships.
 
@@ -41,7 +46,7 @@ def test_map_tab_is_hidden_by_default(owner_page: Page):
     `hidden` — фича утекает в prod без готовности.
     """
     with step("действие: переход на главную"):
-        tree = TreePage(owner_page).goto()
+        tree = pages.navigate_to(TreePage)
 
     with step("проверка: tab map в DOM, но скрыт через hidden"):
         expect(tree.tab_map).to_have_count(1)
