@@ -531,24 +531,69 @@ Custom assertions live in `assertions/`:
 
 All `what` parameters use `ErrMsg.*` — no inline strings.
 
-### 35. Test = clean scenario, details in POM
+### 35. Test = clean scenario, details in POM (zero low-level calls)
 
-A test reads as a high-level user scenario. Implementation details
-(locator queries, waits, form fills) belong in POM methods with
-`step()` inside. POM methods that change page state return the target
-POM for fluent chaining.
+A test function must contain **zero** Playwright low-level calls:
+no `.locator()`, `.click()`, `.fill()`, `.get_attribute()`,
+`.wait_for_load_state()`, `.wait_for()` in test bodies. Everything
+goes through POM methods with `step()` inside.
 
+**Reference pattern** (account_ui_autotests `test_login_success`):
 ```python
-# bad — low-level details in test
-center = page.locator('[data-testid="orbit-center-card"]')
-center.click()
-profile = page.locator('[data-testid="profile-page"]')
+# test reads like a scenario script — no Playwright API
+def test_login_success(pages, auth_client) -> None:
+    """DoQA #1619: вход в ЛК."""
+    login = pages.navigate_to(LoginPage)
+    expect(login.login_input, ErrMsg.form_not_visible).to_be_visible()
 
-# good — scenario-level POM method
-panel = tree.open_center_profile()  # returns ProfilePanel, step() inside
+    login.login(identifier=username, password=password)  # scenario POM
+    main = pages.create(MainPage)
+    main.wait_for_page_load()                            # scenario POM
+    expect(main.user_info, ErrMsg.login_success).to_be_visible()
+
+    main.logout()                                         # scenario POM
+    login = pages.create(LoginPage)
+    expect(login.login_input, ErrMsg.logout_ok).to_be_visible()
 ```
 
-### 36. Docstrings — 1 sentence, TC-ID preserved
+**What belongs in test body:**
+- `pages.navigate_to(POM)` / `pages.create(POM)` — POM creation
+- `pom.scenario_method()` — one-word scenario actions (login, logout,
+  open_profile, submit, upload)
+- `expect(pom.locator, ErrMsg.x).to_*()` — UI assertions
+- `should.*()` — non-UI assertions
+- `expect_response(r).status().schema()` — API assertions
+
+**What must NOT be in test body:**
+- `page.locator(...)` — use POM property
+- `locator.click()` / `.fill()` / `.check()` — wrap in POM method
+- `page.wait_for_load_state(...)` — wrap in POM `wait_for_page_load()`
+- `locator.get_attribute(...)` — wrap in POM method that returns value
+- `page.on("request", ...)` — extract into conftest fixture
+- `page.goto(...)` — use `pages.navigate_to(POM)`
+- helpers as standalone functions (`auth_name(page)`) — make POM methods
+
+**POM method rules:**
+- Scenario-level name: `login()`, `logout()`, `open_editor()`,
+  `expect_authed_state()`, `expect_guest_tabs()`
+- Contains `with step("...")` inside
+- Returns target POM for fluent chaining where applicable
+- Never contains `assert` / `should.*` — only Playwright interactions
+
+### 36. Standalone helpers → POM methods
+
+Functions like `auth_name(page)`, `logout_link(page)`,
+`wait_for_authed_shell(page)` in `helpers/auth/auth_ui.py` are
+anti-pattern — they operate on a Page but aren't POM methods.
+
+Move them to the POM class that owns the page region:
+- `auth_name(page)` → `TreePage.auth_user_name` (property)
+- `logout_link(page).click()` → `TreePage.logout()` (scenario method)
+- `wait_for_authed_shell(page)` → `TreePage.expect_authed_state()`
+
+The helpers module becomes unnecessary when POM covers all interactions.
+
+### 37. Docstrings — 1 sentence, TC-ID preserved
 
 Module docstring: 1 line. Function docstring: 1 sentence + TC-ID.
 No multi-paragraph explanations — the code and step names tell the story.
