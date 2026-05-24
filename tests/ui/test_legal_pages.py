@@ -14,6 +14,7 @@ import httpx
 import pytest
 from playwright.sync_api import Page, expect
 
+from framework.response import expect_response
 from framework.step import step
 from pages.tree_page import TreePage
 from src.texts import ErrMsg
@@ -107,9 +108,7 @@ def test_landing_footer_legal_link_resolves_to_200(
         response = httpx.get(f"{base_url}{href}", follow_redirects=True)
 
     with step("проверка: 200 и content-type text/html"):
-        assert response.status_code == HTTPStatus.OK, (
-            f"footer link {href} returned {response.status_code}"
-        )
+        expect_response(response, label=f"footer link {href}").status(HTTPStatus.OK)
         content_type = (response.headers.get("content-type") or "").lower()
         assert "text/html" in content_type, (
             f"footer link {href} content-type={content_type!r}, expected text/html"
