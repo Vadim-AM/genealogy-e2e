@@ -15,11 +15,11 @@ from __future__ import annotations
 import allure
 import pyotp
 
+from tests._core.api_paths import API
+from tests._core.constants import make_email
+from tests._core.response import expect_response
+from tests._core.step import step
 from tests._fixtures.users import setup_and_verify_mfa
-from tests.api_paths import API
-from tests.constants import make_email
-from tests.response import expect_response
-from tests.step import step
 
 
 @allure.title("Step-up: критичное действие без подтверждения — 403")

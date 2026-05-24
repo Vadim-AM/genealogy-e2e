@@ -5,17 +5,22 @@ Public landing page rendering, headers, content guarantees.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
-from tests.messages import PII, Brand, t
+from tests._core.api_paths import API
+from tests._core.messages import PII, Brand, t
+from tests._core.step import step
 from tests.pages.tree_page import TreePage
-from tests.step import step
+
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
 
 
 @allure.title("Лендинг: заголовок страницы содержит название бренда")
-def test_landing_title_has_brand(page: Page):
+def test_landing_title_has_brand(page: Page, anon_pages: PageFactory):
     """F-LND-2: title contains a brand fragment.
 
     Title is finalised by `_bootstrapSiteConfig` (js/init.js) after fetching
@@ -25,7 +30,7 @@ def test_landing_title_has_brand(page: Page):
     import re
 
     with step("действие: открыть главную"):
-        page.goto("/")
+        anon_pages.navigate_to(TreePage)
 
     with step("проверка: заголовок содержит бренд"):
         fragments = t(Brand.TITLE_FRAGMENTS)
@@ -34,7 +39,7 @@ def test_landing_title_has_brand(page: Page):
 
 
 @allure.title("Лендинг: нет JS-ошибок в консоли при загрузке")
-def test_landing_no_console_errors(page: Page):
+def test_landing_no_console_errors(page: Page, anon_pages: PageFactory):
     """N-1: no JS exceptions on landing; only allowlisted 401-on-anon network errors.
 
     Two channels are tracked separately:
@@ -61,8 +66,7 @@ def test_landing_no_console_errors(page: Page):
         page.on("response", _on_response)
 
     with step("действие: загрузить главную страницу"):
-        page.goto("/")
-        page.wait_for_load_state("domcontentloaded")
+        anon_pages.navigate_to(TreePage)
 
     with step("проверка: нет JS-ошибок и неожиданных сетевых ошибок"):
         assert not js_errors, f"JS pageerrors on landing: {js_errors}"
@@ -70,15 +74,14 @@ def test_landing_no_console_errors(page: Page):
 
 
 @allure.title("Лендинг: гость видит вкладки Древо и О проекте")
-def test_landing_has_main_tabs(page: Page):
+def test_landing_has_main_tabs(page: Page, anon_pages: PageFactory):
     """U-LND-1: guest-visible tabs are present.
 
     Guests see only `tree` and `about`; map/sources/timeline are auth-gated
     by `updateGuestUI()` in index.html.
     """
     with step("действие: открыть лендинг"):
-        tree = TreePage(page).goto()
-        page.wait_for_load_state("domcontentloaded")
+        tree = anon_pages.navigate_to(TreePage)
 
     with step("проверка: вкладки Древо и О проекте видны"):
         expect(tree.tab_tree).to_be_visible()
@@ -86,7 +89,7 @@ def test_landing_has_main_tabs(page: Page):
 
 
 @allure.title("Лендинг: на главной нет персональных данных владельца")
-def test_landing_no_personal_owner_data(page: Page):
+def test_landing_no_personal_owner_data(page: Page, anon_pages: PageFactory):
     """C-LND-3: public landing must not leak owner family names (PII).
 
     Was xfailed under BUG-COPY-001 until upstream commit `fc2849e`
@@ -95,8 +98,7 @@ def test_landing_no_personal_owner_data(page: Page):
     of any owner family names (`PII.OWNER_FAMILY_NAMES`).
     """
     with step("действие: загрузить главную"):
-        page.goto("/")
-        page.wait_for_load_state("domcontentloaded")
+        anon_pages.navigate_to(TreePage)
         body = page.content()
 
     with step("проверка: нет PII владельца в контенте"):
@@ -105,7 +107,7 @@ def test_landing_no_personal_owner_data(page: Page):
 
 
 @allure.title("Лендинг: CSS/JS-ресурсы загружаются без ошибок")
-def test_static_assets_load(page: Page):
+def test_static_assets_load(page: Page, anon_pages: PageFactory):
     """F-LND-5: critical CSS/JS bundles return 200."""
     with step("подготовка: подключить listener на статику"):
         statuses: dict[str, int] = {}
@@ -118,8 +120,7 @@ def test_static_assets_load(page: Page):
         page.on("response", _track)
 
     with step("действие: загрузить главную"):
-        page.goto("/")
-        page.wait_for_load_state("domcontentloaded")
+        anon_pages.navigate_to(TreePage)
 
     with step("проверка: все статические ресурсы отдали 2xx/3xx"):
         bad = {url: status for url, status in statuses.items() if status >= 400}

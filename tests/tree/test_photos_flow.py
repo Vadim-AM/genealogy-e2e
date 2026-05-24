@@ -26,11 +26,11 @@ import re
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.messages import Buttons, t
+from tests._core.step import step
 from tests.helpers.tree.photos import upload_jpeg
-from tests.messages import Buttons, t
 from tests.pages.photos_block import PhotosBlock
 from tests.pages.profile_panel import open_editor_for
-from tests.step import step
 
 
 @allure.title("Блок фото отображается в редакторе с кнопкой добавления")

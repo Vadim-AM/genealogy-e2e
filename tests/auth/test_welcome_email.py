@@ -21,10 +21,10 @@ from __future__ import annotations
 import allure
 import httpx
 
-from tests.api_paths import API
-from tests.constants import unique_email
-from tests.step import step
-from tests.timeouts import TIMEOUTS
+from tests._core.api_paths import API
+from tests._core.constants import unique_email
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 
 
 @allure.title("Welcome-письмо содержит URL из GENEALOGY_PUBLIC_URL, не прод")

@@ -21,14 +21,17 @@ from typing import TYPE_CHECKING
 
 import allure
 
-from tests.step import step
+from tests._core.step import step
+from tests.pages.tree_page import TreePage
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
 
+    from tests._fixtures.page_factory import PageFactory
+
 
 @allure.title("Язык: переключатель языка скрыт пока доступен только RU")
-def test_lang_switcher_containers_are_hidden_when_only_one_language(page: Page):
+def test_lang_switcher_containers_are_hidden_when_only_one_language(page: Page, anon_pages: PageFactory):
     """TC-19.*-disabled: `[data-testid="lang-switcher"]` контейнеры (в header и footer)
     пустые и display:none пока `_LOCALE_PUBLIC_RELEASE=false`.
     Lang-switcher.js при langs.length<=1 устанавливает
@@ -41,8 +44,7 @@ def test_lang_switcher_containers_are_hidden_when_only_one_language(page: Page):
     Селектор по классу — устойчив к этой особенности.
     """
     with step("действие: открыть главную и найти lang-switcher контейнеры"):
-        page.goto("/")
-        page.wait_for_load_state("domcontentloaded")
+        anon_pages.navigate_to(TreePage)
 
         containers = page.locator('[data-testid="lang-switcher"]').all()
         assert containers, 'не найдено ни одного [data-testid="lang-switcher"] container на /'
@@ -62,13 +64,12 @@ def test_lang_switcher_containers_are_hidden_when_only_one_language(page: Page):
 
 
 @allure.title("Язык: атрибут html lang всегда равен ru")
-def test_html_lang_attribute_is_ru(page: Page):
+def test_html_lang_attribute_is_ru(page: Page, anon_pages: PageFactory):
     """initLang() форс-резолвит в 'ru' (igноривает localStorage / navigator).
     Это контракт: пока локализация отложена, документ всегда RU.
     """
     with step("действие: открыть главную"):
-        page.goto("/")
-        page.wait_for_load_state("domcontentloaded")
+        anon_pages.navigate_to(TreePage)
 
     with step("проверка: html lang равен ru"):
         html_lang = page.evaluate("() => document.documentElement.lang")
@@ -79,7 +80,7 @@ def test_html_lang_attribute_is_ru(page: Page):
 
 
 @allure.title("Язык: localStorage с en не переключает UI на английский")
-def test_localstorage_genealogy_lang_seed_does_not_change_active_lang(page: Page):
+def test_localstorage_genealogy_lang_seed_does_not_change_active_lang(page: Page, anon_pages: PageFactory):
     """setLang() — no-op при отключённой локализации. Pre-seed
     `localStorage.genealogy_lang='en'` не должен переключить UI на EN.
 
@@ -93,8 +94,7 @@ def test_localstorage_genealogy_lang_seed_does_not_change_active_lang(page: Page
         page.add_init_script("try { localStorage.setItem('genealogy_lang', 'en'); } catch (e) {}")
 
     with step("действие: открыть главную"):
-        page.goto("/")
-        page.wait_for_load_state("domcontentloaded")
+        anon_pages.navigate_to(TreePage)
 
     with step("проверка: язык остался ru"):
         html_lang = page.evaluate("() => document.documentElement.lang")

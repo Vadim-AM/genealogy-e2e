@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from tests.messages import Buttons, TestData, t
+from tests._core.messages import Buttons, TestData, t
 
 if TYPE_CHECKING:
     from playwright.sync_api import Locator, Page

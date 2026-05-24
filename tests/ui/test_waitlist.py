@@ -18,24 +18,26 @@ from typing import TYPE_CHECKING
 
 import allure
 
-from tests.constants import unique_email
-from tests.messages import PII
+from tests._core.constants import unique_email
+from tests._core.messages import PII
+from tests._core.step import step
 from tests.pages.wait_page import WaitPage
-from tests.step import step
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
 
+    from tests._fixtures.page_factory import PageFactory
+
 
 @allure.title("Вейтлист: форма подписки отображается на /wait")
-def test_wait_page_renders_form(page: Page):
+def test_wait_page_renders_form(anon_pages: PageFactory):
     """F-WAIT-1: /wait → form visible."""
-    wait = WaitPage(page).goto()
+    wait = anon_pages.navigate_to(WaitPage)
     wait.expect_visible_form()
 
 
 @allure.title("Вейтлист: отправка email успешно добавляет в очередь")
-def test_wait_submit_email_success(page: Page):
+def test_wait_submit_email_success(page: Page, anon_pages: PageFactory):
     """F-WAIT-2: submit → success message.
 
     Hardened (Rule 1): the previous `expect_success()`-only assertion was a
@@ -44,7 +46,7 @@ def test_wait_submit_email_success(page: Page):
     the HTTP response so a real waitlist break is actually caught.
     """
     with step("действие: отправить email через waitlist"):
-        wait = WaitPage(page).goto()
+        wait = anon_pages.navigate_to(WaitPage)
         with page.expect_response("**/api/waitlist/subscribe") as r_info:
             wait.submit_email(unique_email("waitlist1"))
 
@@ -56,11 +58,10 @@ def test_wait_submit_email_success(page: Page):
 
 
 @allure.title("Вейтлист: на /wait нет персональных данных владельца")
-def test_wait_no_owner_personal_data(page: Page):
+def test_wait_no_owner_personal_data(page: Page, anon_pages: PageFactory):
     """BUG-COPY-001: /wait must not mention owner family names (PII)."""
     with step("действие: загрузить /wait"):
-        page.goto("/wait")
-        page.wait_for_load_state("domcontentloaded")
+        anon_pages.navigate_to(WaitPage)
         body = page.content()
 
     with step("проверка: нет PII владельца"):
@@ -69,14 +70,14 @@ def test_wait_no_owner_personal_data(page: Page):
 
 
 @allure.title("Вейтлист: невалидный email блокируется HTML5-проверкой")
-def test_wait_submit_invalid_email_blocks_html5_validity(page: Page):
+def test_wait_submit_invalid_email_blocks_html5_validity(page: Page, anon_pages: PageFactory):
     """F-WAIT-3: invalid email — input fails HTML5 validity (form does not submit).
 
     Input has type=email + required: the browser blocks submit and the
     input becomes :invalid. We assert the validity state directly.
     """
     with step("действие: заполнить невалидный email и отправить"):
-        wait = WaitPage(page).goto()
+        wait = anon_pages.navigate_to(WaitPage)
         wait.email.fill("not-an-email")
         wait.submit_btn.click()
 
@@ -88,7 +89,7 @@ def test_wait_submit_invalid_email_blocks_html5_validity(page: Page):
 
 
 @allure.title("Вейтлист: повторная подписка возвращает already_subscribed")
-def test_wait_duplicate_email_idempotent_status_field(page: Page):
+def test_wait_duplicate_email_idempotent_status_field(page: Page, anon_pages: PageFactory):
     """F-WAIT-4: re-submitting an already-subscribed email — idempotent contract.
 
     Backend `/api/waitlist/subscribe` returns 200 + JSON `{"status": ...}`:
@@ -100,7 +101,7 @@ def test_wait_duplicate_email_idempotent_status_field(page: Page):
     """
     with step("действие: первая подписка"):
         email = unique_email("dupe")
-        wait = WaitPage(page).goto()
+        wait = anon_pages.navigate_to(WaitPage)
         with page.expect_response("**/api/waitlist/subscribe") as r1_info:
             wait.submit_email(email)
 
@@ -114,7 +115,7 @@ def test_wait_duplicate_email_idempotent_status_field(page: Page):
         wait.expect_success()
 
     with step("действие: повторная подписка тем же email"):
-        wait = WaitPage(page).goto()
+        wait = anon_pages.navigate_to(WaitPage)
         with page.expect_response("**/api/waitlist/subscribe") as r2_info:
             wait.submit_email(email)
 

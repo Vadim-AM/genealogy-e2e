@@ -17,12 +17,12 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
-from tests.constants import make_email
+from tests._core.api_paths import API
+from tests._core.constants import make_email
+from tests._core.messages import Invite, TestData, t
+from tests._core.step import step
 from tests.helpers.auth.auth_ui import auth_name
-from tests.messages import Invite, TestData, t
 from tests.pages.invite_accept_page import InviteAcceptPage
-from tests.step import step
 
 
 @allure.title("Приглашённый видит успех с именем древа на странице принятия")

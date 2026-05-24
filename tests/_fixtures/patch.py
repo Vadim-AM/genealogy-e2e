@@ -20,8 +20,8 @@ from typing import Any
 
 import httpx
 
-from tests.settings import settings
-from tests.timeouts import set_playwright_default_expect_timeout
+from tests._core.settings import settings
+from tests._core.timeouts import set_playwright_default_expect_timeout
 
 _E2E_TEST_TOKEN = settings.test_token
 

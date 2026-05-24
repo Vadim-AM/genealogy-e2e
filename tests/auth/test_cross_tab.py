@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import allure
 
-from tests.api_paths import API
-from tests.step import step
+from tests._core.api_paths import API
+from tests._core.step import step
 
 
 @allure.title("Выход из одной вкладки инвалидирует сессию в другой")

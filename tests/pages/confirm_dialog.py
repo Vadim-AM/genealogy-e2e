@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
-from tests.messages import Buttons, t
+from tests._core.messages import Buttons, t
 
 
 class ConfirmDialog:

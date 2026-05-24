@@ -13,9 +13,9 @@ import allure
 import httpx
 import pytest
 
+from tests._core.api_paths import API
+from tests._core.step import step
 from tests._data.payloads.injection import SQL_PAYLOADS
-from tests.api_paths import API
-from tests.step import step
 
 
 @pytest.mark.security
@@ -93,7 +93,7 @@ def test_person_patch_sql_injection_safe(
     api = tenant_client(owner_user)
 
     with step("обновить summary демо-персоны с SQL-payload"):
-        from tests.messages import TestData
+        from tests._core.messages import TestData
 
         r = api.patch(API.person(TestData.DEMO_PERSON_ID), json={
             "summary": payload,

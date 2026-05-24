@@ -17,8 +17,8 @@ import allure
 import httpx
 import pytest
 
-from tests.response import expect_response
-from tests.timeouts import TIMEOUTS
+from tests._core.response import expect_response
+from tests._core.timeouts import TIMEOUTS
 
 
 @allure.title("Ops: стандартные k8s-пробы /healthz и /readyz отвечают 200")

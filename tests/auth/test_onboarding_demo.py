@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING
 
 import allure
 
-from tests.api_paths import API
+from tests._core.api_paths import API
+from tests._core.step import step
 from tests.pages.confirm_dialog import ConfirmDialog
-from tests.step import step
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page

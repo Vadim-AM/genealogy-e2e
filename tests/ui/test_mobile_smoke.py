@@ -18,9 +18,9 @@ import allure
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Page, expect
 
+from tests._core.step import step
 from tests._data.devices.descriptors import DEVICE_DESCRIPTORS
 from tests.pages.signup_page import SignupPage
-from tests.step import step
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

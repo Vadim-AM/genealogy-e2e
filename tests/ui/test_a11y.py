@@ -19,16 +19,21 @@ Two distinct fails for screen-reader users:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 from tests.pages.signup_page import SignupPage
-from tests.step import step
-from tests.timeouts import TIMEOUTS
+
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
 
 
 @allure.title("A11y: поле пароля получает aria-invalid при ошибке сервера")
-def test_signup_short_password_sets_aria_invalid(page: Page):
+def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFactory):
     """A-SU-3: server returns 422 на short password → JS handler ставит
     `aria-invalid="true"` на password input.
 
@@ -41,14 +46,12 @@ def test_signup_short_password_sets_aria_invalid(page: Page):
     вместо одного `#agree`. Поле `#full_name` удалено в commit 814d5f8 (I4).
     """
     with step("подготовка: открыть signup и снять minlength"):
-        page.goto("/signup")
-        page.wait_for_load_state("domcontentloaded")
+        signup = anon_pages.navigate_to(SignupPage)
         # Снимаем HTML5 ограничение minlength="8" на #password — иначе native
         # validity блокирует submit ДО fetch, JS error-handler не запускается,
         # тест проверяет уровень `aria-invalid` который ставится только из
         # response-handler. Server-side валидация (zxcvbn-python score>=2) —
         # источник истины, который мы и тестируем.
-        signup = SignupPage(page)
         page.evaluate("document.getElementById('password').removeAttribute('minlength')")
 
     with step("действие: заполнить форму коротким паролем и отправить"):
@@ -71,15 +74,13 @@ def test_signup_short_password_sets_aria_invalid(page: Page):
 
 
 @allure.title("A11y: honeypot-поле скрыто от скринридера (aria-hidden)")
-def test_signup_honeypot_is_aria_hidden(page: Page):
+def test_signup_honeypot_is_aria_hidden(page: Page, anon_pages: PageFactory):
     """A-SU-4: honeypot input has `aria-hidden="true"` (or its wrapper).
 
     Was xfail until upstream batch-6/7. Now regular regression.
     """
     with step("действие: открыть signup"):
-        page.goto("/signup")
-        page.wait_for_load_state("domcontentloaded")
-        signup = SignupPage(page)
+        signup = anon_pages.navigate_to(SignupPage)
 
     with step("проверка: honeypot имеет aria-hidden"):
         expect(signup.honeypot).to_have_attribute("aria-hidden", "true")

@@ -12,9 +12,9 @@ import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
-from tests.step import step
-from tests.timeouts import TIMEOUTS
+from tests._core.api_paths import API
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 
 
 @allure.title("Edge: переход по несуществующему профилю не ломает UI")

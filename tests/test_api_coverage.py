@@ -24,9 +24,9 @@ import re
 import allure
 import httpx
 
-from tests.api_paths import API
-from tests.step import step
-from tests.timeouts import TIMEOUTS
+from tests._core.api_paths import API
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 
 # Accepted coverage gaps — the debt registry. Each line is tagged with its
 # journey-roadmap group. A gap is closed by a new journey test exercising

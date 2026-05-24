@@ -16,12 +16,12 @@ import zipfile
 import allure
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
-from tests.messages import TestData
+from tests._core.api_paths import API
+from tests._core.messages import TestData
+from tests._core.response import expect_response
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 from tests.pages.owner_page import OwnerPage
-from tests.response import expect_response
-from tests.step import step
-from tests.timeouts import TIMEOUTS
 
 
 @allure.title("Админка владельца: вкладка настроек содержит поля ввода")

@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import allure
 
-from tests.api_paths import API
+from tests._core.api_paths import API
+from tests._core.step import step
 from tests.pages.platform_dashboard_page import PlatformDashboardPage
-from tests.step import step
 
 # ─────────────────────────────────────────────────────────────────────
 # API-уровень

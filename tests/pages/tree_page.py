@@ -11,7 +11,7 @@ from typing import Self
 
 from playwright.sync_api import Page, expect
 
-from tests.messages import Placeholders, t
+from tests._core.messages import Placeholders, t
 
 from .base import BasePage
 

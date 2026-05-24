@@ -20,9 +20,9 @@ from __future__ import annotations
 import allure
 import httpx
 
-from tests.messages import PII
-from tests.step import step
-from tests.timeouts import TIMEOUTS
+from tests._core.messages import PII
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 
 
 @allure.title("Приватность: constants.js не содержит ФИО владельца")

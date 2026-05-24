@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import allure
 
-from tests.api_paths import API
-from tests.constants import make_email, unique_email
-from tests.step import step
+from tests._core.api_paths import API
+from tests._core.constants import make_email, unique_email
+from tests._core.step import step
 
 
 @allure.title("Запрос смены email отправляет токен подтверждения на новый адрес")

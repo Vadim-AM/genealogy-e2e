@@ -21,7 +21,7 @@ useful for assertions on visible copy (warning messages, error texts).
 
 from __future__ import annotations
 
-from tests.settings import settings
+from tests._core.settings import settings
 
 _LOCALE = settings.locale
 

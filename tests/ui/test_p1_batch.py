@@ -13,17 +13,21 @@ from __future__ import annotations
 
 import json
 import re
+from typing import TYPE_CHECKING
 
 import allure
 from playwright.sync_api import Page, Route, expect
 
-from tests.messages import AboutTab, Placeholders, TestData, t
+from tests._core.messages import AboutTab, Placeholders, TestData, t
+from tests._core.step import step
 from tests.pages.base import custom_select_for, wait_for_authed_shell
 from tests.pages.confirm_dialog import ConfirmDialog
 from tests.pages.person_editor import AddRelativeModal, PersonEditor
 from tests.pages.profile_panel import ProfilePanel, open_editor_for
 from tests.pages.tree_page import TreePage
-from tests.step import step
+
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
 
 # ─────────────────────────────────────────────────────────────────────────
 # TC-04.05 — Minimap visible на tree tab у logged-in юзера (desktop)
@@ -31,7 +35,7 @@ from tests.step import step
 
 
 @allure.title("Древо: минимапа видна авторизованному пользователю")
-def test_minimap_visible_on_tree_tab_for_authed_owner(owner_page: Page):
+def test_minimap_visible_on_tree_tab_for_authed_owner(pages: PageFactory):
     """TC-04.05: `#minimap.visible` на desktop когда auth user открыл
     tree tab. Минимап скрыт для guest (init.js:369-370) и при open
     editor (`body.editor-active .minimap`); проверяем default state.
@@ -39,7 +43,7 @@ def test_minimap_visible_on_tree_tab_for_authed_owner(owner_page: Page):
     owner_page фикстура использует viewport 1440×900 (desktop) — на
     мобиле minimap скрыт через media-query `@media (max-width:...)`.
     """
-    tree = TreePage(owner_page).goto()
+    tree = pages.navigate_to(TreePage)
 
     expect(tree.minimap).to_be_visible()
     expect(tree.minimap).to_have_class(re.compile(r"\bvisible\b"))
@@ -52,14 +56,14 @@ def test_minimap_visible_on_tree_tab_for_authed_owner(owner_page: Page):
 
 @allure.title("Древо: легенда веток скрыта при менее чем 3 поколениях")
 def test_branch_legend_is_hidden_when_tree_has_less_than_3_generations(
-    owner_page: Page,
+    pages: PageFactory,
 ):
     """TC-04.09 (negative): demo seed = subject + 2 родителя = 2 поколения,
     legend остаётся `display:none` (orbit.js:362). Positive case
     (≥3 generations + visible legend) требует расширенного seed-set —
     отдельный тест когда появятся такие фикстуры.
     """
-    tree = TreePage(owner_page).goto()
+    tree = pages.navigate_to(TreePage)
 
     expect(tree.branch_legend).not_to_be_visible()
 
@@ -170,10 +174,7 @@ def test_add_parent_button_hidden_when_two_parents_exist(owner_page: Page):
     либо отсутствует в DOM, либо not_visible. RELATIVE_LIMITS.parents=2.
     """
     with step("действие: открыть профиль demo-персоны"):
-        owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-        owner_page.wait_for_load_state("domcontentloaded")
-        panel = ProfilePanel(owner_page)
-        panel.expect_visible()
+        panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
 
     with step("проверка: кнопка + Родители отсутствует в DOM"):
         # add_relative_button даёт scoped Locator — `.first` не нужен,
@@ -192,14 +193,13 @@ def test_add_parent_button_hidden_when_two_parents_exist(owner_page: Page):
 
 
 @allure.title("Вкладки Sources и Timeline содержат декоративный футер-орнамент")
-def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page):
+def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page, pages: PageFactory):
     """TC-04.07: Каждый из tab-sources / tab-timeline содержит
     `.footer-ornament` с тремя bullet-точками. Это design-system
     маркер, регрессия = пустой/неструктурированный footer.
     """
     with step("действие: загрузить главную"):
-        owner_page.goto("/")
-        owner_page.wait_for_load_state("domcontentloaded")
+        pages.navigate_to(TreePage)
 
     with step("проверка: footer-ornament в sources и timeline"):
         sources_ornament = owner_page.locator('#tab-sources [data-testid="footer-ornament"]')
@@ -222,13 +222,13 @@ def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page):
 
 
 @allure.title("Таймлайн: отображаются 5 кнопок-фильтров по веткам")
-def test_timeline_river_filters_render_five_branches(owner_page: Page):
+def test_timeline_river_filters_render_five_branches(owner_page: Page, pages: PageFactory):
     """TC-12.02: после переключения на Timeline tab — 5 кнопок-фильтров
     (`[data-testid="river-filter-btn"]`): Все / По матери / По отцу / Другие / История.
     Default active = «Все» (data-branch=all).
     """
     with step("действие: переключиться на timeline"):
-        tree = TreePage(owner_page).goto()
+        tree = pages.navigate_to(TreePage)
         tree.switch_tab("timeline")
 
     with step("проверка: 5 фильтров в правильном порядке"):
@@ -255,14 +255,14 @@ def test_timeline_river_filters_render_five_branches(owner_page: Page):
 
 
 @allure.title("О проекте: placeholder виден когда about_text не заполнен")
-def test_about_tab_shows_placeholder_when_about_text_is_empty(owner_page: Page):
+def test_about_tab_shows_placeholder_when_about_text_is_empty(owner_page: Page, pages: PageFactory):
     """TC-13.05: на чистом demo seed about_text не заполнен →
     `[data-config-empty="about_text"]` блок visible с дефолтным
     текстом «Это семейное древо…». `[data-config-html="about_text"]`
     скрыт через `data-empty-hidden`.
     """
     with step("действие: открыть вкладку About"):
-        tree = TreePage(owner_page).goto()
+        tree = pages.navigate_to(TreePage)
         wait_for_authed_shell(owner_page)
         tree.switch_tab("about")
 
@@ -297,11 +297,7 @@ def test_add_relative_shows_error_on_409_conflict(owner_page: Page):
         owner_page.route("**/api/relationships", conflict_handler)
 
     with step("действие: открыть профиль и добавить родственника"):
-        owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
-        owner_page.wait_for_load_state("domcontentloaded")
-
-        panel = ProfilePanel(owner_page)
-        panel.expect_visible()
+        panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
 
         modal = AddRelativeModal(owner_page)
@@ -414,13 +410,13 @@ def test_confirm_dialog_backdrop_click_cancels(owner_page: Page):
 
 
 @allure.title("Таймлайн: клик по фильтру переключает активную ветку")
-def test_timeline_river_filter_click_switches_active(owner_page: Page):
+def test_timeline_river_filter_click_switches_active(owner_page: Page, pages: PageFactory):
     """TC-12.02 (extension): click `[data-testid="river-filter-btn"][data-branch=maternal]`
     → active class переходит с дефолтного `all` на `maternal`.
     Контракт: только одна кнопка active в каждый момент.
     """
     with step("подготовка: переключиться на timeline"):
-        tree = TreePage(owner_page).goto()
+        tree = pages.navigate_to(TreePage)
         wait_for_authed_shell(owner_page)
         tree.switch_tab("timeline")
 
@@ -441,13 +437,13 @@ def test_timeline_river_filter_click_switches_active(owner_page: Page):
 
 
 @allure.title("Источники: поле поиска и фильтр-кнопки присутствуют")
-def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page):
+def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page, pages: PageFactory):
     """TC-11.02 (structural): после переключения на sources tab UI
     содержит search input (#evidenceSearch) с placeholder «Поиск...»
     и хотя бы одну `.filter-btn[data-filter=all]` (default active).
     """
     with step("действие: переключиться на sources"):
-        tree = TreePage(owner_page).goto()
+        tree = pages.navigate_to(TreePage)
         wait_for_authed_shell(owner_page)
         tree.switch_tab("sources")
 
@@ -472,14 +468,14 @@ def test_sources_tab_renders_search_input_and_filter_buttons(owner_page: Page):
 
 
 @allure.title("Древо: минимапа скрыта на мобильном viewport (375px)")
-def test_minimap_hidden_on_mobile_viewport(owner_page: Page):
+def test_minimap_hidden_on_mobile_viewport(owner_page: Page, pages: PageFactory):
     """TC-04.06: media-query `@media (max-width: 720px) { .minimap {
     display:none !important; } }` (css/inline.css). Меняем viewport
     на 375×800 (iPhone SE-class) и проверяем computed display.
     """
     with step("действие: установить mobile viewport и открыть древо"):
         owner_page.set_viewport_size({"width": 375, "height": 800})
-        tree = TreePage(owner_page).goto()
+        tree = pages.navigate_to(TreePage)
 
     with step("проверка: minimap скрыт через display:none"):
         display = tree.minimap.evaluate("(el) => getComputedStyle(el).display")
@@ -501,7 +497,7 @@ def test_minimap_hidden_on_mobile_viewport(owner_page: Page):
 
 
 @allure.title("О проекте: placeholder контактов виден при пустых данных")
-def test_about_contact_box_shows_placeholder_when_contacts_empty(owner_page: Page):
+def test_about_contact_box_shows_placeholder_when_contacts_empty(owner_page: Page, pages: PageFactory):
     """TC-13.04 (negative): default seed → contact_text + contact_email пустые
     → `#contactBoxPlaceholder` (auth-only подсказка owner'у) показывается.
 
@@ -515,7 +511,7 @@ def test_about_contact_box_shows_placeholder_when_contacts_empty(owner_page: Pag
     отдельный тест.
     """
     with step("действие: открыть вкладку About"):
-        tree = TreePage(owner_page).goto()
+        tree = pages.navigate_to(TreePage)
         wait_for_authed_shell(owner_page)
         tree.switch_tab("about")
 
@@ -533,7 +529,7 @@ def test_about_contact_box_shows_placeholder_when_contacts_empty(owner_page: Pag
 
 
 @allure.title("Древо: клик по карточке орбиты центрирует на персону")
-def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page):
+def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page, pages: PageFactory):
     """TC-04.08 / TC-05.01: click на не-центральную orbit-card →
     orbitNavigateTo(pid) → дерево перерендеривается так что
     `.orbit-zone-center .orbit-center-card[data-person-id]` указывает
@@ -541,8 +537,7 @@ def test_clicking_orbit_card_recenters_orbit_to_clicked_person(owner_page: Page)
     profile (последняя триггерится отдельным data-action="open-profile").
     """
     with step("подготовка: открыть главную и найти не-центральную карту"):
-        owner_page.goto("/")
-        owner_page.wait_for_load_state("domcontentloaded")
+        pages.navigate_to(TreePage)
         target_card = owner_page.locator(
             '#treeContainer [data-testid="orbit-card"][data-person-id]:not([data-testid="orbit-center-card"])'
         ).first

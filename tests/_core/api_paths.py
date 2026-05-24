@@ -1,7 +1,7 @@
 """API endpoint paths — единый source of truth для сьюта.
 
 Использование:
-    from tests.api_paths import API
+    from tests._core.api_paths import API
 
     api.get(API.TREE)
     api.patch(API.person(pid), json=...)

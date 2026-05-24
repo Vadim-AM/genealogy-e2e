@@ -5,10 +5,14 @@
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
+
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
     import httpx
+
+T = TypeVar("T", bound=BaseModel)
 
 
 class ResponseExpectation:
@@ -62,8 +66,38 @@ class ResponseExpectation:
         )
         return self
 
+    def schema(self, model: type[T]) -> T:
+        """Parse JSON and validate against a Pydantic model, returning the typed instance."""
+        try:
+            data = self._r.json()
+        except Exception as exc:
+            msg = self._ctx(f"response is not JSON: {exc}")
+            raise AssertionError(msg) from exc
+        try:
+            return model.model_validate(data)
+        except Exception as exc:
+            msg = self._ctx(f"schema validation failed ({model.__name__}): {exc}")
+            raise AssertionError(msg) from exc
+
+    def list_schema(self, model: type[T]) -> list[T]:
+        """Parse JSON array and validate each item against a Pydantic model."""
+        try:
+            data = self._r.json()
+        except Exception as exc:
+            msg = self._ctx(f"response is not JSON: {exc}")
+            raise AssertionError(msg) from exc
+        assert isinstance(data, list), self._ctx(
+            f"expected JSON array, got {type(data).__name__}"
+        )
+        try:
+            return [model.model_validate(item) for item in data]
+        except Exception as exc:
+            msg = self._ctx(f"list schema validation failed ({model.__name__}): {exc}")
+            raise AssertionError(msg) from exc
+
     @property
     def data(self) -> Any:
+        """Return raw parsed JSON."""
         return self._r.json()
 
 

@@ -15,11 +15,11 @@ import allure
 import pyotp
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
-from tests.constants import make_email
-from tests.messages import Mfa, t
+from tests._core.api_paths import API
+from tests._core.constants import make_email
+from tests._core.messages import Mfa, t
+from tests._core.step import step
 from tests.pages.mfa_settings import MfaSettings
-from tests.step import step
 
 
 @allure.title("Владелец включает и затем отключает двухфакторную аутентификацию")

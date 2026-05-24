@@ -6,7 +6,7 @@ from typing import Self
 
 from playwright.sync_api import Page, expect
 
-from tests.timeouts import TIMEOUTS
+from tests._core.timeouts import TIMEOUTS
 
 from .base import BasePage
 

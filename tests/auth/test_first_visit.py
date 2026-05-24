@@ -8,9 +8,9 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
+from tests._core.api_paths import API
+from tests._core.step import step
 from tests.pages.tree_page import TreePage
-from tests.step import step
 
 # Demo seed has demo-self + 2 parents around the centred subject =
 # 2 orbit cards rendered in the ring view (the centred subject card

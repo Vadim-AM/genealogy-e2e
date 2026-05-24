@@ -10,12 +10,13 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
-from tests.messages import Buttons, TestData, t
-from tests.messages import ConfirmDialog as ConfirmDialogMsg
+from tests._core.api_paths import API
+from tests._core.messages import Buttons, TestData, t
+from tests._core.messages import ConfirmDialog as ConfirmDialogMsg
+from tests._core.step import step
+from tests.helpers.api import person_api
 from tests.pages.confirm_dialog import ConfirmDialog
 from tests.pages.profile_panel import open_editor_for
-from tests.step import step
 
 # ─────────────────────────────────────────────────────────────────────────
 # TC-EDITOR-1: conditional maiden_name field by gender
@@ -93,9 +94,9 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tena
             f"DELETE must NOT be sent when confirm is dismissed; got: {delete_responses}"
 
         api = tenant_client(owner_user)
-        r = api.get(API.person("demo-grandpa"))
-        assert r.status_code == 200, \
-            f"demo-grandpa should still exist after dismissed confirm; got {r.status_code}"
+        tree = person_api.get_tree(api)
+        assert any(p.id == "demo-grandpa" for p in tree.people), \
+            "demo-grandpa should still exist after dismissed confirm"
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -129,10 +130,10 @@ def test_owner_edits_demo_self_summary_through_ui(
 
     with step("проверка: summary сохранён в бэкенде"):
         api = tenant_client(owner_user)
-        r = api.get(API.person(TestData.DEMO_PERSON_ID))
-        r.raise_for_status()
-        assert r.json()["summary"] == summary, \
-            f"summary not persisted: got {r.json().get('summary')!r}"
+        tree = person_api.get_tree(api)
+        person = next(p for p in tree.people if p.id == TestData.DEMO_PERSON_ID)
+        assert person.summary == summary, \
+            f"summary not persisted: got {person.summary!r}"
 
 
 

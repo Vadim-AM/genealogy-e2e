@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 from playwright.sync_api import Locator, Page, expect
 
-from tests.messages import Buttons, FamilyGroups, TestData, t
+from tests._core.messages import Buttons, FamilyGroups, TestData, t
 
 if TYPE_CHECKING:
     from tests.pages.person_editor import PersonEditor

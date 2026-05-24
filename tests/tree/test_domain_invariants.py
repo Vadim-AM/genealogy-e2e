@@ -15,12 +15,14 @@ from __future__ import annotations
 
 import allure
 
-from tests._data.payloads.tree import parent_rel, person_payload
-from tests.api_paths import API
-from tests.constants import unique_email
-from tests.messages import TestData
-from tests.response import expect_response
-from tests.step import step
+from tests._core.api_paths import API
+from tests._core.constants import unique_email
+from tests._core.messages import TestData
+from tests._core.response import expect_response
+from tests._core.step import step
+from tests._data.payloads.tree import parent_rel
+from tests._models.person import PersonCreate
+from tests.helpers.api import person_api
 
 # ─────────────────────────────────────────────────────────────────────────
 # INV-DOMAIN-001 / INV-DOMAIN-004 / INV-DATE-001 — date validation
@@ -52,12 +54,12 @@ def test_patch_parent_birth_after_child_is_422(signup_via_api, tenant_client):
         user = signup_via_api(email=unique_email("dom004"))
         api = tenant_client(user)
 
-        api.post(API.PEOPLE, json=person_payload(
-            "dom004-child", "Ребёнок", branch="subject", birth="1985"
-        )).raise_for_status()
-        api.post(API.PEOPLE, json=person_payload(
-            "dom004-parent", "Родитель", birth="1960"
-        )).raise_for_status()
+        person_api.create_person(api, PersonCreate(
+            id="dom004-child", name="Ребёнок", branch="subject", birth="1985",
+        ))
+        person_api.create_person(api, PersonCreate(
+            id="dom004-parent", name="Родитель", birth="1960",
+        ))
         api.post(API.RELATIONSHIPS, json=parent_rel("dom004-parent", "dom004-child")).raise_for_status()
 
     with step("проверка: PATCH birth=2000 отклонён (400/422)"):
@@ -95,9 +97,9 @@ def test_third_parent_relationship_is_rejected(signup_via_api, tenant_client):
         user = signup_via_api(email=unique_email("dom002"))
         api = tenant_client(user)
 
-        api.post(API.PEOPLE, json=person_payload("dom002-child", "Ребёнок", branch="subject")).raise_for_status()
+        person_api.create_person(api, PersonCreate(id="dom002-child", name="Ребёнок", branch="subject"))
         for pid, pname in (("dom002-p1", "Родитель-1"), ("dom002-p2", "Родитель-2"), ("dom002-p3", "Родитель-3")):
-            api.post(API.PEOPLE, json=person_payload(pid, pname)).raise_for_status()
+            person_api.create_person(api, PersonCreate(id=pid, name=pname))
 
         api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p1", "dom002-child")).raise_for_status()
         api.post(API.RELATIONSHIPS, json=parent_rel("dom002-p2", "dom002-child")).raise_for_status()
@@ -122,8 +124,8 @@ def test_parent_cycle_is_rejected(signup_via_api, tenant_client):
         user = signup_via_api(email=unique_email("dom003"))
         api = tenant_client(user)
 
-        api.post(API.PEOPLE, json=person_payload("dom003-a", "Цикл-A")).raise_for_status()
-        api.post(API.PEOPLE, json=person_payload("dom003-b", "Цикл-B")).raise_for_status()
+        person_api.create_person(api, PersonCreate(id="dom003-a", name="Цикл-A"))
+        person_api.create_person(api, PersonCreate(id="dom003-b", name="Цикл-B"))
 
         api.post(API.RELATIONSHIPS, json=parent_rel("dom003-a", "dom003-b")).raise_for_status()
 
@@ -167,8 +169,8 @@ def test_delete_non_root_person_with_relationship_does_not_500(
         user = signup_via_api(email=unique_email("cascade"))
         api = tenant_client(user)
 
-        api.post(API.PEOPLE, json=person_payload("cascade-child", "Ребёнок", branch="subject")).raise_for_status()
-        api.post(API.PEOPLE, json=person_payload("cascade-parent", "Родитель")).raise_for_status()
+        person_api.create_person(api, PersonCreate(id="cascade-child", name="Ребёнок", branch="subject"))
+        person_api.create_person(api, PersonCreate(id="cascade-parent", name="Родитель"))
         api.post(API.RELATIONSHIPS, json=parent_rel("cascade-parent", "cascade-child")).raise_for_status()
 
     with step("проверка: DELETE не вызывает 500"):
@@ -196,7 +198,7 @@ def test_relationship_with_orphan_person_id_returns_404_not_500(
     with step("подготовка: создание реальной персоны"):
         user = signup_via_api(email=unique_email("txn001"))
         api = tenant_client(user)
-        api.post(API.PEOPLE, json=person_payload("txn001-real", "Реальный")).raise_for_status()
+        person_api.create_person(api, PersonCreate(id="txn001-real", name="Реальный"))
 
     with step("проверка: связь с несуществующим ID возвращает 400/404/422"):
         r = api.post(

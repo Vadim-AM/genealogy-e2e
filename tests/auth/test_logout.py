@@ -13,11 +13,11 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.messages import TestData
+from tests._core.step import step
 from tests.helpers.auth.auth_ui import auth_indicator, auth_name, login_link, logout_link
-from tests.messages import TestData
 from tests.pages.base import wait_for_authed_shell
 from tests.pages.login_page import LoginPage
-from tests.step import step
 
 
 @allure.title("Клик 'Выйти' переключает индикатор в гостевой режим")

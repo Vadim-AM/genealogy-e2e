@@ -6,13 +6,19 @@ in commit f3a9d48 per docs/test-plan.md — guard against regression.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 import httpx
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.step import step
-from tests.timeouts import TIMEOUTS
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
+from tests.pages.tree_page import TreePage
+
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
 
 
 @pytest.mark.parametrize("path", ["/privacy", "/terms"])
@@ -67,7 +73,7 @@ def test_legal_has_no_unrendered_markdown_links(page: Page, path: str):
 @pytest.mark.parametrize("href", ["/privacy", "/terms"])
 @allure.title("Футер: юридические ссылки открываются в новой вкладке")
 def test_landing_footer_legal_link_is_visible_and_target_blank(
-    page: Page, href: str,
+    page: Page, href: str, anon_pages: PageFactory,
 ):
     """TC-24.03: footer на / содержит link на /privacy и /terms; target=_blank
     чтобы юзер не терял состояние tree/orbit при чтении legal text.
@@ -75,8 +81,7 @@ def test_landing_footer_legal_link_is_visible_and_target_blank(
     Селектор по href — устойчив к смене label'ов и i18n.
     """
     with step("действие: открыть главную и найти ссылку"):
-        page.goto("/")
-        page.wait_for_load_state("domcontentloaded")
+        anon_pages.navigate_to(TreePage)
         link = page.locator(f"a[href='{href}']").first
         expect(link).to_be_visible()
 

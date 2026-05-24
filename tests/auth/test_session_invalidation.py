@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import allure
 
-from tests.constants import unique_email
+from tests._core.constants import unique_email
+from tests._core.step import step
 from tests.helpers.auth.session_helpers import NEW_PASSWORD, me_status, trigger_password_reset
-from tests.step import step
 
 
 @allure.title("Сброс пароля инвалидирует текущую активную сессию")

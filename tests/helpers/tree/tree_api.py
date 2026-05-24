@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from tests.api_paths import API
-from tests.messages import TestData
+from tests._core.api_paths import API
+from tests._core.messages import TestData
 
 if TYPE_CHECKING:
     import httpx

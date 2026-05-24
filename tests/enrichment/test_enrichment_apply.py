@@ -7,20 +7,18 @@ gone.
 
 from __future__ import annotations
 
-import time
-
 import allure
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
-from tests.messages import Enrichment, TestData, t
+from tests._core.api_paths import API
+from tests._core.messages import Enrichment, TestData, t
+from tests._core.response import expect_response
+from tests._core.step import step
+from tests.helpers.api import enrichment_api
 from tests.pages.base import wait_for_authed_shell
 from tests.pages.confirm_dialog import ConfirmDialog
 from tests.pages.enrichment_modal import EnrichmentModal
 from tests.pages.profile_panel import ProfilePanel
-from tests.response import expect_response
-from tests.step import step
-from tests.timeouts import TIMEOUTS
 
 
 @allure.title("AI-обогащение: принятие гипотезы и откат через UI")
@@ -83,26 +81,11 @@ def test_enrichment_cache_and_health_invariants(
         grant_ai_consent(owner_user)
         api = tenant_client(owner_user)
 
-        started = api.post(
-            API.enrich(TestData.DEMO_PERSON_ID),
-            json={"streaming": False, "force_refresh": True},
-            timeout=TIMEOUTS.api_long,
-        )
-        expect_response(started, label="POST enrich").status_ok()
-        job_id = started.json()["job_id"]
+        started = enrichment_api.start_enrichment(api, TestData.DEMO_PERSON_ID)
 
     with step("действие: polling до завершения job"):
-        enrichment_id = None
-        deadline = time.time() + TIMEOUTS.enrichment_poll
-        while time.time() < deadline:
-            job = api.get(API.enrich_jobs(job_id))
-            job.raise_for_status()
-            body = job.json()
-            if body["status"] == "done":
-                enrichment_id = body["enrichment_id"]
-                break
-            assert body["status"] in ("queued", "running"), body
-            time.sleep(TIMEOUTS.polling_interval)
+        final = enrichment_api.poll_enrichment_job(api, started.job_id)
+        enrichment_id = final.enrichment_id
         assert enrichment_id is not None, "enrichment job did not finish in time"
 
     with step("проверка: кэш, health, feedback и letters-sent"):

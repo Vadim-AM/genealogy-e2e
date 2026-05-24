@@ -9,12 +9,16 @@ from __future__ import annotations
 
 from playwright.sync_api import Locator, Page, expect
 
+from .base import BasePage
 
-class PricingPage:
+
+class PricingPage(BasePage):
     """Drives the pricing page: navigate, inspect cards."""
 
+    URL = "/pricing.html"
+
     def __init__(self, page: Page):
-        self.page = page
+        super().__init__(page)
         self._cards = page.locator('[data-testid="pricing-card"], [data-testid="pricing-card-featured"]')
         self.featured = page.locator('[data-testid="pricing-card-featured"]')
 

@@ -13,10 +13,10 @@ from typing import TYPE_CHECKING, Any
 import httpx
 import pytest
 
-from tests.api_paths import API
-from tests.constants import EMAIL_TOKEN_RE, TestConfig, unique_email
-from tests.step import step
-from tests.timeouts import TIMEOUTS
+from tests._core.api_paths import API
+from tests._core.constants import EMAIL_TOKEN_RE, TestConfig, unique_email
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 
 if TYPE_CHECKING:
     from collections.abc import Callable
