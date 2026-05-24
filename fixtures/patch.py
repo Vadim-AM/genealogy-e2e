@@ -23,7 +23,7 @@ import httpx
 from config.settings import settings
 from config.timeouts import set_playwright_default_expect_timeout
 
-_E2E_TEST_TOKEN = settings.test_token
+TEST_TOKEN = settings.test_token
 
 # ── Per-client synthetic source IP (parallel pass only) ────────────────
 # Under xdist every worker hits the backend from the same host
@@ -39,36 +39,36 @@ _E2E_TEST_TOKEN = settings.test_token
 # our test instance — the same one prod uses behind Caddy — not a
 # product change).
 #
-# Gated on `PYTEST_XDIST_WORKER`: the serial pass runs `-p no:xdist`
+# Gated on `PYTESTXDIST_WORKER`: the serial pass runs `-p no:xdist`
 # (var unset) → no injection → real `request.client.host` preserved, so
 # serial semantics and the audit-log IP-hash tests are unchanged.
-_XDIST_WORKER = os.environ.get("PYTEST_XDIST_WORKER")  # "gw3" | None
+XDIST_WORKER = os.environ.get("PYTESTXDIST_WORKER")  # "gw3" | None
 
 
-def _worker_octet() -> int:
-    """Extract numeric worker index from PYTEST_XDIST_WORKER and wrap to 0-255."""
-    digits = "".join(c for c in (_XDIST_WORKER or "") if c.isdigit())
+def worker_octet() -> int:
+    """Extract numeric worker index from PYTESTXDIST_WORKER and wrap to 0-255."""
+    digits = "".join(c for c in (XDIST_WORKER or "") if c.isdigit())
     return (int(digits) if digits else 0) % 256
 
 
-_WORKER_OCTET = _worker_octet()
+WORKER_OCTET = worker_octet()
 _xff_counter = itertools.count(1)
 _xff_lock = threading.Lock()
 
 
-def _next_synthetic_xff() -> str:
+def next_synthetic_xff() -> str:
     """`10.<worker>.<hi>.<lo>` — unique per (xdist worker, client) for
     the whole run. The backend uses the value verbatim as the rate-limit
     bucket key (`client_ip()`), so it need not be a routable address."""
     with _xff_lock:
         n = next(_xff_counter)
-    return f"10.{_WORKER_OCTET}.{(n >> 8) & 0xFF}.{n & 0xFF}"
+    return f"10.{WORKER_OCTET}.{(n >> 8) & 0xFF}.{n & 0xFF}"
 
 
 _orig_httpx_request = httpx.Client.request
 
 
-def _origin_for(client_base_url: str, request_url: str) -> str:
+def origin_for(client_base_url: str, request_url: str) -> str:
     """Derive same-origin header value: scheme://host[:port]."""
     src = client_base_url or request_url
     src = str(src)
@@ -79,7 +79,7 @@ def _origin_for(client_base_url: str, request_url: str) -> str:
     return f"{scheme}://{host}"
 
 
-def _patched_request(self: httpx.Client, method: str, url: object, **kwargs: Any) -> httpx.Response:
+def patched_request(self: httpx.Client, method: str, url: object, **kwargs: Any) -> httpx.Response:
     """Inject suite-required headers into every httpx-request:
 
     1. `X-Test-Token` for `/api/_test/*` — bypasses test-endpoint gate.
@@ -92,13 +92,13 @@ def _patched_request(self: httpx.Client, method: str, url: object, **kwargs: Any
     headers = dict(kwargs.get("headers") or {})
 
     if "/api/_test/" in url_str:
-        headers.setdefault("X-Test-Token", _E2E_TEST_TOKEN)
+        headers.setdefault("X-Test-Token", TEST_TOKEN)
 
     if str(method).upper() in ("POST", "PATCH", "PUT", "DELETE"):
         client_base = str(getattr(self, "base_url", "") or "")
-        headers.setdefault("Origin", _origin_for(client_base, url_str))
+        headers.setdefault("Origin", origin_for(client_base, url_str))
 
-    if _XDIST_WORKER:
+    if XDIST_WORKER:
         # One stable synthetic source IP per Client instance (cached on
         # the client). `signup_via_api`/`tenant_client` make a client per
         # test/identity → that flow's login is alone in its bucket.
@@ -106,7 +106,7 @@ def _patched_request(self: httpx.Client, method: str, url: object, **kwargs: Any
         # (e.g. to drive rate-limit behaviour) keeps control.
         xff = getattr(self, "_e2e_xff", None)
         if xff is None:
-            xff = _next_synthetic_xff()
+            xff = next_synthetic_xff()
             with contextlib.suppress(Exception):
                 self._e2e_xff = xff  # type: ignore[attr-defined]
         headers.setdefault("X-Forwarded-For", xff)
@@ -115,7 +115,7 @@ def _patched_request(self: httpx.Client, method: str, url: object, **kwargs: Any
     return _orig_httpx_request(self, method, url, **kwargs)  # type: ignore[arg-type]
 
 
-httpx.Client.request = _patched_request  # type: ignore[method-assign]
+httpx.Client.request = patched_request  # type: ignore[method-assign]
 
 # Apply the timeout multiplier to Playwright's `expect()` once per session.
 set_playwright_default_expect_timeout()
