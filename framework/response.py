@@ -46,7 +46,7 @@ def _sanitize_text(text: str) -> str:
         return text
     try:
         data = json.loads(text)
-    except Exception:
+    except (json.JSONDecodeError, ValueError):
         return text
     sanitized = _sanitize_json(data)
     try:
@@ -114,24 +114,24 @@ class ResponseExpectation:
         """Парсит JSON и валидирует моделью Pydantic; возвращает экземпляр."""
         try:
             data = self._r.json()
-        except Exception as exc:
+        except (json.JSONDecodeError, ValueError) as exc:
             self._fail(f"response is not JSON: {exc}")
         try:
             return model.model_validate(data)
-        except Exception as exc:
+        except (ValueError, TypeError) as exc:
             self._fail(f"schema validation failed ({model.__name__}): {exc}")
 
     def list_schema(self, model: type[T]) -> list[T]:
         """Парсит JSON-массив и валидирует каждый элемент моделью."""
         try:
             data = self._r.json()
-        except Exception as exc:
+        except (json.JSONDecodeError, ValueError) as exc:
             self._fail(f"response is not JSON: {exc}")
         if not isinstance(data, list):
             self._fail(f"expected JSON array, got {type(data).__name__}")
         try:
             return [model.model_validate(item) for item in data]
-        except Exception as exc:
+        except (ValueError, TypeError) as exc:
             self._fail(f"list schema validation failed ({model.__name__}): {exc}")
 
     @property
