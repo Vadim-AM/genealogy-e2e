@@ -29,6 +29,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from api import routes
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
 from pages.profile_panel import ProfilePanel
@@ -95,9 +96,7 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip (
         ).to_be_disabled()
 
         title = panel.btn_enrich_disabled.first.get_attribute("title") or ""
-        assert t(Enrichment.BETA_KEYWORD) in title, (
-            f"title должен содержать {t(Enrichment.BETA_KEYWORD)!r}, получили {title!r}"
-        )
+        should.contain(title, t(Enrichment.BETA_KEYWORD), ErrMsg.ai_tooltip_wrong)
 
         expect(panel.btn_enrich_active, ErrMsg.wrong_count).to_have_count(0)
 
@@ -106,9 +105,7 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip (
         panel.btn_enrich_disabled.first.click(force=True)
         owner_page.wait_for_load_state("networkidle")
         new_posts = [u for u in enrich_post_calls if u not in posts_before]
-        assert not new_posts, (
-            f"disabled AI кнопка вызвала POST /api/enrich/* после клика: {new_posts!r}"
-        )
+        should.be_empty(new_posts, ErrMsg.enrich_post_leaked)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -174,6 +171,4 @@ def test_features_endpoint_fires_on_main_page_bootstrap(page: Page, anon_pages: 
         _ = anon_pages.navigate_to(TreePage)
 
     with step("проверка: /api/config/features ответил 200"):
-        assert resp_ctx.value.status == HTTPStatus.OK, (
-            f"bootstrap {routes.CONFIG_FEATURES} вернул {resp_ctx.value.status}, ожидали 200"
-        )
+        should.playwright_status(resp_ctx.value, HTTPStatus.OK, ErrMsg.bootstrap_fetch_failed)
