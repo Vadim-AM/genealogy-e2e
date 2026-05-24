@@ -31,9 +31,6 @@ if TYPE_CHECKING:
     from fixtures.page_factory import PageFactory
 
 
-def _is_submit_request(url: str, expected_path: str) -> bool:
-    return expected_path in url
-
 
 @allure.title("Формы: регистрация отправляется методом POST, не GET")
 def test_signup_form_submits_via_post(page: Page, anon_pages: PageFactory):
@@ -47,7 +44,7 @@ def test_signup_form_submits_via_post(page: Page, anon_pages: PageFactory):
         page.locator("#agreeTerms").check()  # no semantic: form element by ID
 
     with step("действие: отправить форму и перехватить запрос"), page.expect_request(
-        lambda req: _is_submit_request(req.url, routes.SIGNUP)
+        lambda req: routes.SIGNUP in req.url
     ) as req_info:
         page.locator("#signupBtn").click()  # no semantic: submit button without accessible name
 
@@ -71,7 +68,7 @@ def test_login_form_submits_via_post(page: Page, anon_pages: PageFactory):
         page.locator("#password").fill("any-password-here")  # no semantic: form input without label
 
     with step("действие: отправить форму и перехватить запрос"), page.expect_request(
-        lambda req: _is_submit_request(req.url, routes.LOGIN)
+        lambda req: routes.LOGIN in req.url
     ) as req_info:
         page.get_by_role("button", name=t(Buttons.LOGIN), exact=False).click()
 

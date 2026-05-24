@@ -74,9 +74,6 @@ def test_branch_legend_is_hidden_when_tree_has_less_than_3_generations(
 # ─────────────────────────────────────────────────────────────────────────
 
 
-def _open_editor(owner_page: Page, person_id: str = TestData.DEMO_PERSON_ID) -> PersonEditor:
-    return open_editor_for(owner_page, person_id)
-
 
 @allure.title("Редактор: ArrowDown открывает выпадающий список пола")
 def test_custom_select_opens_on_arrow_down_keyboard(owner_page: Page):
@@ -86,7 +83,7 @@ def test_custom_select_opens_on_arrow_down_keyboard(owner_page: Page):
     `!isOpen`.
     """
     with step("подготовка: открыть редактор персоны"):
-        _open_editor(owner_page)
+        open_editor_for(owner_page)
 
     with step("действие: фокус на gender select и ArrowDown"):
         wrapper = custom_select_for(owner_page, "gender")
@@ -105,7 +102,7 @@ def test_custom_select_closes_on_escape_keyboard(owner_page: Page):
     select.js:122 — `else if (e.key === 'Escape')` закрытие.
     """
     with step("подготовка: открыть редактор и dropdown"):
-        _open_editor(owner_page)
+        open_editor_for(owner_page)
         wrapper = custom_select_for(owner_page, "gender")
         wrapper.focus()
         owner_page.keyboard.press("ArrowDown")
@@ -134,7 +131,7 @@ def test_confirm_dialog_escape_cancels(owner_page: Page):
     используем grandpa. Если seed изменится — тест падает информативно.
     """
     with step("подготовка: открыть editor и listener на DELETE"):
-        editor = _open_editor(owner_page, person_id="demo-grandpa")
+        editor = open_editor_for(owner_page, person_id="demo-grandpa")
         delete_responses: list[int] = []
         owner_page.on(
             "response",
@@ -326,7 +323,7 @@ def test_custom_select_arrow_down_then_enter_selects_option(owner_page: Page):
     `data-field=gender` обновляется (form submission корректность).
     """
     with step("подготовка: открыть редактор и dropdown"):
-        _open_editor(owner_page)
+        open_editor_for(owner_page)
         wrapper = custom_select_for(owner_page, "gender")
         wrapper.focus()
         owner_page.keyboard.press("ArrowDown")
@@ -361,7 +358,7 @@ def test_confirm_dialog_enter_confirms_delete(owner_page: Page):
     ушёл — через `expect_request` (network ждёт fetch'а явно).
     """
     with step("подготовка: открыть confirm-dialog через delete"):
-        editor = _open_editor(owner_page, person_id="demo-grandpa")
+        editor = open_editor_for(owner_page, person_id="demo-grandpa")
         editor.btn_delete.click()
         dialog = ConfirmDialog(owner_page)
         dialog.expect_visible()
@@ -384,7 +381,7 @@ def test_confirm_dialog_backdrop_click_cancels(owner_page: Page):
     тест fail'ится явно.
     """
     with step("подготовка: открыть editor и listener на DELETE"):
-        editor = _open_editor(owner_page, person_id="demo-grandpa")
+        editor = open_editor_for(owner_page, person_id="demo-grandpa")
         delete_responses: list[int] = []
         owner_page.on(
             "response",
