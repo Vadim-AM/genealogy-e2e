@@ -42,6 +42,14 @@ class TreePage(BasePage):
         self.branch_legend = page.locator("#branchLegend")  # no semantic: custom widget
         self.auth_indicator = page.locator("#authIndicator")  # no semantic: custom widget
         self.tour_replay_btn = page.locator("#tourReplayBtn")  # no semantic: dynamically shown
+        # no semantic: canvas card, no ARIA
+        self.orbit_center = self.tree_container.locator('[data-testid="orbit-center-card"]')
+
+    def open_center_profile(self) -> None:
+        """Click the center orbit card to open the demo-self profile."""
+        expect(self.orbit_center).to_be_visible()
+        self.orbit_center.click()
+        self.page.locator('[data-testid="profile-page"]').wait_for(state="visible")
 
     def switch_tab(self, tab_name: str) -> Self:
         """Click a tab and wait for the page to settle.
