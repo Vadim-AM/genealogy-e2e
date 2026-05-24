@@ -21,6 +21,7 @@ Hard rules (CLAUDE.md):
 from __future__ import annotations
 
 import re
+from http import HTTPStatus
 
 import allure
 
@@ -38,7 +39,7 @@ from tests.pages.platform_dashboard_page import PlatformDashboardPage
 def test_device_mix_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-1.1: regular owner получает 401/403 на device-mix."""
     r = tenant_client(owner_user).get(API.PLATFORM_DEVICE_MIX)
-    expect_response(r, label="owner device-mix").status(403)
+    expect_response(r, label="owner device-mix").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("Устройства: ответ содержит device, os, browser и конверсию")
@@ -104,7 +105,7 @@ def test_device_mix_does_not_leak_pii(superadmin_user, tenant_client):
 def test_activity_heatmap_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-2.1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_ACTIVITY_HEATMAP)
-    expect_response(r, label="owner heatmap").status(403)
+    expect_response(r, label="owner heatmap").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("Тепловая карта: матрица имеет размер 7 дней x 24 часа")
@@ -182,7 +183,7 @@ def test_activity_heatmap_user_local_mode_accepted(superadmin_user, tenant_clien
 def test_online_now_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-3.1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_ONLINE_NOW)
-    expect_response(r, label="owner online-now").status(403)
+    expect_response(r, label="owner online-now").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("Онлайн: суперадмин видит счётчики и себя в online_5m")
@@ -209,7 +210,7 @@ def test_online_now_returns_canonical_shape(superadmin_user, tenant_client):
 def test_session_stats_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-3.3: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_SESSION_STATS)
-    expect_response(r, label="owner session-stats").status(403)
+    expect_response(r, label="owner session-stats").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("Статистика сессий: ответ содержит медиану и bounce_rate")
@@ -242,7 +243,7 @@ def test_session_stats_returns_canonical_shape(superadmin_user, tenant_client):
 def test_retention_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-4.1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_RETENTION)
-    expect_response(r, label="owner retention").status(403)
+    expect_response(r, label="owner retention").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("Ретеншен: когортная таблица с бакетами [1,3,7,14,30]")
@@ -273,7 +274,7 @@ def test_retention_clamps_weeks_to_max_26(superadmin_user, tenant_client):
 def test_time_to_aha_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-4.4: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_TIME_TO_AHA)
-    expect_response(r, label="owner time-to-aha").status(403)
+    expect_response(r, label="owner time-to-aha").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("Time-to-aha: перцентили P25-P95 и 6 бакетов гистограммы")
@@ -323,7 +324,7 @@ def test_funnel_detail_returns_step_metrics(superadmin_user, tenant_client):
 def test_alerts_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-6.1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_ALERTS)
-    expect_response(r, label="owner alerts").status(403)
+    expect_response(r, label="owner alerts").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("Алерты: на свежей БД есть алерт о бэкапе")
@@ -366,7 +367,7 @@ def test_alerts_each_item_has_severity_title_message(superadmin_user, tenant_cli
 def test_health_403_for_non_super(owner_user, tenant_client):
     """TC-PA-ANALYTICS-6.4: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.PLATFORM_HEALTH)
-    expect_response(r, label="owner health").status(403)
+    expect_response(r, label="owner health").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("Здоровье платформы: метрики нагрузки и free_cap_fill_ratio")

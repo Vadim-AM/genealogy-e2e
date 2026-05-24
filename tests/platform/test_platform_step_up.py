@@ -12,6 +12,8 @@ Hard rules: hard assert, single canonical field.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 import pyotp
 
@@ -37,7 +39,7 @@ def test_grant_license_403_step_up_required_without_step_up(
             API.PLATFORM_FREE_LICENSE_GRANT,
             json={"email": make_email("stepup-target")},
         )
-        expect_response(r, label="grant without step-up").status(403)
+        expect_response(r, label="grant without step-up").status(HTTPStatus.FORBIDDEN)
         assert "step_up_required" in r.text, \
             f"expected 'step_up_required' in response: {r.text[:200]}"
 
@@ -72,7 +74,7 @@ def test_step_up_invalid_totp_401(superadmin_user, tenant_client):
 
     with step("проверка: неверный TOTP в step-up — 401"):
         r = api.post(API.MFA_STEP_UP, json={"method": "totp", "code": "000000"})
-        expect_response(r, label="step-up invalid TOTP").status(401)
+        expect_response(r, label="step-up invalid TOTP").status(HTTPStatus.UNAUTHORIZED)
 
 
 @allure.title("Step-up: неизвестный метод подтверждения — 400")
@@ -85,7 +87,7 @@ def test_step_up_unknown_method_400(superadmin_user, tenant_client):
 
     with step("проверка: неизвестный метод — 400"):
         r = api.post(API.MFA_STEP_UP, json={"method": "garbage", "code": "000000"})
-        expect_response(r, label="step-up unknown method").status(400)
+        expect_response(r, label="step-up unknown method").status(HTTPStatus.BAD_REQUEST)
 
 
 @allure.title("Step-up: успешное подтверждение записывается в аудит")

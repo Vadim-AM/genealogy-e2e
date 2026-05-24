@@ -22,6 +22,7 @@ Note: admin/people.js использует другой `renderPhotoBlock` с о
 from __future__ import annotations
 
 import re
+from http import HTTPStatus
 
 import allure
 from playwright.sync_api import Page, expect
@@ -73,7 +74,7 @@ def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page):
         initial_thumbs = photos.thumb_count()
 
     with step("действие: загрузка JPEG"), owner_page.expect_response(
-        lambda r: API.UPLOAD_PHOTO in r.url and r.status == 200
+        lambda r: API.UPLOAD_PHOTO in r.url and r.status == HTTPStatus.OK
     ):
         upload_jpeg(owner_page)
 
@@ -93,7 +94,7 @@ def test_photo_remove_button_drops_thumb_from_grid(owner_page: Page):
         initial = photos.thumb_count()
 
         with owner_page.expect_response(
-            lambda r: API.UPLOAD_PHOTO in r.url and r.status == 200
+            lambda r: API.UPLOAD_PHOTO in r.url and r.status == HTTPStatus.OK
         ):
             upload_jpeg(owner_page)
         photos.expect_thumb_count(initial + 1)

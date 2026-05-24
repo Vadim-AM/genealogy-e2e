@@ -14,6 +14,8 @@ history endpoint reads `EnrichmentCache`, not `EnrichmentJob`, so the
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 
 from tests._core.api_paths import API
@@ -98,7 +100,7 @@ def test_enrichment_first_run_does_not_hit_quota(
 
     with step("проверка: не получили 429 (квота)"):
         # Keep raw call -- this is a negative/boundary assertion on status code
-        assert r.status_code != 429, (
+        assert r.status_code != HTTPStatus.TOO_MANY_REQUESTS, (
             f"first enrichment hit quota: {r.request.method} {r.request.url} "
             f"status={r.status_code} body={r.text[:200]!r}"
         )

@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import base64
 
+from http import HTTPStatus
+
 import allure
 import httpx
 
@@ -134,7 +136,7 @@ def test_confirm_email_change_rejects_garbage_token(owner_user, tenant_client):
     rejected — a bad token must never change an email."""
     api = tenant_client(owner_user)
     r = api.post(API.CONFIRM_EMAIL_CHANGE, json={"token": "not-a-real-token"})
-    expect_response(r, label="confirm-email-change garbage token").status(400)
+    expect_response(r, label="confirm-email-change garbage token").status(HTTPStatus.BAD_REQUEST)
 
 
 @allure.title("API: Postmark webhook без подписи отклоняется (401)")
@@ -143,7 +145,7 @@ def test_postmark_webhook_rejects_unsigned(base_url):
     header is rejected — inbound webhooks must be authenticated."""
     r = httpx.post(f"{base_url}{API.WEBHOOK_POSTMARK}",
                    json={"RecordType": "Bounce"}, timeout=TIMEOUTS.api_request)
-    expect_response(r, label="unsigned postmark webhook").status(401)
+    expect_response(r, label="unsigned postmark webhook").status(HTTPStatus.UNAUTHORIZED)
 
 
 @allure.title("API: Resend webhook без подписи отклоняется (401)")
@@ -152,7 +154,7 @@ def test_resend_webhook_rejects_unsigned(base_url):
     is rejected."""
     r = httpx.post(f"{base_url}{API.WEBHOOK_RESEND}",
                    json={"type": "email.bounced"}, timeout=TIMEOUTS.api_request)
-    expect_response(r, label="unsigned resend webhook").status(401)
+    expect_response(r, label="unsigned resend webhook").status(HTTPStatus.UNAUTHORIZED)
 
 
 @allure.title("API: удаление связи убирает ребро из дерева")
@@ -191,7 +193,7 @@ def test_subscription_current_and_cancel(owner_user, tenant_client):
             f"new tenant subscription must be None, got {sub.subscription!r}"
 
         cancelled = api.post(API.SUBSCRIPTION_CANCEL)
-        expect_response(cancelled, label="cancel without subscription").status(400)
+        expect_response(cancelled, label="cancel without subscription").status(HTTPStatus.BAD_REQUEST)
 
 
 @allure.title("API: владелец отзывает выданное приглашение")

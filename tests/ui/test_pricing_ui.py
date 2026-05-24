@@ -24,6 +24,7 @@ Backend endpoints, на которые опираются эти тесты:
 from __future__ import annotations
 
 import re
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
@@ -50,7 +51,7 @@ def test_public_tiers_endpoint_returns_four_paid_tiers(uvicorn_server: str):
     """TC-N2: GET /api/tiers/public должен отдавать 4 publik-тарифа в ₽."""
     with step("действие: запросить /api/tiers/public"):
         r = httpx.get(f"{uvicorn_server}{API.TIERS_PUBLIC}", timeout=TIMEOUTS.api_request)
-        expect_response(r, label="GET /api/tiers/public").status(200)
+        expect_response(r, label="GET /api/tiers/public").status(HTTPStatus.OK)
         body = r.json()
 
     with step("проверка: 4 публичных тарифа без служебных"):
@@ -123,7 +124,7 @@ def test_pricing_page_loads_html(page: Page):
         assert r is not None, "page.goto returned None (navigation failed)"
 
     with step("проверка: 200 и content-type text/html"):
-        assert r.status == 200, f"GET /pricing.html: expected 200, got {r.status}"
+        assert r.status == HTTPStatus.OK, f"GET /pricing.html: expected 200, got {r.status}"
         ct = (r.headers.get("content-type") or "").lower()
         assert "text/html" in ct, f"content-type={ct!r}"
 

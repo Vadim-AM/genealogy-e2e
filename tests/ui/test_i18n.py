@@ -18,6 +18,8 @@ gettext-like layer или просто Russian strings в auth handler).
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 import httpx
 
@@ -43,7 +45,7 @@ def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str):
             )
 
     with step("проверка: ошибка содержит кириллицу"):
-        assert r.status_code == 401, f"expected 401 for unknown user; got {r.status_code}"
+        assert r.status_code == HTTPStatus.UNAUTHORIZED, f"expected 401 for unknown user; got {r.status_code}"
         body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
         detail = body.get("detail") or body.get("message") or ""
 
@@ -69,7 +71,7 @@ def test_signup_validation_error_detail_in_russian(uvicorn_server: str):
             )
 
     with step("проверка: validation detail на русском"):
-        assert r.status_code == 422, f"expected 422 Pydantic validation for short password; got {r.status_code}"
+        assert r.status_code == HTTPStatus.UNPROCESSABLE_ENTITY, f"expected 422 Pydantic validation for short password; got {r.status_code}"
         body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
 
         # Backend форматирует validation detail двумя способами:

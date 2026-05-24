@@ -7,6 +7,7 @@ triggering a backend 500 or raw SQL error in the response body.
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from uuid import uuid4
 
 import allure
@@ -39,7 +40,7 @@ def test_person_name_sql_injection_safe(
         })
 
     with step("проверить что backend не упал"):
-        assert r.status_code < 500, (
+        assert r.status_code < HTTPStatus.INTERNAL_SERVER_ERROR, (
             f"SQL injection caused server error {r.status_code}: {r.text[:300]}"
         )
         assert "syntax error" not in r.text.lower(), (
@@ -73,7 +74,7 @@ def test_signup_email_sql_injection_safe(
         )
 
     with step("проверить что backend вернул 4xx, не 500"):
-        assert r.status_code < 500, (
+        assert r.status_code < HTTPStatus.INTERNAL_SERVER_ERROR, (
             f"SQL injection in email caused server error {r.status_code}: {r.text[:300]}"
         )
         assert "syntax error" not in r.text.lower(), (
@@ -101,7 +102,7 @@ def test_person_patch_sql_injection_safe(
         })
 
     with step("проверить что backend не упал и не утёк SQL"):
-        assert r.status_code < 500, (
+        assert r.status_code < HTTPStatus.INTERNAL_SERVER_ERROR, (
             f"SQL injection caused server error {r.status_code}: {r.text[:300]}"
         )
         assert "syntax error" not in r.text.lower(), (

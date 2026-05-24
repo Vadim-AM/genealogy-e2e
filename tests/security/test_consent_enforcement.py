@@ -11,6 +11,8 @@ GDPR compliance.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 
 from tests._core.api_paths import API
@@ -42,4 +44,4 @@ def test_post_enrich_without_consent_is_forbidden(
         r = api.post(API.enrich(pid), json={"streaming": False, "force_refresh": True})
 
     with step("проверка: backend отбивает 403"):
-        expect_response(r, label="INV-AI-005: enrich without consent").status(403)
+        expect_response(r, label="INV-AI-005: enrich without consent").status(HTTPStatus.FORBIDDEN)

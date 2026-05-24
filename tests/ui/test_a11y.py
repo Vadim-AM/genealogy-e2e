@@ -19,6 +19,7 @@ Two distinct fails for screen-reader users:
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
@@ -64,7 +65,7 @@ def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFac
         # Ждём ответ сервера, затем проверяем aria-состояние.
         with page.expect_response("**/api/account/signup") as resp_info:
             signup.submit_btn.click()
-        assert resp_info.value.status >= 400, (
+        assert resp_info.value.status >= HTTPStatus.BAD_REQUEST, (
             f"expected server validation error; got {resp_info.value.status}"
         )
 

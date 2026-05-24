@@ -12,6 +12,8 @@ setup и пока не автоматизируется.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 
 from tests._core.api_paths import API
@@ -42,4 +44,4 @@ def test_delete_tenant_invalidates_owner_session(
 
     with step("проверка: cookie отозвана, /me возвращает 401"):
         me_after = api.get(API.ACCOUNT_ME)
-        expect_response(me_after, label="INV-GDPR-001a: post-delete /me").status(401)
+        expect_response(me_after, label="INV-GDPR-001a: post-delete /me").status(HTTPStatus.UNAUTHORIZED)

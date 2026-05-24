@@ -16,6 +16,8 @@ Hard rules: hard assert, single canonical field, no skip-fallback.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 
 from tests._core.api_paths import API
@@ -31,7 +33,7 @@ from tests.pages.platform_dashboard_page import PlatformDashboardPage
 def test_webauthn_list_403_for_non_super(owner_user, tenant_client):
     """TC-PA-WEBAUTHN-1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(API.WEBAUTHN_LIST)
-    assert r.status_code == 403, \
+    assert r.status_code == HTTPStatus.FORBIDDEN, \
         f"expected 403, got {r.status_code}"
 
 
@@ -71,7 +73,7 @@ def test_webauthn_authenticate_begin_404_without_credentials(superadmin_user, te
         r = tenant_client(superadmin_user).post(API.WEBAUTHN_AUTH_BEGIN)
 
     with step("проверка: 404 с no_webauthn_credentials"):
-        assert r.status_code == 404, \
+        assert r.status_code == HTTPStatus.NOT_FOUND, \
             f"expected 404, got {r.status_code}"
         assert "no_webauthn_credentials" in r.text, \
             f"expected 'no_webauthn_credentials' in response: {r.text[:200]}"
@@ -87,7 +89,7 @@ def test_webauthn_register_complete_400_without_challenge(superadmin_user, tenan
         )
 
     with step("проверка: 400 no_pending_challenge"):
-        assert r.status_code == 400, \
+        assert r.status_code == HTTPStatus.BAD_REQUEST, \
             f"expected 400, got {r.status_code}"
 
 

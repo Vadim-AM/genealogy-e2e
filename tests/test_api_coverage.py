@@ -21,6 +21,8 @@ from __future__ import annotations
 import inspect
 import re
 
+from http import HTTPStatus
+
 import allure
 import httpx
 
@@ -79,7 +81,7 @@ def _backend_api_paths(base_url: str) -> set[str]:
     product surface the suite must cover.
     """
     r = httpx.get(f"{base_url}/openapi.json", timeout=TIMEOUTS.api_request)
-    assert r.status_code == 200, (
+    assert r.status_code == HTTPStatus.OK, (
         f"GET /openapi.json → {r.status_code}; the backend must be booted "
         f"with GENEALOGY_DOCS_ENABLED=1 (see CLAUDE.md 'Running locally')."
     )

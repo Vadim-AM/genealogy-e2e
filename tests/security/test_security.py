@@ -7,6 +7,7 @@ required for the beta launch.
 from __future__ import annotations
 
 import re
+from http import HTTPStatus
 
 import allure
 import httpx
@@ -46,14 +47,14 @@ def test_anonymous_get_returns_401_on_private_endpoints(base_url: str, endpoint:
         r = httpx.get(f"{base_url}{endpoint}", timeout=TIMEOUTS.api_request)
 
     with step("проверка: 401 — доступ запрещён"):
-        expect_response(r, label=f"GET {endpoint}").status(401)
+        expect_response(r, label=f"GET {endpoint}").status(HTTPStatus.UNAUTHORIZED)
 
 
 @allure.title("Безопасность: /api/tree публично доступен гостю (200)")
 def test_anonymous_get_tree_returns_200_minimal_showcase(base_url: str):
     """TC-SEC-1 inverse: /api/tree IS public — guest sees the showcase tree."""
     r = httpx.get(f"{base_url}{API.TREE}", timeout=TIMEOUTS.api_request)
-    expect_response(r, label="GET /api/tree (public)").status(200)
+    expect_response(r, label="GET /api/tree (public)").status(HTTPStatus.OK)
 
 
 # ─────────────────────────────────────────────────────────────────────────

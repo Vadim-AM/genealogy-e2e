@@ -6,6 +6,7 @@ in commit f3a9d48 per docs/test-plan.md — guard against regression.
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
@@ -29,7 +30,7 @@ def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: st
     with step("действие: загрузить юридическую страницу"):
         response = page.goto(path)
         assert response is not None, f"page.goto({path}) returned None (navigation failed)"
-        assert response.status == 200, f"{path}: expected 200, got {response.status}"
+        assert response.status == HTTPStatus.OK, f"{path}: expected 200, got {response.status}"
         content_type = (response.headers.get("content-type") or "").lower()
         assert "text/html" in content_type, f"{path} content-type={content_type!r}, expected text/html"
 
@@ -107,7 +108,7 @@ def test_landing_footer_legal_link_resolves_to_200(
         response = httpx.get(f"{base_url}{href}", follow_redirects=True, timeout=TIMEOUTS.api_request)
 
     with step("проверка: 200 и content-type text/html"):
-        assert response.status_code == 200, (
+        assert response.status_code == HTTPStatus.OK, (
             f"footer link {href} returned {response.status_code}"
         )
         content_type = (response.headers.get("content-type") or "").lower()

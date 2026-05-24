@@ -11,6 +11,7 @@ A second backend-invariant test covers the recovery-code lifecycle
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import allure
@@ -96,5 +97,5 @@ def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client):
 
     with step("проверка: повторное использование того же кода — 401"):
         again = api.post(API.USER_MFA_RECOVERY_REDEEM, json={"code": codes[0]})
-        assert again.status_code == 401, \
+        assert again.status_code == HTTPStatus.UNAUTHORIZED, \
             f"a recovery code must be one-time; re-redeem got {again.status_code}"

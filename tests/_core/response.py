@@ -1,10 +1,11 @@
 """Fluent response assertions with rich error context.
 
-    expect_response(r).status(200).json_has("tenant_slug")
-    expect_response(r, label="signup").status(200).json_eq("status", "verification_sent")
+    expect_response(r).status(HTTPStatus.OK).json_has("tenant_slug")
+    expect_response(r, label="signup").status(HTTPStatus.OK).json_eq("status", "verification_sent")
 """
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel
@@ -33,7 +34,7 @@ class ResponseExpectation:
         ]
         return "".join(parts)
 
-    def status(self, *codes: int) -> ResponseExpectation:
+    def status(self, *codes: int | HTTPStatus) -> ResponseExpectation:
         """Assert the response status code is one of the expected values."""
         assert self._r.status_code in codes, self._ctx(
             f"expected status {codes[0] if len(codes) == 1 else codes}, "

@@ -8,6 +8,8 @@ is confirmed open.
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import allure
 import httpx
 from playwright.sync_api import Page, expect
@@ -43,7 +45,7 @@ def test_old_person_with_only_name_field_renders(owner_user, tenant_client):
             "gender": "m",
         }
         r = api.post(API.PEOPLE, json=payload)
-        assert r.status_code in (200, 201), \
+        assert r.status_code in (HTTPStatus.OK, HTTPStatus.CREATED), \
             f"POST {API.PEOPLE} legacy payload rejected: {r.status_code} {r.text[:200]}"
 
     with step("проверка: имя сохранилось при чтении"):
