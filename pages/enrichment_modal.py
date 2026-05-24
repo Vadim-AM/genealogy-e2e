@@ -27,17 +27,23 @@ class EnrichmentModal:
 
     def __init__(self, page: Page):
         self.page = page
-        self.overlay = page.locator('[data-testid="enrich-overlay"]')
+        self.overlay = page.locator('[data-testid="enrich-overlay"]')  # no semantic: enrichment overlay, no ARIA
+        # no semantic: enrichment overlay, no ARIA
         self.container = self.overlay.locator('[data-testid="enrich-modal"]')
-        self.title = self.container.locator("#enrich-title")
+        self.title = self.container.locator("#enrich-title")  # no semantic: AI result container
+        # no semantic: enrichment overlay, no ARIA
         self.btn_close = self.container.locator('[data-testid="enrich-close"]')
-        self.stages_container = self.container.locator("#enrichStages")
-        self.heartbeat = self.container.locator("#enrichHeartbeat")
+        self.stages_container = self.container.locator("#enrichStages")  # no semantic: AI result container
+        self.heartbeat = self.container.locator("#enrichHeartbeat")  # no semantic: AI result container
 
         # Result sections (visible after job completes)
+        # no semantic: AI result container
         self.result_body = self.container.locator('[data-testid="enrich-result-body"]')
+        # no semantic: AI result container
         self.archives = self.result_body.locator('[data-testid="enrich-archive-item"]')
+        # no semantic: AI result container
         self.archive_names = self.archives.locator('[data-testid="enrich-archive-name"]')
+        # no semantic: AI result container
         self.hypotheses = self.result_body.locator('[data-testid="enrich-hypothesis"]')
 
     def expect_open(self) -> None:
@@ -51,7 +57,8 @@ class EnrichmentModal:
     def accept_first_hypothesis(self) -> None:
         """Accept the first AI hypothesis into the person card."""
         first = self.hypotheses.first
-        first.locator('[data-hyp-action="accept"]').click()
+        first.locator('[data-hyp-action="accept"]').click()  # no semantic: AI result container
+        # no semantic: AI result container
         expect(first.locator('[data-testid="enrich-status-accepted"]')).to_be_visible()
 
     def expect_results(self, *, min_archives: int) -> None:
@@ -62,6 +69,7 @@ class EnrichmentModal:
 
     def stage(self, name: str) -> Locator:
         """Return locator for a progress stage by name."""
+        # no semantic: AI result container
         return self.stages_container.locator(f'[data-testid="enrich-stage"][data-stage="{name}"]')
 
     def close(self) -> None:

@@ -8,32 +8,37 @@ from __future__ import annotations
 
 import json
 import os
-import time
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
 import httpx
 import pytest
+from tenacity import retry, retry_if_exception_type, stop_after_delay, wait_fixed
 
 from api import routes
 from config.settings import settings
 from config.timeouts import TIMEOUTS
 
-FIXTURES_DIR = Path(__file__).resolve().parent.parent / "_data" / "fixtures"
+FIXTURES_DIR = Path(__file__).resolve().parent.parent / "test_data" / "fixtures"
 
 
 def wait_for_health(base_url: str, *, timeout: float) -> None:
     """Block until /api/health responds 200, or raise."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        response = httpx.get(f"{base_url}{routes.HEALTH}")
-        if response.status_code == HTTPStatus.OK:
-            return
-        time.sleep(TIMEOUTS.polling_interval)
-    raise TimeoutError(
-        f"backend at {base_url} did not respond on {routes.HEALTH} within {timeout}s"
+
+    @retry(
+        stop=stop_after_delay(timeout),
+        wait=wait_fixed(TIMEOUTS.polling_interval),
+        retry=retry_if_exception_type(ConnectionError),
+        reraise=True,
     )
+    def _check() -> None:
+        response = httpx.get(f"{base_url}{routes.HEALTH}")
+        if response.status_code != HTTPStatus.OK:
+            msg = f"health returned {response.status_code}"
+            raise ConnectionError(msg)
+
+    _check()
 
 
 @pytest.fixture(scope="session")
