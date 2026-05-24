@@ -8,13 +8,13 @@ is confirmed open.
 
 from __future__ import annotations
 
+import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-import allure
-
-from tests.api_paths import API
-from tests.timeouts import TIMEOUTS
+from tests._core.api_paths import API
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 
 
 @allure.title("Edge: переход по несуществующему профилю не ломает UI")
@@ -34,20 +34,22 @@ def test_old_person_with_only_name_field_renders(owner_user, tenant_client):
     """
     api = tenant_client(owner_user)
 
-    payload = {
-        "id": "edge-old-name",
-        "name": "Иванов Иван Петрович",
-        "branch": "subject",
-        "gender": "m",
-    }
-    r = api.post(API.PEOPLE, json=payload)
-    assert r.status_code in (200, 201), \
-        f"POST {API.PEOPLE} legacy payload rejected: {r.status_code} {r.text[:200]}"
+    with step("действие: создать персону с единственным полем name"):
+        payload = {
+            "id": "edge-old-name",
+            "name": "Иванов Иван Петрович",
+            "branch": "subject",
+            "gender": "m",
+        }
+        r = api.post(API.PEOPLE, json=payload)
+        assert r.status_code in (200, 201), \
+            f"POST {API.PEOPLE} legacy payload rejected: {r.status_code} {r.text[:200]}"
 
-    r = api.get(API.person("edge-old-name"))
-    r.raise_for_status()
-    name = r.json().get("name") or ""
-    assert "Иван" in name, f"name not preserved: {name!r}"
+    with step("проверка: имя сохранилось при чтении"):
+        r = api.get(API.person("edge-old-name"))
+        r.raise_for_status()
+        name = r.json().get("name") or ""
+        assert "Иван" in name, f"name not preserved: {name!r}"
 
 
 @allure.title("Edge: /api/health доступен без авторизации и отдаёт ok")
@@ -59,7 +61,10 @@ def test_health_endpoint_does_not_require_auth(base_url: str):
     made the test fail on an additive, non-functional change. The contract
     is: reachable without credentials + `status == "ok"`.
     """
-    r = httpx.get(f"{base_url}{API.HEALTH}", timeout=TIMEOUTS.api_request)
-    r.raise_for_status()
-    assert r.json().get("status") == "ok", \
-        f"unexpected /api/health status: {r.json()!r}"
+    with step("действие: запросить /api/health без авторизации"):
+        r = httpx.get(f"{base_url}{API.HEALTH}", timeout=TIMEOUTS.api_request)
+        r.raise_for_status()
+
+    with step("проверка: статус ok"):
+        assert r.json().get("status") == "ok", \
+            f"unexpected /api/health status: {r.json()!r}"

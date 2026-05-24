@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
+from tests._core.api_paths import API
 from tests.pages.person_editor import AddRelativeModal
 from tests.pages.profile_panel import ProfilePanel
 
@@ -17,7 +17,7 @@ def add_sibling_without_auto_parents(
     birth: str = "",
     gender: str | None = None,
 ) -> AddRelativeModal:
-    """Open add-sibling modal, uncheck auto-parent чекбокс, fill, save, wait close."""
+    """Open add-sibling modal, uncheck auto-parent, fill, save, and wait for close."""
     panel = ProfilePanel(page)
     panel.click_add_sibling()
 

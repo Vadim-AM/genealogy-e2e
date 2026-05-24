@@ -17,20 +17,25 @@ os.environ через дополнительный test endpoint.
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 import allure
 from playwright.sync_api import Page, expect
 
-from tests.constants import unique_email
-from tests.helpers.auth.signup_helpers import mock_signup_overflow, fill_and_submit
-from tests.messages import Waitlist, t
+from tests._core.constants import unique_email
+from tests._core.messages import Waitlist, t
+from tests._core.step import step
+from tests.helpers.auth.signup_helpers import fill_and_submit, mock_signup_overflow
+from tests.pages.signup_page import SignupPage
 
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
 
 _IS_OPEN = re.compile(r"\bis-open\b")
 
 
 @allure.title("Модалка листа ожидания открывается с email пользователя")
-def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page):
+def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page, anon_pages: PageFactory):
     """TC-22.04 (open): backend → waitlist_required → модалка открывается,
     title «Сейчас принимаем не всех», email юзера встроен в #waitlistBody2.
 
@@ -39,69 +44,75 @@ def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page):
     `<strong id="waitlistEmail">` из исходного HTML при этом исчезает.
     Поэтому assert через текст body2, а не через #waitlistEmail.
     """
-    test_email = unique_email("overflow-modal")
-    page.goto("/signup")
-    page.wait_for_load_state("domcontentloaded")
-    mock_signup_overflow(page, email=test_email)
-    fill_and_submit(page, test_email)
+    with step("подготовка: мок overflow response и submit формы"):
+        test_email = unique_email("overflow-modal")
+        anon_pages.navigate_to(SignupPage)
+        mock_signup_overflow(page, email=test_email)
+        fill_and_submit(page, test_email)
 
-    overlay = page.locator("#waitlistOverlay")
-    expect(overlay).to_have_class(_IS_OPEN)
-    expect(page.locator("#waitlistTitle")).to_contain_text(t(Waitlist.OVERFLOW_TITLE))
-    expect(page.locator("#waitlistBody2")).to_contain_text(test_email)
-    expect(page.locator("#waitlistBody2")).to_contain_text(t(Waitlist.WAITLIST_KEYWORD))
+    with step("проверка: модалка открылась с email и правильным title"):
+        overlay = page.locator("#waitlistOverlay")
+        expect(overlay).to_have_class(_IS_OPEN)
+        expect(page.locator("#waitlistTitle")).to_contain_text(t(Waitlist.OVERFLOW_TITLE))
+        expect(page.locator("#waitlistBody2")).to_contain_text(test_email)
+        expect(page.locator("#waitlistBody2")).to_contain_text(t(Waitlist.WAITLIST_KEYWORD))
 
 
 @allure.title("Кнопка 'Понятно' в модалке ожидания ведёт на главную")
-def test_waitlist_modal_ok_button_redirects_to_landing(page: Page):
+def test_waitlist_modal_ok_button_redirects_to_landing(page: Page, anon_pages: PageFactory):
     """TC-22.04 (close-ok): click «Понятно» → закрывает модалку и
     делает redirect на / (signup.html:407: location.href = '/').
     """
-    test_email = unique_email("overflow-ok")
-    page.goto("/signup")
-    page.wait_for_load_state("domcontentloaded")
-    mock_signup_overflow(page, email=test_email)
-    fill_and_submit(page, test_email)
+    with step("подготовка: вызов overflow модалки"):
+        test_email = unique_email("overflow-ok")
+        anon_pages.navigate_to(SignupPage)
+        mock_signup_overflow(page, email=test_email)
+        fill_and_submit(page, test_email)
 
-    expect(page.locator("#waitlistOverlay")).to_have_class(_IS_OPEN)
-    page.locator("#waitlistOk").click()
-    page.wait_for_url(re.compile(r"/$"))
+    with step("действие: клик 'Понятно' и проверка redirect"):
+        expect(page.locator("#waitlistOverlay")).to_have_class(_IS_OPEN)
+        page.locator("#waitlistOk").click()
+        page.wait_for_url(re.compile(r"/$"))
 
 
 @allure.title("Esc закрывает модалку ожидания без перенаправления")
-def test_waitlist_modal_esc_closes_without_redirect(page: Page):
+def test_waitlist_modal_esc_closes_without_redirect(page: Page, anon_pages: PageFactory):
     """TC-22.05: Esc убирает класс .is-open, но НЕ делает redirect —
     юзер остаётся на /signup. Это сознательное решение (signup.html:411):
     не блокируем юзера если он промахнулся клавишей.
     """
-    test_email = unique_email("overflow-esc")
-    page.goto("/signup")
-    page.wait_for_load_state("domcontentloaded")
-    mock_signup_overflow(page, email=test_email)
-    fill_and_submit(page, test_email)
+    with step("подготовка: вызов overflow модалки"):
+        test_email = unique_email("overflow-esc")
+        anon_pages.navigate_to(SignupPage)
+        mock_signup_overflow(page, email=test_email)
+        fill_and_submit(page, test_email)
 
-    overlay = page.locator("#waitlistOverlay")
-    expect(overlay).to_have_class(_IS_OPEN)
+        overlay = page.locator("#waitlistOverlay")
+        expect(overlay).to_have_class(_IS_OPEN)
 
-    page.keyboard.press("Escape")
-    expect(overlay).not_to_have_class(_IS_OPEN)
-    assert page.url.rstrip("/").endswith("/signup"), (
-        f"Esc должен закрыть модалку без redirect, но URL стал {page.url!r}"
-    )
+    with step("действие: нажатие Esc"):
+        page.keyboard.press("Escape")
+
+    with step("проверка: модалка закрылась, URL остался /signup"):
+        expect(overlay).not_to_have_class(_IS_OPEN)
+        assert page.url.rstrip("/").endswith("/signup"), (
+            f"Esc должен закрыть модалку без redirect, но URL стал {page.url!r}"
+        )
 
 
 @allure.title("Модалка показывает ссылку /wait при неуспешной авто-подписке")
-def test_waitlist_modal_shows_wait_link_when_auto_subscribe_failed(page: Page):
+def test_waitlist_modal_shows_wait_link_when_auto_subscribe_failed(page: Page, anon_pages: PageFactory):
     """TC-22.04 (fallback): когда backend не смог auto-subscribe
     (waitlist_subscribed=false), модалка показывает CTA на /wait
     для повторной подписки вручную (signup.html:399).
     """
-    test_email = unique_email("overflow-fallback")
-    page.goto("/signup")
-    page.wait_for_load_state("domcontentloaded")
-    mock_signup_overflow(page, email=test_email, subscribed=False)
-    fill_and_submit(page, test_email)
+    with step("подготовка: вызов overflow модалки (subscribed=false)"):
+        test_email = unique_email("overflow-fallback")
+        anon_pages.navigate_to(SignupPage)
+        mock_signup_overflow(page, email=test_email, subscribed=False)
+        fill_and_submit(page, test_email)
 
-    expect(page.locator("#waitlistOverlay")).to_have_class(_IS_OPEN)
-    fallback_link = page.locator('#waitlistBody2 a[href*="/wait"]')
-    expect(fallback_link).to_be_visible()
+    with step("проверка: модалка показывает fallback-ссылку /wait"):
+        expect(page.locator("#waitlistOverlay")).to_have_class(_IS_OPEN)
+        fallback_link = page.locator('#waitlistBody2 a[href*="/wait"]')
+        expect(fallback_link).to_be_visible()

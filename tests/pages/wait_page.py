@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Self
+
 from playwright.sync_api import Page, expect
+
+from tests._core.messages import Buttons, Labels, t
 
 from .base import BasePage
 
@@ -12,12 +16,13 @@ class WaitPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
-        self.email = page.locator("#email")
-        self.submit_btn = page.locator("#submitBtn")
-        self.result = page.locator("#result")
-        self.form = page.locator("#waitForm")
+        self.email = page.get_by_label(t(Labels.WAITLIST_EMAIL))
+        self.submit_btn = page.get_by_role("button", name=t(Buttons.WAITLIST_SUBMIT))
+        self.result = page.locator("#result")  # no semantic: generic result div
+        self.form = page.locator("#waitForm")  # no semantic: form container
 
-    def submit_email(self, email: str) -> "WaitPage":
+    def submit_email(self, email: str) -> Self:
+        """Fill the email and click submit to join the waitlist."""
         self.email.fill(email)
         self.submit_btn.click()
         return self
@@ -29,6 +34,7 @@ class WaitPage(BasePage):
         expect(self.result).not_to_have_text("")
 
     def expect_visible_form(self) -> None:
+        """Assert the waitlist form elements are visible."""
         expect(self.form).to_be_visible()
         expect(self.email).to_be_visible()
         expect(self.submit_btn).to_be_visible()

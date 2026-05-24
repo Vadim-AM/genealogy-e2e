@@ -30,17 +30,16 @@ latency может варьироваться. Тесты помечены `@pyt
 
 from __future__ import annotations
 
+import allure
 import httpx
 import pytest
 
-import allure
-
-from tests.api_paths import API
-from tests.constants import TestConfig, unique_email
+from tests._core.api_paths import API
+from tests._core.constants import TestConfig, unique_email
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 from tests.helpers.security.timing import ITERATIONS, RATIO_THRESHOLD, measure
 from tests.helpers.security.timing import ratio as compute_ratio
-from tests.timeouts import TIMEOUTS
-
 
 # Тесты затратные (60+ HTTP roundtrip'ов) и чувствительны к runner jitter,
 # но это не повод их скипать — timing-attack это security regression,
@@ -63,38 +62,41 @@ def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_ap
     that email vs throw-away new emails. Reset slowapi between calls
     so the rate-limit doesn't dominate latency.
     """
-    reset_url = f"{uvicorn_server}{API.TEST_RESET_SIGNUP_RATE}"
+    with step("подготовка: зарегистрировать существующего пользователя"):
+        reset_url = f"{uvicorn_server}{API.TEST_RESET_SIGNUP_RATE}"
 
-    existing_email = unique_email("timing-existing")
-    signup_via_api(email=existing_email)
+        existing_email = unique_email("timing-existing")
+        signup_via_api(email=existing_email)
 
-    payload_template = {
-        "password": TestConfig.DEFAULT_PASSWORD,
-        "full_name": "Тестовый Пользователь",
-    }
+        payload_template = {
+            "password": TestConfig.DEFAULT_PASSWORD,
+            "full_name": "Тестовый Пользователь",
+        }
 
-    def call_existing(c: httpx.Client) -> None:
-        c.post(API.SIGNUP, json={**payload_template, "email": existing_email})
+    with step("действие: замерить latency для existing и new email"):
+        def call_existing(c: httpx.Client) -> None:
+            c.post(API.SIGNUP, json={**payload_template, "email": existing_email})
 
-    def call_new(c: httpx.Client) -> None:
-        c.post(
-            API.SIGNUP,
-            json={**payload_template, "email": unique_email("timing-new")},
+        def call_new(c: httpx.Client) -> None:
+            c.post(
+                API.SIGNUP,
+                json={**payload_template, "email": unique_email("timing-new")},
+            )
+
+        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+            latencies_existing = [measure(c, reset_url, call_existing) for _ in range(ITERATIONS)]
+            latencies_new = [measure(c, reset_url, call_new) for _ in range(ITERATIONS)]
+
+    with step("проверка: ratio p50 latency < порога"):
+        ratio = compute_ratio(latencies_new, latencies_existing)
+        p50_new_ms = sorted(latencies_new)[ITERATIONS // 2] * 1000
+        p50_existing_ms = sorted(latencies_existing)[ITERATIONS // 2] * 1000
+
+        assert ratio < RATIO_THRESHOLD, (
+            f"signup timing leaks account existence: "
+            f"new p50={p50_new_ms:.1f}ms, existing p50={p50_existing_ms:.1f}ms, "
+            f"ratio={ratio:.1f}× (must be <{RATIO_THRESHOLD}×)"
         )
-
-    with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
-        latencies_existing = [measure(c, reset_url, call_existing) for _ in range(ITERATIONS)]
-        latencies_new = [measure(c, reset_url, call_new) for _ in range(ITERATIONS)]
-
-    ratio = compute_ratio(latencies_new, latencies_existing)
-    p50_new_ms = sorted(latencies_new)[ITERATIONS // 2] * 1000
-    p50_existing_ms = sorted(latencies_existing)[ITERATIONS // 2] * 1000
-
-    assert ratio < RATIO_THRESHOLD, (
-        f"signup timing leaks account existence: "
-        f"new p50={p50_new_ms:.1f}ms, existing p50={p50_existing_ms:.1f}ms, "
-        f"ratio={ratio:.1f}× (must be <{RATIO_THRESHOLD}×)"
-    )
 
 
 @allure.title("Timing: login не выдаёт существование аккаунта по времени")
@@ -105,37 +107,39 @@ def test_login_no_timing_account_enumeration(uvicorn_server: str, signup_via_api
     branch returns immediately on user-not-found. Equal-work fix: dummy
     bcrypt for missing user.
     """
-    reset_url = f"{uvicorn_server}{API.TEST_RESET_SIGNUP_RATE}"
+    with step("подготовка: зарегистрировать существующего пользователя"):
+        reset_url = f"{uvicorn_server}{API.TEST_RESET_SIGNUP_RATE}"
+        existing_email = unique_email("timing-login")
+        signup_via_api(email=existing_email)
 
-    existing_email = unique_email("timing-login")
-    signup_via_api(email=existing_email)
+    with step("действие: замерить latency для existing и nonexistent email"):
+        def call_existing_wrong_pwd(c: httpx.Client) -> None:
+            c.post(
+                API.LOGIN,
+                json={"email": existing_email, "password": "wrong-password-here"},
+            )
 
-    def call_existing_wrong_pwd(c: httpx.Client) -> None:
-        c.post(
-            API.LOGIN,
-            json={"email": existing_email, "password": "wrong-password-here"},
+        def call_nonexistent(c: httpx.Client) -> None:
+            c.post(
+                API.LOGIN,
+                json={
+                    "email": unique_email("timing-nope"),
+                    "password": "wrong-password-here",
+                },
+            )
+
+        with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
+            latencies_existing = [measure(c, reset_url, call_existing_wrong_pwd) for _ in range(ITERATIONS)]
+            latencies_nonexistent = [measure(c, reset_url, call_nonexistent) for _ in range(ITERATIONS)]
+
+    with step("проверка: ratio p50 latency < порога"):
+        ratio = compute_ratio(latencies_existing, latencies_nonexistent)
+        p50_existing_ms = sorted(latencies_existing)[ITERATIONS // 2] * 1000
+        p50_nonexistent_ms = sorted(latencies_nonexistent)[ITERATIONS // 2] * 1000
+
+        assert ratio < RATIO_THRESHOLD, (
+            f"login timing leaks account existence: "
+            f"existing-wrong-pwd p50={p50_existing_ms:.1f}ms, "
+            f"non-existent p50={p50_nonexistent_ms:.1f}ms, "
+            f"ratio={ratio:.1f}× (must be <{RATIO_THRESHOLD}×)"
         )
-
-    def call_nonexistent(c: httpx.Client) -> None:
-        c.post(
-            API.LOGIN,
-            json={
-                "email": unique_email("timing-nope"),
-                "password": "wrong-password-here",
-            },
-        )
-
-    with httpx.Client(base_url=uvicorn_server, timeout=TIMEOUTS.api_request) as c:
-        latencies_existing = [measure(c, reset_url, call_existing_wrong_pwd) for _ in range(ITERATIONS)]
-        latencies_nonexistent = [measure(c, reset_url, call_nonexistent) for _ in range(ITERATIONS)]
-
-    ratio = compute_ratio(latencies_existing, latencies_nonexistent)
-    p50_existing_ms = sorted(latencies_existing)[ITERATIONS // 2] * 1000
-    p50_nonexistent_ms = sorted(latencies_nonexistent)[ITERATIONS // 2] * 1000
-
-    assert ratio < RATIO_THRESHOLD, (
-        f"login timing leaks account existence: "
-        f"existing-wrong-pwd p50={p50_existing_ms:.1f}ms, "
-        f"non-existent p50={p50_nonexistent_ms:.1f}ms, "
-        f"ratio={ratio:.1f}× (must be <{RATIO_THRESHOLD}×)"
-    )

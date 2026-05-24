@@ -8,16 +8,26 @@ failure as Allure attachment).
 
 from __future__ import annotations
 
+import contextlib
+from typing import TYPE_CHECKING, Any
+
 import allure
 import httpx
 import pytest
 
-from tests._fixtures.users import AuthUser
-from tests.timeouts import TIMEOUTS
+from tests._core.timeouts import TIMEOUTS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+    from pathlib import Path
+
+    from playwright.sync_api import Browser, BrowserContext, Page
+
+    from tests._fixtures.users import AuthUser
 
 
 @pytest.fixture
-def tenant_client(uvicorn_server: str):
+def tenant_client(uvicorn_server: str) -> Generator[Callable[[AuthUser], httpx.Client]]:
     """Factory: httpx.Client pre-wired для tenant'а (cookies + slug header).
 
     Используй когда тест делает много API-вызовов от имени одного user'а:
@@ -52,7 +62,9 @@ def tenant_client(uvicorn_server: str):
 
 
 @pytest.fixture
-def auth_context_factory(request, browser, uvicorn_server: str, tmp_path):
+def auth_context_factory(
+    request: pytest.FixtureRequest, browser: Browser, uvicorn_server: str, tmp_path: Path,
+) -> Generator[Callable[..., BrowserContext]]:
     """Factory to build a Playwright BrowserContext with cookies + tenant header.
 
     `localStorage` flags pre-seeded to silence the optional editor tour
@@ -68,12 +80,21 @@ def auth_context_factory(request, browser, uvicorn_server: str, tmp_path):
 
     created_contexts = []
 
-    def _make(user: AuthUser, *, with_tenant_header: bool = True):
+    def _make(user: AuthUser, *, with_tenant_header: bool = True) -> BrowserContext:
+        from tests._core.settings import settings as _settings
+
         extra_headers = {"X-Tenant-Slug": user.slug} if with_tenant_header else {}
+        video_opts: dict[str, Any] = {}
+        if _settings.record_video:
+            video_dir = tmp_path / "videos"
+            video_dir.mkdir(exist_ok=True)
+            video_opts["record_video_dir"] = str(video_dir)
+            video_opts["record_video_size"] = {"width": 1280, "height": 720}
         ctx = browser.new_context(
             base_url=uvicorn_server,
             extra_http_headers=extra_headers,
             viewport={"width": 1440, "height": 900},
+            **video_opts,
         )
         for name, value in user.cookies.items():
             ctx.add_cookies(
@@ -99,6 +120,8 @@ def auth_context_factory(request, browser, uvicorn_server: str, tmp_path):
 
     yield _make
 
+    from tests._core.settings import settings as _settings
+
     failed = getattr(getattr(request.node, "rep_call", None), "failed", False)
     for i, ctx in enumerate(created_contexts):
         if failed:
@@ -106,23 +129,34 @@ def auth_context_factory(request, browser, uvicorn_server: str, tmp_path):
             try:
                 ctx.tracing.stop(path=str(trace_path))
             except Exception:
-                trace_path = None
+                trace_path = None  # type: ignore[assignment]
             if trace_path and trace_path.exists():
                 allure.attach.file(
                     str(trace_path),
                     name=f"playwright-trace-{i}.zip",
                     extension="zip",
                 )
+            if _settings.record_video:
+                for j, page in enumerate(ctx.pages):
+                    with contextlib.suppress(Exception):
+                        video = page.video
+                        if video:
+                            video_path = video.path()
+                            allure.attach.file(
+                                str(video_path),
+                                name=f"video-ctx{i}-page{j}.webm",
+                                extension="webm",
+                            )
         else:
-            try:
+            with contextlib.suppress(Exception):
                 ctx.tracing.stop()
-            except Exception:
-                pass
         ctx.close()
 
 
 @pytest.fixture
-def owner_page(request, auth_context_factory, owner_user: AuthUser):
+def owner_page(
+    request: pytest.FixtureRequest, auth_context_factory: Callable[..., BrowserContext], owner_user: AuthUser,
+) -> Generator[Page]:
     """Authenticated browser page in owner_user's tenant."""
     ctx = auth_context_factory(owner_user)
     page = ctx.new_page()

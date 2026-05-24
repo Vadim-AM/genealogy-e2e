@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import httpx
 
-from tests.api_paths import API
-from tests.timeouts import TIMEOUTS
+from tests._core.api_paths import API
+from tests._core.timeouts import TIMEOUTS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 NEW_PASSWORD = "NewPassword_After_Reset_2026"
 
 
 def me_status(base_url: str, cookies: dict[str, str]) -> int:
+    """Return HTTP status code of GET /api/account/me."""
     return httpx.get(
         f"{base_url}{API.ACCOUNT_ME}",
         cookies=cookies,
@@ -19,7 +25,7 @@ def me_status(base_url: str, cookies: dict[str, str]) -> int:
 
 
 def trigger_password_reset(
-    base_url: str, *, email: str, new_password: str, read_email_token,
+    base_url: str, *, email: str, new_password: str, read_email_token: Callable[[str], str],
 ) -> None:
     """forgot-password -> read token from mail -> reset-password."""
     httpx.post(

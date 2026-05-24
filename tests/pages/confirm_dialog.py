@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
-from tests.messages import Buttons, t
+from tests._core.messages import Buttons, t
 
 
 class ConfirmDialog:
@@ -27,9 +27,11 @@ class ConfirmDialog:
         self.backdrop = page.locator('[data-testid="confirm-dialog-backdrop"]').first
 
     def expect_visible(self) -> None:
+        """Assert the confirm dialog is visible."""
         expect(self.container).to_be_visible()
 
     def text(self) -> str:
+        """Return the text content of the dialog."""
         return self.container.inner_text()
 
     def confirm(self) -> None:
@@ -50,4 +52,5 @@ class ConfirmDialog:
         self.backdrop.click(position={"x": 5, "y": 5})
 
     def expect_hidden(self) -> None:
+        """Assert the confirm dialog is no longer visible."""
         expect(self.container).not_to_be_visible()

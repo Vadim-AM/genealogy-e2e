@@ -4,12 +4,11 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
-from tests.messages import TestData
+from tests._core.messages import TestData
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 from tests.pages.profile_panel import ProfilePanel
 from tests.pages.tree_page import TreePage
-from tests.step import step
-from tests.timeouts import TIMEOUTS
 
 
 def open_profile(page: Page, person_id: str) -> ProfilePanel:
@@ -37,6 +36,7 @@ def open_profile(page: Page, person_id: str) -> ProfilePanel:
 
 
 def open_demo_self_profile(page: Page) -> ProfilePanel:
+    """Open the demo-self profile via hash-route navigation."""
     page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
     page.wait_for_load_state("networkidle")
     panel = ProfilePanel(page)

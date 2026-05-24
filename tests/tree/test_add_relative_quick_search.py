@@ -28,12 +28,11 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.messages import LinkedChip, TestData, t
+from tests._core.step import step
 from tests.helpers.tree.tree_api import people_count, seed_person
 from tests.helpers.tree.tree_navigation import open_demo_self_profile
-from tests.messages import LinkedChip, TestData, t
 from tests.pages.person_editor import AddRelativeModal
-from tests.pages.profile_panel import ProfilePanel
-
 
 # ─────────────────────────────────────────────────────────────────────────
 # Acceptance tests
@@ -50,67 +49,67 @@ def test_link_existing_sibling_creates_only_relationship(
     Sibling (а не parent) — потому что demo-self уже имеет 2 demo-parent'а,
     `+ parent`-кнопка под RELATIVE_LIMITS скрыта.
     """
-    api = tenant_client(owner_user)
-    existing_id = seed_person(
-        api,
-        pid="link-sib-existing",
-        name="Прохор Иванов",
-        surname="Иванов",
-        given_name="Прохор",
-    )
-    count_before = people_count(api)
+    with step("подготовка: создание существующей персоны"):
+        api = tenant_client(owner_user)
+        existing_id = seed_person(
+            api,
+            pid="link-sib-existing",
+            name="Прохор Иванов",
+            surname="Иванов",
+            given_name="Прохор",
+        )
+        count_before = people_count(api)
 
-    panel = open_demo_self_profile(owner_page)
-    panel.click_add_sibling()
+    with step("действие: поиск и привязка через автоподсказку"):
+        panel = open_demo_self_profile(owner_page)
+        panel.click_add_sibling()
 
-    modal = AddRelativeModal(owner_page)
-    modal.expect_visible()
+        modal = AddRelativeModal(owner_page)
+        modal.expect_visible()
 
-    modal.search_existing(surname="Иван")
-    modal.expect_dropdown_open()
-    expect(modal.row_by_person_id(existing_id)).to_be_visible()
+        modal.search_existing(surname="Иван")
+        modal.expect_dropdown_open()
+        expect(modal.row_by_person_id(existing_id)).to_be_visible()
 
-    modal.pick_existing(existing_id)
-    modal.expect_linked_to(existing_id)
-    modal.expect_field_readonly("surname")
-    modal.expect_field_readonly("given_name")
+        modal.pick_existing(existing_id)
+        modal.expect_linked_to(existing_id)
+        modal.expect_field_readonly("surname")
+        modal.expect_field_readonly("given_name")
 
-    # Linked chip должен содержать lexicon-keywords из catalogue (а не
-    # инлайн-строки — выживет copy-edit без правки теста).
-    expect(modal.linked_chip).to_contain_text(t(LinkedChip.TITLE_KEYWORD))
-    expect(modal.linked_chip).to_contain_text(t(LinkedChip.HINT_KEYWORD))
+    with step("проверка: linked-chip содержит ожидаемые keywords"):
+        expect(modal.linked_chip).to_contain_text(t(LinkedChip.TITLE_KEYWORD))
+        expect(modal.linked_chip).to_contain_text(t(LinkedChip.HINT_KEYWORD))
 
-    # Перехватываем POST /api/relationships, утверждаем что НИ ОДНОГО
-    # POST /api/people не было (фронт не должен дублировать).
-    post_people_count = 0
+    with step("действие: Save и проверка что POST /people не было"):
+        post_people_count = 0
 
-    def _track(response):
-        nonlocal post_people_count
-        if response.request.method == "POST" and response.url.endswith(
-            "/api/people"
-        ):
-            post_people_count += 1
+        def _track(response):
+            nonlocal post_people_count
+            if response.request.method == "POST" and response.url.endswith(
+                "/api/people"
+            ):
+                post_people_count += 1
 
-    owner_page.on("response", _track)
+        owner_page.on("response", _track)
 
-    with owner_page.expect_response("**/api/relationships") as rel_info:
-        modal.btn_save.click()
-    rel_resp = rel_info.value
-    assert rel_resp.ok, f"POST /api/relationships failed: {rel_resp.status}"
-    assert rel_resp.request.method == "POST", (
-        f"expected POST /api/relationships, got {rel_resp.request.method}"
-    )
+        with owner_page.expect_response("**/api/relationships") as rel_info:
+            modal.btn_save.click()
+        rel_resp = rel_info.value
+        assert rel_resp.ok, f"POST /api/relationships failed: {rel_resp.status}"
+        assert rel_resp.request.method == "POST", (
+            f"expected POST /api/relationships, got {rel_resp.request.method}"
+        )
 
-    expect(modal.overlay).not_to_be_visible()
-    assert post_people_count == 0, (
-        f"link-mode triggered POST /api/people {post_people_count}× — "
-        "должен быть строго 0 (дубликата не должно быть)"
-    )
+        expect(modal.overlay).not_to_be_visible()
+        assert post_people_count == 0, (
+            f"link-mode triggered POST /api/people {post_people_count}x -- "
+            "должен быть строго 0 (дубликата не должно быть)"
+        )
 
-    # Конечная проверка: число people в дереве НЕ выросло.
-    assert people_count(api) == count_before, (
-        "link-existing создал дубликат — people-count не должен меняться"
-    )
+    with step("проверка: people-count не вырос"):
+        assert people_count(api) == count_before, (
+            "link-existing создал дубликат -- people-count не должен меняться"
+        )
 
 
 @allure.title("Отвязка привязанной персоны возвращает форму в режим создания")
@@ -121,47 +120,49 @@ def test_unlink_existing_returns_to_create_mode(
     → клик `[data-action="unlink-existing"]` → fields editable → правка
     surname → Save создаёт нового (POST /api/people + POST /api/relationships).
     """
-    api = tenant_client(owner_user)
-    existing_id = seed_person(
-        api,
-        pid="unlink-existing",
-        name="Семён Семёнов",
-        surname="Семёнов",
-        given_name="Семён",
-    )
-    count_before = people_count(api)
+    with step("подготовка: создание существующей персоны"):
+        api = tenant_client(owner_user)
+        existing_id = seed_person(
+            api,
+            pid="unlink-existing",
+            name="Семён Семёнов",
+            surname="Семёнов",
+            given_name="Семён",
+        )
+        count_before = people_count(api)
 
-    panel = open_demo_self_profile(owner_page)
-    panel.click_add_sibling()
+    with step("действие: привязка существующего через автоподсказку"):
+        panel = open_demo_self_profile(owner_page)
+        panel.click_add_sibling()
 
-    modal = AddRelativeModal(owner_page)
-    modal.expect_visible()
-    modal.search_existing(surname="Семён")
-    modal.expect_dropdown_open()
-    modal.pick_existing(existing_id)
-    modal.expect_linked_to(existing_id)
-    modal.expect_field_readonly("surname")
+        modal = AddRelativeModal(owner_page)
+        modal.expect_visible()
+        modal.search_existing(surname="Семён")
+        modal.expect_dropdown_open()
+        modal.pick_existing(existing_id)
+        modal.expect_linked_to(existing_id)
+        modal.expect_field_readonly("surname")
 
-    # Отвязать → проверяем что fields снова editable.
-    modal.unlink_existing()
-    modal.expect_not_linked()
-    expect(modal.surname).not_to_have_attribute("readonly", "readonly")
+    with step("действие: отвязка и правка фамилии"):
+        modal.unlink_existing()
+        modal.expect_not_linked()
+        expect(modal.surname).not_to_have_attribute("readonly", "readonly")
+        modal.surname.fill("Семёнов-Новый")
 
-    # Правим surname (оставляем prefilled given) → создаём нового.
-    modal.surname.fill("Семёнов-Новый")
+    with step("действие: сохранение нового человека"):
+        with owner_page.expect_response(
+            lambda r: "/api/people" in r.url and r.request.method == "POST"
+        ) as person_info:
+            modal.btn_save.click()
+        assert person_info.value.ok, (
+            f"POST /api/people failed: {person_info.value.status}"
+        )
 
-    with owner_page.expect_response(
-        lambda r: "/api/people" in r.url and r.request.method == "POST"
-    ) as person_info:
-        modal.btn_save.click()
-    assert person_info.value.ok, (
-        f"POST /api/people failed: {person_info.value.status}"
-    )
-
-    expect(modal.overlay).not_to_be_visible()
-    assert people_count(api) == count_before + 1, (
-        "после unlink + правка + Save должен быть РОВНО один новый person"
-    )
+    with step("проверка: ровно один новый person создан"):
+        expect(modal.overlay).not_to_be_visible()
+        assert people_count(api) == count_before + 1, (
+            "после unlink + правка + Save должен быть РОВНО один новый person"
+        )
 
 
 @allure.title("Автоподсказка исключает текущую персону из списка")
@@ -175,17 +176,18 @@ def test_dropdown_excludes_self(owner_page: Page, owner_user, tenant_client):
     Ввод «Польз» — substring совпадает только с demo-self → dropdown
     должен либо не открыться, либо показать пустую выдачу.
     """
-    panel = open_demo_self_profile(owner_page)
-    panel.click_add_sibling()
+    with step("действие: поиск по подстроке имени текущей персоны"):
+        panel = open_demo_self_profile(owner_page)
+        panel.click_add_sibling()
 
-    modal = AddRelativeModal(owner_page)
-    modal.expect_visible()
-    modal.search_existing(given="Польз")
+        modal = AddRelativeModal(owner_page)
+        modal.expect_visible()
+        modal.search_existing(given="Польз")
 
-    # Demo-self в dropdown'е быть не должен.
-    expect(
-        modal.row_by_person_id(TestData.DEMO_PERSON_ID)
-    ).not_to_be_visible()
+    with step("проверка: текущая персона исключена из результатов"):
+        expect(
+            modal.row_by_person_id(TestData.DEMO_PERSON_ID)
+        ).not_to_be_visible()
 
 
 @allure.title("Стрелка вниз и Enter выбирают кандидата из автоподсказки")
@@ -198,29 +200,30 @@ def test_keyboard_arrow_down_enter_picks_first_candidate(
     Здесь упрощено: один кандидат → ArrowDown откроет dropdown с
     highlighted=0 → Enter сразу выбирает.
     """
-    api = tenant_client(owner_user)
-    existing_id = seed_person(
-        api,
-        pid="kbd-existing",
-        name="Глеб Глебов",
-        surname="Глебов",
-        given_name="Глеб",
-    )
+    with step("подготовка: создание персоны для клавиатурного выбора"):
+        api = tenant_client(owner_user)
+        existing_id = seed_person(
+            api,
+            pid="kbd-existing",
+            name="Глеб Глебов",
+            surname="Глебов",
+            given_name="Глеб",
+        )
 
-    panel = open_demo_self_profile(owner_page)
-    panel.click_add_sibling()
+    with step("действие: открытие модалки и ввод фамилии"):
+        panel = open_demo_self_profile(owner_page)
+        panel.click_add_sibling()
 
-    modal = AddRelativeModal(owner_page)
-    modal.expect_visible()
-    modal.surname.fill("Глеб")
-    modal.expect_dropdown_open()
+        modal = AddRelativeModal(owner_page)
+        modal.expect_visible()
+        modal.surname.fill("Глеб")
+        modal.expect_dropdown_open()
 
-    # Focus должен быть на surname после fill; ArrowDown навигирует,
-    # Enter подтверждает.
-    modal.surname.focus()
-    owner_page.keyboard.press("ArrowDown")
-    owner_page.keyboard.press("Enter")
-    modal.expect_linked_to(existing_id)
+    with step("действие: выбор через ArrowDown + Enter"):
+        modal.surname.focus()
+        owner_page.keyboard.press("ArrowDown")
+        owner_page.keyboard.press("Enter")
+        modal.expect_linked_to(existing_id)
 
 
 @allure.title("Esc закрывает выпадающий список, но не модалку добавления")
@@ -231,26 +234,28 @@ def test_escape_closes_dropdown_keeps_modal(
     открытой. Critical: trapFocus.onEscape повешен на саму модалку и
     закрыл бы её — но dropdown-keydown делает `stopPropagation`.
     """
-    api = tenant_client(owner_user)
-    seed_person(
-        api,
-        pid="esc-existing",
-        name="Антон Антонов",
-        surname="Антонов",
-        given_name="Антон",
-    )
+    with step("подготовка: создание персоны и открытие dropdown"):
+        api = tenant_client(owner_user)
+        seed_person(
+            api,
+            pid="esc-existing",
+            name="Антон Антонов",
+            surname="Антонов",
+            given_name="Антон",
+        )
 
-    panel = open_demo_self_profile(owner_page)
-    panel.click_add_sibling()
+        panel = open_demo_self_profile(owner_page)
+        panel.click_add_sibling()
 
-    modal = AddRelativeModal(owner_page)
-    modal.expect_visible()
-    modal.surname.fill("Антон")
-    modal.expect_dropdown_open()
+        modal = AddRelativeModal(owner_page)
+        modal.expect_visible()
+        modal.surname.fill("Антон")
+        modal.expect_dropdown_open()
 
-    modal.surname.focus()
-    owner_page.keyboard.press("Escape")
+    with step("действие: нажатие Escape"):
+        modal.surname.focus()
+        owner_page.keyboard.press("Escape")
 
-    modal.expect_dropdown_closed()
-    # Модалка ещё открыта — Esc не всплыл до trapFocus.onEscape.
-    expect(modal.container).to_be_visible()
+    with step("проверка: dropdown закрыт, модалка осталась открытой"):
+        modal.expect_dropdown_closed()
+        expect(modal.container).to_be_visible()

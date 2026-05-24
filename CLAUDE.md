@@ -112,6 +112,7 @@ validates at collection time via Pydantic in `tests/settings.py`:
 | `E2E_TIMEOUT_MULTIPLIER` | no | `1.0` |
 | `E2E_TEST_TOKEN` | no | `e2e-test-token-default-2026` |
 | `E2E_LOCALE` | no | `ru` |
+| `E2E_RECORD_VIDEO` | no | `false` |
 
 Invalid or missing required env → immediate `pytest.exit` with a Pydantic
 error before any fixture runs.
@@ -310,21 +311,24 @@ lives in one domain — the domain it most naturally belongs to. No
 `tests/helpers/common/` — if it's truly generic, it goes in `tests/pages/`
 (if UI-related) or `tests/_fixtures/` (if fixture-related).
 
-### 17. Multi-step helpers use `step()` for visibility
+### 17. Step visibility — in helpers AND test functions
 
 ```python
 from tests.step import step
 
-with step("signup owner"):
-    c.post(API.SIGNUP, json=payload).raise_for_status()
-with step("verify email"):
-    c.post(API.VERIFY_EMAIL, json={"token": token}).raise_for_status()
+with step("подготовка: создать пользователя"):
+    user = signup_via_api()
+with step("действие: добавить брата через профиль"):
+    panel.click_add_sibling()
+    modal.fill_and_save(surname="Тест", given="Брат")
+with step("проверка: персона добавлена"):
+    assert len(tree_after) == count_before + 1
 ```
 
-On CI, step output shows which phase failed — no more guessing from a
-bare traceback. Steps also render as collapsible blocks in the Allure
-report with pass/fail status and timing. Use for logical phases (3-6 per
-helper), not per-line.
+**Every test function >5 lines must use `step()`** to wrap logical phases.
+Step names follow the pattern: `подготовка:`, `действие:`, `проверка:`.
+Short tests (5-10 lines): 2 steps. Long tests (>10 lines): 3-5 steps.
+Steps render as collapsible blocks in Allure with pass/fail + timing.
 
 ### 18. Shared utilities live in POMs, not in test files
 
@@ -333,24 +337,129 @@ Patterns reusable across tests belong on Page Objects:
 - `ProfilePanel.navigate_to(page, person_id)` → `tests/pages/profile_panel.py`
 - `open_editor_for(page, person_id)` → `tests/pages/profile_panel.py`
 
+### 19. Type hints + one-line docstrings on all public functions
+
+Every public function, method, and fixture has:
+- Full type annotations on all parameters and return type
+- A one-line imperative docstring (`"""Verb + what it does."""`)
+
+```python
+def find_person_by_name(api: httpx.Client, *substrings: str) -> dict[str, Any]:
+    """Find person whose name contains all substrings (unique match)."""
+```
+
+Use `Self` for fluent methods, `TYPE_CHECKING` for cross-module imports.
+`from __future__ import annotations` at the top of every file.
+
+### 20. Fluent-chain POM — methods return target page type
+
+POM action methods return the target page object for chaining:
+- Navigation actions → return the target POM type
+- Same-page actions → return `Self`
+- Void actions (expect_*, fill_*) → return `None`
+
+```python
+class LoginPage(BasePage):
+    def login(self, email: str, password: str) -> Self:
+        """Fill credentials and submit the login form."""
+        ...
+        return self
+```
+
+### 21. Semantic locators first, data-testid as fallback
+
+Prefer Playwright semantic locators (`get_by_role`, `get_by_label`,
+`get_by_placeholder`) over `data-testid` or ID-based selectors. When
+HTML upstream doesn't support semantic (no `<label>`, no ARIA role), keep
+`data-testid` and add `# no semantic: <reason>` comment.
+
+```python
+# good — semantic
+self.submit_btn = page.get_by_role("button", name=t(Buttons.LOGIN))
+self.email = page.get_by_label(t(Labels.EMAIL))
+
+# fallback — with justification
+self.honeypot = page.locator("#website")  # no semantic: hidden field
+```
+
+### 22. API calls via typed helpers, not raw httpx
+
+```python
+# bad — raw API call with inline JSON and untyped response
+r = api.post(API.PEOPLE, json={"id": pid, "name": name, "branch": "paternal", "gender": "m"})
+r.raise_for_status()
+people = r.json()["people"]
+
+# good — typed helper with Pydantic model
+from tests.helpers.api.person_api import create_person, get_tree
+from tests._models.person import PersonCreate
+
+person = create_person(api, PersonCreate(id=pid, name=name))
+tree = get_tree(api)
+assert person.name == name
+```
+
+Use `.schema(Model)` on `expect_response()` for response validation.
+Keep raw calls only for negative tests (expected 4xx/5xx).
+
+### 23. Use PageFactory, not inline POM construction
+
+```python
+# bad
+tree = TreePage(owner_page).goto()
+
+# good
+def test_tree(pages: PageFactory):
+    tree = pages.navigate_to(TreePage)
+```
+
+### 24. Assertion messages via ErrMsg class
+
+```python
+# bad
+expect(locator).to_be_visible()
+
+# good
+from tests._core.err_msg import ErrMsg
+expect(locator, ErrMsg.profile_not_visible).to_be_visible()
+```
+
 ## Project structure
 
 ```
 genealogy-e2e/
 ├── conftest.py               # root: loads tests/_fixtures/* plugins + path→marker rule
 ├── tests/
+│   ├── _core/                # Infrastructure modules (settings, api_paths, messages, etc.)
+│   │   ├── api_paths.py      # API endpoint catalogue
+│   │   ├── messages.py       # Locale-aware UI strings + t() resolver
+│   │   ├── constants.py      # TestConfig, email/password factories
+│   │   ├── timeouts.py       # TIMEOUTS dataclass + multiplier
+│   │   ├── response.py       # expect_response() fluent assertions + .schema()
+│   │   ├── settings.py       # Pydantic env validation
+│   │   ├── step.py           # Allure step() context manager
+│   │   └── err_msg.py        # ErrMsg class (assertion messages)
+│   ├── _models/              # Pydantic API contract models
+│   │   ├── person.py         # PersonCreate, PersonResponse, TreeResponse
+│   │   ├── auth.py           # SignupRequest, LoginResponse, AccountMe
+│   │   ├── mfa.py            # MfaSetupResponse, MfaStatusResponse, etc.
+│   │   ├── enrichment.py     # EnrichStartResponse, EnrichJobResponse
+│   │   ├── site.py           # SiteConfigResponse, ShareCreateResponse
+│   │   └── platform.py       # FeaturesResponse, AuditLogResponse, etc.
 │   ├── _fixtures/            # GLOBAL fixtures (session/function scope, cross-domain)
 │   │   ├── patch.py          # httpx monkey-patch + Playwright expect default
 │   │   ├── server.py         # base_url, health gate, reset_state, install_mock_ai
 │   │   ├── users.py          # AuthUser + signup_via_api / owner_user / superadmin_user
 │   │   ├── clients.py        # tenant_client, auth_context_factory, owner_page
+│   │   ├── page_factory.py   # PageFactory + pages/anon_pages fixtures
 │   │   └── utils.py          # soft_check
 │   ├── _data/                # Test data artifacts (no logic, pure constants)
 │   │   ├── gedcom/samples.py # GEDCOM_THREE_GEN, SAMPLE_GEDCOM_UTF8, ...
 │   │   ├── media/jpeg.py     # MIN_JPEG_BYTES
 │   │   ├── devices/descriptors.py  # DEVICE_DESCRIPTORS (mobile emulation)
-│   │   └── payloads/tree.py  # parent_rel(), person_payload() builders
+│   │   └── payloads/         # tree.py, injection.py (XSS/SQL payloads)
 │   ├── helpers/              # Domain-organized helper functions
+│   │   ├── api/              # Typed API wrappers (person_api, mfa_api, site_api, etc.)
 │   │   ├── auth/             # auth_ui, signup_helpers, session_helpers
 │   │   ├── tree/             # tree_api, tree_navigation, photos, add_relative
 │   │   ├── admin/            # gedcom_ui (import_via_ui, open_import_tab)
@@ -362,12 +471,6 @@ genealogy-e2e/
 │   │   ├── profile_panel.py  # ProfilePanel + open_editor_for, navigate_to
 │   │   ├── person_editor.py  # PersonEditor, AddRelativeModal
 │   │   └── ...               # login_page, signup_page, tree_page, etc.
-│   ├── api_paths.py          # API.{TREE, person(pid), enrich(pid), ...}
-│   ├── constants.py          # TestConfig.{DEFAULT_PASSWORD, EMAIL_DOMAIN, ...}
-│   ├── messages.py           # locale-aware UI string catalogue + t() resolver
-│   ├── timeouts.py           # TIMEOUTS dataclass + E2E_TIMEOUT_MULTIPLIER
-│   ├── fixtures/
-│   │   └── ai_responses.json # mock-AI fixture installed via /api/_test/install-mock-ai
 │   ├── auth/                 # signup/login/verify/forgot/invite/session/etc.
 │   ├── tree/                 # tree, profile, person editor, photos, invariants
 │   ├── platform/             # superadmin platform (dashboard, MFA, WebAuthn, ops)
@@ -386,8 +489,10 @@ genealogy-e2e/
 ├── docker-compose.yml        # backend + e2e wiring
 ├── .github/workflows/
 │   └── pr-check.yml          # boots uvicorn → drift-lint → pytest
-├── pytest.ini                # markers: smoke, regression, slow + domains
-└── requirements.txt          # playwright, pytest-xdist, filelock, pyotp, httpx
+├── pyproject.toml            # deps, pytest config, ruff, mypy — single source
+└── scripts/
+    ├── check_drift.py        # Rule #5/#9 drift lint
+    └── flakiness_report.py   # Weekly flaky test analysis
 ```
 
 Tests under `tests/<domain>/` automatically get `@pytest.mark.<domain>` via
@@ -447,11 +552,16 @@ GENEALOGY_TESTING=1 \
 # GENEALOGY_TRUST_FORWARDED_FOR=1 enables per-client synthetic
 # X-Forwarded-For in the httpx patch — prevents 429s under xdist.
 
-# 2. Run suite — TWO passes (don't run in one shot: wedges at ~300 tenants)
+# 2. E2E setup
 cd /path/to/genealogy-e2e
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+playwright install chromium
+
+# 3. Run suite — TWO passes (don't run in one shot: wedges at ~300 tenants)
 export E2E_BACKEND_URL=http://127.0.0.1:8642 E2E_TIMEOUT_MULTIPLIER=1.5
-pytest tests/ -m "not serial" -n 4 --dist load -v   # parallel (243 tests)
-pytest tests/ -m serial -p no:xdist -v               # serial  (120 tests)
+pytest tests/ -m "not serial" -n 4 --dist load -v   # parallel
+pytest tests/ -m serial -p no:xdist -v               # serial
 ```
 
 Iterating on one area? `pytest -m auth -m "not serial" -n 4` etc.

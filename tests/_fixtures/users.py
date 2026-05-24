@@ -7,18 +7,19 @@ never re-implement them.
 
 from __future__ import annotations
 
-import re
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 import pytest
 
-from tests.api_paths import API
-from tests.constants import EMAIL_TOKEN_RE, TestConfig, unique_email
-from tests.step import step
-from tests.timeouts import TIMEOUTS
+from tests._core.api_paths import API
+from tests._core.constants import EMAIL_TOKEN_RE, TestConfig, unique_email
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @dataclass
@@ -118,7 +119,7 @@ def create_invite(uvicorn_server: str) -> Callable[..., str]:
     Используется в role-permission тестах для setup viewer/editor.
     """
 
-    def _do(owner: "AuthUser", *, role: str = "viewer", name: str = "Гость") -> str:
+    def _do(owner: AuthUser, *, role: str = "viewer", name: str = "Гость") -> str:
         r = httpx.post(
             f"{uvicorn_server}{API.TENANT_INVITES}",
             json={"name": name, "role": role},
@@ -127,7 +128,7 @@ def create_invite(uvicorn_server: str) -> Callable[..., str]:
             timeout=TIMEOUTS.api_request,
         )
         r.raise_for_status()
-        return r.json()["token"]
+        return r.json()["token"]  # type: ignore[no-any-return]
 
     return _do
 
@@ -152,7 +153,7 @@ def accept_invite(uvicorn_server: str) -> Callable[..., None]:
         cookies.update(r.cookies)
         return cookies
 
-    return _do
+    return _do  # type: ignore[return-value]
 
 
 @pytest.fixture
@@ -231,17 +232,19 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
 
 
 @pytest.fixture
-def owner_user(signup_via_api) -> AuthUser:
-    return signup_via_api()
+def owner_user(signup_via_api: Callable[..., AuthUser]) -> AuthUser:
+    """Create and return a fully verified owner user."""
+    return signup_via_api()  # type: ignore[no-any-return]
 
 
 @pytest.fixture
-def superadmin_user(signup_via_api) -> AuthUser:
-    return signup_via_api(email=TestConfig.SUPERADMIN_EMAIL)
+def superadmin_user(signup_via_api: Callable[..., AuthUser]) -> AuthUser:
+    """Create and return a fully verified superadmin user."""
+    return signup_via_api(email=TestConfig.SUPERADMIN_EMAIL)  # type: ignore[no-any-return]
 
 
 @pytest.fixture
-def grant_ai_consent(tenant_client):
+def grant_ai_consent(tenant_client: Callable[[AuthUser], httpx.Client]) -> Callable[[AuthUser], None]:
     """Helper: stamp ai_consent_at для user → unblocks /api/enrich/* gate.
 
     Backend (commit 19fdd41) гейтирует все /api/enrich/* endpoints на
@@ -269,7 +272,7 @@ def setup_and_verify_mfa(api: httpx.Client) -> str:
     setup = api.post(API.MFA_SETUP).json()
     code = pyotp.TOTP(setup["secret"]).now()
     api.post(API.MFA_VERIFY, json={"code": code}).raise_for_status()
-    return setup["secret"]
+    return setup["secret"]  # type: ignore[no-any-return]
 
 
 @pytest.fixture

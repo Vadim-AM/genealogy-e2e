@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import allure
 
-from tests.api_paths import API
+from tests._core.api_paths import API
+from tests._core.step import step
 from tests.pages.platform_dashboard_page import PlatformDashboardPage
-
 
 # ─────────────────────────────────────────────────────────────────────
 # API-уровень
@@ -38,46 +38,57 @@ def test_webauthn_list_403_for_non_super(owner_user, tenant_client):
 @allure.title("WebAuthn: список ключей пуст у нового суперадмина")
 def test_webauthn_list_initially_empty(superadmin_user, tenant_client):
     """TC-PA-WEBAUTHN-2: свежий superadmin без зарегистрированных credentials → []."""
-    r = tenant_client(superadmin_user).get(API.WEBAUTHN_LIST)
-    r.raise_for_status()
-    assert r.json()["items"] == [], \
-        f"items: expected empty list, got {r.json()['items']!r}"
+    with step("действие: запрашиваем список WebAuthn-ключей"):
+        r = tenant_client(superadmin_user).get(API.WEBAUTHN_LIST)
+        r.raise_for_status()
+
+    with step("проверка: список пуст"):
+        assert r.json()["items"] == [], \
+            f"items: expected empty list, got {r.json()['items']!r}"
 
 
 @allure.title("WebAuthn: начало регистрации возвращает challenge и rp")
 def test_webauthn_register_begin_returns_challenge_and_rp(superadmin_user, tenant_client):
     """TC-PA-WEBAUTHN-3: register/begin отдаёт challenge + rp.id (контракт WebAuthn)."""
-    r = tenant_client(superadmin_user).post(API.WEBAUTHN_REGISTER_BEGIN)
-    r.raise_for_status()
-    data = r.json()
-    # Канонический shape `PublicKeyCredentialCreationOptions`
-    for key in ("challenge", "rp", "user", "pubKeyCredParams"):
-        assert key in data, f"WebAuthn option {key!r} missing: {sorted(data)}"
-    assert "id" in data["rp"], f"rp.id missing: {data['rp']}"
-    assert "name" in data["rp"], \
-        f"rp.name missing: {data['rp']}"
+    with step("действие: вызываем register/begin"):
+        r = tenant_client(superadmin_user).post(API.WEBAUTHN_REGISTER_BEGIN)
+        r.raise_for_status()
+        data = r.json()
+
+    with step("проверка: challenge, rp, user, pubKeyCredParams присутствуют"):
+        for key in ("challenge", "rp", "user", "pubKeyCredParams"):
+            assert key in data, f"WebAuthn option {key!r} missing: {sorted(data)}"
+        assert "id" in data["rp"], f"rp.id missing: {data['rp']}"
+        assert "name" in data["rp"], \
+            f"rp.name missing: {data['rp']}"
 
 
 @allure.title("WebAuthn: аутентификация без ключей возвращает 404")
 def test_webauthn_authenticate_begin_404_without_credentials(superadmin_user, tenant_client):
     """TC-PA-WEBAUTHN-4: authenticate/begin → 404 (no_webauthn_credentials),
     если у юзера ничего не зарегистрировано. Hard 404, не silent fallback."""
-    r = tenant_client(superadmin_user).post(API.WEBAUTHN_AUTH_BEGIN)
-    assert r.status_code == 404, \
-        f"expected 404, got {r.status_code}"
-    assert "no_webauthn_credentials" in r.text, \
-        f"expected 'no_webauthn_credentials' in response: {r.text[:200]}"
+    with step("действие: вызываем authenticate/begin без credentials"):
+        r = tenant_client(superadmin_user).post(API.WEBAUTHN_AUTH_BEGIN)
+
+    with step("проверка: 404 с no_webauthn_credentials"):
+        assert r.status_code == 404, \
+            f"expected 404, got {r.status_code}"
+        assert "no_webauthn_credentials" in r.text, \
+            f"expected 'no_webauthn_credentials' in response: {r.text[:200]}"
 
 
 @allure.title("WebAuthn: завершение регистрации без challenge — 400")
 def test_webauthn_register_complete_400_without_challenge(superadmin_user, tenant_client):
     """TC-PA-WEBAUTHN-5: complete без предшествующего begin → 400 (no_pending_challenge)."""
-    r = tenant_client(superadmin_user).post(
-        API.WEBAUTHN_REGISTER_COMPLETE,
-        json={"credential": {}, "label": "Test"},
-    )
-    assert r.status_code == 400, \
-        f"expected 400, got {r.status_code}"
+    with step("действие: вызываем complete без begin"):
+        r = tenant_client(superadmin_user).post(
+            API.WEBAUTHN_REGISTER_COMPLETE,
+            json={"credential": {}, "label": "Test"},
+        )
+
+    with step("проверка: 400 no_pending_challenge"):
+        assert r.status_code == 400, \
+            f"expected 400, got {r.status_code}"
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -137,7 +148,7 @@ def _add_virtual_authenticator(page) -> str:
             }
         },
     )
-    return result["authenticatorId"]
+    return result["authenticatorId"]  # type: ignore[no-any-return]
 
 
 @allure.title("WebAuthn: полный цикл регистрации ключа через UI")
@@ -159,27 +170,26 @@ def test_webauthn_full_register_via_ui(
     """
     ctx = _make_localhost_context(browser, superadmin_user, base_url)
     try:
-        page = ctx.new_page()
-        page.goto("/platform/dashboard")
-        page.wait_for_load_state("domcontentloaded")
+        with step("подготовка: открываем дашборд и добавляем virtual authenticator"):
+            page = ctx.new_page()
+            page.goto("/platform/dashboard")
+            page.wait_for_load_state("domcontentloaded")
+            _add_virtual_authenticator(page)
 
-        # Регистрируем virtual authenticator ДО вызова webauthnRegister
-        _add_virtual_authenticator(page)
+        with step("действие: вызываем webauthnRegister через JS"):
+            label = "VirtualE2EKey"
+            result = page.evaluate(f"() => webauthnRegister({label!r})")
+            assert result.get("status") == "ok", f"webauthnRegister returned: {result}"
+            assert result.get("label") == label, \
+                f"label: expected {label!r}, got {result.get('label')!r}"
 
-        # Запускаем JS register-flow с известной меткой
-        label = "VirtualE2EKey"
-        result = page.evaluate(f"() => webauthnRegister({label!r})")
-        assert result.get("status") == "ok", f"webauthnRegister returned: {result}"
-        assert result.get("label") == label, \
-            f"label: expected {label!r}, got {result.get('label')!r}"
-
-        # Подтверждаем через API: credential появился
-        r = tenant_client(superadmin_user).get(API.WEBAUTHN_LIST)
-        r.raise_for_status()
-        items = r.json()["items"]
-        assert len(items) == 1, f"expected 1 credential, got {len(items)}"
-        assert items[0]["label"] == label, \
-            f"credential label: expected {label!r}, got {items[0]['label']!r}"
+        with step("проверка: credential появился в API"):
+            r = tenant_client(superadmin_user).get(API.WEBAUTHN_LIST)
+            r.raise_for_status()
+            items = r.json()["items"]
+            assert len(items) == 1, f"expected 1 credential, got {len(items)}"
+            assert items[0]["label"] == label, \
+                f"credential label: expected {label!r}, got {items[0]['label']!r}"
     finally:
         ctx.close()
 
@@ -194,19 +204,21 @@ def test_webauthn_register_then_authenticate_via_ui(
     """
     ctx = _make_localhost_context(browser, superadmin_user, base_url)
     try:
-        page = ctx.new_page()
-        page.goto("/platform/dashboard")
-        page.wait_for_load_state("domcontentloaded")
+        with step("подготовка: открываем дашборд и регистрируем ключ"):
+            page = ctx.new_page()
+            page.goto("/platform/dashboard")
+            page.wait_for_load_state("domcontentloaded")
+            _add_virtual_authenticator(page)
+            page.evaluate("() => webauthnRegister('AuthFlowKey')")
 
-        _add_virtual_authenticator(page)
-        page.evaluate("() => webauthnRegister('AuthFlowKey')")
+        with step("действие: аутентификация через WebAuthn"):
+            auth_result = page.evaluate("() => webauthnAuthenticate()")
 
-        # Authenticate
-        auth_result = page.evaluate("() => webauthnAuthenticate()")
-        assert auth_result.get("status") == "ok", \
-            f"status: expected 'ok', got {auth_result.get('status')!r}"
-        assert "valid_until" in auth_result, \
-            f"valid_until missing from auth result: {sorted(auth_result)}"
+        with step("проверка: status=ok и valid_until присутствует"):
+            assert auth_result.get("status") == "ok", \
+                f"status: expected 'ok', got {auth_result.get('status')!r}"
+            assert "valid_until" in auth_result, \
+                f"valid_until missing from auth result: {sorted(auth_result)}"
     finally:
         ctx.close()
 
@@ -223,15 +235,15 @@ def test_setup_modal_has_webauthn_button_first(
     """TC-PA-WEBAUTHN-UI-3: в setup-модалке кнопка WebAuthn (#mfa_setup_webauthn)
     есть в DOM. (Reveal-модалки требует force-MFA env — здесь проверяем
     что разметка собрана.)"""
-    ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-    page = ctx.new_page()
-    page.goto("/platform/dashboard")
-    page.wait_for_load_state("domcontentloaded")
+    with step("подготовка: открываем дашборд суперадмина"):
+        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
+        page = ctx.new_page()
+        page.goto("/platform/dashboard")
+        page.wait_for_load_state("domcontentloaded")
 
-    dashboard = PlatformDashboardPage(page)
-    # Проверяем что элемент существует в DOM (visible проверять нельзя —
-    # модалка скрыта пока не сработает 403 mfa_setup_required).
-    assert dashboard.mfa_setup_webauthn_btn.count() == 1, \
-        f"mfa_setup_webauthn_btn: expected 1 in DOM, got {dashboard.mfa_setup_webauthn_btn.count()}"
-    assert dashboard.mfa_verify_webauthn_btn.count() == 1, \
-        f"mfa_verify_webauthn_btn: expected 1 in DOM, got {dashboard.mfa_verify_webauthn_btn.count()}"
+    with step("проверка: кнопки WebAuthn setup и verify присутствуют в DOM"):
+        dashboard = PlatformDashboardPage(page)
+        assert dashboard.mfa_setup_webauthn_btn.count() == 1, \
+            f"mfa_setup_webauthn_btn: expected 1 in DOM, got {dashboard.mfa_setup_webauthn_btn.count()}"
+        assert dashboard.mfa_verify_webauthn_btn.count() == 1, \
+            f"mfa_verify_webauthn_btn: expected 1 in DOM, got {dashboard.mfa_verify_webauthn_btn.count()}"

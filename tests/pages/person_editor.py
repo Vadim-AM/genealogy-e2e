@@ -48,6 +48,7 @@ class PersonEditor:
         self.warning = self.container.locator('[data-testid="editor-warning"]')
 
     def fill_fio(self, *, surname: str, given: str, patronymic: str = "") -> None:
+        """Fill surname, given name, and optionally patronymic."""
         self.surname.fill(surname)
         self.given_name.fill(given)
         self.patronymic.fill(patronymic)
@@ -59,12 +60,15 @@ class PersonEditor:
         custom.locator(f'[data-testid="custom-select-option"][data-value="{value}"]').click()
 
     def save(self) -> None:
+        """Click the save button to persist editor changes."""
         self.btn_save.click()
 
     def cancel(self) -> None:
+        """Click cancel to discard editor changes."""
         self.btn_cancel.click()
 
     def expect_visible(self) -> None:
+        """Assert the editor container and key fields are visible."""
         expect(self.container).to_be_visible()
         expect(self.surname).to_be_visible()
         expect(self.given_name).to_be_visible()
@@ -129,6 +133,7 @@ class AddRelativeModal:
         )
 
     def expect_visible(self) -> None:
+        """Assert the add-relative modal is visible."""
         expect(self.container).to_be_visible()
 
     def fill_fio(self, *, surname: str, given: str, patronymic: str = "", birth: str = "") -> None:
@@ -155,12 +160,15 @@ class AddRelativeModal:
         self.btn_save.click()
 
     def save(self) -> None:
+        """Click Save to create the relative."""
         self.btn_save.click()
 
     def cancel(self) -> None:
+        """Click Cancel to dismiss the modal."""
         self.btn_cancel.click()
 
     def close(self) -> None:
+        """Click the close button to dismiss the modal."""
         self.btn_close.click()
 
     # ──────────────────────────────────────────────────────────────────
@@ -210,7 +218,7 @@ class AddRelativeModal:
     # Suggestion-block helpers (Фаза 1 dedup)
     # ──────────────────────────────────────────────────────────────────
 
-    def suggestion_card_by_id(self, person_id: str) -> "Locator":
+    def suggestion_card_by_id(self, person_id: str) -> Locator:
         """Suggestion card scoped to a specific person.id.
 
         FEATURE-PARENT-SEARCH-001 унифицировала атрибут: `data-suggestion-id`
@@ -230,6 +238,7 @@ class AddRelativeModal:
         self.suggestion_card_by_id(person_id).click()
 
     def expect_suggestion_visible(self, person_id: str) -> None:
+        """Assert the suggestion block and a specific card are visible."""
         expect(self.suggest_block).to_be_visible()
         expect(self.suggestion_card_by_id(person_id)).to_be_visible()
 
@@ -264,9 +273,10 @@ class AddRelativeModal:
         expect(self.dropdown_rows.first).to_be_visible()
 
     def expect_dropdown_closed(self) -> None:
+        """Assert the autocomplete dropdown is hidden."""
         expect(self.dropdown).to_be_hidden()
 
-    def row_by_person_id(self, person_id: str) -> "Locator":
+    def row_by_person_id(self, person_id: str) -> Locator:
         """Locator for a dropdown row by the linked person's id."""
         return self.dropdown.locator(
             f'[data-testid="add-rel-existing-row"][data-person-id="{person_id}"]'
@@ -288,6 +298,7 @@ class AddRelativeModal:
         expect(self.linked_chip).to_have_attribute("data-linked-id", person_id)
 
     def expect_not_linked(self) -> None:
+        """Assert no linked-chip is visible (create mode)."""
         expect(self.linked_chip).not_to_be_visible()
 
     def unlink_existing(self) -> None:

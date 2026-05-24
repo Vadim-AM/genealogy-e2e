@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import allure
 
-from tests.api_paths import API
-from tests.constants import make_email, unique_email
+from tests._core.api_paths import API
+from tests._core.constants import make_email, unique_email
+from tests._core.step import step
 
 
 @allure.title("Запрос смены email отправляет токен подтверждения на новый адрес")
@@ -32,19 +33,22 @@ def test_change_email_endpoint_initiates_confirmation(
     Was xfail until upstream commit `64a206a` ("feat(auth-v2):
     change-email endpoint"). Now plain regression-trail.
     """
-    user = signup_via_api(email=make_email("orig"))
-    api = tenant_client(user)
+    with step("подготовка: signup и получение клиента"):
+        user = signup_via_api(email=make_email("orig"))
+        api = tenant_client(user)
 
-    new_email = unique_email("changed")
-    r = api.post(
-        API.ACCOUNT_EMAIL,
-        json={"new_email": new_email, "current_password": user.password},
-    )
+    with step("действие: запрос смены email"):
+        new_email = unique_email("changed")
+        r = api.post(
+            API.ACCOUNT_EMAIL,
+            json={"new_email": new_email, "current_password": user.password},
+        )
 
-    assert r.status_code == 200, (
-        f"change-email should return 200/202 to initiate confirmation, "
-        f"got {r.status_code} {r.text[:200]}"
-    )
+    with step("проверка: статус 200 и токен подтверждения отправлен"):
+        assert r.status_code == 200, (
+            f"change-email should return 200/202 to initiate confirmation, "
+            f"got {r.status_code} {r.text[:200]}"
+        )
 
-    token = read_email_token(new_email)
-    assert token, f"no confirmation token sent to new email {new_email}"
+        token = read_email_token(new_email)
+        assert token, f"no confirmation token sent to new email {new_email}"

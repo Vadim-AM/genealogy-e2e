@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import allure
 
-from tests.api_paths import API
+from tests._core.api_paths import API
+from tests._core.step import step
 from tests.pages.platform_dashboard_page import PlatformDashboardPage
 
 
@@ -21,24 +22,29 @@ def test_platform_dashboard_loads_for_superadmin(
     404 = unimplemented page (regression). superadmin UI is a Stage 1
     deliverable per docs/test-plan.md.
     """
-    ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-    page = ctx.new_page()
-    response = page.goto("/platform/dashboard")
-    assert response is not None, "page.goto('/platform/dashboard') returned None"
-    assert response.status == 200, \
-        f"/platform/dashboard returned {response.status} (regression)"
+    with step("подготовка: создаём контекст суперадмина"):
+        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
+        page = ctx.new_page()
+
+    with step("проверка: дашборд отвечает 200"):
+        response = page.goto("/platform/dashboard")
+        assert response is not None, "page.goto('/platform/dashboard') returned None"
+        assert response.status == 200, \
+            f"/platform/dashboard returned {response.status} (regression)"
 
 
 @allure.title("Дашборд платформы: карточки метрик отображаются")
 def test_platform_metrics_visible(auth_context_factory, superadmin_user, soft_check):
     """TC-PA-2: metrics cards rendered."""
-    ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-    page = ctx.new_page()
-    page.goto("/platform/dashboard")
-    page.wait_for_load_state("domcontentloaded")
+    with step("подготовка: открываем дашборд суперадмина"):
+        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
+        page = ctx.new_page()
+        page.goto("/platform/dashboard")
+        page.wait_for_load_state("domcontentloaded")
 
-    dashboard = PlatformDashboardPage(page)
-    dashboard.soft_check_metrics_loaded(soft_check)
+    with step("проверка: карточки метрик отображаются"):
+        dashboard = PlatformDashboardPage(page)
+        dashboard.soft_check_metrics_loaded(soft_check)
 
 
 @allure.title("Метрики платформы: обычный владелец получает 403")
@@ -58,9 +64,12 @@ def test_platform_metrics_endpoint_200_for_super(superadmin_user, tenant_client)
     `signups_total`. Strict-equality on schema (the keys must exist) — if
     backend renames, the test fails loud.
     """
-    r = tenant_client(superadmin_user).get(API.PLATFORM_METRICS)
-    r.raise_for_status()
-    data = r.json()
-    for key in ("tenants_active", "signups_total"):
-        assert key in data, f"metric {key!r} missing from response: {list(data)}"
-        assert isinstance(data[key], int), f"{key} must be int, got {type(data[key])}"
+    with step("действие: запрашиваем метрики платформы"):
+        r = tenant_client(superadmin_user).get(API.PLATFORM_METRICS)
+        r.raise_for_status()
+        data = r.json()
+
+    with step("проверка: tenants_active и signups_total — целые числа"):
+        for key in ("tenants_active", "signups_total"):
+            assert key in data, f"metric {key!r} missing from response: {list(data)}"
+            assert isinstance(data[key], int), f"{key} must be int, got {type(data[key])}"

@@ -17,9 +17,9 @@ Layout:
 
 from __future__ import annotations
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
-from tests.timeouts import TIMEOUTS
+from tests._core.timeouts import TIMEOUTS
 
 
 class EnrichmentModal:
@@ -41,6 +41,7 @@ class EnrichmentModal:
         self.hypotheses = self.result_body.locator('[data-testid="enrich-hypothesis"]')
 
     def expect_open(self) -> None:
+        """Assert the enrichment modal is visible."""
         expect(self.container).to_be_visible()
 
     def wait_results(self) -> None:
@@ -59,9 +60,10 @@ class EnrichmentModal:
         hint must not pass the test."""
         expect(self.archives).to_have_count(min_archives)
 
-    def stage(self, name: str):
-        """One of 'starting' | 'thinking' | 'writing' | 'parsing'."""
+    def stage(self, name: str) -> Locator:
+        """Return locator for a progress stage by name."""
         return self.stages_container.locator(f'[data-testid="enrich-stage"][data-stage="{name}"]')
 
     def close(self) -> None:
+        """Close the enrichment modal."""
         self.btn_close.click()

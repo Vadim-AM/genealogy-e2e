@@ -28,19 +28,16 @@ from pathlib import Path
 # Files that DEFINE the constants / are pure infrastructure are exempt.
 EXEMPT_RELPATHS = {
     "tests/conftest.py",
-    "tests/timeouts.py",
-    "tests/api_paths.py",
-    "tests/messages.py",
-    "tests/constants.py",
     # Coverage gate — KNOWN_GAPS is by nature a registry of /api/ paths.
     "tests/test_api_coverage.py",
 }
 
 # Path prefixes whose entire subtree is exempt (e.g. fixture plugin pkg).
 EXEMPT_PREFIXES = (
+    "tests/_core/",
     "tests/_fixtures/",
     "tests/_data/",
-    "tests/fixtures/",
+    "tests/_models/",
 )
 
 NOQA_RE = re.compile(r"#\s*noqa:\s*drift\b")

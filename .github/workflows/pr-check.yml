@@ -4,6 +4,9 @@ name: PR check (browser e2e)
 # on every PR to main. Boots uvicorn from the upstream `genealogy` repo
 # directly — no Docker image required, no cross-repo dispatch.
 #
+# Sharding: parallel pass is split across matrix.shard runners (each boots
+# its own postgres+backend). Serial pass runs only on shard 1.
+#
 # Required secret:
 #   UPSTREAM_PAT — fine-grained PAT with `Contents: read` on Vadim-AM/Genealogy.
 #                  Used by actions/checkout to clone the (private) upstream repo.
@@ -18,20 +21,12 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    # Two passes: parallel (`-m "not serial" -n 2`, ~80% of tests, no
-    # per-test reset → no wedge) + serial (`-m serial -p no:xdist`,
-    # superadmin/platform/timing). Parallel pass collapses the old ~36-min
-    # single-thread wall-clock; serial pass is the long pole (timing tests
-    # are sequential by nature). 25 мин keeps margin without hiding
-    # regressions; revisit if the parallel pass dominates.
-    timeout-minutes: 25
-    # Upstream dev is PostgreSQL-only since PR-B7 (SQLite codepath retired).
-    # Postgres is booted as a `docker run` STEP, not a `services:` block:
-    # the parallel pass has no per-test reset, so tenant schemas accumulate
-    # and the serial pass's first `/api/_test/reset` DROPs them all in one
-    # transaction → needs `max_locks_per_transaction` well above the
-    # default 64. GH `services:` can't pass server CMD args; a run-step
-    # can, and it mirrors CLAUDE.md "Running locally" exactly.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+        total-shards: [2]
+    timeout-minutes: 20
     steps:
       - name: Checkout genealogy-e2e
         uses: actions/checkout@v4
@@ -40,11 +35,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Vadim-AM/Genealogy
-          # Backend test endpoints (`/api/_test/*`) live on dev — origin/main
-          # is 150+ commits behind and missing `backend/app/_test_endpoints.py`
-          # (added in commit 26136bb on dev). Without explicit ref the default
-          # branch = main → 404 on every test endpoint. Switch to `main` once
-          # the next release-PR lands on main.
           ref: dev
           token: ${{ secrets.UPSTREAM_PAT }}
           path: _genealogy
@@ -58,19 +48,20 @@ jobs:
       - name: Install backend deps
         run: |
           pip install -r _genealogy/backend/requirements.txt
-          # python-dotenv is imported by app.config; install if not pinned upstream.
           pip install python-dotenv
 
       - name: Install e2e deps
-        run: pip install -r requirements.txt
+        run: pip install .
+
+      - name: Install dev tools (ruff, mypy)
+        run: pip install ".[dev]"
 
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          # Key on requirements.txt — bumping playwright pin invalidates cache.
-          key: ${{ runner.os }}-playwright-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-playwright-
 
@@ -116,11 +107,13 @@ jobs:
             --log-level warning > "$GITHUB_WORKSPACE/uvicorn.log" 2>&1 &
           echo "uvicorn PID=$!"
 
+      - name: Lint (ruff)
+        run: ruff check tests/ scripts/
+
+      - name: Type check (mypy)
+        run: mypy tests/
+
       - name: Lint test files for rule drift
-        # CLAUDE.md rules #5 (no hardcoded timeouts) / #9 (no raw URL strings).
-        # Catches regressions before they accumulate; whitelist a line with
-        # `# noqa: drift` for genuinely legitimate uses (e.g. router-shape
-        # parametrize in test_ai_disabled_flow.py).
         run: python scripts/check_drift.py
 
       - name: Wait for backend /api/health
@@ -137,35 +130,18 @@ jobs:
           cat uvicorn.log
           exit 1
 
-      # Two passes against the one shared backend. Parallel pass: tenant-
-      # scoped/independent tests, isolated by unique tenant+identity, no
-      # per-test global reset (a single session baseline reset only) — this
-      # is what removes the O(n) wedge and lets xdist actually work. Serial
-      # pass: state-mutators (superadmin/platform, global AI flag, timing),
-      # single-worker, per-test reset preserved. `serial` is auto-applied
-      # in conftest (fixture-based). Pass 2's first per-test reset also
-      # clears the tenants Pass 1 accumulated.
-      - name: Run e2e suite — parallel (tenant-scoped, not serial)
+      - name: Run e2e suite — parallel shard ${{ matrix.shard }}/${{ matrix.total-shards }}
         env:
           E2E_BACKEND_URL: http://127.0.0.1:8642
-          # CI-class hardware is variable — give every timeout 1.5× margin.
           E2E_TIMEOUT_MULTIPLIER: "1.5"
-        # `-n 2`, NOT `-n auto` and NOT `-n 4`: `auto` = one worker per
-        # logical CPU → on any host it over-subscribes (many Chromium + one
-        # shared backend) and flakes random light tests (non-deterministic,
-        # observed 2026-05-19). `-n 4` was verified clean only on a
-        # high-core dev Mac — UNVERIFIED on GitHub-hosted runners (their
-        # CPU/RAM is not knowable from here). `-n 2` is the conservative
-        # no-oversubscription floor for unknown-but-modest CI hardware;
-        # still a large win over single-thread. Determinism on the real
-        # runner must be EARNED by repeated workflow_dispatch runs, not
-        # assumed — raise only if those prove headroom.
-        run: pytest tests/ -m "not serial" -n 2 --dist load -v --tb=short
+        run: >-
+          pytest tests/ -m "not serial"
+          -n 2 --dist load
+          --shard ${{ matrix.shard }}/${{ matrix.total-shards }}
+          -v --tb=short
 
       - name: Run e2e suite — serial (state-mutators, single worker)
-        # Run regardless of the parallel pass result so we get the full
-        # signal from both buckets (job still goes red if either failed).
-        if: success() || failure()
+        if: (success() || failure()) && matrix.shard == 1
         env:
           E2E_BACKEND_URL: http://127.0.0.1:8642
           E2E_TIMEOUT_MULTIPLIER: "1.5"
@@ -175,9 +151,25 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-results-${{ github.run_id }}
+          name: e2e-results-shard-${{ matrix.shard }}-${{ github.run_id }}
           path: |
             uvicorn.log
             test-results/
             allure-results/
+          retention-days: 7
+
+  merge-results:
+    needs: e2e
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: e2e-results-shard-*
+          merge-multiple: true
+          path: merged-results/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-merged-${{ github.run_id }}
+          path: merged-results/
           retention-days: 7

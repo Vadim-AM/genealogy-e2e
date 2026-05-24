@@ -7,38 +7,43 @@ before bothering with the rest.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
+from tests._core.api_paths import API
 from tests.pages.signup_page import SignupPage
 from tests.pages.tree_page import TreePage
 from tests.pages.wait_page import WaitPage
 
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
+
 
 @pytest.mark.smoke
 @allure.title("Smoke: главная страница загружается и показывает заголовок")
-def test_landing_loads(page: Page, base_url: str):
+def test_landing_loads(page: Page, anon_pages: PageFactory):
     """F-LND-1/2: GET / → 200, HTML, title contains brand."""
-    tree = TreePage(page).goto()
+    tree = anon_pages.navigate_to(TreePage)
     expect(page).not_to_have_url("about:blank")
     expect(tree.h1).to_be_visible()
 
 
 @pytest.mark.smoke
 @allure.title("Smoke: форма регистрации отображается со всеми полями")
-def test_signup_form_visible(page: Page):
+def test_signup_form_visible(anon_pages: PageFactory):
     """F-SU-1: /signup renders form with required inputs."""
-    signup = SignupPage(page).goto()
+    signup = anon_pages.navigate_to(SignupPage)
     signup.expect_visible_form()
 
 
 @pytest.mark.smoke
 @allure.title("Smoke: форма вейтлиста отображается на /wait")
-def test_wait_form_visible(page: Page):
+def test_wait_form_visible(anon_pages: PageFactory):
     """C-LND-1 + waitlist scope: /wait renders form."""
-    wait = WaitPage(page).goto()
+    wait = anon_pages.navigate_to(WaitPage)
     wait.expect_visible_form()
 
 

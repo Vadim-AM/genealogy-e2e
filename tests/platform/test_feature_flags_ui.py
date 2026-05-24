@@ -25,12 +25,13 @@ import re
 
 import allure
 import httpx
-import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import expect
 
-from tests.api_paths import API
-from tests.timeouts import TIMEOUTS
-
+from tests._core.api_paths import API
+from tests._core.response import expect_response
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
+from tests.helpers.api import platform_api
 
 # ─────────────────────────────────────────────────────────────────────────
 # Markup smoke — структура секции рендерится
@@ -40,63 +41,67 @@ from tests.timeouts import TIMEOUTS
 @allure.title("Флаги: секция Feature Flags видна на дашборде")
 def test_dashboard_has_feature_flags_section(auth_context_factory, superadmin_user):
     """TC-N6: на /platform/dashboard есть секция Feature Flags."""
-    ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-    page = ctx.new_page()
-    r = page.goto("/platform/dashboard")
-    assert r is not None and r.status == 200, (
-        f"/platform/dashboard navigation failed: response={r and r.status}"
-    )
+    with step("подготовка: открываем дашборд суперадмина"):
+        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
+        page = ctx.new_page()
+        r = page.goto("/platform/dashboard")
+        assert r is not None and r.status == 200, (
+            f"/platform/dashboard navigation failed: response={r and r.status}"
+        )
 
-    # Дашборд может быть тяжёлым — ждём что секция вообще появилась
-    section = page.locator("#feature_flags_section")
-    expect(section).to_be_visible()
+    with step("проверка: секция Feature Flags видна"):
+        section = page.locator("#feature_flags_section")
+        expect(section).to_be_visible()
 
 
 @allure.title("Флаги: секция содержит ровно 5 групп с заголовками")
 def test_feature_flags_has_five_groups(auth_context_factory, superadmin_user):
     """TC-N6: секция содержит 5 групп с заголовками."""
-    ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-    page = ctx.new_page()
-    page.goto("/platform/dashboard")
-    expect(page.locator("#feature_flags_section")).to_be_visible()
+    with step("подготовка: открываем дашборд и ждём секцию"):
+        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
+        page = ctx.new_page()
+        page.goto("/platform/dashboard")
+        expect(page.locator("#feature_flags_section")).to_be_visible()
 
-    groups = page.locator('[data-testid="ff-group"]')
-    assert groups.count() == 5, \
-        f"Ожидали 5 групп Feature Flags, нашли {groups.count()}"
+    with step("проверка: ровно 5 групп с ожидаемыми заголовками"):
+        groups = page.locator('[data-testid="ff-group"]')
+        assert groups.count() == 5, \
+            f"Ожидали 5 групп Feature Flags, нашли {groups.count()}"
 
-    expected_titles = {
-        "Поиск / AI",
-        "Регистрация",
-        "Контент-фичи",
-        "Обслуживание",  # Wave-9 локализовал "Maintenance" → RU
-        "Безопасность / алерты",
-    }
-    found_titles = {h.inner_text().strip() for h in page.locator('[data-testid="ff-group-title"]').all()}
-    missing = expected_titles - found_titles
-    assert not missing, \
-        f"Не найдены группы: {missing}. Все: {found_titles}"
+        expected_titles = {
+            "Поиск / AI",
+            "Регистрация",
+            "Контент-фичи",
+            "Обслуживание",  # Wave-9 локализовал "Maintenance" → RU
+            "Безопасность / алерты",
+        }
+        found_titles = {h.inner_text().strip() for h in page.locator('[data-testid="ff-group-title"]').all()}
+        missing = expected_titles - found_titles
+        assert not missing, \
+            f"Не найдены группы: {missing}. Все: {found_titles}"
 
 
 @allure.title("Флаги: каждый переключатель имеет tooltip с описанием")
 def test_feature_flags_have_tooltips(auth_context_factory, superadmin_user):
     """TC-N6: каждый флаг имеет ⓘ tooltip с описанием (атрибут title)."""
-    ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-    page = ctx.new_page()
-    page.goto("/platform/dashboard")
-    expect(page.locator("#feature_flags_section")).to_be_visible()
+    with step("подготовка: открываем дашборд и ждём секцию"):
+        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
+        page = ctx.new_page()
+        page.goto("/platform/dashboard")
+        expect(page.locator("#feature_flags_section")).to_be_visible()
 
-    helps = page.locator('#feature_flags_section [data-testid="ff-help"]')
-    assert helps.count() >= 8, \
-        f"Ожидали ≥8 tooltip элементов (по числу флагов), нашли {helps.count()}"
+    with step("проверка: минимум 8 tooltip-элементов с описаниями"):
+        helps = page.locator('#feature_flags_section [data-testid="ff-help"]')
+        assert helps.count() >= 8, \
+            f"Ожидали ≥8 tooltip элементов (по числу флагов), нашли {helps.count()}"
 
-    # У каждого ⓘ должен быть `title` (через который браузер показывает тултип)
-    empty_tooltips = []
-    for i in range(helps.count()):
-        title = helps.nth(i).get_attribute("title") or ""
-        if len(title.strip()) < 20:
-            empty_tooltips.append(i)
-    assert not empty_tooltips, \
-        f"Tooltip'ы #{empty_tooltips} пустые или слишком короткие — нет описания"
+        empty_tooltips = []
+        for i in range(helps.count()):
+            title = helps.nth(i).get_attribute("title") or ""
+            if len(title.strip()) < 20:
+                empty_tooltips.append(i)
+        assert not empty_tooltips, \
+            f"Tooltip'ы #{empty_tooltips} пустые или слишком короткие — нет описания"
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -107,18 +112,19 @@ def test_feature_flags_have_tooltips(auth_context_factory, superadmin_user):
 @allure.title("Флаги: toggle AI-поиска виден с атрибутом data-flag")
 def test_ai_search_toggle_visible(auth_context_factory, superadmin_user):
     """TC-N6: toggle #ff_enable_ai_search присутствует в группе AI."""
-    ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-    page = ctx.new_page()
-    page.goto("/platform/dashboard")
-    expect(page.locator("#feature_flags_section")).to_be_visible()
+    with step("подготовка: открываем дашборд и ждём секцию"):
+        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
+        page = ctx.new_page()
+        page.goto("/platform/dashboard")
+        expect(page.locator("#feature_flags_section")).to_be_visible()
 
-    toggle = page.locator("#ff_enable_ai_search")
-    expect(toggle).to_be_visible()
-    # checkbox имеет правильный data-flag атрибут (используется JS-слоем)
-    assert toggle.get_attribute("data-flag") == "enable_ai_search", (
-        f"toggle data-flag mismatch: expected 'enable_ai_search', "
-        f"got {toggle.get_attribute('data-flag')!r}"
-    )
+    with step("проверка: toggle AI-поиска виден и имеет верный data-flag"):
+        toggle = page.locator("#ff_enable_ai_search")
+        expect(toggle).to_be_visible()
+        assert toggle.get_attribute("data-flag") == "enable_ai_search", (
+            f"toggle data-flag mismatch: expected 'enable_ai_search', "
+            f"got {toggle.get_attribute('data-flag')!r}"
+        )
 
 
 @allure.title("Флаги: toggle AI-поиска отражает значение False из БД")
@@ -136,65 +142,68 @@ def test_ai_search_toggle_reflects_db_value_when_off(
     именно DB-уровень. Env override (ENABLE_AI_SEARCH=1) — отдельный
     аварийный механизм видимый только в /api/config/features (для frontend).
     """
-    # Конфликтуем с conftest.py:_default_ai_search_on (который ставит True)
-    # — set False специально для этого теста.
-    httpx.post(
-        f"{uvicorn_server}{API.TEST_SET_PLATFORM_SETTING}",
-        json={"enable_ai_search": False},
-        timeout=TIMEOUTS.api_short,
-    ).raise_for_status()
+    with step("подготовка: устанавливаем enable_ai_search=False в БД"):
+        httpx.post(
+            f"{uvicorn_server}{API.TEST_SET_PLATFORM_SETTING}",
+            json={"enable_ai_search": False},
+            timeout=TIMEOUTS.api_short,
+        ).raise_for_status()
 
-    ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-    page = ctx.new_page()
-    page.goto("/platform/dashboard")
-    expect(page.locator("#ff_enable_ai_search")).to_be_visible()
-    # loadSettings() done-sentinel, CSP-safe. tenants.js:121 assigns
-    # `set_beta_cap.value = s.beta_user_cap`; the input has no value
-    # attribute so it reads "" until loadSettings hydrates it. Two reasons
-    # the old `wait_for_function("…>0")` broke post-cutover: (1) the
-    # platform dashboard now serves `script-src 'self'` with no
-    # 'unsafe-eval', so Playwright's string-predicate eval is CSP-blocked;
-    # (2) the PR-B7 seed default for beta_user_cap is 0 — a valid loaded
-    # value, so `>0` never held anyway. A locator assertion runs at the
-    # driver level (no page eval) and `not_to_have_value("")` is
-    # value-agnostic: only "" means not-yet-hydrated.
-    expect(page.locator("#set_beta_cap")).not_to_have_value("")
+    with step("действие: открываем дашборд и ждём загрузку настроек"):
+        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
+        page = ctx.new_page()
+        page.goto("/platform/dashboard")
+        expect(page.locator("#ff_enable_ai_search")).to_be_visible()
+        # loadSettings() done-sentinel, CSP-safe. tenants.js:121 assigns
+        # `set_beta_cap.value = s.beta_user_cap`; the input has no value
+        # attribute so it reads "" until loadSettings hydrates it. Two reasons
+        # the old `wait_for_function("…>0")` broke post-cutover: (1) the
+        # platform dashboard now serves `script-src 'self'` with no
+        # 'unsafe-eval', so Playwright's string-predicate eval is CSP-blocked;
+        # (2) the PR-B7 seed default for beta_user_cap is 0 — a valid loaded
+        # value, so `>0` never held anyway. A locator assertion runs at the
+        # driver level (no page eval) and `not_to_have_value("")` is
+        # value-agnostic: only "" means not-yet-hydrated.
+        expect(page.locator("#set_beta_cap")).not_to_have_value("")
 
-    is_checked = page.locator("#ff_enable_ai_search").is_checked()
-    assert is_checked is False, (
-        "При enable_ai_search=False в БД toggle должен быть UNCHECKED. "
-        "Если checked — UI читает не из /api/platform/settings, либо "
-        "loadSettings не отработал."
-    )
+    with step("проверка: toggle AI-поиска не отмечен"):
+        is_checked = page.locator("#ff_enable_ai_search").is_checked()
+        assert is_checked is False, (
+            "При enable_ai_search=False в БД toggle должен быть UNCHECKED. "
+            "Если checked — UI читает не из /api/platform/settings, либо "
+            "loadSettings не отработал."
+        )
 
 
 @allure.title("Флаги: клик по toggle добавляет класс .dirty на строку")
 def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_user):
     """TC-N6: при клике на toggle строка получает класс .dirty."""
-    ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-    page = ctx.new_page()
-    page.goto("/platform/dashboard")
-    expect(page.locator("#ff_enable_ai_search")).to_be_visible()
+    with step("подготовка: открываем дашборд и ждём загрузку настроек"):
+        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
+        page = ctx.new_page()
+        page.goto("/platform/dashboard")
+        expect(page.locator("#ff_enable_ai_search")).to_be_visible()
 
-    # Wait for loadSettings() so the click lands after the change-listener
-    # is wired. CSP-safe locator assertion (not wait_for_function — the
-    # dashboard's `script-src 'self'` blocks string-predicate eval); see
-    # the matching note in test_ai_search_toggle_reflects_db_value_when_off.
-    expect(page.locator("#set_beta_cap")).not_to_have_value("")
+        # Wait for loadSettings() so the click lands after the change-listener
+        # is wired. CSP-safe locator assertion (not wait_for_function — the
+        # dashboard's `script-src 'self'` blocks string-predicate eval); see
+        # the matching note in test_ai_search_toggle_reflects_db_value_when_off.
+        expect(page.locator("#set_beta_cap")).not_to_have_value("")
 
-    # Локатор должен использовать `contains` — на строке в .dirty состоянии
-    # `class='ff-row dirty'`, exact match по ='ff-row' не сработает.
-    row = page.locator(
-        "#ff_enable_ai_search >> xpath=ancestor::div[contains(@class, 'ff-row')]"
-    ).first
+        # Локатор должен использовать `contains` — на строке в .dirty состоянии
+        # `class='ff-row dirty'`, exact match по ='ff-row' не сработает.
+        row = page.locator(
+            "#ff_enable_ai_search >> xpath=ancestor::div[contains(@class, 'ff-row')]"
+        ).first
 
-    # Свежий init — diff с сервером ещё нулевой, .dirty отсутствует.
-    expect(row).not_to_have_class(re.compile(r"\bdirty\b"))
+    with step("проверка: до клика .dirty отсутствует"):
+        expect(row).not_to_have_class(re.compile(r"\bdirty\b"))
 
-    page.locator("#ff_enable_ai_search").click()
+    with step("действие: кликаем toggle AI-поиска"):
+        page.locator("#ff_enable_ai_search").click()
 
-    # После клика — auto-wait на появление .dirty.
-    expect(row).to_have_class(re.compile(r"\bdirty\b"))
+    with step("проверка: после клика строка получает класс .dirty"):
+        expect(row).to_have_class(re.compile(r"\bdirty\b"))
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -212,41 +221,43 @@ def test_patch_settings_writes_to_platformsettings_db(superadmin_user, tenant_cl
     (см. test_features_endpoint_returns_false_when_env_disabled в
     test_ai_disabled_flow.py — отдельный сценарий).
     """
-    api = tenant_client(superadmin_user)
+    with step("подготовка: читаем текущее значение enable_ai_search из БД"):
+        api = tenant_client(superadmin_user)
+        initial = platform_api.get_platform_settings(api)
+        initial_db = initial.enable_ai_search
 
-    r = api.get(API.PLATFORM_SETTINGS)
-    r.raise_for_status()
-    initial_db = r.json()["enable_ai_search"]
+    with step("действие: PATCH с инвертированным значением"):
+        new_value = not initial_db
+        patch_r = api.patch(API.PLATFORM_SETTINGS, json={"enable_ai_search": new_value})
+        expect_response(patch_r, label="PATCH platform settings").status_ok()
 
-    new_value = not initial_db
-    patch_r = api.patch(API.PLATFORM_SETTINGS, json={"enable_ai_search": new_value})
-    assert patch_r.status_code == 200, \
-        f"PATCH должен вернуть 200, получили {patch_r.status_code}: {patch_r.text[:200]}"
+    with step("проверка: GET возвращает новое значение"):
+        after = platform_api.get_platform_settings(api)
+        assert after.enable_ai_search == new_value, (
+            f"БД не обновилась после PATCH: было {initial_db}, "
+            f"PATCHили на {new_value}, получили {after.enable_ai_search}"
+        )
 
-    r2 = api.get(API.PLATFORM_SETTINGS)
-    r2.raise_for_status()
-    actual_db = r2.json()["enable_ai_search"]
-    assert actual_db == new_value, (
-        f"БД не обновилась после PATCH: было {initial_db}, "
-        f"PATCHили на {new_value}, получили {actual_db}"
-    )
-
-    # Откат — гарантируем чистоту state для последующих тестов
-    api.patch(API.PLATFORM_SETTINGS, json={"enable_ai_search": initial_db}).raise_for_status()
+    with step("подготовка: откат значения для последующих тестов"):
+        rollback = api.patch(API.PLATFORM_SETTINGS, json={"enable_ai_search": initial_db})
+        expect_response(rollback, label="rollback platform settings").status_ok()
 
 
 @allure.title("Флаги: некорректный llm_provider отклоняется с 400")
 def test_patch_settings_validates_llm_provider_enum(superadmin_user, tenant_client):
     """TC-A8: некорректное llm_provider (не из enum) должно вернуть 400 с
     detail, упоминающим один из канонических provider'ов."""
-    api = tenant_client(superadmin_user)
-    r = api.patch(API.PLATFORM_SETTINGS, json={"llm_provider": "openai"})
-    assert r.status_code == 400, \
-        f"Ожидали 400 для llm_provider='openai' (не в enum), получили {r.status_code}"
-    body = r.text.lower()
-    canonical_providers = {"anthropic", "yandex", "gigachat"}
-    mentioned = {p for p in canonical_providers if p in body}
-    assert mentioned, (
-        f"Error message не упоминает ни одного из enum-значений "
-        f"{canonical_providers}: {r.text}"
-    )
+    with step("действие: PATCH с невалидным llm_provider"):
+        api = tenant_client(superadmin_user)
+        r = api.patch(API.PLATFORM_SETTINGS, json={"llm_provider": "openai"})
+
+    with step("проверка: 400 и упоминание канонических provider'ов"):
+        assert r.status_code == 400, \
+            f"Ожидали 400 для llm_provider='openai' (не в enum), получили {r.status_code}"
+        body = r.text.lower()
+        canonical_providers = {"anthropic", "yandex", "gigachat"}
+        mentioned = {p for p in canonical_providers if p in body}
+        assert mentioned, (
+            f"Error message не упоминает ни одного из enum-значений "
+            f"{canonical_providers}: {r.text}"
+        )

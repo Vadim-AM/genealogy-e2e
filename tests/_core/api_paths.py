@@ -1,7 +1,7 @@
 """API endpoint paths — единый source of truth для сьюта.
 
 Использование:
-    from tests.api_paths import API
+    from tests._core.api_paths import API
 
     api.get(API.TREE)
     api.patch(API.person(pid), json=...)
@@ -49,6 +49,7 @@ class API:
 
     @staticmethod
     def relationship(rel_id: str) -> str:
+        """Return path for a specific relationship by id."""
         return f"/api/relationships/{rel_id}"
 
     # ── Email webhooks (inbound, HMAC-signed) ────────────────────
@@ -60,10 +61,12 @@ class API:
 
     @staticmethod
     def tenant_invite(token: str) -> str:
+        """Return path for a specific tenant invite."""
         return f"/api/account/tenant/invites/{token}"
 
     @staticmethod
     def tenant_invite_accept(token: str) -> str:
+        """Return path to accept a tenant invite."""
         return f"/api/account/tenant/invites/{token}/accept"
 
     # ── Tree / persons / relationships ───────────────────────────
@@ -74,47 +77,58 @@ class API:
 
     @staticmethod
     def person(pid: str) -> str:
+        """Return path for a specific person by id."""
         return f"/api/people/{pid}"
 
     @staticmethod
     def person_by_slug(slug: str) -> str:
+        """Return path for a person lookup by display slug."""
         return f"/api/people/by-display-slug/{slug}"
 
     # ── Enrichment (★ Найти больше) ──────────────────────────────
     @staticmethod
     def enrich(pid: str) -> str:
+        """Return path for person enrichment."""
         return f"/api/enrich/{pid}"
 
     @staticmethod
     def enrich_history(pid: str) -> str:
+        """Return path for person enrichment history."""
         return f"/api/enrich/{pid}/history"
 
     @staticmethod
     def enrich_jobs(job_id: str) -> str:
+        """Return path for a specific enrichment job."""
         return f"/api/enrich/jobs/{job_id}"
 
     @staticmethod
     def enrich_acceptances(pid: str) -> str:
+        """Return path for person enrichment acceptances."""
         return f"/api/enrich/{pid}/acceptances"
 
     @staticmethod
     def enrich_accept(pid: str) -> str:
+        """Return path to accept enrichment results."""
         return f"/api/enrich/{pid}/accept"
 
     @staticmethod
     def enrich_revert(acceptance_id: int) -> str:
+        """Return path to revert an enrichment acceptance."""
         return f"/api/enrich/acceptances/{acceptance_id}/revert"
 
     @staticmethod
     def enrich_stream(job_id: str) -> str:
+        """Return path for enrichment job SSE stream."""
         return f"/api/enrich/jobs/{job_id}/stream"
 
     @staticmethod
     def enrich_cache(enrichment_id: int) -> str:
+        """Return path for enrichment cache entry."""
         return f"/api/enrich/cache/{enrichment_id}"
 
     @staticmethod
     def enrich_feedback(pid: str) -> str:
+        """Return path for enrichment feedback."""
         return f"/api/enrich/{pid}/feedback"
 
     ENRICH_HEALTH_API_KEY = "/api/enrich/health/api-key"
@@ -155,14 +169,17 @@ class API:
 
     @staticmethod
     def source(source_id: str) -> str:
+        """Return path for a specific source."""
         return f"/api/sources/{source_id}"
 
     @staticmethod
     def person_sources(person_id: str) -> str:
+        """Return path for sources linked to a person."""
         return f"/api/people/{person_id}/sources"
 
     @staticmethod
     def person_source_link(link_id: int) -> str:
+        """Return path for a specific person-source link."""
         return f"/api/person-sources/{link_id}"
 
     # ── Sharing (public read-only links) ─────────────────────────
@@ -171,10 +188,12 @@ class API:
 
     @staticmethod
     def share(share_id: int) -> str:
+        """Return path for a specific share link."""
         return f"/api/share/{share_id}"
 
     @staticmethod
     def share_view(token: str) -> str:
+        """Return path to view a shared tree by token."""
         return f"/api/share/view/{token}"
 
     # ── Legacy admin (password-gated, pre-auth_v2) ───────────────
@@ -189,15 +208,18 @@ class API:
 
     @staticmethod
     def photo(photo_id: str) -> str:
+        """Return path for a specific admin photo."""
         return f"/api/admin/photos/{photo_id}"
     ADMIN_WAITLIST = "/api/admin/waitlist"
 
     @staticmethod
     def admin_tenant(slug: str) -> str:
+        """Return path for a specific admin tenant."""
         return f"/api/admin/tenants/{slug}"
 
     @staticmethod
     def admin_waitlist_item(subscriber_id: int) -> str:
+        """Return path for a specific admin waitlist item."""
         return f"/api/admin/waitlist/{subscriber_id}"
 
     # ── Platform ops (superadmin) ────────────────────────────────
@@ -208,14 +230,17 @@ class API:
 
     @staticmethod
     def tenant_overrides(slug: str) -> str:
+        """Return path for tenant overrides by slug."""
         return f"/api/platform/tenant-overrides/{slug}"
 
     @staticmethod
     def tenant_override_field(slug: str, field: str) -> str:
+        """Return path for a specific tenant override field."""
         return f"/api/platform/tenant-override/{slug}/{field}"
 
     @staticmethod
     def platform_waitlist_invite(subscriber_id: int) -> str:
+        """Return path to invite a platform waitlist subscriber."""
         return f"/api/platform/waitlist/{subscriber_id}/invite"
 
     # ── Test infra (gated by GENEALOGY_TEST_TOKEN env) ──────────
@@ -276,8 +301,10 @@ class API:
 
     @staticmethod
     def webauthn_credential(credential_pk: int) -> str:
+        """Return path for a specific WebAuthn credential."""
         return f"/api/platform/mfa/webauthn/{credential_pk}"
 
     @staticmethod
     def tier_config(tier_name: str) -> str:
+        """Return path for a specific tier configuration."""
         return f"/api/platform/tier-config/{tier_name}"

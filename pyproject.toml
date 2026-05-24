@@ -1,0 +1,78 @@
+[project]
+name = "genealogy-e2e"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "pytest>=7.4",
+    "pytest-playwright>=0.4.4",
+    "playwright>=1.45,<2.0",
+    "pytest-xdist>=3.5",
+    "filelock>=3.12",
+    "httpx>=0.27",
+    "pyotp>=2.9",
+    "pydantic-settings>=2.0",
+    "allure-pytest>=2.13",
+    "pytest-rerunfailures>=16.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.11",
+    "mypy>=1.15",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--alluredir=allure-results --reruns 1 --reruns-delay 5"
+log_cli = true
+log_cli_level = "INFO"
+filterwarnings = ["ignore::DeprecationWarning"]
+markers = [
+    "smoke: minimal browser e2e smoke (run on every PR)",
+    "regression: regression tests for closed BUG-* tickets",
+    "slow: tests that take > 5s (skip with -m \"not slow\")",
+    "auth: signup, login, logout, verify, forgot/reset, invite-accept, session flows",
+    "tree: tree rendering, navigation, profile, person editor, photos, invariants",
+    "platform: superadmin platform features (dashboard, MFA, WebAuthn, ops endpoints)",
+    "admin: tenant-level admin (owner UI, admin UI, site config, subscription)",
+    "security: CSP, headers, timing attacks, role permissions, compliance, PII",
+    "enrichment: AI enrichment flow, consent, disabled-mode",
+    "ui: landing, i18n, a11y, responsive, mobile, legal, pricing, waitlist",
+    "serial: mutates shared stand/backend state — run single-worker with per-test reset",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "ANN", "B", "SIM", "TCH", "RUF"]
+external = ["drift"]
+ignore = [
+    "ANN001",   # MR 2: enable when type hints are added
+    "ANN002",   # MR 2: enable when type hints are added
+    "ANN003",   # MR 2: enable when type hints are added
+    "ANN201",   # MR 2: enable when type hints are added
+    "ANN202",   # MR 2: enable when type hints are added
+    "ANN204",   # MR 2: enable when type hints are added
+    "ANN401",
+    "RUF001",   # Cyrillic — false positive for Russian project
+    "RUF002",   # Cyrillic — false positive for Russian project
+    "RUF003",   # Cyrillic — false positive for Russian project
+    "RUF012",   # MR 2: ClassVar annotations with type hints
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["tests"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/test_*.py" = ["ANN201"]
+"conftest.py" = ["ANN201"]
+
+[tool.mypy]
+python_version = "3.12"
+check_untyped_defs = false  # MR 2: enable after type hints + fluent-chain POM
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false  # MR 2: enable after type hints added

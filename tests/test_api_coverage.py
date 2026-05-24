@@ -24,8 +24,9 @@ import re
 import allure
 import httpx
 
-from tests.api_paths import API
-from tests.timeouts import TIMEOUTS
+from tests._core.api_paths import API
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 
 # Accepted coverage gaps — the debt registry. Each line is tagged with its
 # journey-roadmap group. A gap is closed by a new journey test exercising
@@ -98,17 +99,19 @@ def test_every_backend_api_path_is_known(base_url: str):
     seen — the signal that a user-journey touching it is needed (and the
     path, meanwhile, belongs in `KNOWN_GAPS` as recorded debt).
     """
-    backend = _backend_api_paths(base_url)
-    catalogue = _catalogue_paths()
+    with step("действие: сравнить backend OpenAPI с каталогом API"):
+        backend = _backend_api_paths(base_url)
+        catalogue = _catalogue_paths()
+        unknown = backend - catalogue - KNOWN_GAPS
 
-    unknown = backend - catalogue - KNOWN_GAPS
-    assert not unknown, (
-        "New backend endpoints outside the catalogue and outside KNOWN_GAPS:\n  "
-        + "\n  ".join(sorted(unknown))
-        + "\n\nAdd a user-journey test exercising the endpoint plus a "
-        "constant in tests/api_paths.py::API — or, if coverage is "
-        "deferred, a line in KNOWN_GAPS tagged with its roadmap group."
-    )
+    with step("проверка: нет неизвестных эндпоинтов"):
+        assert not unknown, (
+            "New backend endpoints outside the catalogue and outside KNOWN_GAPS:\n  "
+            + "\n  ".join(sorted(unknown))
+            + "\n\nAdd a user-journey test exercising the endpoint plus a "
+            "constant in tests/api_paths.py::API — or, if coverage is "
+            "deferred, a line in KNOWN_GAPS tagged with its roadmap group."
+        )
 
 
 @allure.title("Покрытие: KNOWN_GAPS не содержит устаревших записей")
@@ -119,16 +122,18 @@ def test_known_gaps_not_stale(base_url: str):
     reached the `API` catalogue (i.e. it is covered) — otherwise the
     whitelist accumulates noise and masks real gaps.
     """
-    backend = _backend_api_paths(base_url)
-    catalogue = _catalogue_paths()
+    with step("действие: проверить KNOWN_GAPS на устаревшие записи"):
+        backend = _backend_api_paths(base_url)
+        catalogue = _catalogue_paths()
 
-    removed_upstream = KNOWN_GAPS - backend
-    assert not removed_upstream, (
-        "KNOWN_GAPS references endpoints no longer in the backend — "
-        "drop the stale lines:\n  " + "\n  ".join(sorted(removed_upstream))
-    )
-    now_covered = KNOWN_GAPS & catalogue
-    assert not now_covered, (
-        "KNOWN_GAPS references endpoints already in the API catalogue — "
-        "drop the closed lines:\n  " + "\n  ".join(sorted(now_covered))
-    )
+    with step("проверка: нет удалённых upstream и нет уже покрытых"):
+        removed_upstream = KNOWN_GAPS - backend
+        assert not removed_upstream, (
+            "KNOWN_GAPS references endpoints no longer in the backend — "
+            "drop the stale lines:\n  " + "\n  ".join(sorted(removed_upstream))
+        )
+        now_covered = KNOWN_GAPS & catalogue
+        assert not now_covered, (
+            "KNOWN_GAPS references endpoints already in the API catalogue — "
+            "drop the closed lines:\n  " + "\n  ".join(sorted(now_covered))
+        )
