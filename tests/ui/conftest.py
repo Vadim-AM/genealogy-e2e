@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import allure
 import pytest
 
-from tests.helpers.ui.viewport import make_page
+from helpers.ui.viewport import make_page
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

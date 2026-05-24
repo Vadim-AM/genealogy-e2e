@@ -12,16 +12,14 @@ from http import HTTPStatus
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core import api_paths as routes
-from tests._core.err_msg import ErrMsg
-from tests._core.messages import TestData
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._models.site import SourceResponse
-from tests.helpers.api import site_api
-from tests.pages.person_editor import PersonEditor
-from tests.pages.profile_panel import ProfilePanel
-from tests.pages.sources_block import SourcesBlock
+from api import routes, site_api
+from framework.response import expect_response
+from framework.step import step
+from models.site import SourceResponse
+from pages.person_editor import PersonEditor
+from pages.profile_panel import ProfilePanel
+from pages.sources_block import SourcesBlock
+from src.texts import ErrMsg, TestData
 
 
 @allure.title("Владелец привязывает источник к персоне и отвязывает обратно")

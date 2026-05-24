@@ -22,22 +22,21 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.err_msg import ErrMsg
-from tests._core.messages import FamilyGroups, RelationLabels, t
-from tests._core.step import step
-from tests._data.gedcom.samples import (
+from framework.step import step
+from helpers.admin.gedcom_ui import import_via_ui
+from helpers.tree.tree_navigation import (
+    click_family_link,
+    search_and_open_profile,
+    search_and_orbit,
+)
+from pages.owner_page import OwnerPage
+from src.texts import ErrMsg, FamilyGroups, RelationLabels, t
+from test_data.gedcom.samples import (
     GEDCOM_CYRILLIC_EDGE,
     GEDCOM_MINIMAL_INDI,
     GEDCOM_THREE_GEN,
     GEDCOM_WITH_NOTE,
 )
-from tests.helpers.admin.gedcom_ui import import_via_ui
-from tests.helpers.tree.tree_navigation import (
-    click_family_link,
-    search_and_open_profile,
-    search_and_orbit,
-)
-from tests.pages.owner_page import OwnerPage
 
 # ─────────────────────────────────────────────────────────────────────
 # TC-GEDCOM-DEEP-1: 3-generation family с проверкой связей и данных

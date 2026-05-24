@@ -18,12 +18,11 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core import api_paths as routes
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
-from tests.helpers.api import enrichment_api
-from tests.helpers.tree.tree_api import demo_pid
+from api import enrichment_api, routes
+from config.timeouts import TIMEOUTS
+from framework.response import expect_response
+from framework.step import step
+from helpers.tree.tree_api import demo_pid
 
 
 @allure.title("AI-обогащение: mock-результат содержит архивные подсказки")
@@ -74,7 +73,7 @@ def test_enrichment_history_endpoint_returns_items_dict(
         expect_response(r, label="GET enrich history").status_ok()
 
     with step("проверка: ответ — dict с ключом items (list)"):
-        from tests._models.enrichment import EnrichHistoryResponse
+        from models.enrichment import EnrichHistoryResponse
         history = EnrichHistoryResponse.model_validate(r.json())
         assert isinstance(history.items, list), (
             f"history.items must be a list "

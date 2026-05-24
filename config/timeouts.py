@@ -1,0 +1,82 @@
+"""Timeout catalogue for the e2e suite.
+
+Single source of truth for every timeout the suite uses, so heavier
+environments (CI, Docker, slow networks) can scale them via one env var
+instead of editing dozens of files.
+
+Two channels are tunable:
+  - `TIMEOUTS.<field>` — float seconds, used in `httpx` calls and custom
+    polling loops (enrichment job completion, etc.).
+  - `set_playwright_default_expect_timeout()` — applied once at session
+    start in `conftest.py`, multiplies the `expect()` auto-wait window.
+
+Usage:
+    from config.timeouts import TIMEOUTS
+    httpx.get(url, timeout=TIMEOUTS.api_request)
+
+To bump everything 2× for a slow CI runner:
+    E2E_TIMEOUT_MULTIPLIER=2.0 pytest tests/
+
+Field semantics — pick the smallest one that fits the operation:
+  - `api_short`   (5s)  — fire-and-forget admin/test endpoints
+  - `api_request` (10s) — typical product API call
+  - `api_long`    (30s) — exports / bulk operations
+  - `health_gate` (30s) — subprocess /api/health bootstrap window
+  - `enrichment_poll` (30s) — background job completion
+  - `polling_interval` (0.3s) — sleep between httpx-poll retries
+  - `pw_action_ms` (10_000ms) — Playwright `wait_for_*` action timeout
+  - `pw_provision_ms` (15_000ms) — Playwright `expect()` window for the
+    verify-email → provision_tenant round-trip (slow under `-n auto` load)
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from config.settings import settings
+
+
+@dataclass(frozen=True)
+class _Timeouts:
+    api_short: float
+    api_request: float
+    api_long: float
+    health_gate: float
+    enrichment_poll: float
+    # Sleep between retries in custom httpx polling loops (seconds).
+    polling_interval: float
+    # Playwright `expect()` auto-wait window in MILLISECONDS.
+    pw_expect_ms: int
+    # Playwright `wait_for_load_state` / `wait_for_selector` window (ms).
+    pw_action_ms: int
+    # Playwright `expect()` window for the verify-email → provision_tenant
+    # round-trip — CREATE SCHEMA + create_all + alembic stamp run under a
+    # session-level advisory lock; under `-n auto` parallel load (many
+    # xdist workers contending) it exceeds the default `pw_expect_ms`.
+    pw_provision_ms: int
+
+
+def _build() -> _Timeouts:
+    m = settings.timeout_multiplier
+    return _Timeouts(
+        api_short=5.0 * m,
+        api_request=10.0 * m,
+        api_long=30.0 * m,
+        health_gate=30.0 * m,
+        enrichment_poll=30.0 * m,
+        polling_interval=0.3 * m,
+        pw_expect_ms=int(5_000 * m),
+        pw_action_ms=int(10_000 * m),
+        pw_provision_ms=int(15_000 * m),
+    )
+
+
+TIMEOUTS = _build()
+
+
+def set_playwright_default_expect_timeout() -> None:
+    """Apply `TIMEOUTS.pw_expect_ms` to Playwright's `expect()` auto-wait
+    default. Call once at session start (in conftest)."""
+    from playwright.sync_api import expect
+
+    expect.set_options(timeout=TIMEOUTS.pw_expect_ms)

@@ -21,13 +21,13 @@ from typing import TYPE_CHECKING
 
 import allure
 
-from tests._core.step import step
-from tests.pages.tree_page import TreePage
+from framework.step import step
+from pages.tree_page import TreePage
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
 
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 @allure.title("Язык: переключатель языка скрыт пока доступен только RU")

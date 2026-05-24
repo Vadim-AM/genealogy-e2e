@@ -12,12 +12,11 @@ import allure
 import httpx
 import pyotp
 
-from tests._core import api_paths as routes
-from tests._core.constants import make_email
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
-from tests.helpers.api import mfa_api
+from api import mfa_api, routes
+from config.constants import make_email
+from config.timeouts import TIMEOUTS
+from framework.response import expect_response
+from framework.step import step
 
 
 @allure.title("Админ: суперадмин видит список тенантов и свой в нём")

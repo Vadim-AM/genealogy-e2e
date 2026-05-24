@@ -24,12 +24,11 @@ from http import HTTPStatus
 import allure
 import pyotp
 
-from tests._core import api_paths as routes
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._fixtures.users import setup_and_verify_mfa
-from tests._models.mfa import MfaVerifyResponse
-from tests.helpers.api import mfa_api
+from api import mfa_api, routes
+from fixtures.users import setup_and_verify_mfa
+from framework.response import expect_response
+from framework.step import step
+from models.mfa import MfaVerifyResponse
 
 _BASE32_RE = re.compile(r"^[A-Z2-7]+$")
 

@@ -11,8 +11,8 @@ from http import HTTPStatus
 import allure
 import pytest
 
-from tests._core import api_paths as routes
-from tests._core.step import step
+from api import routes
+from framework.step import step
 
 _MALICIOUS_IDS = [
     pytest.param("a" * 2000, id="very-long-2k-chars"),

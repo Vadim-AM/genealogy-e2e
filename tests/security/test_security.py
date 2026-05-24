@@ -13,10 +13,10 @@ import allure
 import httpx
 import pytest
 
-from tests._core import api_paths as routes
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
+from api import routes
+from config.timeouts import TIMEOUTS
+from framework.response import expect_response
+from framework.step import step
 
 # ─────────────────────────────────────────────────────────────────────────
 # TC-SEC-1: Аноним → 401 на закрытых endpoints

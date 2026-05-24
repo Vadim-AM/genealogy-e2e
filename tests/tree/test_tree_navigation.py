@@ -11,14 +11,13 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.err_msg import ErrMsg
-from tests._core.messages import TestData
-from tests._core.step import step
-from tests.pages.base import wait_for_authed_shell
-from tests.pages.tree_page import TreePage
+from framework.step import step
+from pages.base import wait_for_authed_shell
+from pages.tree_page import TreePage
+from src.texts import ErrMsg, TestData
 
 if TYPE_CHECKING:
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 @allure.title("Переключение вкладок обновляет активный класс и контент")
@@ -60,7 +59,7 @@ def test_search_returns_results_for_seeded_person(owner_page: Page, pages: PageF
 @allure.title("Обновление страницы F5 сохраняет открытый профиль персоны")
 def test_f5_keeps_profile_open(owner_page: Page, pages: PageFactory):
     """TC-E2E-002: F5 on a profile URL keeps the profile route, не выкидывает в дерево."""
-    from tests.pages.profile_panel import ProfilePanel
+    from pages.profile_panel import ProfilePanel
 
     with step("действие: открыть профиль и перезагрузить страницу"):
         profile_hash = f"#/p/{TestData.DEMO_PERSON_ID}"
@@ -78,7 +77,7 @@ def test_f5_keeps_profile_open(owner_page: Page, pages: PageFactory):
 @allure.title("Возврат к дереву из профиля по клику на вкладку")
 def test_back_to_tree_from_profile(owner_page: Page, pages: PageFactory):
     """F-PR-4: returning to tree from profile via tab click."""
-    from tests.pages.profile_panel import ProfilePanel
+    from pages.profile_panel import ProfilePanel
 
     with step("действие: открыть профиль и вернуться в дерево"):
         ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)

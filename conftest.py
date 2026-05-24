@@ -2,12 +2,12 @@
 
 Responsibilities:
 
-1. Register fixture plugins (broken out by topic in `tests/_fixtures/`).
+1. Register fixture plugins (broken out by topic in `fixtures/`).
 2. Apply the suite's domain-marker convention by file path: tests under
    `tests/<domain>/` automatically pick up `@pytest.mark.<domain>`.
 3. Attach Playwright screenshot on test failure (Allure report).
 
-Fixture content lives in `tests/_fixtures/`:
+Fixture content lives in `fixtures/`:
   - `patch.py`           — httpx monkey-patch + Playwright `expect()` default
   - `server.py`          — base_url / health gate / reset / AI-mock install
   - `users.py`           — AuthUser + signup / login / invite factories
@@ -24,18 +24,18 @@ import pytest
 
 def pytest_configure(config: pytest.Config) -> None:
     try:
-        from tests._core.settings import settings  # noqa: F401
+        from config.settings import settings  # noqa: F401
     except Exception as exc:
         pytest.exit(f"Settings validation failed: {exc}", returncode=2)
 
 pytest_plugins = (
-    "tests._fixtures.patch",
-    "tests._fixtures.server",
-    "tests._fixtures.users",
-    "tests._fixtures.clients",
-    "tests._fixtures.utils",
-    "tests._fixtures.allure_support",
-    "tests._fixtures.page_factory",
+    "fixtures.patch",
+    "fixtures.server",
+    "fixtures.users",
+    "fixtures.clients",
+    "fixtures.utils",
+    "fixtures.allure_support",
+    "fixtures.page_factory",
 )
 
 

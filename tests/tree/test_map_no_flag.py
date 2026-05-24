@@ -30,12 +30,12 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.err_msg import ErrMsg
-from tests._core.step import step
-from tests.pages.tree_page import TreePage
+from framework.step import step
+from pages.tree_page import TreePage
+from src.texts import ErrMsg
 
 if TYPE_CHECKING:
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 @allure.title("Вкладка 'Карта' скрыта по умолчанию до включения фичи")

@@ -16,10 +16,9 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.err_msg import ErrMsg
-from tests._core.messages import TestData
-from tests._core.step import step
-from tests.helpers.auth.auth_ui import wait_for_auth_state
+from framework.step import step
+from helpers.auth.auth_ui import wait_for_auth_state
+from src.texts import ErrMsg, TestData
 
 
 @allure.title("Прямая ссылка на персону сохраняет авторизацию")

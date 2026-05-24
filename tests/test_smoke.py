@@ -14,15 +14,15 @@ import allure
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests._core import api_paths as routes
-from tests._core.err_msg import ErrMsg
-from tests._core.step import step
-from tests.pages.signup_page import SignupPage
-from tests.pages.tree_page import TreePage
-from tests.pages.wait_page import WaitPage
+from api import routes
+from framework.step import step
+from pages.signup_page import SignupPage
+from pages.tree_page import TreePage
+from pages.wait_page import WaitPage
+from src.texts import ErrMsg
 
 if TYPE_CHECKING:
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 @pytest.mark.smoke

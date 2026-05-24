@@ -10,13 +10,12 @@ from __future__ import annotations
 
 import allure
 
-from tests._core import api_paths as routes
-from tests._core.messages import TestData
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._models.site import ShareListResponse
-from tests.helpers.api import site_api
-from tests.pages.share_page import SharePage
+from api import routes, site_api
+from framework.response import expect_response
+from framework.step import step
+from models.site import ShareListResponse
+from pages.share_page import SharePage
+from src.texts import TestData
 
 
 @allure.title("Публичная ссылка: аноним видит карточку, после отзыва -- нет")

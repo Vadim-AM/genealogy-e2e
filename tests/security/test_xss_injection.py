@@ -14,16 +14,16 @@ from uuid import uuid4
 import allure
 import pytest
 
-from tests._core.messages import TestData
-from tests._core.step import step
-from tests._data.payloads.injection import XSS_PAYLOADS
-from tests._models.person import PersonCreate
-from tests.helpers.api import person_api, site_api
-from tests.pages.profile_panel import ProfilePanel
-from tests.pages.tree_page import TreePage
+from api import person_api, site_api
+from framework.step import step
+from models.person import PersonCreate
+from pages.profile_panel import ProfilePanel
+from pages.tree_page import TreePage
+from src.texts import TestData
+from test_data.payloads.injection import XSS_PAYLOADS
 
 if TYPE_CHECKING:
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 @pytest.mark.security

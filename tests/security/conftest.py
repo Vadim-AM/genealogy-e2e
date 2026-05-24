@@ -4,10 +4,10 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from tests._core import api_paths as routes
-from tests._core.constants import TestConfig, unique_email
-from tests._core.timeouts import TIMEOUTS
-from tests._fixtures.users import AuthUser
+from api import routes
+from config.constants import TestConfig, unique_email
+from config.timeouts import TIMEOUTS
+from fixtures.users import AuthUser
 
 
 @pytest.fixture
