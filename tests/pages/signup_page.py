@@ -18,7 +18,7 @@ class SignupPage(BasePage):
     def __init__(self, page: Page):
         super().__init__(page)
         self.email = page.get_by_label(t(Labels.EMAIL))
-        self.password = page.get_by_label(t(Labels.PASSWORD))
+        self.password = page.locator("#password")  # no semantic: get_by_label("Пароль") matches toggle button too
         # `full_name` и `birth_year` поля удалены из signup-формы в commit
         # 814d5f8 (feat(signup): убрать поле ФИО — display_name заполняется
         # из карточки). Backend всё ещё принимает их в JSON-теле от API
