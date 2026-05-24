@@ -11,6 +11,7 @@ from http import HTTPStatus
 import allure
 
 from api import routes
+from framework.response import expect_response
 from framework.step import step
 from pages.platform_dashboard_page import PlatformDashboardPage
 
@@ -53,8 +54,9 @@ def test_platform_metrics_visible(auth_context_factory, superadmin_user, soft_ch
 def test_platform_metrics_endpoint_403_for_non_super(owner_user, tenant_client) -> None:
     """TC-PA-3: regular owner gets 401 or 403 on /api/platform/metrics."""
     r = tenant_client(owner_user).get(routes.PLATFORM_METRICS)
-    assert r.status_code == HTTPStatus.FORBIDDEN, \
-        f"non-superadmin reached platform metrics: {r.status_code} {r.text[:200]}"
+    expect_response(
+        r, label="non-superadmin reached platform metrics",
+    ).status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("Метрики платформы: ответ содержит tenants_active и signups_total")

@@ -15,6 +15,7 @@ import httpx
 from playwright.sync_api import Page, expect
 
 from api import routes
+from framework.response import expect_response
 from framework.step import step
 from src.texts import ErrMsg
 
@@ -44,8 +45,9 @@ def test_old_person_with_only_name_field_renders(owner_user, tenant_client) -> N
             "gender": "m",
         }
         r = api.post(routes.PEOPLE, json=payload)
-        assert r.status_code in (HTTPStatus.OK, HTTPStatus.CREATED), \
-            f"POST {routes.PEOPLE} legacy payload rejected: {r.status_code} {r.text[:200]}"
+        expect_response(
+            r, label=f"POST {routes.PEOPLE} legacy payload",
+        ).status(HTTPStatus.OK, HTTPStatus.CREATED)
 
     with step("проверка: имя сохранилось при чтении"):
         r = api.get(routes.person("edge-old-name"))

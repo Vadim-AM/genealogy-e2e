@@ -22,6 +22,7 @@ import allure
 
 from api import routes
 from config.constants import make_email, unique_email
+from framework.response import expect_response
 from framework.step import step
 
 
@@ -47,10 +48,9 @@ def test_change_email_endpoint_initiates_confirmation(
         )
 
     with step("проверка: статус 200 и токен подтверждения отправлен"):
-        assert r.status_code == HTTPStatus.OK, (
-            f"change-email should return 200/202 to initiate confirmation, "
-            f"got {r.status_code} {r.text[:200]}"
-        )
+        expect_response(
+            r, label="change-email should return 200/202 to initiate confirmation",
+        ).status(HTTPStatus.OK)
 
         token = read_email_token(new_email)
         assert token, f"no confirmation token sent to new email {new_email}"

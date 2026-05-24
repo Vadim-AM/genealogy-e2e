@@ -100,12 +100,14 @@ def test_user_relogins_via_form_lands_in_same_tenant(
     with step("проверка: redirect на / с тем же tenant и demo-self"):
         owner_page.wait_for_url("**/")
         expect(
+            # no semantic: data-testid element, no role
             auth_indicator(owner_page).locator('[data-testid="auth-user-name"]'),
             ErrMsg.auth_name_wrong,
         ).to_have_text(
             TestData.DEFAULT_FULL_NAME
         )
 
+        # no semantic: data-testid element, no role
         orbit_center = owner_page.locator('[data-testid="orbit-center-card"]')
         expect(orbit_center, ErrMsg.orbit_card_not_visible).to_be_visible()
         expect(orbit_center, ErrMsg.wrong_text_content).to_contain_text(TestData.DEFAULT_FULL_NAME)

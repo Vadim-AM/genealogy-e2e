@@ -88,7 +88,7 @@ def test_invitee_clicks_open_tree_lands_on_tree_with_authed_indicator(
 
     with step("действие: принятие приглашения и клик 'Открыть древо'"):
         InviteAcceptPage(page).open_with_token(invite_token)
-        open_link = page.locator("#link")
+        open_link = page.locator("#link")  # no semantic: dynamic content, no ARIA
         expect(open_link, ErrMsg.invite_link_not_visible).to_be_visible()
         open_link.click()
 

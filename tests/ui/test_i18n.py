@@ -25,6 +25,7 @@ import httpx
 
 from api import routes
 from config.constants import unique_email
+from framework.response import expect_response
 from framework.step import step
 from helpers.ui.i18n_checks import has_cyrillic
 
@@ -44,7 +45,7 @@ def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str) ->
             )
 
     with step("проверка: ошибка содержит кириллицу"):
-        assert r.status_code == HTTPStatus.UNAUTHORIZED, f"expected 401 for unknown user; got {r.status_code}"
+        expect_response(r, label="login with unknown user").status(HTTPStatus.UNAUTHORIZED)
         body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
         detail = body.get("detail") or body.get("message") or ""
 
@@ -70,9 +71,9 @@ def test_signup_validation_error_detail_in_russian(uvicorn_server: str) -> None:
             )
 
     with step("проверка: validation detail на русском"):
-        assert r.status_code == HTTPStatus.UNPROCESSABLE_ENTITY, (
-            f"expected 422 Pydantic validation for short password; got {r.status_code}"
-        )
+        expect_response(
+            r, label="signup with short password",
+        ).status(HTTPStatus.UNPROCESSABLE_ENTITY)
         body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
 
         # Backend форматирует validation detail двумя способами:

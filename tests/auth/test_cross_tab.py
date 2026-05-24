@@ -11,6 +11,7 @@ from http import HTTPStatus
 import allure
 
 from api import routes
+from framework.response import expect_response
 from framework.step import step
 
 
@@ -34,14 +35,13 @@ def test_logout_invalidates_session_across_tabs(owner_user, tenant_client) -> No
 
     with step("действие: logout из tab0"):
         logout = tab0.post(routes.LOGOUT)
-        assert logout.status_code == HTTPStatus.OK, \
-            f"logout returned {logout.status_code} {logout.text[:200]}"
+        expect_response(logout, label="logout").status(HTTPStatus.OK)
 
     with step("проверка: сессия tab1 инвалидирована после logout tab0"):
         # Tab 1 is now invalidated — server-side session revocation kills the
         # cookie that was minted before the logout even though the cookie value
         # itself hasn't changed.
         me2 = tab1.get(routes.ACCOUNT_ME)
-        assert me2.status_code == HTTPStatus.UNAUTHORIZED, \
-            f"session still valid in tab 1 after tab 0 logout: " \
-            f"{me2.status_code} {me2.text[:200]}"
+        expect_response(
+            me2, label="session still valid in tab 1 after tab 0 logout",
+        ).status(HTTPStatus.UNAUTHORIZED)

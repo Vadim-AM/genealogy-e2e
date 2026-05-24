@@ -36,7 +36,7 @@ def test_owner_clears_demo_relatives(owner_page: Page, owner_user, tenant_client
         _ = pages.navigate_to(OwnerPage)
         dialog = ConfirmDialog(owner_page)
         with owner_page.expect_response("**/api/onboarding/clear-demo"):
-            owner_page.locator("#clearDemo").click()
+            owner_page.locator("#clearDemo").click()  # no semantic: custom widget, no ARIA
             dialog.expect_visible()
             dialog.confirm()
 
@@ -59,7 +59,7 @@ def test_owner_keeps_demo_as_template(owner_page: Page, owner_user, tenant_clien
         _ = pages.navigate_to(OwnerPage)
         dialog = ConfirmDialog(owner_page)
         with owner_page.expect_response("**/api/onboarding/keep-demo"):
-            owner_page.locator("#keepDemo").click()
+            owner_page.locator("#keepDemo").click()  # no semantic: custom widget, no ARIA
             dialog.expect_visible()
             dialog.confirm()
 

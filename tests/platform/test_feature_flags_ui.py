@@ -50,7 +50,7 @@ def test_dashboard_has_feature_flags_section(auth_context_factory, superadmin_us
         )
 
     with step("проверка: секция Feature Flags видна"):
-        section = page.locator("#feature_flags_section")
+        section = page.locator("#feature_flags_section")  # no semantic: layout container
         expect(section, ErrMsg.element_not_visible).to_be_visible()
 
 
@@ -61,9 +61,11 @@ def test_feature_flags_has_five_groups(auth_context_factory, superadmin_user) ->
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
         page.goto("/platform/dashboard")
+        # no semantic: layout container
         expect(page.locator("#feature_flags_section"), ErrMsg.element_not_visible).to_be_visible()
 
     with step("проверка: ровно 5 групп с ожидаемыми заголовками"):
+        # no semantic: data-testid element, no role
         groups = page.locator('[data-testid="ff-group"]')
         assert groups.count() == 5, \
             f"Ожидали 5 групп Feature Flags, нашли {groups.count()}"
@@ -75,6 +77,7 @@ def test_feature_flags_has_five_groups(auth_context_factory, superadmin_user) ->
             "Обслуживание",  # Wave-9 локализовал "Maintenance" → RU
             "Безопасность / алерты",
         }
+        # no semantic: data-testid element, no role
         found_titles = {h.inner_text().strip() for h in page.locator('[data-testid="ff-group-title"]').all()}
         missing = expected_titles - found_titles
         assert not missing, \
@@ -88,9 +91,11 @@ def test_feature_flags_have_tooltips(auth_context_factory, superadmin_user) -> N
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
         page.goto("/platform/dashboard")
+        # no semantic: layout container
         expect(page.locator("#feature_flags_section"), ErrMsg.element_not_visible).to_be_visible()
 
     with step("проверка: минимум 8 tooltip-элементов с описаниями"):
+        # no semantic: data-testid element, no role
         helps = page.locator('#feature_flags_section [data-testid="ff-help"]')
         assert helps.count() >= 8, \
             f"Ожидали ≥8 tooltip элементов (по числу флагов), нашли {helps.count()}"
@@ -116,9 +121,11 @@ def test_ai_search_toggle_visible(auth_context_factory, superadmin_user) -> None
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
         page.goto("/platform/dashboard")
+        # no semantic: layout container
         expect(page.locator("#feature_flags_section"), ErrMsg.element_not_visible).to_be_visible()
 
     with step("проверка: toggle AI-поиска виден и имеет верный data-flag"):
+        # no semantic: form input without label
         toggle = page.locator("#ff_enable_ai_search")
         expect(toggle, ErrMsg.element_not_visible).to_be_visible()
         assert toggle.get_attribute("data-flag") == "enable_ai_search", (
@@ -152,6 +159,7 @@ def test_ai_search_toggle_reflects_db_value_when_off(
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
         page.goto("/platform/dashboard")
+        # no semantic: form input without label
         expect(page.locator("#ff_enable_ai_search"), ErrMsg.element_not_visible).to_be_visible()
         # Сигнал завершения loadSettings(), CSP-безопасный. tenants.js:121
         # присваивает `set_beta_cap.value = s.beta_user_cap`; input не имеет
@@ -164,9 +172,11 @@ def test_ai_search_toggle_reflects_db_value_when_off(
         # Locator assertion работает на уровне драйвера (без page eval),
         # и `not_to_have_value("")` агностичен к значению: только ""
         # означает «ещё не загружено».
+        # no semantic: form input without label
         expect(page.locator("#set_beta_cap"), ErrMsg.feature_flag_state_wrong).not_to_have_value("")
 
     with step("проверка: toggle AI-поиска не отмечен"):
+        # no semantic: form input without label
         is_checked = page.locator("#ff_enable_ai_search").is_checked()
         assert is_checked is False, (
             "При enable_ai_search=False в БД toggle должен быть UNCHECKED. "
@@ -182,6 +192,7 @@ def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_u
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
         page.goto("/platform/dashboard")
+        # no semantic: form input without label
         expect(page.locator("#ff_enable_ai_search"), ErrMsg.element_not_visible).to_be_visible()
 
         # Ждём loadSettings(), чтобы клик произошёл после привязки
@@ -189,6 +200,7 @@ def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_u
         # wait_for_function — `script-src 'self'` на dashboard блокирует
         # string-predicate eval); см. аналогичный комментарий в
         # test_ai_search_toggle_reflects_db_value_when_off.
+        # no semantic: form input without label
         expect(page.locator("#set_beta_cap"), ErrMsg.feature_flag_state_wrong).not_to_have_value("")
 
         # Локатор должен использовать `contains` — на строке в .dirty состоянии
@@ -201,7 +213,7 @@ def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_u
         expect(row, ErrMsg.feature_flag_state_wrong).not_to_have_class(re.compile(r"\bdirty\b"))
 
     with step("действие: кликаем toggle AI-поиска"):
-        page.locator("#ff_enable_ai_search").click()
+        page.locator("#ff_enable_ai_search").click()  # no semantic: form input without label
 
     with step("проверка: после клика строка получает класс .dirty"):
         expect(row, ErrMsg.feature_flag_state_wrong).to_have_class(re.compile(r"\bdirty\b"))
@@ -253,8 +265,9 @@ def test_patch_settings_validates_llm_provider_enum(superadmin_user, tenant_clie
         r = api.patch(routes.PLATFORM_SETTINGS, json={"llm_provider": "openai"})
 
     with step("проверка: 400 и упоминание канонических provider'ов"):
-        assert r.status_code == HTTPStatus.BAD_REQUEST, \
-            f"Ожидали 400 для llm_provider='openai' (не в enum), получили {r.status_code}"
+        expect_response(
+            r, label="llm_provider='openai' (not in enum)",
+        ).status(HTTPStatus.BAD_REQUEST)
         body = r.text.lower()
         canonical_providers = {"anthropic", "yandex", "gigachat"}
         mentioned = {p for p in canonical_providers if p in body}

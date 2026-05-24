@@ -75,9 +75,8 @@ def test_landing_loads_and_shows_demo_tree_on_mobile(mobile_page: Page) -> None:
         mobile_page.wait_for_load_state("domcontentloaded")
 
     with step("проверка: treeContainer виден"):
-        # no semantic: canvas container
         expect(
-            mobile_page.locator("#treeContainer"), ErrMsg.tree_not_rendered,
+            mobile_page.locator("#treeContainer"), ErrMsg.tree_not_rendered,  # no semantic: canvas container
         ).to_be_visible()
 
     with step("проверка: нет горизонтального скролла"):

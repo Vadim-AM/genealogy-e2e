@@ -31,7 +31,9 @@ def test_deep_link_to_demo_self_preserves_auth(owner_page: Page) -> None:
     with step("проверка: профиль отрисован и авторизация сохранена"):
         # Заголовок вкладки перезаписывается именем открытой персоны (profile.js
         # поднимает имя в `#tab-tree .section-title`).
+        # no semantic: layout container
         expect(owner_page.locator("#tab-tree .section-title"), ErrMsg.wrong_text_content).not_to_have_text("")
+        # no semantic: data-testid element, no role
         expect(owner_page.locator('[data-testid="profile-page"]'), ErrMsg.profile_not_visible).to_be_visible()
 
         # AUTH-состояние должно остаться authenticated (регрессия BUG-AUTH-001).
