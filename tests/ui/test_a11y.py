@@ -1,21 +1,4 @@
-"""TC-A11Y-1, TC-A11Y-2: accessibility regressions on signup form.
-
-Two distinct fails for screen-reader users:
-
-1. **BUG-A11Y-001** — при validation-error поле НЕ получает `aria-invalid="true"`
-   и нет `aria-describedby` на error-msg. Скринридер не получает signal,
-   что поле невалидно, пользователь не понимает почему submit не работает.
-
-2. **BUG-A11Y-002** — honeypot `<input id="website">` имеет `tabindex="-1"`
-   и скрыт визуально, но **не имеет `aria-hidden="true"`**. Скринридер
-   честно прочитает поле «Сайт» и предложит заполнить. Пользователь со
-   скринридером попадёт в ловушку: signup пройдёт «успешно» (200 silent),
-   но user в БД не создан (honeypot triggered) — он ждёт письмо, которое
-   никогда не придёт.
-
-Тесты документируют контракт. Снять xfail когда продукт добавит
-правильные ARIA-атрибуты.
-"""
+"""TC-A11Y-1, TC-A11Y-2: accessibility regressions on signup form."""
 
 from __future__ import annotations
 
@@ -25,6 +8,7 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
+from assertions.base import should
 from framework.step import step
 from pages.signup_page import SignupPage
 from src.texts import ErrMsg
@@ -35,17 +19,7 @@ if TYPE_CHECKING:
 
 @allure.title("A11y: поле пароля получает aria-invalid при ошибке сервера")
 def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFactory) -> None:
-    """A-SU-3: server returns 422 на short password → JS handler ставит
-    `aria-invalid="true"` на password input.
-
-    Используем server-side trigger (password too short), а не client-
-    HTML5 (битый email): HTML5 native validity блокирует submit и
-    JS handler не запускается, поэтому проверять aria-invalid на
-    HTML5-fail бесполезно (даже после правильного фикса).
-
-    P0.4 (ФЗ-156, май 2026): форма имеет 4 раздельных consent чекбокса
-    вместо одного `#agree`. Поле `#full_name` удалено в commit 814d5f8 (I4).
-    """
+    """A-SU-3: server returns 422 на short password → JS handler ставит."""
     with step("подготовка: открыть signup и снять minlength"):
         signup = anon_pages.navigate_to(SignupPage)
         # Снимаем HTML5 ограничение minlength="8" на #password — иначе native
@@ -64,9 +38,7 @@ def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFac
         # Ждём ответ сервера, затем проверяем aria-состояние.
         with page.expect_response("**/api/account/signup") as resp_info:
             signup.submit_btn.click()
-        assert resp_info.value.status >= HTTPStatus.BAD_REQUEST, (
-            f"expected server validation error; got {resp_info.value.status}"
-        )
+        should.greater_or_equal(resp_info.value.status, HTTPStatus.BAD_REQUEST, ErrMsg.status_mismatch)
 
     with step("проверка: поле пароля получило aria-invalid"):
         expect(signup.password, ErrMsg.wrong_attribute).to_have_attribute(
@@ -76,10 +48,7 @@ def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFac
 
 @allure.title("A11y: honeypot-поле скрыто от скринридера (aria-hidden)")
 def test_signup_honeypot_is_aria_hidden(page: Page, anon_pages: PageFactory) -> None:
-    """A-SU-4: honeypot input has `aria-hidden="true"` (or its wrapper).
-
-    Was xfail until upstream batch-6/7. Now regular regression.
-    """
+    """A-SU-4: honeypot input has `aria-hidden="true"` (or its wrapper)."""
     with step("действие: открыть signup"):
         signup = anon_pages.navigate_to(SignupPage)
 

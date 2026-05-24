@@ -1,8 +1,4 @@
-"""Subscription / quota — TC-AI-2.
-
-Free-tier owner should see {tier, used, limit, remaining, period_start,
-period_end, soft_warn, exhausted} in /api/subscription/usage.
-"""
+"""TC-AI-2: subscription/usage shape для free-tier owner."""
 
 from __future__ import annotations
 
@@ -12,8 +8,10 @@ import allure
 import httpx
 
 from api import routes
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
+from src.texts import ErrMsg
 
 REQUIRED_KEYS = {
     "tier",
@@ -29,7 +27,7 @@ REQUIRED_KEYS = {
 
 @allure.title("Подписка: free-тариф показывает лимит 3 и 0 использованных")
 def test_subscription_usage_shape_for_free_owner(owner_user, tenant_client) -> None:
-    """TC-AI-2: /api/subscription/usage returns the canonical free-tier shape."""
+    """Free-tier owner получает canonical usage shape."""
     with step("действие: запросить usage для free-tier owner"):
         api = tenant_client(owner_user)
         r = api.get(routes.SUBSCRIPTION_USAGE_LEGACY)
@@ -38,22 +36,19 @@ def test_subscription_usage_shape_for_free_owner(owner_user, tenant_client) -> N
 
     with step("проверка: все обязательные ключи присутствуют"):
         missing = REQUIRED_KEYS - set(data.keys())
-        assert not missing, f"missing keys in usage response: {missing} (got {list(data)})"
+        should.be_empty(missing, ErrMsg.usage_keys_missing)
 
     with step("проверка: значения соответствуют free-tier"):
-        assert data["tier"] == "free", f"new owner must be on free tier, got {data['tier']!r}"
-        assert data["limit"] == 3, \
-            f"free tier limit per docs/test-plan.md is 3, got {data['limit']}"
-        assert data["used"] == 0, f"new owner must have 0 used, got {data['used']}"
-        assert data["remaining"] == 3, f"new owner must have 3 remaining, got {data['remaining']}"
-        assert data["exhausted"] is False, \
-            f"new owner must not be exhausted, got {data['exhausted']!r}"
-        assert data["soft_warn"] is False, \
-            f"new owner must not have soft_warn, got {data['soft_warn']!r}"
+        should.be_equal(data["tier"], "free", ErrMsg.usage_tier_wrong)
+        should.be_equal(data["limit"], 3, ErrMsg.usage_limit_wrong)
+        should.be_equal(data["used"], 0, ErrMsg.usage_used_wrong)
+        should.be_equal(data["remaining"], 3, ErrMsg.usage_remaining_wrong)
+        should.be_equal(data["exhausted"], False, ErrMsg.usage_exhausted_wrong)
+        should.be_equal(data["soft_warn"], False, ErrMsg.usage_soft_warn_wrong)
 
 
 @allure.title("Подписка: анонимный запрос к usage возвращает 401")
 def test_subscription_usage_requires_auth(base_url: str) -> None:
-    """Anonymous request to /api/subscription/usage → 401."""
+    """Анонимный запрос к usage возвращает 401."""
     r = httpx.get(f"{base_url}{routes.SUBSCRIPTION_USAGE_LEGACY}")
     expect_response(r, label="anon subscription/usage").status(HTTPStatus.UNAUTHORIZED)

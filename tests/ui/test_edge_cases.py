@@ -1,10 +1,4 @@
-"""Edge cases per docs/test-plan.md TC-EDGE-001..005.
-
-`test_minimap_hidden_on_mobile_viewport` removed during 28.04 sanitize:
-the original used a runtime `pytest.xfail` that masked any regression.
-Reinstate as `@pytest.mark.xfail(strict=False)` only after BUG status
-is confirmed open.
-"""
+"""Edge cases per docs/test-plan.md TC-EDGE-001..005."""
 
 from __future__ import annotations
 
@@ -15,6 +9,7 @@ import httpx
 from playwright.sync_api import Page, expect
 
 from api import routes
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
 from src.texts import ErrMsg
@@ -30,11 +25,7 @@ def test_f5_on_nonexistent_profile_id_does_not_crash(owner_page: Page) -> None:
 
 @allure.title("Edge: персона с единственным полем name корректно читается")
 def test_old_person_with_only_name_field_renders(owner_user, tenant_client) -> None:
-    """TC-EDGE-001: a person record with only `name` (no surname/given) — accessible.
-
-    If POST /api/people stops accepting the legacy single-name payload, that's
-    a backwards-compatibility regression and the test must fail loud.
-    """
+    """TC-EDGE-001: a person record with only `name` (no surname/given) — accessible."""
     api = tenant_client(owner_user)
 
     with step("действие: создать персону с единственным полем name"):
@@ -53,22 +44,15 @@ def test_old_person_with_only_name_field_renders(owner_user, tenant_client) -> N
         r = api.get(routes.person("edge-old-name"))
         r.raise_for_status()
         name = r.json().get("name") or ""
-        assert "Иван" in name, f"name not preserved: {name!r}"
+        should.contain(name, "Иван", ErrMsg.canonical_name_wrong)
 
 
 @allure.title("Edge: /api/health доступен без авторизации и отдаёт ok")
 def test_health_endpoint_does_not_require_auth(base_url: str) -> None:
-    """Smoke: /api/health is public (no auth), reports status ok.
-
-    Behaviour, not exact shape (Rule 13): post-PR-B7 the body also carries
-    diagnostic keys (`dialect`, `active_tenants`). Pinning the whole dict
-    made the test fail on an additive, non-functional change. The contract
-    is: reachable without credentials + `status == "ok"`.
-    """
+    """Smoke: /api/health is public (no auth), reports status ok."""
     with step("действие: запросить /api/health без авторизации"):
         r = httpx.get(f"{base_url}{routes.HEALTH}")
         r.raise_for_status()
 
     with step("проверка: статус ok"):
-        assert r.json().get("status") == "ok", \
-            f"unexpected /api/health status: {r.json()!r}"
+        should.be_equal(r.json().get("status"), "ok", ErrMsg.health_status_wrong)

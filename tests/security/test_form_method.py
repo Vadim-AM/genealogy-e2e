@@ -1,17 +1,4 @@
-"""TC-FORM-1: public forms must POST credentials, never GET.
-
-Без `method="post"` HTML5 default — GET → password / token попадают
-в URL → история браузера → referer → access logs.
-
-Тест проверяет **функциональный** контракт: при submit'е форма
-действительно делает POST-запрос. Атрибут `method="post"` в DOM —
-necessary, но не sufficient (JS может override'ить). Используем
-`page.expect_request` чтобы поймать реальный submit и проверить
-`request.method`.
-
-Was xfail under BUG-FORM-001 until upstream commit `013d31f`. Now
-plain regression.
-"""
+"""TC-FORM-1: public forms must POST credentials, never GET."""
 
 from __future__ import annotations
 
@@ -21,6 +8,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from api import routes
+from assertions.base import should
 from config.constants import TestConfig, unique_email
 from framework.step import step
 from pages.login_page import LoginPage
@@ -31,10 +19,9 @@ if TYPE_CHECKING:
     from fixtures.page_factory import PageFactory
 
 
-
 @allure.title("Формы: регистрация отправляется методом POST, не GET")
 def test_signup_form_submits_via_post(page: Page, anon_pages: PageFactory) -> None:
-    """Submit signup form → request method MUST be POST."""
+    """Submit signup form отправляет запрос методом POST."""
     with step("подготовка: заполнить форму регистрации"):
         _ = anon_pages.navigate_to(SignupPage)
         page.locator("#email").fill(unique_email("formpost"))  # no semantic: form input without label
@@ -49,19 +36,14 @@ def test_signup_form_submits_via_post(page: Page, anon_pages: PageFactory) -> No
         page.locator("#signupBtn").click()  # no semantic: submit button without accessible name
 
     with step("проверка: метод запроса — POST"):
-        assert req_info.value.method == "POST", (
-            f"signup form submitted as {req_info.value.method}, expected POST. "
-            f"Password leaks to URL/history if GET."
-        )
-
-        # DOM-уровневая sanity (на случай рефакторинга на FormData без fetch):
-        # no semantic: form element by ID
-        expect(page.locator("#signupForm"), ErrMsg.wrong_attribute).to_have_attribute("method", "post")
+        should.be_equal(req_info.value.method, "POST", ErrMsg.form_method_not_post)
+        signup_form = page.locator("#signupForm")  # no semantic: form element by ID
+        expect(signup_form, ErrMsg.wrong_attribute).to_have_attribute("method", "post")
 
 
 @allure.title("Формы: вход отправляется методом POST, не GET")
 def test_login_form_submits_via_post(page: Page, anon_pages: PageFactory) -> None:
-    """Submit login form → request method MUST be POST."""
+    """Submit login form отправляет запрос методом POST."""
     with step("подготовка: заполнить форму входа"):
         _ = anon_pages.navigate_to(LoginPage)
         page.locator("#email").fill(unique_email("formpost-li"))  # no semantic: form input without label
@@ -73,21 +55,14 @@ def test_login_form_submits_via_post(page: Page, anon_pages: PageFactory) -> Non
         page.get_by_role("button", name=t(Buttons.LOGIN), exact=False).click()
 
     with step("проверка: метод запроса — POST"):
-        assert req_info.value.method == "POST", (
-            f"login form submitted as {req_info.value.method}, expected POST."
-        )
-
-        # no semantic: form element by ID
-        expect(page.locator("#loginForm"), ErrMsg.wrong_attribute).to_have_attribute("method", "post")
+        should.be_equal(req_info.value.method, "POST", ErrMsg.form_method_not_post)
+        login_form = page.locator("#loginForm")  # no semantic: form element by ID
+        expect(login_form, ErrMsg.wrong_attribute).to_have_attribute("method", "post")
 
 
 @allure.title("Формы: сброс пароля отправляется методом POST, не GET")
 def test_reset_password_form_method_is_post(page: Page) -> None:
-    """Reset-password form structural check (method="post").
-
-    Не submit'им реально (token fake → backend 4xx, network capture
-    может zatajit'ся в timing); ограничиваемся структурным check'ом.
-    """
+    """Reset-password form имеет атрибут method=post."""
     with step("действие: открываем страницу сброса пароля"):
         page.goto("/account/reset-password?token=fake-for-render")
         page.wait_for_load_state("domcontentloaded")

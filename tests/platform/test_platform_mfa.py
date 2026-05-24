@@ -1,20 +1,4 @@
-"""Platform MFA — TC-PA-MFA-* (PR-7..PR-8).
-
-Покрывает:
-  • POST /api/platform/mfa/setup — provisioning URL + secret
-  • POST /api/platform/mfa/verify — TOTP-код + audit + per-session mfa_verified_at
-  • GET /api/platform/mfa/status — состояние MFA
-  • POST /api/platform/mfa/recovery-codes/regenerate — 10 кодов
-  • POST /api/platform/mfa/recovery-redeem — redeem с автоинвалидацией
-  • GET /api/platform/mfa/recovery-codes/count — оставшиеся коды
-  • Force-MFA: PLATFORM_REQUIRE_MFA=1 → 403 mfa_setup_required (smoke на /metrics)
-
-Hard rules:
-- Single canonical field name. Pin one (`secret`, `otpauth_url`, `unused`, …).
-- Hard assert. Никаких OR-fallback.
-- pyotp импортируется на топ-уровне; если не установлен — это инфра-проблема,
-  тесты падают (не skip — установка обязательна).
-"""
+"""Platform MFA — TC-PA-MFA-* (PR-7..PR-8)."""
 
 from __future__ import annotations
 
@@ -25,17 +9,14 @@ import allure
 import pyotp
 
 from api import mfa_api, routes
+from assertions.base import should
 from fixtures.users import setup_and_verify_mfa
 from framework.response import expect_response
 from framework.step import step
 from models.mfa import MfaVerifyResponse
+from src.texts import ErrMsg
 
 _BASE32_RE = re.compile(r"^[A-Z2-7]+$")
-
-
-# ─────────────────────────────────────────────────────────────────────
-# /mfa/setup
-# ─────────────────────────────────────────────────────────────────────
 
 
 @allure.title("MFA: настройка запрещена обычному владельцу")
@@ -52,13 +33,10 @@ def test_mfa_setup_returns_secret_and_uri(superadmin_user, tenant_client) -> Non
         setup = mfa_api.setup_mfa(tenant_client(superadmin_user))
 
     with step("проверка: secret, otpauth_url, issuer корректны"):
-        assert setup.otpauth_url.startswith("otpauth://totp/"), \
-            f"otpauth_url must start with 'otpauth://totp/', got {setup.otpauth_url[:40]!r}"
+        should.be_true(setup.otpauth_url.startswith("otpauth://totp/"), ErrMsg.mfa_otpauth_wrong)
         # secret — base32 (RFC 4648): только A-Z + 2-7. pyotp default = 32 chars.
-        assert len(setup.secret) == 32, \
-            f"secret length: expected 32, got {len(setup.secret)}"
-        assert _BASE32_RE.match(setup.secret), \
-            f"secret must be RFC 4648 base32 (A-Z + 2-7): {setup.secret!r}"
+        should.have_length(setup.secret, 32, ErrMsg.mfa_secret_wrong)
+        should.be_true(_BASE32_RE.match(setup.secret), ErrMsg.mfa_secret_wrong)
 
 
 @allure.title("MFA: повторный setup без сброса отклоняется (409)")
@@ -74,11 +52,6 @@ def test_mfa_setup_409_when_already_configured(superadmin_user, tenant_client) -
         expect_response(r2, label="MFA setup duplicate").status(HTTPStatus.CONFLICT)
 
 
-# ─────────────────────────────────────────────────────────────────────
-# /mfa/verify
-# ─────────────────────────────────────────────────────────────────────
-
-
 @allure.title("MFA: верный TOTP-код подтверждает двухфакторку")
 def test_mfa_verify_correct_code_returns_ok(superadmin_user, tenant_client) -> None:
     """TC-PA-MFA-4: setup → verify с актуальным TOTP-кодом → 200 + valid_until."""
@@ -92,10 +65,8 @@ def test_mfa_verify_correct_code_returns_ok(superadmin_user, tenant_client) -> N
         verified = mfa_api.verify_mfa(api, code)
 
     with step("проверка: status=ok и valid_until присутствует"):
-        assert verified.status == "ok", \
-            f"status: expected 'ok', got {verified.status!r}"
-        assert verified.valid_until is not None, \
-            "valid_until missing from response"
+        should.be_equal(verified.status, "ok", ErrMsg.mfa_verify_status_wrong)
+        should.not_none(verified.valid_until, ErrMsg.mfa_valid_until_missing)
 
 
 @allure.title("MFA: неверный TOTP-код отклоняется (401)")
@@ -118,17 +89,12 @@ def test_mfa_verify_409_without_setup(superadmin_user, tenant_client) -> None:
     expect_response(r, label="MFA verify without setup").status(HTTPStatus.CONFLICT)
 
 
-# ─────────────────────────────────────────────────────────────────────
-# /mfa/status
-# ─────────────────────────────────────────────────────────────────────
-
-
 @allure.title("MFA: статус до настройки — не сконфигурировано")
 def test_mfa_status_initial_not_configured(superadmin_user, tenant_client) -> None:
     """TC-PA-MFA-7: до setup — configured=False, fresh=False."""
     status = mfa_api.get_mfa_status(tenant_client(superadmin_user))
-    assert status.configured is False, f"configured: expected False, got {status.configured!r}"
-    assert status.fresh is False, f"fresh: expected False, got {status.fresh!r}"
+    should.be_false(status.configured, ErrMsg.mfa_configured_wrong)
+    should.be_false(status.fresh, ErrMsg.mfa_fresh_wrong)
 
 
 @allure.title("MFA: после подтверждения статус — сконфигурировано и свежее")
@@ -143,13 +109,8 @@ def test_mfa_status_after_verify_is_fresh(superadmin_user, tenant_client) -> Non
 
     with step("проверка: статус configured=True, fresh=True"):
         status = mfa_api.get_mfa_status(api)
-        assert status.configured is True, f"configured: expected True, got {status.configured!r}"
-        assert status.fresh is True, f"fresh: expected True, got {status.fresh!r}"
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Recovery codes
-# ─────────────────────────────────────────────────────────────────────
+        should.be_true(status.configured, ErrMsg.mfa_configured_wrong)
+        should.be_true(status.fresh, ErrMsg.mfa_fresh_wrong)
 
 
 @allure.title("MFA: генерация выдаёт ровно 10 резервных кодов")
@@ -165,11 +126,10 @@ def test_recovery_regenerate_returns_10_codes(superadmin_user, tenant_client) ->
         codes = recovery.codes
 
     with step("проверка: ровно 10 кодов в формате xxxx-xxxx-xxxx-xxxx"):
-        assert len(codes) == 10, \
-            f"regenerate must return 10 codes, got {len(codes)}"
+        should.have_length(codes, 10, ErrMsg.recovery_code_count_wrong)
         for c in codes:
-            assert len(c) == 19, f"recovery code length: {len(c)} (expected 19 with dashes)"
-            assert c.count("-") == 3, f"code should have 3 dashes: {c!r}"
+            should.have_length(c, 19, ErrMsg.recovery_code_format_wrong)
+            should.be_equal(c.count("-"), 3, ErrMsg.recovery_code_format_wrong)
 
 
 @allure.title("MFA: счётчик резервных кодов равен 10 после генерации")
@@ -183,7 +143,7 @@ def test_recovery_count_after_regenerate_is_10(superadmin_user, tenant_client) -
 
     with step("проверка: unused=10"):
         count = mfa_api.get_recovery_count(api)
-        assert count.unused == 10, f"expected unused=10, got {count.unused}"
+        should.be_equal(count.unused, 10, ErrMsg.recovery_unused_wrong)
 
 
 @allure.title("MFA: использование резервного кода уменьшает счётчик")
@@ -199,12 +159,11 @@ def test_recovery_redeem_consumes_one_code(superadmin_user, tenant_client) -> No
     with step("действие: redeem первого кода"):
         r1 = api.post(routes.MFA_RECOVERY_REDEEM, json={"code": one})
         resp = expect_response(r1, label="recovery redeem").status_ok().schema(MfaVerifyResponse)
-        assert resp.status == "ok", f"redeem status: expected 'ok', got {resp.status!r}"
+        should.be_equal(resp.status, "ok", ErrMsg.recovery_redeem_status_wrong)
 
     with step("проверка: счётчик уменьшился до 9"):
         count = mfa_api.get_recovery_count(api)
-        assert count.unused == 9, \
-            f"one code redeemed, expected 9 remaining, got {count.unused}"
+        should.be_equal(count.unused, 9, ErrMsg.recovery_unused_wrong)
 
     with step("проверка: повторный redeem того же кода — 401"):
         r2 = api.post(routes.MFA_RECOVERY_REDEEM, json={"code": one})
@@ -222,8 +181,7 @@ def test_recovery_regenerate_invalidates_old_codes(superadmin_user, tenant_clien
         new_codes = mfa_api.regenerate_recovery_codes(api).codes
 
     with step("проверка: старые и новые коды не пересекаются"):
-        assert set(old_codes).isdisjoint(set(new_codes)), \
-            "second regenerate must invalidate all old codes"
+        should.be_true(set(old_codes).isdisjoint(set(new_codes)), ErrMsg.recovery_not_invalidated)
 
     with step("проверка: старый код больше не валиден — 401"):
         r = api.post(routes.MFA_RECOVERY_REDEEM, json={"code": old_codes[0]})

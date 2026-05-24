@@ -74,6 +74,8 @@ pytest --collect-only tests/<файл>
 
 ## Важно
 
-- Никогда `time.sleep()` в тестах — Playwright auto-wait
-- Все таймауты через `tests/_core/timeouts.py`
-- При падении смотри step-имена — они указывают фазу (подготовка/действие/проверка)
+- Никогда `time.sleep()` — Playwright auto-wait
+- Дефолтный httpx timeout в monkey-patch — не передавать явно
+- Никогда голый `assert` — три канала: `expect(loc, ErrMsg)`, `expect_response(r)`, `should.*`
+- Все строки ошибок через `ErrMsg` из `src/texts.py`
+- При падении смотри step-имена — подготовка/действие/проверка

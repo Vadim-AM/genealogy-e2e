@@ -1,23 +1,4 @@
-"""Feature Flags UI — TC-N6, TC-A8 (Phase C rollout, май 2026).
-
-Платформенный admin может переключать runtime feature flags через UI
-без редеплоя. Изменения мгновенно применяются ко всем последующим
-запросам, пишутся в SuperadminAuditEntry.
-
-Покрываемые сценарии:
-- /platform/dashboard содержит секцию `#feature_flags_section`
-- 5 групп: AI/Search, Регистрация, Контент-фичи, Maintenance, Безопасность
-- Каждый флаг имеет свой control с `data-flag` атрибутом и tooltip (.ff-help)
-- Toggle меняет состояние строки на .dirty (визуальный indicator unsaved)
-- Click «Применить» → PATCH /api/platform/settings → toast «Сохранено»
-- /api/config/features сразу отражает новое значение (без рестарта)
-
-Backend uri:
-- GET /platform/dashboard (auth required, superadmin only)
-- GET /api/platform/settings (auth required)
-- PATCH /api/platform/settings (auth required, audit-logged)
-- GET /api/config/features (public, без auth)
-"""
+"""Feature Flags UI — TC-N6, TC-A8 (Phase C rollout, май 2026)."""
 
 from __future__ import annotations
 
@@ -29,13 +10,10 @@ import httpx
 from playwright.sync_api import expect
 
 from api import platform_api, routes
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
 from src.texts import ErrMsg
-
-# ─────────────────────────────────────────────────────────────────────────
-# Smoke-проверка разметки — структура секции рендерится
-# ─────────────────────────────────────────────────────────────────────────
 
 
 @allure.title("Флаги: секция Feature Flags видна на дашборде")
@@ -45,9 +23,7 @@ def test_dashboard_has_feature_flags_section(auth_context_factory, superadmin_us
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
         r = page.goto("/platform/dashboard")
-        assert r is not None and r.status == HTTPStatus.OK, (
-            f"/platform/dashboard navigation failed: response={r and r.status}"
-        )
+        should.be_true(r is not None and r.status == HTTPStatus.OK, ErrMsg.platform_navigation_failed)
 
     with step("проверка: секция Feature Flags видна"):
         section = page.locator("#feature_flags_section")  # no semantic: layout container
@@ -67,8 +43,7 @@ def test_feature_flags_has_five_groups(auth_context_factory, superadmin_user) ->
     with step("проверка: ровно 5 групп с ожидаемыми заголовками"):
         # no semantic: data-testid element, no role
         groups = page.locator('[data-testid="ff-group"]')
-        assert groups.count() == 5, \
-            f"Ожидали 5 групп Feature Flags, нашли {groups.count()}"
+        should.be_equal(groups.count(), 5, ErrMsg.ff_group_count_wrong)
 
         expected_titles = {
             "Поиск / AI",
@@ -80,8 +55,7 @@ def test_feature_flags_has_five_groups(auth_context_factory, superadmin_user) ->
         # no semantic: data-testid element, no role
         found_titles = {h.inner_text().strip() for h in page.locator('[data-testid="ff-group-title"]').all()}
         missing = expected_titles - found_titles
-        assert not missing, \
-            f"Не найдены группы: {missing}. Все: {found_titles}"
+        should.be_empty(missing, ErrMsg.ff_group_missing)
 
 
 @allure.title("Флаги: каждый переключатель имеет tooltip с описанием")
@@ -97,21 +71,14 @@ def test_feature_flags_have_tooltips(auth_context_factory, superadmin_user) -> N
     with step("проверка: минимум 8 tooltip-элементов с описаниями"):
         # no semantic: data-testid element, no role
         helps = page.locator('#feature_flags_section [data-testid="ff-help"]')
-        assert helps.count() >= 8, \
-            f"Ожидали ≥8 tooltip элементов (по числу флагов), нашли {helps.count()}"
+        should.greater_or_equal(helps.count(), 8, ErrMsg.ff_tooltip_empty)
 
         empty_tooltips = []
         for i in range(helps.count()):
             title = helps.nth(i).get_attribute("title") or ""
             if len(title.strip()) < 20:
                 empty_tooltips.append(i)
-        assert not empty_tooltips, \
-            f"Tooltip'ы #{empty_tooltips} пустые или слишком короткие — нет описания"
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# Переключатель AI-поиска — главный флаг текущего релиза
-# ─────────────────────────────────────────────────────────────────────────
+        should.be_empty(empty_tooltips, ErrMsg.ff_tooltip_empty)
 
 
 @allure.title("Флаги: toggle AI-поиска виден с атрибутом data-flag")
@@ -128,27 +95,14 @@ def test_ai_search_toggle_visible(auth_context_factory, superadmin_user) -> None
         # no semantic: form input without label
         toggle = page.locator("#ff_enable_ai_search")
         expect(toggle, ErrMsg.element_not_visible).to_be_visible()
-        assert toggle.get_attribute("data-flag") == "enable_ai_search", (
-            f"toggle data-flag mismatch: expected 'enable_ai_search', "
-            f"got {toggle.get_attribute('data-flag')!r}"
-        )
+        should.be_equal(toggle.get_attribute("data-flag"), "enable_ai_search", ErrMsg.ff_data_flag_wrong)
 
 
 @allure.title("Флаги: toggle AI-поиска отражает значение False из БД")
 def test_ai_search_toggle_reflects_db_value_when_off(
     auth_context_factory, superadmin_user, uvicorn_server: str
 ) -> None:
-    """TC-N6: UI toggle отражает значение PlatformSettings.enable_ai_search
-    из БД (НЕ env-resolved is_ai_search_enabled()).
-
-    Bета-режим: записываем False в БД (через test-only set-platform-setting,
-    минуя superadmin step-up MFA — это допустимо в IS_TESTING). UI должен
-    показать toggle UNCHECKED.
-
-    Это намеренный design: суперадмин видит что записано в БД, и переключает
-    именно DB-уровень. Env override (ENABLE_AI_SEARCH=1) — отдельный
-    аварийный механизм видимый только в /api/config/features (для frontend).
-    """
+    """TC-N6: UI toggle отражает значение PlatformSettings.enable_ai_search."""
     with step("подготовка: устанавливаем enable_ai_search=False в БД"):
         httpx.post(
             f"{uvicorn_server}{routes.TEST_SET_PLATFORM_SETTING}",
@@ -178,11 +132,7 @@ def test_ai_search_toggle_reflects_db_value_when_off(
     with step("проверка: toggle AI-поиска не отмечен"):
         # no semantic: form input without label
         is_checked = page.locator("#ff_enable_ai_search").is_checked()
-        assert is_checked is False, (
-            "При enable_ai_search=False в БД toggle должен быть UNCHECKED. "
-            "Если checked — UI читает не из /api/platform/settings, либо "
-            "loadSettings не отработал."
-        )
+        should.be_false(is_checked, ErrMsg.ff_toggle_state_wrong)
 
 
 @allure.title("Флаги: клик по toggle добавляет класс .dirty на строку")
@@ -219,21 +169,9 @@ def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_u
         expect(row, ErrMsg.feature_flag_state_wrong).to_have_class(re.compile(r"\bdirty\b"))
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# PATCH endpoint — изменение в runtime
-# ─────────────────────────────────────────────────────────────────────────
-
-
 @allure.title("Флаги: PATCH настроек сохраняет значение в БД")
 def test_patch_settings_writes_to_platformsettings_db(superadmin_user, tenant_client) -> None:
-    """TC-N6 + A8: PATCH /api/platform/settings меняет значение в БД
-    (`PlatformSettings.enable_ai_search`).
-
-    Round-trip: PATCH → GET той же сущности → значение совпадает.
-    НЕ проверяет /api/config/features — там может быть env override
-    (см. test_features_endpoint_returns_false_when_env_disabled в
-    test_ai_disabled_flow.py — отдельный сценарий).
-    """
+    """TC-N6 + A8: PATCH /api/platform/settings меняет значение в БД."""
     with step("подготовка: читаем текущее значение enable_ai_search из БД"):
         api = tenant_client(superadmin_user)
         initial = platform_api.get_platform_settings(api)
@@ -246,10 +184,7 @@ def test_patch_settings_writes_to_platformsettings_db(superadmin_user, tenant_cl
 
     with step("проверка: GET возвращает новое значение"):
         after = platform_api.get_platform_settings(api)
-        assert after.enable_ai_search == new_value, (
-            f"БД не обновилась после PATCH: было {initial_db}, "
-            f"PATCHили на {new_value}, получили {after.enable_ai_search}"
-        )
+        should.be_equal(after.enable_ai_search, new_value, ErrMsg.ff_db_not_updated)
 
     with step("подготовка: откат значения для последующих тестов"):
         rollback = api.patch(routes.PLATFORM_SETTINGS, json={"enable_ai_search": initial_db})
@@ -258,8 +193,7 @@ def test_patch_settings_writes_to_platformsettings_db(superadmin_user, tenant_cl
 
 @allure.title("Флаги: некорректный llm_provider отклоняется с 400")
 def test_patch_settings_validates_llm_provider_enum(superadmin_user, tenant_client) -> None:
-    """TC-A8: некорректное llm_provider (не из enum) должно вернуть 400 с
-    detail, упоминающим один из канонических provider'ов."""
+    """TC-A8: некорректное llm_provider (не из enum) должно вернуть 400 с."""
     with step("действие: PATCH с невалидным llm_provider"):
         api = tenant_client(superadmin_user)
         r = api.patch(routes.PLATFORM_SETTINGS, json={"llm_provider": "openai"})
@@ -271,7 +205,4 @@ def test_patch_settings_validates_llm_provider_enum(superadmin_user, tenant_clie
         body = r.text.lower()
         canonical_providers = {"anthropic", "yandex", "gigachat"}
         mentioned = {p for p in canonical_providers if p in body}
-        assert mentioned, (
-            f"Error message не упоминает ни одного из enum-значений "
-            f"{canonical_providers}: {r.text}"
-        )
+        should.be_true(mentioned, ErrMsg.ff_provider_not_mentioned)

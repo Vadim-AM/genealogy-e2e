@@ -70,7 +70,7 @@ def find_flaky(results: list[dict[str, str]], threshold: int = 1) -> list[dict[s
                 "fail_rate": f"{fails / len(statuses):.0%}",
             })
 
-    return sorted(flaky, key=lambda x: x["fails"], reverse=True)  # type: ignore[return-value]
+    return sorted(flaky, key=lambda x: x["fails"], reverse=True)
 
 
 def main(argv: list[str] | None = None) -> int:
