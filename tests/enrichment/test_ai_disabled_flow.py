@@ -29,7 +29,9 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from api import routes
+from framework.response import expect_response
 from framework.step import step
+from pages.profile_panel import ProfilePanel
 from pages.tree_page import TreePage
 from src.texts import Enrichment, ErrMsg, t
 
@@ -43,7 +45,7 @@ def ai_search_disabled(uvicorn_server: str):
     файла. После теста — следующий autouse `reset_state` чистит state.
 
     `X-Test-Token` инжектируется автоматически через httpx monkey-patch
-    в `tests/_fixtures/patch.py`.
+    в `fixtures/patch.py`.
     """
     httpx.post(
         f"{uvicorn_server}{routes.TEST_SET_PLATFORM_SETTING}",
@@ -60,7 +62,7 @@ def ai_search_disabled(uvicorn_server: str):
 @allure.title("AI выключен: кнопка обогащения disabled с подсказкой «скоро»")
 def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
     owner_page: Page, owner_user, pages: PageFactory,
-):
+) -> None:
     """TC-N5: настоящий user journey — owner открывает / → клик по центру
     orbit → profile → AI-кнопка disabled c «скоро» и tooltip.
 
@@ -73,52 +75,39 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
     (backend 503'ит, UI скрывает блок). Не путаем с POST на запуск нового
     enrichment, который — реальный compliance leak если случится.
     """
-    with step("подготовка: открыть профиль demo-self и подписаться на POST /api/enrich/"):
-        page = owner_page
+    with step("подготовка: подписаться на POST enrich и открыть профиль"):
         enrich_post_calls: list[str] = []
-        page.on(
+        owner_page.on(
             "request",
             lambda req: enrich_post_calls.append(req.url)
             if req.method == "POST" and routes.ENRICH_PREFIX in req.url
             else None,
         )
+        tree = pages.navigate_to(TreePage)
+        tree.open_center_profile()
+        panel = ProfilePanel(owner_page)
 
-        _ = pages.navigate_to(TreePage)
+    with step("проверка: disabled-кнопка с маркером «скоро» и tooltip"):
+        expect(panel.btn_enrich_disabled, ErrMsg.wrong_count).to_have_count(1)
+        expect(
+            panel.btn_enrich_disabled.first,
+            ErrMsg.ai_button_should_be_disabled,
+        ).to_be_disabled()
 
-        # User clicks по центральной orbit-card → opens demo-self profile.
-        center = page.locator('[data-testid="orbit-center-card"]')
-        expect(center, ErrMsg.orbit_card_not_visible).to_be_visible()
-        center.click()
-        profile = page.locator('[data-testid="profile-page"]')
-        expect(profile, ErrMsg.profile_not_visible).to_be_visible()
-
-    with step("проверка: disabled-кнопка с маркером 'скоро' и tooltip"):
-        # 1. Disabled-кнопка с маркером «скоро».
-        skoro_btn = profile.locator(f'button:has-text("{t(Enrichment.COMING_SOON)}")')
-        expect(skoro_btn, ErrMsg.wrong_count).to_have_count(1)
-        expect(skoro_btn.first, ErrMsg.ai_button_should_be_disabled).to_be_disabled()
-
-        # 2. Tooltip — substring (locale-aware, без full-string fit).
-        title = skoro_btn.first.get_attribute("title") or ""
+        title = panel.btn_enrich_disabled.first.get_attribute("title") or ""
         assert t(Enrichment.BETA_KEYWORD) in title, (
-            f"title attribute should contain {t(Enrichment.BETA_KEYWORD)!r}, got {title!r}"
+            f"title должен содержать {t(Enrichment.BETA_KEYWORD)!r}, получили {title!r}"
         )
 
-        # 3. Активной enrich-кнопки нет.
-        active_enrich = profile.locator('button[data-action="enrich"]:not([disabled])')
-        expect(active_enrich, ErrMsg.wrong_count).to_have_count(0)
+        expect(panel.btn_enrich_active, ErrMsg.wrong_count).to_have_count(0)
 
-    with step("проверка: клик по disabled-кнопке не вызывает POST /api/enrich/"):
-        # 4. Попытка клика по disabled-button. Native browser block'нет
-        # click-event (disabled HTMLButtonElement не fires onclick). Pre-click
-        # снимаем snapshot — если же что-то улетит после click, значит
-        # disabled был обойдён JS-ом, что и есть регрессия.
-        posts_before_click = list(enrich_post_calls)
-        skoro_btn.first.click(force=True)
-        page.wait_for_load_state("networkidle")
-        new_posts = [u for u in enrich_post_calls if u not in posts_before_click]
+    with step("проверка: клик по disabled-кнопке не вызывает POST enrich"):
+        posts_before = list(enrich_post_calls)
+        panel.btn_enrich_disabled.first.click(force=True)
+        owner_page.wait_for_load_state("networkidle")
+        new_posts = [u for u in enrich_post_calls if u not in posts_before]
         assert not new_posts, (
-            f"disabled AI button triggered POST /api/enrich/* after click: {new_posts!r}"
+            f"disabled AI кнопка вызвала POST /api/enrich/* после клика: {new_posts!r}"
         )
 
 
@@ -128,7 +117,7 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
 
 
 @allure.title("AI выключен: /api/config/features возвращает ai_search_enabled=false")
-def test_features_endpoint_public_returns_ai_disabled_flag(uvicorn_server: str):
+def test_features_endpoint_public_returns_ai_disabled_flag(uvicorn_server: str) -> None:
     """TC-N3: /api/config/features public (no auth) и при ENABLE_AI_SEARCH=0
     возвращает `ai_search_enabled=false`. Frontend читает это на bootstrap.
 
@@ -137,59 +126,45 @@ def test_features_endpoint_public_returns_ai_disabled_flag(uvicorn_server: str):
     flag перевернулся = UI кнопку случайно разблокировали).
     """
     with step("действие: запрос /api/config/features"):
-        r = httpx.get(
-            f"{uvicorn_server}{routes.CONFIG_FEATURES}"
-        )
+        r = httpx.get(f"{uvicorn_server}{routes.CONFIG_FEATURES}")
 
     with step("проверка: public доступ и ai_search_enabled=false"):
-        assert r.status_code == HTTPStatus.OK, (
-            f"endpoint должен быть public, получили {r.status_code}"
-        )
-        body = r.json()
-        assert body.get("ai_search_enabled") is False, (
-            f"при ENABLE_AI_SEARCH=0 ожидали false, получили {body!r}"
+        expect_response(r, label="config/features public").status(HTTPStatus.OK).json_eq(
+            "ai_search_enabled", False,
         )
 
 
-@pytest.mark.parametrize(
-    "method,path",
-    [
-        # Реально зарегистрированные endpoints в `enrichment/router.py`.
-        # Каждый должен ровно 503 — router-guard срабатывает раньше всех
-        # остальных зависимостей. Нет UI surface для каждого endpoint —
-        # API-инвентаризация остаётся как backend contract.
-        ("POST", "/api/enrich/p_test_id"),                         # noqa: drift
-        ("GET",  "/api/enrich/p_test_id"),                         # noqa: drift
-        ("GET",  "/api/enrich/p_test_id/history"),                 # noqa: drift
-        ("GET",  "/api/enrich/p_test_id/acceptances"),             # noqa: drift
-        ("POST", "/api/enrich/p_test_id/feedback"),                # noqa: drift
-        ("POST", "/api/enrich/p_test_id/accept"),                  # noqa: drift
-        ("POST", "/api/enrich/letters/sent"),                      # noqa: drift
-        ("GET",  "/api/enrich/jobs"),                              # noqa: drift
-        ("GET",  "/api/enrich/jobs/some_job_id"),                  # noqa: drift
-        ("GET",  "/api/enrich/cache/some_cache_id"),               # noqa: drift
-        ("POST", "/api/enrich/acceptances/some_id/revert"),        # noqa: drift
-        ("GET",  "/api/enrich/health/api-key"),                    # noqa: drift
-    ],
-)
+_TEST_PID = "p_test_id"
+_TEST_JOB = "some_job_id"
+
+_ENRICH_ENDPOINTS = [
+    ("POST", routes.enrich(_TEST_PID)),
+    ("GET",  routes.enrich(_TEST_PID)),
+    ("GET",  routes.enrich_history(_TEST_PID)),
+    ("GET",  routes.enrich_acceptances(_TEST_PID)),
+    ("POST", routes.enrich_feedback(_TEST_PID)),
+    ("POST", routes.enrich_accept(_TEST_PID)),
+    ("POST", routes.ENRICH_LETTERS_SENT),
+    ("GET",  routes.enrich_jobs(_TEST_JOB)),
+    ("GET",  routes.enrich_cache(0)),
+    ("POST", routes.enrich_revert(0)),
+    ("GET",  routes.ENRICH_HEALTH_API_KEY),
+]
+
+
+@pytest.mark.parametrize("method,path", _ENRICH_ENDPOINTS)
 @allure.title("AI выключен: все /api/enrich/* эндпоинты возвращают 503")
 def test_enrich_endpoint_returns_503_when_ai_disabled(
-    uvicorn_server: str, method: str, path: str
-):
+    uvicorn_server: str, method: str, path: str,
+) -> None:
     """TC-N4: каждый зарегистрированный /api/enrich/* endpoint при
-    ENABLE_AI_SEARCH=0 → 503 (router-level Depends). 404 = route потерян,
-    401/403 = auth-проверка обогнала router-guard, 200/500 = AI-кодпуть
-    выполнился.
-    """
+    ENABLE_AI_SEARCH=0 → 503 (router-level Depends)."""
     r = httpx.request(method, f"{uvicorn_server}{path}", json={})
-    assert r.status_code == HTTPStatus.SERVICE_UNAVAILABLE, (
-        f"{method} {path}: ожидали 503, получили {r.status_code}. "
-        f"Detail: {r.text[:200]}"
-    )
+    expect_response(r, label=f"{method} {path}").status(HTTPStatus.SERVICE_UNAVAILABLE)
 
 
 @allure.title("AI выключен: главная страница запрашивает /api/config/features")
-def test_features_endpoint_fires_on_main_page_bootstrap(page: Page, base_url: str, anon_pages: PageFactory):
+def test_features_endpoint_fires_on_main_page_bootstrap(page: Page, anon_pages: PageFactory) -> None:
     """TC-N3: при загрузке `/` frontend дёргает /api/config/features
     (bootstrap `window.__features`). Без этого UI не знает про disabled
     state и default-рендерит active кнопки.

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 from playwright.sync_api import Locator, Page, expect
 
-from src.texts import Buttons, FamilyGroups, TestData, t
+from src.texts import Buttons, Enrichment, FamilyGroups, TestData, t
 
 if TYPE_CHECKING:
     from pages.person_editor import PersonEditor
@@ -57,8 +57,13 @@ class ProfilePanel:
         self.btn_enrich = page.get_by_role("button", name=t(Buttons.ENRICH), exact=False)
         self.btn_back = page.locator('[data-testid="profile-back"]')
 
-        self.history_block = page.locator("#profileAiHistory")
-        self.accepted_facts_block = page.locator("#profileAiAccepted")
+        self.btn_enrich_disabled = page.locator(
+            f'button:has-text("{t(Enrichment.COMING_SOON)}")'
+        )
+        # no semantic: data-action filter
+        self.btn_enrich_active = page.locator('button[data-action="enrich"]:not([disabled])')
+        self.history_block = page.locator("#profileAiHistory")  # no semantic: container
+        self.accepted_facts_block = page.locator("#profileAiAccepted")  # no semantic: container
 
     def expect_visible(self) -> None:
         """Assert the profile container is visible."""
