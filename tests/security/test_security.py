@@ -12,9 +12,9 @@ import allure
 import httpx
 import pytest
 
-from tests.response import expect_response
-from tests.step import step
-from tests.timeouts import TIMEOUTS
+from tests._core.response import expect_response
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 
 # ─────────────────────────────────────────────────────────────────────────
 # TC-SEC-1: Anonymous → 401 на закрытых endpoints

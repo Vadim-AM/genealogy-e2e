@@ -23,7 +23,7 @@ from __future__ import annotations
 import allure
 import pytest
 
-from tests.step import step
+from tests._core.step import step
 
 _RESERVED_SLUGS = ("admin", "api", "www", "root", "mail", "ftp", "support")
 

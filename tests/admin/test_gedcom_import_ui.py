@@ -20,17 +20,17 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.api_paths import API
+from tests._core.messages import GedcomImport, t
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 from tests._data.gedcom.samples import (
     SAMPLE_GEDCOM_CP1251,
     SAMPLE_GEDCOM_MALFORMED,
     SAMPLE_GEDCOM_UTF8,
 )
-from tests.api_paths import API
 from tests.helpers.admin.gedcom_ui import open_import_tab
 from tests.helpers.tree.tree_api import people_count
-from tests.messages import GedcomImport, t
-from tests.step import step
-from tests.timeouts import TIMEOUTS
 
 # ─────────────────────────────────────────────────────────────────────────
 # Happy path

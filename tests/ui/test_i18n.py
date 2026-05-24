@@ -21,11 +21,11 @@ from __future__ import annotations
 import allure
 import httpx
 
-from tests.api_paths import API
-from tests.constants import unique_email
+from tests._core.api_paths import API
+from tests._core.constants import unique_email
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 from tests.helpers.ui.i18n_checks import has_cyrillic
-from tests.step import step
-from tests.timeouts import TIMEOUTS
 
 
 @allure.title("i18n: ошибка входа с неверным паролем приходит на русском")

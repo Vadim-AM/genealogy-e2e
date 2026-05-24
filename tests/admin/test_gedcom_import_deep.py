@@ -22,6 +22,8 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.messages import FamilyGroups, RelationLabels, t
+from tests._core.step import step
 from tests._data.gedcom.samples import (
     GEDCOM_CYRILLIC_EDGE,
     GEDCOM_MINIMAL_INDI,
@@ -34,9 +36,7 @@ from tests.helpers.tree.tree_navigation import (
     search_and_open_profile,
     search_and_orbit,
 )
-from tests.messages import FamilyGroups, RelationLabels, t
 from tests.pages.owner_page import OwnerPage
-from tests.step import step
 
 # ─────────────────────────────────────────────────────────────────────
 # TC-GEDCOM-DEEP-1: 3-generation family с проверкой связей и данных

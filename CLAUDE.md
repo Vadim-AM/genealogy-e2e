@@ -382,17 +382,76 @@ self.email = page.get_by_label(t(Labels.EMAIL))
 self.honeypot = page.locator("#website")  # no semantic: hidden field
 ```
 
+### 22. API calls via typed helpers, not raw httpx
+
+```python
+# bad — raw API call with inline JSON and untyped response
+r = api.post(API.PEOPLE, json={"id": pid, "name": name, "branch": "paternal", "gender": "m"})
+r.raise_for_status()
+people = r.json()["people"]
+
+# good — typed helper with Pydantic model
+from tests.helpers.api.person_api import create_person, get_tree
+from tests._models.person import PersonCreate
+
+person = create_person(api, PersonCreate(id=pid, name=name))
+tree = get_tree(api)
+assert person.name == name
+```
+
+Use `.schema(Model)` on `expect_response()` for response validation.
+Keep raw calls only for negative tests (expected 4xx/5xx).
+
+### 23. Use PageFactory, not inline POM construction
+
+```python
+# bad
+tree = TreePage(owner_page).goto()
+
+# good
+def test_tree(pages: PageFactory):
+    tree = pages.navigate_to(TreePage)
+```
+
+### 24. Assertion messages via ErrMsg class
+
+```python
+# bad
+expect(locator).to_be_visible()
+
+# good
+from tests._core.err_msg import ErrMsg
+expect(locator, ErrMsg.profile_not_visible).to_be_visible()
+```
+
 ## Project structure
 
 ```
 genealogy-e2e/
 ├── conftest.py               # root: loads tests/_fixtures/* plugins + path→marker rule
 ├── tests/
+│   ├── _core/                # Infrastructure modules (settings, api_paths, messages, etc.)
+│   │   ├── api_paths.py      # API endpoint catalogue
+│   │   ├── messages.py       # Locale-aware UI strings + t() resolver
+│   │   ├── constants.py      # TestConfig, email/password factories
+│   │   ├── timeouts.py       # TIMEOUTS dataclass + multiplier
+│   │   ├── response.py       # expect_response() fluent assertions + .schema()
+│   │   ├── settings.py       # Pydantic env validation
+│   │   ├── step.py           # Allure step() context manager
+│   │   └── err_msg.py        # ErrMsg class (assertion messages)
+│   ├── _models/              # Pydantic API contract models
+│   │   ├── person.py         # PersonCreate, PersonResponse, TreeResponse
+│   │   ├── auth.py           # SignupRequest, LoginResponse, AccountMe
+│   │   ├── mfa.py            # MfaSetupResponse, MfaStatusResponse, etc.
+│   │   ├── enrichment.py     # EnrichStartResponse, EnrichJobResponse
+│   │   ├── site.py           # SiteConfigResponse, ShareCreateResponse
+│   │   └── platform.py       # FeaturesResponse, AuditLogResponse, etc.
 │   ├── _fixtures/            # GLOBAL fixtures (session/function scope, cross-domain)
 │   │   ├── patch.py          # httpx monkey-patch + Playwright expect default
 │   │   ├── server.py         # base_url, health gate, reset_state, install_mock_ai
 │   │   ├── users.py          # AuthUser + signup_via_api / owner_user / superadmin_user
 │   │   ├── clients.py        # tenant_client, auth_context_factory, owner_page
+│   │   ├── page_factory.py   # PageFactory + pages/anon_pages fixtures
 │   │   └── utils.py          # soft_check
 │   ├── _data/                # Test data artifacts (no logic, pure constants)
 │   │   ├── gedcom/samples.py # GEDCOM_THREE_GEN, SAMPLE_GEDCOM_UTF8, ...
@@ -400,6 +459,7 @@ genealogy-e2e/
 │   │   ├── devices/descriptors.py  # DEVICE_DESCRIPTORS (mobile emulation)
 │   │   └── payloads/         # tree.py, injection.py (XSS/SQL payloads)
 │   ├── helpers/              # Domain-organized helper functions
+│   │   ├── api/              # Typed API wrappers (person_api, mfa_api, site_api, etc.)
 │   │   ├── auth/             # auth_ui, signup_helpers, session_helpers
 │   │   ├── tree/             # tree_api, tree_navigation, photos, add_relative
 │   │   ├── admin/            # gedcom_ui (import_via_ui, open_import_tab)
@@ -411,12 +471,6 @@ genealogy-e2e/
 │   │   ├── profile_panel.py  # ProfilePanel + open_editor_for, navigate_to
 │   │   ├── person_editor.py  # PersonEditor, AddRelativeModal
 │   │   └── ...               # login_page, signup_page, tree_page, etc.
-│   ├── api_paths.py          # API.{TREE, person(pid), enrich(pid), ...}
-│   ├── constants.py          # TestConfig.{DEFAULT_PASSWORD, EMAIL_DOMAIN, ...}
-│   ├── messages.py           # locale-aware UI string catalogue + t() resolver
-│   ├── timeouts.py           # TIMEOUTS dataclass + E2E_TIMEOUT_MULTIPLIER
-│   ├── fixtures/
-│   │   └── ai_responses.json # mock-AI fixture installed via /api/_test/install-mock-ai
 │   ├── auth/                 # signup/login/verify/forgot/invite/session/etc.
 │   ├── tree/                 # tree, profile, person editor, photos, invariants
 │   ├── platform/             # superadmin platform (dashboard, MFA, WebAuthn, ops)

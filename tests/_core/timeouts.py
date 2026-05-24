@@ -11,7 +11,7 @@ Two channels are tunable:
     start in `conftest.py`, multiplies the `expect()` auto-wait window.
 
 Usage:
-    from tests.timeouts import TIMEOUTS
+    from tests._core.timeouts import TIMEOUTS
     httpx.get(url, timeout=TIMEOUTS.api_request)
 
 To bump everything 2× for a slow CI runner:
@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from tests.settings import settings
+from tests._core.settings import settings
 
 
 @dataclass(frozen=True)

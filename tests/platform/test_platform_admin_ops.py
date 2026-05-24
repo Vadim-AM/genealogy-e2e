@@ -12,11 +12,12 @@ import allure
 import httpx
 import pyotp
 
-from tests.api_paths import API
-from tests.constants import make_email
-from tests.response import expect_response
-from tests.step import step
-from tests.timeouts import TIMEOUTS
+from tests._core.api_paths import API
+from tests._core.constants import make_email
+from tests._core.response import expect_response
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
+from tests.helpers.api import mfa_api
 
 
 @allure.title("Админ: суперадмин видит список тенантов и свой в нём")
@@ -106,9 +107,9 @@ def test_tenant_override_lifecycle(superadmin_user, tenant_client):
     platform-MFA verify opens the window."""
     with step("подготовка: настраиваем MFA и step-up"):
         api = tenant_client(superadmin_user)
-        secret = api.post(API.MFA_SETUP).json()["secret"]
-        totp = pyotp.TOTP(secret)
-        api.post(API.MFA_VERIFY, json={"code": totp.now()}).raise_for_status()
+        setup = mfa_api.setup_mfa(api)
+        totp = pyotp.TOTP(setup.secret)
+        mfa_api.verify_mfa(api, totp.now())
         api.post(
             API.MFA_STEP_UP, json={"method": "totp", "code": totp.now()},
         ).raise_for_status()

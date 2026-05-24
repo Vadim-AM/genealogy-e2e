@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import allure
 
-from tests.api_paths import API
-from tests.messages import TestData
+from tests._core.api_paths import API
+from tests._core.messages import TestData
+from tests._core.response import expect_response
+from tests._core.step import step
+from tests.helpers.api import site_api
 from tests.pages.share_page import SharePage
-from tests.step import step
 
 
 @allure.title("Публичная ссылка: аноним видит карточку, после отзыва -- нет")
@@ -26,17 +28,14 @@ def test_owner_shares_card_anon_views_then_revoke_kills_link(
     with step("подготовка: создать публичную ссылку"):
         api = tenant_client(owner_user)
 
-        created = api.post(
-            API.SHARE_CREATE,
-            json={"scope": "person", "person_id": TestData.DEMO_PERSON_ID},
-        )
-        created.raise_for_status()
-        share_id = created.json()["id"]
-        share_url = created.json()["url"]
+        share = site_api.create_share(api, TestData.DEMO_PERSON_ID)
+        share_id = share.id
+        share_url = share.url
         assert "/share/" in share_url, f"share url missing /share/ segment: {share_url!r}"
 
     with step("проверка: ссылка в списке без утечки токена"):
-        items = api.get(API.SHARE_LIST).json()["items"]
+        r_list = api.get(API.SHARE_LIST)
+        items = expect_response(r_list, label="share list").status_ok().data["items"]
         assert any(s["id"] == share_id for s in items), \
             "created share must appear in the owner's list"
         for s in items:
@@ -65,16 +64,13 @@ def test_share_list_never_leaks_tokens(owner_user, tenant_client):
     but never the token url — tokens must not reach logs."""
     with step("подготовка: создать публичную ссылку"):
         api = tenant_client(owner_user)
-        created = api.post(
-            API.SHARE_CREATE,
-            json={"scope": "person", "person_id": TestData.DEMO_PERSON_ID},
-        )
-        created.raise_for_status()
-        assert created.json()["url"], \
-            f"create response must carry the share url, got {created.json()!r}"
+        share = site_api.create_share(api, TestData.DEMO_PERSON_ID)
+        assert share.url, \
+            f"create response must carry the share url, got {share!r}"
 
     with step("проверка: список не содержит секретных токенов"):
-        listed = api.get(API.SHARE_LIST).json()["items"]
+        r_list = api.get(API.SHARE_LIST)
+        listed = expect_response(r_list, label="share list").status_ok().data["items"]
         assert listed, "the created share must appear in the list (empty list)"
         for item in listed:
             assert item.get("url") is None, \

@@ -10,13 +10,14 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
-from tests.messages import TestData
+from tests._core.api_paths import API
+from tests._core.messages import TestData
+from tests._core.response import expect_response
+from tests._core.step import step
+from tests.helpers.api import site_api
 from tests.pages.person_editor import PersonEditor
 from tests.pages.profile_panel import ProfilePanel
 from tests.pages.sources_block import SourcesBlock
-from tests.response import expect_response
-from tests.step import step
 
 
 @allure.title("Владелец привязывает источник к персоне и отвязывает обратно")
@@ -65,12 +66,8 @@ def test_source_record_crud_lifecycle(owner_user, tenant_client):
     with step("действие: создать источник"):
         api = tenant_client(owner_user)
 
-        created = api.post(
-            API.SOURCES,
-            json={"id": "src-crud-test", "name": TestData.SOURCE_NAME, "type": "document"},
-        )
-        expect_response(created, label="POST source").status_ok()
-        sid = created.json()["id"]
+        created = site_api.create_source(api, name=TestData.SOURCE_NAME)
+        sid = created.id
 
     with step("действие: переименовать источник"):
         patched = api.patch(API.source(sid), json={"name": TestData.SOURCE_NAME_PATCHED})
@@ -81,7 +78,6 @@ def test_source_record_crud_lifecycle(owner_user, tenant_client):
         expect_response(deleted, label="DELETE source").status(204)
 
     with step("проверка: источник отсутствует в списке"):
-        listed = api.get(API.SOURCES)
-        expect_response(listed, label="GET sources after delete").status_ok()
-        assert not any(s["id"] == sid for s in listed.json()), \
+        sources = site_api.get_sources(api)
+        assert not any(s.id == sid for s in sources), \
             "deleted source still appears in GET /api/sources"

@@ -28,8 +28,8 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.step import step
 from tests.pages.tree_page import TreePage
-from tests.step import step
 
 
 @allure.title("Вкладка 'Карта' скрыта по умолчанию до включения фичи")

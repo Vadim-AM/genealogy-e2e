@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from tests.timeouts import TIMEOUTS
+from tests._core.timeouts import TIMEOUTS
 
 if TYPE_CHECKING:
     from collections.abc import Callable

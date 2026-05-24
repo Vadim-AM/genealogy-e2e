@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from tests.constants import TestConfig
+from tests._core.constants import TestConfig
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page, Route

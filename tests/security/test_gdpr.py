@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import allure
 
-from tests.api_paths import API
-from tests.constants import unique_email
-from tests.response import expect_response
-from tests.step import step
+from tests._core.api_paths import API
+from tests._core.constants import unique_email
+from tests._core.response import expect_response
+from tests._core.step import step
 
 
 @allure.title("GDPR: удаление тенанта инвалидирует сессию владельца")

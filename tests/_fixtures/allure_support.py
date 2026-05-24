@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.settings import settings
+from tests._core.settings import settings
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -20,7 +20,9 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
+from tests._core.api_paths import API
+from tests._core.messages import AgeValidation, FamilyGroups, TestData, t
+from tests._core.step import step
 from tests.helpers.tree.add_relative import add_sibling_without_auto_parents
 from tests.helpers.tree.tree_api import (
     demo_parents_of_self,
@@ -29,9 +31,7 @@ from tests.helpers.tree.tree_api import (
     relationships,
 )
 from tests.helpers.tree.tree_navigation import open_profile
-from tests.messages import AgeValidation, FamilyGroups, TestData, t
 from tests.pages.person_editor import AddRelativeModal
-from tests.step import step
 
 # ─────────────────────────────────────────────────────────────────────────
 # Главный сценарий — закрытие бага

@@ -9,8 +9,8 @@ from __future__ import annotations
 import allure
 import pytest
 
-from tests.api_paths import API
-from tests.step import step
+from tests._core.api_paths import API
+from tests._core.step import step
 
 _MALICIOUS_IDS = [
     pytest.param("a" * 2000, id="very-long-2k-chars"),

@@ -24,7 +24,7 @@ import pytest
 
 def pytest_configure(config: pytest.Config) -> None:
     try:
-        from tests.settings import settings  # noqa: F401
+        from tests._core.settings import settings  # noqa: F401
     except Exception as exc:
         pytest.exit(f"Settings validation failed: {exc}", returncode=2)
 
@@ -35,6 +35,7 @@ pytest_plugins = (
     "tests._fixtures.clients",
     "tests._fixtures.utils",
     "tests._fixtures.allure_support",
+    "tests._fixtures.page_factory",
 )
 
 

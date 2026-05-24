@@ -17,7 +17,7 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests.step import step
+from tests._core.step import step
 
 # ─────────────────────────────────────────────────────────────────────────
 # 375×812 — iPhone SE

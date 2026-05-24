@@ -10,10 +10,10 @@ import re
 import allure
 from playwright.sync_api import Page, expect
 
-from tests.messages import TestData
+from tests._core.messages import TestData
+from tests._core.step import step
 from tests.pages.base import wait_for_authed_shell
 from tests.pages.tree_page import TreePage
-from tests.step import step
 
 
 @allure.title("Переключение вкладок обновляет активный класс и контент")

@@ -21,10 +21,10 @@ import re
 import allure
 from playwright.sync_api import Page, expect
 
-from tests.constants import unique_email
+from tests._core.constants import unique_email
+from tests._core.messages import Waitlist, t
+from tests._core.step import step
 from tests.helpers.auth.signup_helpers import fill_and_submit, mock_signup_overflow
-from tests.messages import Waitlist, t
-from tests.step import step
 
 _IS_OPEN = re.compile(r"\bis-open\b")
 

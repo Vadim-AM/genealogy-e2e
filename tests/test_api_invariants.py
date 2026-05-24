@@ -14,11 +14,13 @@ import base64
 import allure
 import httpx
 
-from tests.api_paths import API
-from tests.messages import TestData
-from tests.response import expect_response
-from tests.step import step
-from tests.timeouts import TIMEOUTS
+from tests._core.api_paths import API
+from tests._core.messages import TestData
+from tests._core.response import expect_response
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
+from tests._models.site import RetentionOfferApply, RetentionOfferStatus, SubscriptionResponse
+from tests.helpers.api import platform_api
 
 # Minimal valid 1×1 transparent PNG — for the photo-upload invariant.
 _PNG_1PX = base64.b64decode(
@@ -83,15 +85,17 @@ def test_retention_offer_status_and_apply(owner_user, tenant_client):
     grants a 50%-off retention coupon."""
     with step("действие: запросить статус retention-offer"):
         api = tenant_client(owner_user)
-        status = api.get(API.RETENTION_OFFER_STATUS)
-        expect_response(status, label="retention-offer-status").status_ok().json_has("show")
-        assert isinstance(status.json()["show"], bool), \
-            f"retention-offer show must be bool, got {type(status.json()['show']).__name__}"
+        r_status = api.get(API.RETENTION_OFFER_STATUS)
+        status = expect_response(r_status, label="retention-offer-status").status_ok().schema(RetentionOfferStatus)
+        assert isinstance(status.show, bool), \
+            f"retention-offer show must be bool, got {type(status.show).__name__}"
 
     with step("проверка: apply возвращает 50%-скидку с купоном"):
-        applied = api.post(API.RETENTION_OFFER_APPLY)
-        expect_response(applied, label="retention-offer-apply").status_ok().json_eq("discount_percent", 50)
-        assert applied.json()["coupon_code"], "apply must return a coupon code"
+        r_apply = api.post(API.RETENTION_OFFER_APPLY)
+        applied = expect_response(r_apply, label="retention-offer-apply").status_ok().schema(RetentionOfferApply)
+        assert applied.discount_percent == 50, \
+            f"discount_percent: expected 50, got {applied.discount_percent!r}"
+        assert applied.coupon_code, "apply must return a coupon code"
 
 
 @allure.title("API: телеметрия принимается, GDPR-удаление стирает её")
@@ -100,13 +104,12 @@ def test_telemetry_event_then_gdpr_erasure(owner_user, tenant_client):
     purges the user's events (GDPR Art. 17 erasure)."""
     with step("действие: отправить телеметрию"):
         api = tenant_client(owner_user)
-        posted = api.post(API.TELEMETRY_EVENTS, json={"batch": [
+        telemetry = platform_api.post_telemetry(api, [
             {"event": "page_view", "props": {}, "ts": 0,
              "url": "/", "session_id": "e2e"},
-        ]})
-        expect_response(posted, label="telemetry post").status_ok().json_has("received")
-        assert posted.json()["received"] >= 1, \
-            f"telemetry must accept >= 1 event, got {posted.json()['received']}"
+        ])
+        assert telemetry.received >= 1, \
+            f"telemetry must accept >= 1 event, got {telemetry.received}"
 
     with step("проверка: GDPR-удаление стирает события"):
         erased = api.delete(API.ACCOUNT_TELEMETRY)
@@ -180,14 +183,14 @@ def test_subscription_current_and_cancel(owner_user, tenant_client):
     there is nothing to cancel."""
     with step("действие: получить текущую подписку"):
         api = tenant_client(owner_user)
-        current = api.get(API.SUBSCRIPTION_CURRENT)
-        expect_response(current, label="subscription current").status_ok().json_has("tenant", "subscription")
+        r = api.get(API.SUBSCRIPTION_CURRENT)
+        sub = expect_response(r, label="subscription current").status_ok().schema(SubscriptionResponse)
 
     with step("проверка: тариф free, подписка None, cancel отклоняется"):
-        assert current.json()["tenant"]["tier"] == "free", \
-            f"new tenant tier: expected 'free', got {current.json()['tenant']['tier']!r}"
-        assert current.json()["subscription"] is None, \
-            f"new tenant subscription must be None, got {current.json()['subscription']!r}"
+        assert sub.tenant["tier"] == "free", \
+            f"new tenant tier: expected 'free', got {sub.tenant['tier']!r}"
+        assert sub.subscription is None, \
+            f"new tenant subscription must be None, got {sub.subscription!r}"
 
         cancelled = api.post(API.SUBSCRIPTION_CANCEL)
         expect_response(cancelled, label="cancel without subscription").status(400)

@@ -24,16 +24,20 @@ Backend endpoints, на которые опираются эти тесты:
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
+from tests._core.api_paths import API
+from tests._core.response import expect_response
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 from tests.pages.pricing_page import PricingPage
-from tests.response import expect_response
-from tests.step import step
-from tests.timeouts import TIMEOUTS
+
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
 
 # ─────────────────────────────────────────────────────────────────────────
 # API-уровень — fast guards (без браузера)
@@ -124,20 +128,17 @@ def test_pricing_page_loads_html(page: Page):
 
 
 @allure.title("Тарифы: на странице отображаются 4 карточки тарифов")
-def test_pricing_renders_four_cards(page: Page):
+def test_pricing_renders_four_cards(anon_pages: PageFactory):
     """TC-N1: на /pricing рендерится 4 карточки (после JS-fetch в /api/tiers/public).
 
     Если рендер не сработал — увидим .pricing-empty (скрыт по умолчанию).
     """
-    page.goto("/pricing.html")
-    page.wait_for_load_state("domcontentloaded", timeout=TIMEOUTS.pw_action_ms)
-
-    pricing = PricingPage(page)
+    pricing = anon_pages.navigate_to(PricingPage)
     pricing.expect_cards_visible()
 
 
 @allure.title("Тарифы: каждая карточка имеет уникальный заголовок")
-def test_pricing_cards_have_non_empty_headings(page: Page):
+def test_pricing_cards_have_non_empty_headings(anon_pages: PageFactory):
     """TC-N1: каждая карточка имеет non-empty `<h2>` (название тарифа).
 
     Локализационно-нейтрально: проверяем что у всех 4 карточек есть
@@ -145,8 +146,7 @@ def test_pricing_cards_have_non_empty_headings(page: Page):
     `display_name`, который зависит от locale.
     """
     with step("действие: загрузить страницу тарифов"):
-        page.goto("/pricing.html")
-        pricing = PricingPage(page)
+        pricing = anon_pages.navigate_to(PricingPage)
         expect(pricing.cards().first).to_be_visible()
 
     with step("проверка: 4 уникальных непустых заголовка"):
@@ -160,11 +160,10 @@ def test_pricing_cards_have_non_empty_headings(page: Page):
 
 
 @allure.title("Тарифы: на странице присутствует символ рубля ₽")
-def test_pricing_cards_show_rub_symbol(page: Page):
+def test_pricing_cards_show_rub_symbol(page: Page, anon_pages: PageFactory):
     """TC-N1: на странице должен быть символ ₽."""
     with step("действие: загрузить страницу тарифов"):
-        page.goto("/pricing.html")
-        pricing = PricingPage(page)
+        pricing = anon_pages.navigate_to(PricingPage)
         expect(pricing.cards().first).to_be_visible()
 
     with step("проверка: символ ₽ присутствует"):
@@ -175,7 +174,7 @@ def test_pricing_cards_show_rub_symbol(page: Page):
 
 @allure.title("Тарифы: карточка Исследователь выделена как featured")
 def test_pricing_researcher_card_is_featured_by_position(
-    page: Page, uvicorn_server: str,
+    page: Page, uvicorn_server: str, anon_pages: PageFactory,
 ):
     """TC-N1: featured-карточка (CSS-класс `.featured`) соответствует
     `researcher` tier из `/api/tiers/public`.
@@ -198,8 +197,7 @@ def test_pricing_researcher_card_is_featured_by_position(
         )
 
     with step("действие: загрузить страницу тарифов"):
-        page.goto("/pricing.html")
-        pricing = PricingPage(page)
+        pricing = anon_pages.navigate_to(PricingPage)
         expect(pricing.cards().first).to_be_visible()
         pricing.expect_cards_visible(len(items))
 
@@ -212,7 +210,7 @@ def test_pricing_researcher_card_is_featured_by_position(
 
 
 @allure.title("Тарифы: нет JS-ошибок в консоли на /pricing")
-def test_pricing_no_console_errors(page: Page):
+def test_pricing_no_console_errors(page: Page, anon_pages: PageFactory):
     """TC-N1: на /pricing не должно быть JS exceptions."""
     with step("подготовка: подключить listeners на ошибки"):
         errors: list[str] = []
@@ -223,8 +221,7 @@ def test_pricing_no_console_errors(page: Page):
         )
 
     with step("действие: загрузить /pricing.html"):
-        page.goto("/pricing.html")
-        page.wait_for_load_state("domcontentloaded", timeout=TIMEOUTS.pw_action_ms)
+        anon_pages.navigate_to(PricingPage)
 
     with step("проверка: нет JS-ошибок в консоли"):
         real = [e for e in errors if "favicon" not in e.lower()]

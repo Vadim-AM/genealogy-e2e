@@ -18,10 +18,10 @@ import concurrent.futures as cf
 
 import allure
 
-from tests.api_paths import API
-from tests.response import expect_response
-from tests.step import step
-from tests.timeouts import TIMEOUTS
+from tests._core.api_paths import API
+from tests._core.response import expect_response
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
 
 # ─────────────────────────────────────────────────────────────────────────
 # Data isolation

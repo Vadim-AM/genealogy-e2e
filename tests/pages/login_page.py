@@ -10,7 +10,7 @@ from typing import Self
 
 from playwright.sync_api import Page, expect
 
-from tests.messages import Buttons, t
+from tests._core.messages import Buttons, t
 
 from .base import BasePage
 

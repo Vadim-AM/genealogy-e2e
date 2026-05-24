@@ -13,10 +13,10 @@ from uuid import uuid4
 import allure
 import pytest
 
+from tests._core.api_paths import API
+from tests._core.response import expect_response
+from tests._core.step import step
 from tests._data.payloads.injection import XSS_PAYLOADS
-from tests.api_paths import API
-from tests.response import expect_response
-from tests.step import step
 
 
 @pytest.mark.security
@@ -63,7 +63,7 @@ def test_person_notes_xss_is_escaped(
     api = tenant_client(owner_user)
 
     with step("обновить summary демо-персоны с XSS-payload"):
-        from tests.messages import TestData
+        from tests._core.messages import TestData
 
         r = api.patch(API.person(TestData.DEMO_PERSON_ID), json={"summary": payload})
         expect_response(r).status_ok()

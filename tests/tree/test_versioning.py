@@ -10,18 +10,20 @@ import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests.response import expect_response
-from tests.step import step
+from tests._core.api_paths import API
+from tests._core.response import expect_response
+from tests._core.step import step
+from tests._core.timeouts import TIMEOUTS
+from tests._models.site import SiteConfigResponse
 
 
 @allure.title("Конфиг сайта содержит непустую версию приложения")
 def test_site_config_exposes_app_version(base_url: str):
     """`/api/site/config` returns a non-empty `app_version` string."""
-    r = httpx.get(f"{base_url}/api/site/config")
-    expect_response(r, label="GET /api/site/config").status_ok()
-    version = r.json()["app_version"]
-    assert isinstance(version, str) and version.strip(), \
-        f"app_version must be a non-empty string: {version!r}"
+    r = httpx.get(f"{base_url}{API.SITE_CONFIG}", timeout=TIMEOUTS.api_request)
+    config = expect_response(r, label="GET /api/site/config").status_ok().schema(SiteConfigResponse)
+    assert isinstance(config.app_version, str) and config.app_version.strip(), \
+        f"app_version must be a non-empty string: {config.app_version!r}"
 
 
 @allure.title("Версия в футере совпадает с версией из API")
@@ -32,7 +34,9 @@ def test_footer_version_matches_api_app_version(page: Page, base_url: str):
     not just the original `v2.1.0`.
     """
     with step("подготовка: получить версию из API"):
-        api_version = httpx.get(f"{base_url}/api/site/config").json()["app_version"]
+        r = httpx.get(f"{base_url}{API.SITE_CONFIG}", timeout=TIMEOUTS.api_request)
+        config = expect_response(r, label="GET /api/site/config").status_ok().schema(SiteConfigResponse)
+        api_version = config.app_version
 
     with step("проверка: футер показывает ту же версию"):
         page.goto("/")

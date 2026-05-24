@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
+from tests._core.step import step
 from tests.pages.owner_page import OwnerPage
-from tests.step import step
 
 
 def import_via_ui(owner_page: Page, ged_content: str, filename: str) -> None:

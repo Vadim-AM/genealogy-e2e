@@ -15,11 +15,11 @@ from typing import Any
 import httpx
 import pytest
 
-from tests.api_paths import API
-from tests.settings import settings
-from tests.timeouts import TIMEOUTS
+from tests._core.api_paths import API
+from tests._core.settings import settings
+from tests._core.timeouts import TIMEOUTS
 
-FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
+FIXTURES_DIR = Path(__file__).resolve().parent.parent / "_data" / "fixtures"
 
 
 def _wait_for_health(base_url: str, *, timeout: float) -> None:

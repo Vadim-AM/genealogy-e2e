@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
-from tests.api_paths import API
+from tests._core.api_paths import API
 from tests.pages.person_editor import AddRelativeModal
 from tests.pages.profile_panel import ProfilePanel
 

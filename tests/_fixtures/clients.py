@@ -15,7 +15,7 @@ import allure
 import httpx
 import pytest
 
-from tests.timeouts import TIMEOUTS
+from tests._core.timeouts import TIMEOUTS
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -81,7 +81,7 @@ def auth_context_factory(
     created_contexts = []
 
     def _make(user: AuthUser, *, with_tenant_header: bool = True) -> BrowserContext:
-        from tests.settings import settings as _settings
+        from tests._core.settings import settings as _settings
 
         extra_headers = {"X-Tenant-Slug": user.slug} if with_tenant_header else {}
         video_opts: dict[str, Any] = {}
@@ -120,7 +120,7 @@ def auth_context_factory(
 
     yield _make
 
-    from tests.settings import settings as _settings
+    from tests._core.settings import settings as _settings
 
     failed = getattr(getattr(request.node, "rep_call", None), "failed", False)
     for i, ctx in enumerate(created_contexts):

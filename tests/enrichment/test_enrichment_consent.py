@@ -20,9 +20,9 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
+from tests._core.messages import AiConsent, t
+from tests._core.step import step
 from tests.helpers.enrichment.enrichment_ui import consent_dialog, enrich_button, open_demo_self
-from tests.messages import AiConsent, t
-from tests.step import step
 
 
 @allure.title("AI-согласие: первый клик показывает модалку с Anthropic и политикой")
