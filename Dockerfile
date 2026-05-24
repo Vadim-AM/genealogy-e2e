@@ -12,12 +12,23 @@ WORKDIR /e2e
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir . && \
-    # `playwright install` is a no-op on the base image (browsers preinstalled),
-    # but the dependency-check step ensures the Python wheels match the binaries.
     playwright install --with-deps chromium
 
-# Copy test sources last — code changes don't bust the deps layer.
-COPY tests ./tests
+# Copy framework + test sources. Order: least-changing first.
+COPY conftest.py pyproject.toml ./
+COPY config/ ./config/
+COPY framework/ ./framework/
+COPY assertions/ ./assertions/
+COPY api/ ./api/
+COPY models/ ./models/
+COPY src/ ./src/
+COPY pages/ ./pages/
+COPY fixtures/ ./fixtures/
+COPY helpers/ ./helpers/
+COPY test_data/ ./test_data/
+COPY scripts/ ./scripts/
+COPY tests/ ./tests/
 
-# Default: run the full suite. Compose overrides with `command:` for partial runs.
-CMD ["pytest", "tests/", "-v", "--tb=short"]
+# Default: run the full suite (two passes).
+# Compose can override with `command:` for partial runs.
+CMD ["sh", "-c", "pytest tests/ -m 'not serial' -n 4 --dist load -v --tb=short && pytest tests/ -m serial -p no:xdist -v --tb=short"]

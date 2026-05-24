@@ -1,14 +1,21 @@
-# Compose for genealogy-e2e:
-#   - `backend` — test-instrumented genealogy backend (image built upstream
-#     in the genealogy repo and pushed to GHCR; here pulled by tag).
-#   - `e2e` — this repo's image, runs pytest+playwright against `backend`.
+# docker-compose.yml — e2e test environment
+#
+# Three services:
+#   db       — PostgreSQL 16 with raised lock limits for parallel test runs
+#   backend  — test-instrumented genealogy backend (GHCR image or local build)
+#   e2e      — this repo: pytest + Playwright Chromium
 #
 # Local usage:
-#     docker compose pull backend
-#     docker compose up --build --abort-on-container-exit e2e
+#   docker compose up --build --abort-on-container-exit e2e
 #
-# CI usage: see .github/workflows/release-gate.yml — it overrides the
-# `backend` image tag to whatever the upstream PR built.
+# Override backend image:
+#   BACKEND_IMAGE=ghcr.io/vadim-am/genealogy-backend:pr-42 docker compose up --build e2e
+#
+# Run a subset:
+#   docker compose run --rm e2e pytest tests/auth/ -v
+#
+# Allure report:
+#   allure serve test-results/allure-results
 
 services:
   db:
@@ -25,7 +32,6 @@ services:
       retries: 15
 
   backend:
-    # Override via `BACKEND_IMAGE` env var. Default to the latest test image.
     image: ${BACKEND_IMAGE:-ghcr.io/vadim-am/genealogy-backend:test-latest}
     environment:
       GENEALOGY_TESTING: "1"
@@ -55,13 +61,12 @@ services:
   e2e:
     build:
       context: .
-      dockerfile: docker/Dockerfile.e2e
+      dockerfile: Dockerfile
     depends_on:
       backend:
         condition: service_healthy
     environment:
       E2E_BACKEND_URL: http://backend:8642
+      E2E_TIMEOUT_MULTIPLIER: "1.5"
     volumes:
       - ./test-results:/e2e/test-results
-    # Default command in Dockerfile runs the full suite. Override:
-    #   docker compose run --rm e2e pytest tests/test_smoke.py -v

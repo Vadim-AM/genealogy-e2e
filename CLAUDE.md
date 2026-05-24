@@ -728,6 +728,24 @@ fail-closed behind a shared-secret token gate (commit `4a3f326`): without
 `GENEALOGY_TEST_TOKEN` they return **503**, and the suite's autouse
 `install_mock_ai`/`reset_state` fixtures error out the entire run.
 
+### Docker Compose (рекомендуемый)
+
+```bash
+# Поднять всё (PG + backend + тесты) одной командой:
+docker compose up --build --abort-on-container-exit e2e
+
+# Подмножество тестов:
+docker compose run --rm e2e pytest tests/auth/ -v
+
+# Allure отчёт:
+allure serve test-results/allure-results
+
+# Своя сборка бэкенда:
+BACKEND_IMAGE=ghcr.io/vadim-am/genealogy-backend:pr-42 docker compose up --build e2e
+```
+
+### Ручной запуск (без Compose)
+
 ```bash
 # 0. Postgres. Docker engine on this machine is Colima — `colima start`
 #    if down. `max_locks_per_transaction` is raised because the parallel
