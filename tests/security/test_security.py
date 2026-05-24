@@ -36,7 +36,7 @@ from framework.step import step
     ],
 )
 @allure.title("Безопасность: аноним получает 401 на закрытом endpoint")
-def test_anonymous_get_returns_401_on_private_endpoints(base_url: str, endpoint: str):
+def test_anonymous_get_returns_401_on_private_endpoints(base_url: str, endpoint: str) -> None:
     """TC-SEC-1: GET <private> без cookies → 401.
 
     Public surface is allowed (e.g. `/api/tree` returns 200 with the demo
@@ -50,7 +50,7 @@ def test_anonymous_get_returns_401_on_private_endpoints(base_url: str, endpoint:
 
 
 @allure.title("Безопасность: /api/tree публично доступен гостю (200)")
-def test_anonymous_get_tree_returns_200_minimal_showcase(base_url: str):
+def test_anonymous_get_tree_returns_200_minimal_showcase(base_url: str) -> None:
     """TC-SEC-1 inverse: /api/tree IS public — guest sees the showcase tree."""
     r = httpx.get(f"{base_url}{routes.TREE}")
     expect_response(r, label="GET /api/tree (public)").status(HTTPStatus.OK)
@@ -69,7 +69,7 @@ REQUIRED_HEADERS = {
 
 
 @allure.title("Заголовки: nosniff, X-Frame-Options, Referrer-Policy")
-def test_security_headers_present_on_api_responses(base_url: str):
+def test_security_headers_present_on_api_responses(base_url: str) -> None:
     """TC-SEC-2: required security headers on every response.
 
     Picks `/api/account/me` (anonymous → 401) — headers must be set on every
@@ -89,7 +89,7 @@ def test_security_headers_present_on_api_responses(base_url: str):
 
 
 @allure.title("CSP: script-src-attr 'none' запрещает inline-обработчики")
-def test_csp_header_disables_inline_event_handlers(base_url: str):
+def test_csp_header_disables_inline_event_handlers(base_url: str) -> None:
     """TC-SEC-2 / BUG-SEC-002: CSP must include `script-src-attr 'none'`
     so inline `onclick=` event handlers cannot execute (XSS hardening)."""
     with step("действие: запросить /api/account/me и извлечь CSP"):
@@ -110,7 +110,7 @@ def test_csp_header_disables_inline_event_handlers(base_url: str):
 
 
 @allure.title("CSP: в HTML лендинга нет inline on*= атрибутов")
-def test_landing_html_has_no_inline_event_handlers(base_url: str):
+def test_landing_html_has_no_inline_event_handlers(base_url: str) -> None:
     """TC-CSP-2: served `/` HTML doesn't contain any `on<ident>=` attribute.
 
     CSP header alone не достаточно: оно блокирует только runtime (handler
@@ -141,7 +141,7 @@ def test_landing_html_has_no_inline_event_handlers(base_url: str):
 
 
 @allure.title("HSTS: заголовок отсутствует при работе по HTTP")
-def test_hsts_header_only_on_https(base_url: str):
+def test_hsts_header_only_on_https(base_url: str) -> None:
     """TC-SEC-2: HSTS is conditional on the request being HTTPS.
 
     Local dev runs over HTTP; the header MUST NOT appear here (otherwise

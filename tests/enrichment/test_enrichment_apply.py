@@ -24,7 +24,7 @@ from src.texts import Enrichment, ErrMsg, TestData, t
 @allure.title("AI-обогащение: принятие гипотезы и откат через UI")
 def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
     owner_page: Page, owner_user, grant_ai_consent,
-):
+) -> None:
     """Owner runs AI enrichment, accepts a hypothesis → it appears as a
     chip in the card; reverts it → the chip is gone."""
     with step("подготовка: consent и открытие профиля"):
@@ -68,7 +68,7 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
 @allure.title("AI-обогащение: кэш отдаёт результат, health, фидбек и письма принимаются")
 def test_enrichment_cache_and_health_invariants(
     owner_user, grant_ai_consent, tenant_client,
-):
+) -> None:
     """After an enrichment job finishes, its result is retrievable from
     the cache by id, and the api-key health endpoint reports its
     configuration. Neither has a dedicated UI — backend-invariant checks.

@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @allure.title("Конфиг сайта содержит непустую версию приложения")
-def test_site_config_exposes_app_version(base_url: str):
+def test_site_config_exposes_app_version(base_url: str) -> None:
     """`/api/site/config` returns a non-empty `app_version` string."""
     r = httpx.get(f"{base_url}{routes.SITE_CONFIG}")
     config = expect_response(r, label="GET /api/site/config").status_ok().schema(SiteConfigResponse)
@@ -33,7 +33,7 @@ def test_site_config_exposes_app_version(base_url: str):
 
 
 @allure.title("Версия в футере совпадает с версией из API")
-def test_footer_version_matches_api_app_version(page: Page, base_url: str, anon_pages: PageFactory):
+def test_footer_version_matches_api_app_version(page: Page, base_url: str, anon_pages: PageFactory) -> None:
     """TC-BUG-VER-001: footer version equals `/api/site/config.app_version`.
 
     Strict equality with the API source-of-truth — catches any new hardcoding,

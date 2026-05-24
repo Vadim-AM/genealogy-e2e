@@ -35,7 +35,7 @@ def test_person_name_xss_is_escaped(
     tenant_client,
     payload,
     pages: PageFactory,
-):
+) -> None:
     """SEC-INJ-1: XSS в поле name персоны не исполняется в DOM."""
     api = tenant_client(owner_user)
     pid = f"xss-{uuid4().hex[:8]}"
@@ -65,7 +65,7 @@ def test_person_notes_xss_is_escaped(
     tenant_client,
     payload,
     pages: PageFactory,
-):
+) -> None:
     """SEC-INJ-2: XSS в поле summary не исполняется при просмотре профиля."""
     api = tenant_client(owner_user)
 
@@ -88,7 +88,7 @@ def test_site_name_xss_is_escaped(
     tenant_client,
     payload,
     pages: PageFactory,
-):
+) -> None:
     """SEC-INJ-3: XSS в site_name не исполняется на главной."""
     api = tenant_client(owner_user)
 

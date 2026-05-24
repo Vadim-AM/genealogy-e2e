@@ -46,7 +46,7 @@ from test_data.gedcom.samples import (
 @allure.title("GEDCOM: импорт 3 поколений и навигация по семейным связям")
 def test_user_imports_three_generation_family_and_navigates_via_ui(
     owner_page: Page, owner_user,
-):
+) -> None:
     """Полный сценарий: импорт 3-поколенной семьи, навигация по семейным
     ссылкам в обе стороны.
 
@@ -166,7 +166,7 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
 @allure.title("GEDCOM: кириллица с буквой ё сохраняется без искажений")
 def test_user_imports_cyrillic_data_renders_without_mojibake_via_ui(
     owner_page: Page, owner_user,
-):
+) -> None:
     """Edge — encoding preservation через full UI path.
 
     Импортируем GEDCOM с экзотической русской орфографией (ё, длинные
@@ -208,7 +208,7 @@ def test_user_imports_cyrillic_data_renders_without_mojibake_via_ui(
 @allure.title("GEDCOM: минимальный INDI (только имя и пол) не ломает профиль")
 def test_user_imports_minimal_indi_profile_renders_without_crash(
     owner_page: Page, owner_user,
-):
+) -> None:
     """Edge case: INDI с только NAME + SEX (без BIRT/DEAT/PLAC/NOTE/FAMS/FAMC).
 
     User flow: import → search → open profile. Профиль должен корректно
@@ -257,7 +257,7 @@ def test_user_imports_minimal_indi_profile_renders_without_crash(
 @allure.title("GEDCOM: NOTE из файла отображается как биография в профиле")
 def test_user_imports_indi_with_note_renders_biography_in_profile_story(
     owner_page: Page, owner_user,
-):
+) -> None:
     """`1 NOTE <текст>` из GEDCOM должен попасть в `p.notes` и отрисоваться
     в `[data-testid="profile-story"]` (секция «История»).
 
@@ -292,7 +292,7 @@ def test_user_imports_indi_with_note_renders_biography_in_profile_story(
 @allure.title("GEDCOM: пол M/F определяет подписи «отец»/«мать» в орбите")
 def test_user_imports_male_and_female_show_correct_relation_label_in_orbit(
     owner_page: Page, owner_user,
-):
+) -> None:
     """`1 SEX M/F` влияет на `getRelationLabel` (`js/components/card.js`):
     парент-папа = «отец», парент-мама = «мать». Тест import'ит 3-gen,
     переключает orbit на Андрея и читает `.orbit-card-relation` для
@@ -333,7 +333,7 @@ def test_user_imports_male_and_female_show_correct_relation_label_in_orbit(
 @allure.title("GEDCOM: повторный импорт того же файла не дублирует персон")
 def test_user_reimports_same_file_does_not_duplicate_persons(
     owner_page: Page, owner_user,
-):
+) -> None:
     """User flow: после успешного import «Импортировать ещё» → загружает
     тот же файл → DONE. Через UI проверяем:
     1. search по «Андрей» возвращает **одну** карточку, не две (нет

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 @allure.title("Переключение вкладок обновляет активный класс и контент")
-def test_switch_between_tabs(owner_page: Page, pages: PageFactory):
+def test_switch_between_tabs(owner_page: Page, pages: PageFactory) -> None:
     """F-FV-4: switching tabs updates active class + content.
 
     Wave-9: tab `map` скрыт через `hidden=""` (см. BUG-MAP-001). Исключён
@@ -40,7 +40,7 @@ def test_switch_between_tabs(owner_page: Page, pages: PageFactory):
 
 
 @allure.title("Поиск по дереву находит демо-персону по имени")
-def test_search_returns_results_for_seeded_person(owner_page: Page, pages: PageFactory):
+def test_search_returns_results_for_seeded_person(owner_page: Page, pages: PageFactory) -> None:
     """F-FV-5: typing a seeded person's name surfaces matching results.
 
     `signup_via_api` defaults `full_name="Тестовый Пользователь"` which is
@@ -57,7 +57,7 @@ def test_search_returns_results_for_seeded_person(owner_page: Page, pages: PageF
 
 
 @allure.title("Обновление страницы F5 сохраняет открытый профиль персоны")
-def test_f5_keeps_profile_open(owner_page: Page, pages: PageFactory):
+def test_f5_keeps_profile_open(owner_page: Page, pages: PageFactory) -> None:
     """TC-E2E-002: F5 on a profile URL keeps the profile route, не выкидывает в дерево."""
     from pages.profile_panel import ProfilePanel
 
@@ -75,7 +75,7 @@ def test_f5_keeps_profile_open(owner_page: Page, pages: PageFactory):
 
 
 @allure.title("Возврат к дереву из профиля по клику на вкладку")
-def test_back_to_tree_from_profile(owner_page: Page, pages: PageFactory):
+def test_back_to_tree_from_profile(owner_page: Page, pages: PageFactory) -> None:
     """F-PR-4: returning to tree from profile via tab click."""
     from pages.profile_panel import ProfilePanel
 

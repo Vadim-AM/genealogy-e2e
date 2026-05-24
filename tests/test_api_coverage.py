@@ -93,7 +93,7 @@ def _backend_api_paths(base_url: str) -> set[str]:
 
 
 @allure.title("Покрытие: все backend API-пути известны каталогу тестов")
-def test_every_backend_api_path_is_known(base_url: str):
+def test_every_backend_api_path_is_known(base_url: str) -> None:
     """Every backend `/api/*` endpoint is in the routes catalogue or `KNOWN_GAPS`.
 
     Goes red when the backend grows a NEW endpoint the suite has never
@@ -116,7 +116,7 @@ def test_every_backend_api_path_is_known(base_url: str):
 
 
 @allure.title("Покрытие: KNOWN_GAPS не содержит устаревших записей")
-def test_known_gaps_not_stale(base_url: str):
+def test_known_gaps_not_stale(base_url: str) -> None:
     """`KNOWN_GAPS` must not rot.
 
     A path leaves the registry once (a) the backend dropped it, or (b) it

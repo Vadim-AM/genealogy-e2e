@@ -19,14 +19,14 @@ from framework.step import step
 
 
 @allure.title("Аудит: журнал недоступен обычному владельцу")
-def test_audit_log_403_for_non_super(owner_user, tenant_client):
+def test_audit_log_403_for_non_super(owner_user, tenant_client) -> None:
     """TC-PA-AUDIT-1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(routes.PLATFORM_AUDIT_LOG)
     expect_response(r, label="owner audit-log").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("Аудит: ответ содержит items, count и limit")
-def test_audit_log_returns_canonical_shape(superadmin_user, tenant_client):
+def test_audit_log_returns_canonical_shape(superadmin_user, tenant_client) -> None:
     """TC-PA-AUDIT-2: items, count, limit + per-item: id, ts, actor_email,
     action, target_type, target_id, payload, ip_hash."""
     with step("действие: запрашиваем audit-log с limit=10"):
@@ -41,21 +41,21 @@ def test_audit_log_returns_canonical_shape(superadmin_user, tenant_client):
 
 
 @allure.title("Аудит: limit=0 ограничивается снизу до 1")
-def test_audit_log_clamps_limit_lower(superadmin_user, tenant_client):
+def test_audit_log_clamps_limit_lower(superadmin_user, tenant_client) -> None:
     """TC-PA-AUDIT-3: limit=0 → 1 (canonical)."""
     r = tenant_client(superadmin_user).get(routes.PLATFORM_AUDIT_LOG, params={"limit": 0})
     expect_response(r, label="audit-log limit=0").status_ok().json_eq("limit", 1)
 
 
 @allure.title("Аудит: limit=99999 ограничивается сверху до 500")
-def test_audit_log_clamps_limit_upper(superadmin_user, tenant_client):
+def test_audit_log_clamps_limit_upper(superadmin_user, tenant_client) -> None:
     """TC-PA-AUDIT-4: limit=99999 → 500 (canonical)."""
     r = tenant_client(superadmin_user).get(routes.PLATFORM_AUDIT_LOG, params={"limit": 99999})
     expect_response(r, label="audit-log limit=99999").status_ok().json_eq("limit", 500)
 
 
 @allure.title("Аудит: некорректная дата since_iso возвращает 400")
-def test_audit_log_invalid_since_iso_returns_400(superadmin_user, tenant_client):
+def test_audit_log_invalid_since_iso_returns_400(superadmin_user, tenant_client) -> None:
     """TC-PA-AUDIT-5: since_iso=garbage → 400 (не silent fallback)."""
     with step("действие: запрашиваем audit-log с невалидной датой"):
         r = tenant_client(superadmin_user).get(
@@ -67,7 +67,7 @@ def test_audit_log_invalid_since_iso_returns_400(superadmin_user, tenant_client)
 
 
 @allure.title("Аудит: изменение настроек создаёт запись settings_patch")
-def test_settings_patch_writes_audit_entry(superadmin_user, tenant_client):
+def test_settings_patch_writes_audit_entry(superadmin_user, tenant_client) -> None:
     """TC-PA-AUDIT-6: PATCH /settings → запись в audit-log с action=settings_patch.
 
     Канонический сценарий: меняем soft_warn_threshold → ищем запись.
@@ -101,7 +101,7 @@ def test_settings_patch_writes_audit_entry(superadmin_user, tenant_client):
 
 
 @allure.title("Аудит GDPR: ip_hash — hex-хеш, а не сырой IP-адрес")
-def test_audit_log_ip_hash_is_hex_not_raw_ip(superadmin_user, tenant_client):
+def test_audit_log_ip_hash_is_hex_not_raw_ip(superadmin_user, tenant_client) -> None:
     """TC-PA-AUDIT-7 (GDPR): ip_hash — 16-символьный hex, не IPv4-подобный."""
     api = tenant_client(superadmin_user)
 
@@ -129,7 +129,7 @@ def test_audit_log_ip_hash_is_hex_not_raw_ip(superadmin_user, tenant_client):
 
 
 @allure.title("Аудит: фильтр по action возвращает только нужные записи")
-def test_audit_log_filters_by_action(superadmin_user, tenant_client):
+def test_audit_log_filters_by_action(superadmin_user, tenant_client) -> None:
     """TC-PA-AUDIT-8: action=X возвращает только записи с action=X."""
     api = tenant_client(superadmin_user)
 

@@ -26,7 +26,7 @@ from src.texts import ErrMsg
 
 
 @allure.title("Адаптив 375px: регистрация без горизонтального скролла")
-def test_signup_card_no_horizontal_scroll_on_iphone_se(mobile_page: Page):
+def test_signup_card_no_horizontal_scroll_on_iphone_se(mobile_page: Page) -> None:
     """TC-RESPONSIVE-1 (375): signup не вызывает горизонтальный скролл.
 
     Любое поле/кнопка, выходящее за viewport, ломает первое впечатление
@@ -53,7 +53,7 @@ def test_signup_card_no_horizontal_scroll_on_iphone_se(mobile_page: Page):
 
 
 @allure.title("Адаптив 375px: иконка показа пароля видна и кликабельна")
-def test_signup_password_eye_toggle_visible_on_iphone_se(mobile_page: Page):
+def test_signup_password_eye_toggle_visible_on_iphone_se(mobile_page: Page) -> None:
     """TC-RESPONSIVE-1 (375): #pwToggle (eye SVG) виден справа от поля пароля.
 
     На мобильных пользователю особенно важно видеть pw-toggle —
@@ -83,7 +83,7 @@ def test_signup_password_eye_toggle_visible_on_iphone_se(mobile_page: Page):
 @allure.title("Адаптив 375px: чекбокс согласия не выходит за экран")
 def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
     mobile_page: Page,
-):
+) -> None:
     """TC-RESPONSIVE-1 (375): label consent-чекбокса не обрезается.
 
     Wave-9 (май 2026): privacy/cross-border объединены с `terms_accepted`,
@@ -115,7 +115,7 @@ def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
 
 
 @allure.title("Адаптив 768px: все вкладки видны на iPad portrait")
-def test_all_authed_tabs_visible_on_ipad_portrait(tablet_owner_page: Page, soft_check):
+def test_all_authed_tabs_visible_on_ipad_portrait(tablet_owner_page: Page, soft_check) -> None:
     """TC-RESPONSIVE-1 (768): все основные tabs видны без обрезаний.
 
     Wave-9: tab `map` скрыт через `hidden` (см. BUG-MAP-001). Остальные 4

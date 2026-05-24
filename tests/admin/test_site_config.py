@@ -26,7 +26,7 @@ _TENANT_B_VALUE = "Семья B — другое"
 
 
 @allure.title("Мультитенант: тенант B не видит site_name тенанта A")
-def test_tenant_b_sees_default_not_tenant_a_value(signup_via_api, tenant_client):
+def test_tenant_b_sees_default_not_tenant_a_value(signup_via_api, tenant_client) -> None:
     """TC-MT-1 step 6 (read-isolation): B GET до своего PATCH видит default, не A."""
     with step("подготовка: PATCH site_name в tenant A"):
         user_a = signup_via_api(email=unique_email("mt-default-a"))
@@ -47,7 +47,7 @@ def test_tenant_b_sees_default_not_tenant_a_value(signup_via_api, tenant_client)
 
 
 @allure.title("Мультитенант: PATCH в тенанте B не затирает данные A")
-def test_tenant_b_patch_does_not_overwrite_tenant_a(signup_via_api, tenant_client):
+def test_tenant_b_patch_does_not_overwrite_tenant_a(signup_via_api, tenant_client) -> None:
     """TC-MT-1 steps 5–7 (write-isolation): PATCH в B не затирает A.
 
     Зеркало к existing `test_bug_mt_001_*` (PATCH в A не виден в B).
@@ -76,7 +76,7 @@ def test_tenant_b_patch_does_not_overwrite_tenant_a(signup_via_api, tenant_clien
 @allure.title("Мультитенант: анонимный запрос не утекает site_name тенанта")
 def test_anonymous_site_config_does_not_leak_tenant_value(
     signup_via_api, tenant_client, base_url: str,
-):
+) -> None:
     """TC-MT-1 step 4 (anon-isolation): anon GET после PATCH в A не возвращает A.
 
     Гость, который заходит на главную ничьего сайта, должен видеть

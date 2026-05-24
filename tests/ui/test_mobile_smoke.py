@@ -68,7 +68,7 @@ def mobile_page(mobile_context: BrowserContext) -> Iterator[Page]:
 
 
 @allure.title("Мобильный: лендинг показывает древо без горизонтального скролла")
-def test_landing_loads_and_shows_demo_tree_on_mobile(mobile_page: Page):
+def test_landing_loads_and_shows_demo_tree_on_mobile(mobile_page: Page) -> None:
     """TC-MOBILE-1: лендинг рендерится, treeContainer виден, нет horizontal scroll."""
     with step("действие: загрузить лендинг на мобильном"):
         mobile_page.goto("/")
@@ -89,7 +89,7 @@ def test_landing_loads_and_shows_demo_tree_on_mobile(mobile_page: Page):
 
 
 @allure.title("Мобильный: вкладки Древо и О проекте кликабельны")
-def test_landing_tabs_clickable_on_mobile(mobile_page: Page):
+def test_landing_tabs_clickable_on_mobile(mobile_page: Page) -> None:
     """TC-MOBILE-2: гостевые вкладки (Древо + О проекте) кликаются и
     переключаются. На мобайле tap-target 44×44 — проверяем visible +
     clickable.
@@ -115,7 +115,7 @@ def test_landing_tabs_clickable_on_mobile(mobile_page: Page):
 
 
 @allure.title("Мобильный: бета-карточка с CTA видна гостю в About")
-def test_about_beta_card_visible_for_guest_on_mobile(mobile_page: Page):
+def test_about_beta_card_visible_for_guest_on_mobile(mobile_page: Page) -> None:
     """TC-MOBILE-3 (P1.2.3): на мобайле в About-вкладке гость видит beta-card
     с CTA на /wait. Пр authenticated — не видит."""
     with step("действие: открыть About на мобильном"):
@@ -133,7 +133,7 @@ def test_about_beta_card_visible_for_guest_on_mobile(mobile_page: Page):
 @allure.title("Мобильный: форма регистрации заполняется и отправляется")
 def test_signup_form_submittable_on_mobile(
     mobile_page: Page, base_url: str
-):
+) -> None:
     """TC-MOBILE-4: signup-форма работоспособна с touch — поля заполняются,
     cross_border_consent чекбокс кликается, submit идёт."""
     with step("подготовка: открыть signup на мобильном"):
@@ -174,7 +174,7 @@ def test_signup_form_submittable_on_mobile(
 
 
 @allure.title("Мобильный: форма вейтлиста на /wait работает на тачскрине")
-def test_wait_form_submittable_on_mobile(mobile_page: Page):
+def test_wait_form_submittable_on_mobile(mobile_page: Page) -> None:
     """TC-MOBILE-5: /wait — основной CTA для guest'ов в бета-режиме.
     Форма должна быть полностью функциональной на тачскрине."""
     with step("действие: открыть /wait и заполнить форму"):

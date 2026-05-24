@@ -15,7 +15,7 @@ from framework.step import step
 
 
 @allure.title("Выход из одной вкладки инвалидирует сессию в другой")
-def test_logout_invalidates_session_across_tabs(owner_user, tenant_client):
+def test_logout_invalidates_session_across_tabs(owner_user, tenant_client) -> None:
     """TC-CROSS-1: logout in one tab → /me 401 from another tab's cookies.
 
     We simulate two tabs by reusing the same `owner_user.cookies` in two

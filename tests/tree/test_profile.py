@@ -20,7 +20,7 @@ from models.person import PersonResponse
 
 
 @allure.title("Каноническое имя собирается из фамилии, имени и отчества")
-def test_canonical_name_assembled_from_split_fields(owner_user, tenant_client):
+def test_canonical_name_assembled_from_split_fields(owner_user, tenant_client) -> None:
     """TC-E2E-003: PATCH /api/people with surname/given_name/patronymic
     auto-composes canonical `name`."""
     with step("подготовка: получить ID первой персоны из дерева"):

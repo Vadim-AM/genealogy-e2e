@@ -23,7 +23,7 @@ from framework.step import step
 @allure.title("AI-согласие: обогащение без consent отклоняется (403)")
 def test_post_enrich_without_consent_is_forbidden(
     signup_via_api, tenant_client,
-):
+) -> None:
     """INV-AI-005: backend должен отбивать enrich-вызов до того, как
     пользователь записал явное согласие на AI processing.
 

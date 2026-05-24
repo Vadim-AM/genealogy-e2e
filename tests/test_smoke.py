@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 @pytest.mark.smoke
 @allure.title("Smoke: главная страница загружается и показывает заголовок")
-def test_landing_loads(page: Page, anon_pages: PageFactory):
+def test_landing_loads(page: Page, anon_pages: PageFactory) -> None:
     """F-LND-1/2: GET / → 200, HTML, title contains brand."""
     with step("действие: загрузить главную"):
         tree = anon_pages.navigate_to(TreePage)
@@ -39,7 +39,7 @@ def test_landing_loads(page: Page, anon_pages: PageFactory):
 
 @pytest.mark.smoke
 @allure.title("Smoke: форма регистрации отображается со всеми полями")
-def test_signup_form_visible(anon_pages: PageFactory):
+def test_signup_form_visible(anon_pages: PageFactory) -> None:
     """F-SU-1: /signup renders form with required inputs."""
     with step("действие: открыть signup"):
         signup = anon_pages.navigate_to(SignupPage)
@@ -50,7 +50,7 @@ def test_signup_form_visible(anon_pages: PageFactory):
 
 @pytest.mark.smoke
 @allure.title("Smoke: форма вейтлиста отображается на /wait")
-def test_wait_form_visible(anon_pages: PageFactory):
+def test_wait_form_visible(anon_pages: PageFactory) -> None:
     """C-LND-1 + waitlist scope: /wait renders form."""
     with step("действие: открыть /wait"):
         wait = anon_pages.navigate_to(WaitPage)
@@ -61,7 +61,7 @@ def test_wait_form_visible(anon_pages: PageFactory):
 
 @pytest.mark.smoke
 @allure.title("Smoke: /api/health доступен через браузер и отвечает 200")
-def test_health_endpoint_via_browser(page: Page):
+def test_health_endpoint_via_browser(page: Page) -> None:
     """Sanity: even page.goto sees the live FastAPI subprocess."""
     with step("действие: запросить /api/health через браузер"):
         response = page.goto(routes.HEALTH)

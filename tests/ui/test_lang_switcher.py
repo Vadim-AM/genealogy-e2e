@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 @allure.title("Язык: переключатель языка скрыт пока доступен только RU")
-def test_lang_switcher_containers_are_hidden_when_only_one_language(page: Page, anon_pages: PageFactory):
+def test_lang_switcher_containers_are_hidden_when_only_one_language(page: Page, anon_pages: PageFactory) -> None:
     """TC-19.*-disabled: `[data-testid="lang-switcher"]` контейнеры (в header и footer)
     пустые и display:none пока `_LOCALE_PUBLIC_RELEASE=false`.
     Lang-switcher.js при langs.length<=1 устанавливает
@@ -64,7 +64,7 @@ def test_lang_switcher_containers_are_hidden_when_only_one_language(page: Page, 
 
 
 @allure.title("Язык: атрибут html lang всегда равен ru")
-def test_html_lang_attribute_is_ru(page: Page, anon_pages: PageFactory):
+def test_html_lang_attribute_is_ru(page: Page, anon_pages: PageFactory) -> None:
     """initLang() форс-резолвит в 'ru' (igноривает localStorage / navigator).
     Это контракт: пока локализация отложена, документ всегда RU.
     """
@@ -80,7 +80,7 @@ def test_html_lang_attribute_is_ru(page: Page, anon_pages: PageFactory):
 
 
 @allure.title("Язык: localStorage с en не переключает UI на английский")
-def test_localstorage_genealogy_lang_seed_does_not_change_active_lang(page: Page, anon_pages: PageFactory):
+def test_localstorage_genealogy_lang_seed_does_not_change_active_lang(page: Page, anon_pages: PageFactory) -> None:
     """setLang() — no-op при отключённой локализации. Pre-seed
     `localStorage.genealogy_lang='en'` не должен переключить UI на EN.
 

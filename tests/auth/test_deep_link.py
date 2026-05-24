@@ -22,7 +22,7 @@ from src.texts import ErrMsg, TestData
 
 
 @allure.title("Прямая ссылка на персону сохраняет авторизацию")
-def test_deep_link_to_demo_self_preserves_auth(owner_page: Page):
+def test_deep_link_to_demo_self_preserves_auth(owner_page: Page) -> None:
     """TC-AUTH-1: open /#/p/demo-self directly, expect the authed UI to settle."""
     with step("действие: переход по прямой ссылке на персону"):
         owner_page.goto(f"/#/p/{TestData.DEMO_PERSON_ID}")
@@ -39,7 +39,7 @@ def test_deep_link_to_demo_self_preserves_auth(owner_page: Page):
 
 
 @allure.title("Ссылка на несуществующую персону не сбрасывает авторизацию")
-def test_deep_link_to_unknown_id_keeps_auth(owner_page: Page):
+def test_deep_link_to_unknown_id_keeps_auth(owner_page: Page) -> None:
     """A deep link to a non-existent person must NOT log the user out.
 
     Tree tab remains visible (no JS crash); AUTH stays authenticated.

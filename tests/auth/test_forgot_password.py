@@ -38,7 +38,7 @@ _NEW_PASSWORD = "Brand_New_Password_2026"
 @allure.title("Сброс пароля: полный путь от запроса до входа с новым паролем")
 def test_forgot_password_full_flow_user_logs_in_with_new_password(
     page: Page, owner_user, read_email_token, anon_pages: PageFactory,
-):
+) -> None:
     """TC-FP-1: full user journey — request reset → email → reset page →
     new password → /login form → indicator shows authed user.
 
@@ -85,7 +85,7 @@ def test_forgot_password_full_flow_user_logs_in_with_new_password(
 @allure.title("Запрос сброса для неизвестного email показывает тот же успех")
 def test_forgot_password_unknown_email_shows_silent_success_message(
     page: Page, base_url: str, anon_pages: PageFactory,
-):
+) -> None:
     """F-FP-2 / TC-FP-2: anti-enumeration — для unknown email UI показывает
     ту же success-копию (никакой подсказки «такого user не существует»).
 
@@ -114,7 +114,7 @@ def test_forgot_password_unknown_email_shows_silent_success_message(
 @allure.title("Повторное открытие ссылки сброса пароля показывает ошибку")
 def test_reset_password_token_used_once_then_invalid_via_ui(
     page: Page, owner_user, read_email_token, anon_pages: PageFactory,
-):
+) -> None:
     """F-FP-4 / TC-FP-4: после успешного reset тот же token нельзя
     использовать повторно. UI показывает error-banner вместо success.
 
@@ -143,7 +143,7 @@ def test_reset_password_token_used_once_then_invalid_via_ui(
 @allure.title("Пустое поле email не отправляет запрос на сброс пароля")
 def test_forgot_password_empty_field_shows_inline_error_no_request(
     page: Page, anon_pages: PageFactory,
-):
+) -> None:
     """Form-level guard: пустой email → submit → backend не вызывается
     (HTML required validation либо JS-side check)."""
     with step("подготовка: открытие формы и установка перехватчика"):

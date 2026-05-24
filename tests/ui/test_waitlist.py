@@ -31,14 +31,14 @@ if TYPE_CHECKING:
 
 
 @allure.title("Вейтлист: форма подписки отображается на /wait")
-def test_wait_page_renders_form(anon_pages: PageFactory):
+def test_wait_page_renders_form(anon_pages: PageFactory) -> None:
     """F-WAIT-1: /wait → form visible."""
     wait = anon_pages.navigate_to(WaitPage)
     wait.expect_visible_form()
 
 
 @allure.title("Вейтлист: отправка email успешно добавляет в очередь")
-def test_wait_submit_email_success(page: Page, anon_pages: PageFactory):
+def test_wait_submit_email_success(page: Page, anon_pages: PageFactory) -> None:
     """F-WAIT-2: submit → success message.
 
     Hardened (Rule 1): the previous `expect_success()`-only assertion was a
@@ -59,7 +59,7 @@ def test_wait_submit_email_success(page: Page, anon_pages: PageFactory):
 
 
 @allure.title("Вейтлист: на /wait нет персональных данных владельца")
-def test_wait_no_owner_personal_data(page: Page, anon_pages: PageFactory):
+def test_wait_no_owner_personal_data(page: Page, anon_pages: PageFactory) -> None:
     """BUG-COPY-001: /wait must not mention owner family names (PII)."""
     with step("действие: загрузить /wait"):
         _ = anon_pages.navigate_to(WaitPage)
@@ -71,7 +71,7 @@ def test_wait_no_owner_personal_data(page: Page, anon_pages: PageFactory):
 
 
 @allure.title("Вейтлист: невалидный email блокируется HTML5-проверкой")
-def test_wait_submit_invalid_email_blocks_html5_validity(page: Page, anon_pages: PageFactory):
+def test_wait_submit_invalid_email_blocks_html5_validity(page: Page, anon_pages: PageFactory) -> None:
     """F-WAIT-3: invalid email — input fails HTML5 validity (form does not submit).
 
     Input has type=email + required: the browser blocks submit and the
@@ -90,7 +90,7 @@ def test_wait_submit_invalid_email_blocks_html5_validity(page: Page, anon_pages:
 
 
 @allure.title("Вейтлист: повторная подписка возвращает already_subscribed")
-def test_wait_duplicate_email_idempotent_status_field(page: Page, anon_pages: PageFactory):
+def test_wait_duplicate_email_idempotent_status_field(page: Page, anon_pages: PageFactory) -> None:
     """F-WAIT-4: re-submitting an already-subscribed email — idempotent contract.
 
     Backend `/api/waitlist/subscribe` returns 200 + JSON `{"status": ...}`:

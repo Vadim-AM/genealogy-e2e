@@ -43,7 +43,7 @@ from src.texts import AgeValidation, ErrMsg, FamilyGroups, TestData, t
 @allure.title("Подсказка родителя для сестры предотвращает дубликат")
 def test_sibling_parent_suggestion_prevents_duplicate(
     owner_page: Page, owner_user, tenant_client
-):
+) -> None:
     """Закрывает баг: при добавлении отца сёстре фронт предлагает уже
     записанного отца другой сестры (а не создаёт дубликата).
 
@@ -119,7 +119,7 @@ def test_sibling_parent_suggestion_prevents_duplicate(
 @allure.title("Подсказки родителей фильтруются по выбранному полу")
 def test_suggestion_filters_by_gender_for_mother_relationship(
     owner_page: Page, owner_user, tenant_client
-):
+) -> None:
     """Выбор пола `f` в форме → suggestion исключает demo-father (m) и
     показывает demo-mother (f)."""
     with step("подготовка: добавить сиблинга без auto-parent"):
@@ -151,7 +151,7 @@ def test_suggestion_filters_by_gender_for_mother_relationship(
 @allure.title("Подсказки отсутствуют у персоны без братьев и сестёр")
 def test_no_suggestion_when_no_siblings(
     owner_page: Page, owner_user, tenant_client
-):
+) -> None:
     """Person без siblings → suggestion-блока нет даже если у системы
     есть кандидаты-родители «где-то ещё»: suggestion graph-aware и
     приходит **только** через siblings.
@@ -185,7 +185,7 @@ def test_no_suggestion_when_no_siblings(
 @allure.title("Подсказки пусты когда у сиблингов нет родителей")
 def test_no_suggestion_when_siblings_have_no_parents(
     owner_page: Page, owner_user, tenant_client
-):
+) -> None:
     """Сценарий: создаём через API двух siblings с **нулём** parents (только
     sibling-rel между ними). Open A → add parent → suggestion пуст (нечего
     предлагать)."""
@@ -218,7 +218,7 @@ def test_no_suggestion_when_siblings_have_no_parents(
 @allure.title("Кнопка '+ родитель' скрыта при достижении лимита в 2 родителя")
 def test_no_suggestion_when_max_parents_already(
     owner_page: Page, owner_user, tenant_client
-):
+) -> None:
     """Если у currentPerson уже 2 parents — «+ parent» кнопка скрыта по
     RELATIVE_LIMITS. Negative-ассерт: панель не показывает кнопку.
 
@@ -243,7 +243,7 @@ def test_no_suggestion_when_max_parents_already(
 @allure.title("Игнорирование подсказки создаёт нового человека вручную")
 def test_user_ignores_suggestion_creates_new_person(
     owner_page: Page, owner_user, tenant_client
-):
+) -> None:
     """Юзер видит suggestion с demo-father, но **игнорирует** и заполняет форму
     руками («Прадед Антонович» — легитимный другой человек). Save → создан
     новый person, демо-отец остался у demo-self.
@@ -307,7 +307,7 @@ def test_user_ignores_suggestion_creates_new_person(
 @allure.title("Клик по подсказке привязывает существующего, не создаёт нового")
 def test_suggestion_click_does_not_create_new_person(
     owner_page: Page, owner_user, tenant_client
-):
+) -> None:
     """Клик на suggestion-card НИКОГДА не дёргает POST /api/people.
 
     Regression-guard: следим за network'ом — между modal.expect_visible() и
@@ -360,7 +360,7 @@ def test_suggestion_click_does_not_create_new_person(
 @allure.title("Чекбокс 'Те же родители' привязывает обоих родителей к сиблингу")
 def test_existing_sibling_auto_parent_checkbox_still_works(
     owner_page: Page, owner_user, tenant_client
-):
+) -> None:
     """Регрессия: чекбокс «Те же родители» при добавлении sibling (с auto-link)
     продолжает работать — наша Фаза 1 не сломала существующий flow.
 
@@ -413,7 +413,7 @@ def test_existing_sibling_auto_parent_checkbox_still_works(
 @allure.title("Ошибка 422 при привязке подсказки оставляет модалку открытой")
 def test_suggestion_click_shows_error_on_backend_422(
     owner_page: Page, owner_user, tenant_client
-):
+) -> None:
     """Если бэк возвращает 422 при попытке привязать suggestion (например,
     age-gap validation) — модалка остаётся открытой, error visible, граф
     не меняется. Юзер может закрыть и попробовать другой подход.

@@ -43,7 +43,7 @@ from src.texts import ErrMsg, LinkedChip, TestData, t
 @allure.title("Привязка существующего сиблинга создаёт только связь, не персону")
 def test_link_existing_sibling_creates_only_relationship(
     owner_page: Page, owner_user, tenant_client
-):
+) -> None:
     """Happy path: existing person → link as sibling → POST /api/relationships
     only (НЕ /api/people). People-count не вырос → дубликата нет.
 
@@ -116,7 +116,7 @@ def test_link_existing_sibling_creates_only_relationship(
 @allure.title("Отвязка привязанной персоны возвращает форму в режим создания")
 def test_unlink_existing_returns_to_create_mode(
     owner_page: Page, owner_user, tenant_client
-):
+) -> None:
     """`link → create` через «Отвязать»: после клика подсказки fields readonly
     → клик `[data-action="unlink-existing"]` → fields editable → правка
     surname → Save создаёт нового (POST /api/people + POST /api/relationships).
@@ -167,7 +167,7 @@ def test_unlink_existing_returns_to_create_mode(
 
 
 @allure.title("Автоподсказка исключает текущую персону из списка")
-def test_dropdown_excludes_self(owner_page: Page, owner_user, tenant_client):
+def test_dropdown_excludes_self(owner_page: Page, owner_user, tenant_client) -> None:
     """Self-exclusion (validate_self_loop): ввод подстроки имени самого
     currentPerson'а → его строки нет в dropdown'е, даже если он
     единственный кандидат-substring-match.
@@ -195,7 +195,7 @@ def test_dropdown_excludes_self(owner_page: Page, owner_user, tenant_client):
 @allure.title("Стрелка вниз и Enter выбирают кандидата из автоподсказки")
 def test_keyboard_arrow_down_enter_picks_first_candidate(
     owner_page: Page, owner_user, tenant_client
-):
+) -> None:
     """ArrowDown открывает dropdown (если есть запрос), ещё ArrowDown
     выделяет следующую строку, Enter — выбирает highlighted.
 
@@ -231,7 +231,7 @@ def test_keyboard_arrow_down_enter_picks_first_candidate(
 @allure.title("Esc закрывает выпадающий список, но не модалку добавления")
 def test_escape_closes_dropdown_keeps_modal(
     owner_page: Page, owner_user, tenant_client
-):
+) -> None:
     """Esc на открытом dropdown'е → dropdown закрыт; модалка остаётся
     открытой. Critical: trapFocus.onEscape повешен на саму модалку и
     закрыл бы её — но dropdown-keydown делает `stopPropagation`.
