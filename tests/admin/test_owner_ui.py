@@ -17,17 +17,15 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core import api_paths as routes
-from tests._core.err_msg import ErrMsg
-from tests._core.messages import TestData
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
-from tests.helpers.api import site_api
-from tests.pages.owner_page import OwnerPage
+from api import routes, site_api
+from config.timeouts import TIMEOUTS
+from framework.response import expect_response
+from framework.step import step
+from pages.owner_page import OwnerPage
+from src.texts import ErrMsg, TestData
 
 if TYPE_CHECKING:
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 @allure.title("Админка владельца: вкладка настроек содержит поля ввода")

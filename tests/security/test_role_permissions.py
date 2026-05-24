@@ -14,10 +14,10 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core import api_paths as routes
-from tests._core.messages import TestData
-from tests._core.response import expect_response
-from tests._core.step import step
+from api import routes
+from framework.response import expect_response
+from framework.step import step
+from src.texts import TestData
 
 
 @allure.title("Роли: viewer может читать дерево владельца")

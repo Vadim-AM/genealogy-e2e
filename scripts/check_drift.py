@@ -27,17 +27,18 @@ from pathlib import Path
 
 # Files that DEFINE the constants / are pure infrastructure are exempt.
 EXEMPT_RELPATHS = {
-    "tests/conftest.py",
-    # Coverage gate — KNOWN_GAPS is by nature a registry of /api/ paths.
+    "conftest.py",
     "tests/test_api_coverage.py",
 }
 
-# Path prefixes whose entire subtree is exempt (e.g. fixture plugin pkg).
 EXEMPT_PREFIXES = (
-    "tests/_core/",
-    "tests/_fixtures/",
-    "tests/_data/",
-    "tests/_models/",
+    "api/",
+    "config/",
+    "framework/",
+    "models/",
+    "fixtures/",
+    "test_data/",
+    "src/",
 )
 
 NOQA_RE = re.compile(r"#\s*noqa:\s*drift\b")
@@ -60,7 +61,7 @@ RULES = (
         # `"/api/..."` literal after `(` `,` `=` `[` `{` (call/assign context).
         # Avoids matching `/api/...` mentioned in docstrings/comments mid-line.
         re.compile(r"[(\[{=,]\s*[fb]?['\"]/api/[a-z_]"),
-        "Rule #9: raw '/api/...' URL string — use API.* from tests/api_paths.py",
+        "Rule #9: raw '/api/...' URL string — use routes.* from api/routes.py",
     ),
 )
 
@@ -89,13 +90,16 @@ def scan_file(path: Path, root: Path) -> list[tuple[Path, int, str, str]]:
 
 
 def collect_targets(root: Path) -> list[Path]:
-    tests_root = root / "tests"
-    if not tests_root.exists():
-        return []
-    return [
-        p for p in tests_root.rglob("*.py")
-        if not is_exempt(str(p.relative_to(root)))
-    ]
+    scan_dirs = ["tests", "pages", "helpers"]
+    targets = []
+    for d in scan_dirs:
+        scan_root = root / d
+        if scan_root.exists():
+            targets.extend(
+                p for p in scan_root.rglob("*.py")
+                if not is_exempt(str(p.relative_to(root)))
+            )
+    return targets
 
 
 def main(argv: list[str] | None = None) -> int:

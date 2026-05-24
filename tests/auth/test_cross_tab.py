@@ -10,8 +10,8 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core import api_paths as routes
-from tests._core.step import step
+from api import routes
+from framework.step import step
 
 
 @allure.title("Выход из одной вкладки инвалидирует сессию в другой")

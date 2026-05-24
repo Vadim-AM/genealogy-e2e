@@ -20,15 +20,14 @@ from __future__ import annotations
 
 import inspect
 import re
-
 from http import HTTPStatus
 
 import allure
 import httpx
 
-from tests._core import api_paths as routes
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
+from api import routes
+from config.timeouts import TIMEOUTS
+from framework.step import step
 
 # Принятые пробелы покрытия — реестр долга. Каждая строка помечена
 # группой roadmap. Пробел закрывается новым journey-тестом, проверяющим

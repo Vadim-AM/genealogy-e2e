@@ -25,10 +25,10 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core import api_paths as routes
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests.pages.platform_dashboard_page import PlatformDashboardPage
+from api import routes
+from framework.response import expect_response
+from framework.step import step
+from pages.platform_dashboard_page import PlatformDashboardPage
 
 # ─────────────────────────────────────────────────────────────────────
 # PR-1 — device-mix

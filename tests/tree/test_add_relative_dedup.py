@@ -20,22 +20,20 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core import api_paths as routes
-from tests._core.err_msg import ErrMsg
-from tests._core.messages import AgeValidation, FamilyGroups, TestData, t
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._models.person import PersonCreate
-from tests.helpers.api import person_api
-from tests.helpers.tree.add_relative import add_sibling_without_auto_parents
-from tests.helpers.tree.tree_api import (
+from api import person_api, routes
+from framework.response import expect_response
+from framework.step import step
+from helpers.tree.add_relative import add_sibling_without_auto_parents
+from helpers.tree.tree_api import (
     demo_parents_of_self,
     find_person_by_name,
     people,
     relationships,
 )
-from tests.helpers.tree.tree_navigation import open_profile
-from tests.pages.person_editor import AddRelativeModal
+from helpers.tree.tree_navigation import open_profile
+from models.person import PersonCreate
+from pages.person_editor import AddRelativeModal
+from src.texts import AgeValidation, ErrMsg, FamilyGroups, TestData, t
 
 # ─────────────────────────────────────────────────────────────────────────
 # Главный сценарий — закрытие бага

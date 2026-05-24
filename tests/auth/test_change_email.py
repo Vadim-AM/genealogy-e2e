@@ -20,9 +20,9 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core import api_paths as routes
-from tests._core.constants import make_email, unique_email
-from tests._core.step import step
+from api import routes
+from config.constants import make_email, unique_email
+from framework.step import step
 
 
 @allure.title("Запрос смены email отправляет токен подтверждения на новый адрес")

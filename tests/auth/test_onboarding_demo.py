@@ -12,15 +12,15 @@ from typing import TYPE_CHECKING
 
 import allure
 
-from tests._core.step import step
-from tests.helpers.api import person_api
-from tests.pages.confirm_dialog import ConfirmDialog
-from tests.pages.owner_page import OwnerPage
+from api import person_api
+from framework.step import step
+from pages.confirm_dialog import ConfirmDialog
+from pages.owner_page import OwnerPage
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
 
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 @allure.title("Владелец удаляет демо-родственников из дерева")

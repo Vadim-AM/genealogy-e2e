@@ -17,12 +17,11 @@ from http import HTTPStatus
 import allure
 import pyotp
 
-from tests._core import api_paths as routes
-from tests._core.constants import make_email
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._fixtures.users import setup_and_verify_mfa
-from tests.helpers.api import mfa_api, platform_api
+from api import mfa_api, platform_api, routes
+from config.constants import make_email
+from fixtures.users import setup_and_verify_mfa
+from framework.response import expect_response
+from framework.step import step
 
 
 @allure.title("Step-up: критичное действие без подтверждения — 403")

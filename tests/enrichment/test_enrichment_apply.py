@@ -10,17 +10,15 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core import api_paths as routes
-from tests._core.err_msg import ErrMsg
-from tests._core.messages import Enrichment, TestData, t
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._models.enrichment import EnrichJobResponse
-from tests.helpers.api import enrichment_api
-from tests.pages.base import wait_for_authed_shell
-from tests.pages.confirm_dialog import ConfirmDialog
-from tests.pages.enrichment_modal import EnrichmentModal
-from tests.pages.profile_panel import ProfilePanel
+from api import enrichment_api, routes
+from framework.response import expect_response
+from framework.step import step
+from models.enrichment import EnrichJobResponse
+from pages.base import wait_for_authed_shell
+from pages.confirm_dialog import ConfirmDialog
+from pages.enrichment_modal import EnrichmentModal
+from pages.profile_panel import ProfilePanel
+from src.texts import Enrichment, ErrMsg, TestData, t
 
 
 @allure.title("AI-обогащение: принятие гипотезы и откат через UI")

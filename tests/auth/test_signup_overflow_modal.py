@@ -22,15 +22,14 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.constants import unique_email
-from tests._core.err_msg import ErrMsg
-from tests._core.messages import Waitlist, t
-from tests._core.step import step
-from tests.helpers.auth.signup_helpers import fill_and_submit, mock_signup_overflow
-from tests.pages.signup_page import SignupPage
+from config.constants import unique_email
+from framework.step import step
+from helpers.auth.signup_helpers import fill_and_submit, mock_signup_overflow
+from pages.signup_page import SignupPage
+from src.texts import ErrMsg, Waitlist, t
 
 if TYPE_CHECKING:
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 _IS_OPEN = re.compile(r"\bis-open\b")
 

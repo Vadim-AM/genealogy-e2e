@@ -17,8 +17,8 @@ from __future__ import annotations
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core.err_msg import ErrMsg
-from tests._core.step import step
+from framework.step import step
+from src.texts import ErrMsg
 
 # ─────────────────────────────────────────────────────────────────────────
 # 375×812 — iPhone SE

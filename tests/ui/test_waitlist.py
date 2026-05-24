@@ -19,15 +19,15 @@ from typing import TYPE_CHECKING
 
 import allure
 
-from tests._core.constants import unique_email
-from tests._core.messages import PII
-from tests._core.step import step
-from tests.pages.wait_page import WaitPage
+from config.constants import unique_email
+from framework.step import step
+from pages.wait_page import WaitPage
+from src.texts import PII
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
 
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 @allure.title("Вейтлист: форма подписки отображается на /wait")

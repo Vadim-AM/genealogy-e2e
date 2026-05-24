@@ -11,14 +11,13 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, expect
 
-from tests._core import api_paths as routes
-from tests._core.err_msg import ErrMsg
-from tests._core.messages import PII, Brand, t
-from tests._core.step import step
-from tests.pages.tree_page import TreePage
+from api import routes
+from framework.step import step
+from pages.tree_page import TreePage
+from src.texts import PII, Brand, ErrMsg, t
 
 if TYPE_CHECKING:
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 @allure.title("Лендинг: заголовок страницы содержит название бренда")

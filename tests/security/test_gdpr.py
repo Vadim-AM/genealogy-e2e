@@ -16,11 +16,11 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core import api_paths as routes
-from tests._core.constants import unique_email
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._models.auth import AccountMe
+from api import routes
+from config.constants import unique_email
+from framework.response import expect_response
+from framework.step import step
+from models.auth import AccountMe
 
 
 @allure.title("GDPR: удаление тенанта инвалидирует сессию владельца")

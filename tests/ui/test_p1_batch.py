@@ -18,18 +18,17 @@ from typing import TYPE_CHECKING
 import allure
 from playwright.sync_api import Page, Route, expect
 
-from tests._core import api_paths as routes
-from tests._core.err_msg import ErrMsg
-from tests._core.messages import AboutTab, Placeholders, TestData, t
-from tests._core.step import step
-from tests.pages.base import custom_select_for, wait_for_authed_shell
-from tests.pages.confirm_dialog import ConfirmDialog
-from tests.pages.person_editor import AddRelativeModal, PersonEditor
-from tests.pages.profile_panel import ProfilePanel, open_editor_for
-from tests.pages.tree_page import TreePage
+from api import routes
+from framework.step import step
+from pages.base import custom_select_for, wait_for_authed_shell
+from pages.confirm_dialog import ConfirmDialog
+from pages.person_editor import AddRelativeModal, PersonEditor
+from pages.profile_panel import ProfilePanel, open_editor_for
+from pages.tree_page import TreePage
+from src.texts import AboutTab, ErrMsg, Placeholders, TestData, t
 
 if TYPE_CHECKING:
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 # ─────────────────────────────────────────────────────────────────────────
 # TC-04.05 — Minimap visible на tree tab у logged-in юзера (desktop)

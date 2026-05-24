@@ -13,16 +13,16 @@ import allure
 import httpx
 from playwright.sync_api import Page, expect
 
-from tests._core import api_paths as routes
-from tests._core.constants import TestConfig, make_email
-from tests._core.err_msg import ErrMsg
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests.pages.signup_page import SignupPage
-from tests.pages.verify_page import VerifyPage
+from api import routes
+from config.constants import TestConfig, make_email
+from framework.response import expect_response
+from framework.step import step
+from pages.signup_page import SignupPage
+from pages.verify_page import VerifyPage
+from src.texts import ErrMsg
 
 if TYPE_CHECKING:
-    from tests._fixtures.page_factory import PageFactory
+    from fixtures.page_factory import PageFactory
 
 
 @allure.title("Форма регистрации содержит обязательные поля и honeypot")

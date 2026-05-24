@@ -34,12 +34,12 @@ import allure
 import httpx
 import pytest
 
-from tests._core import api_paths as routes
-from tests._core.constants import TestConfig, unique_email
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
-from tests.helpers.security.timing import ITERATIONS, RATIO_THRESHOLD, measure
-from tests.helpers.security.timing import ratio as compute_ratio
+from api import routes
+from config.constants import TestConfig, unique_email
+from config.timeouts import TIMEOUTS
+from framework.step import step
+from helpers.security.timing import ITERATIONS, RATIO_THRESHOLD, measure
+from helpers.security.timing import ratio as compute_ratio
 
 # Тесты затратные (60+ HTTP roundtrip'ов) и чувствительны к runner jitter,
 # но это не повод их скипать — timing-attack это security regression,

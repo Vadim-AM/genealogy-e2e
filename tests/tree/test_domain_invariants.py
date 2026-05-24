@@ -17,14 +17,13 @@ from http import HTTPStatus
 
 import allure
 
-from tests._core import api_paths as routes
-from tests._core.constants import unique_email
-from tests._core.messages import TestData
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._data.payloads.tree import parent_rel
-from tests._models.person import PersonCreate
-from tests.helpers.api import person_api, relationship_api
+from api import person_api, relationship_api, routes
+from config.constants import unique_email
+from framework.response import expect_response
+from framework.step import step
+from models.person import PersonCreate
+from src.texts import TestData
+from test_data.payloads.tree import parent_rel
 
 # ─────────────────────────────────────────────────────────────────────────
 # INV-DOMAIN-001 / INV-DOMAIN-004 / INV-DATE-001 — date validation

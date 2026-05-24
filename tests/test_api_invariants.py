@@ -10,20 +10,18 @@ a bare status code.
 from __future__ import annotations
 
 import base64
-
 from http import HTTPStatus
 
 import allure
 import httpx
 
-from tests._core import api_paths as routes
-from tests._core.messages import TestData
-from tests._core.response import expect_response
-from tests._core.step import step
-from tests._core.timeouts import TIMEOUTS
-from tests._models.person import LocationResponse, PersonResponse
-from tests._models.site import RetentionOfferApply, RetentionOfferStatus, SubscriptionResponse
-from tests.helpers.api import auth_api, platform_api, relationship_api
+from api import auth_api, platform_api, relationship_api, routes
+from config.timeouts import TIMEOUTS
+from framework.response import expect_response
+from framework.step import step
+from models.person import LocationResponse, PersonResponse
+from models.site import RetentionOfferApply, RetentionOfferStatus, SubscriptionResponse
+from src.texts import TestData
 
 # Minimal valid 1×1 transparent PNG — for the photo-upload invariant.
 _PNG_1PX = base64.b64decode(
