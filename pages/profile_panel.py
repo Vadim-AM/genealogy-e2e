@@ -130,10 +130,8 @@ class ProfilePanel:
         Scope: `.profile-family-group` containing that label → `.profile-rel-add`.
         Substring match on label so «Супруг(а)» / «Супруг» both work.
         """
-        return (
-            self.page.locator('[data-testid="profile-family-group"]')
-            .filter(has_text=group_label)
-            .locator('[data-testid="profile-rel-add"]')
+        return self.family_group(group_label).locator(
+            '[data-testid="profile-rel-add"]'
         )
 
     def click_add_sibling(self) -> None:

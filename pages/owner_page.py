@@ -162,9 +162,13 @@ class OwnerPage(BasePage):
 
     # ── Methods ───────────────────────────────────────────────────────
 
+    def tab_locator(self, name: str) -> Locator:
+        """Return a tab locator by data-tab name."""
+        return self.page.locator(f'[data-tab="{name}"]')
+
     def open_tab(self, name: str) -> Self:
         """Click a tab by its data-tab name."""
-        self.page.locator(f'[data-tab="{name}"]').click()
+        self.tab_locator(name).click()
         return self
 
     def update_settings(self, *, site_name: str | None = None) -> Self:
@@ -185,7 +189,7 @@ class OwnerPage(BasePage):
     def soft_check_all_tabs(self, soft) -> None:
         """Soft-assert all owner dashboard tabs are visible."""
         for tab in self.TABS:
-            soft(self.page.locator(f'[data-tab="{tab}"]')).to_be_visible()
+            soft(self.tab_locator(tab)).to_be_visible()
 
     # ──────────────────────────────────────────────────────────────────
     # GEDCOM Import widget helpers

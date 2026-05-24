@@ -227,7 +227,7 @@ class TreePage(BasePage):
 
         tab_name: 'tree' | 'map' | 'sources' | 'timeline' | 'about'.
         """
-        self.page.locator(f'[data-tab="{tab_name}"]').click()
+        self.tab_locator(tab_name).click()
         self.page.wait_for_load_state("domcontentloaded")
         return self
 
@@ -251,11 +251,15 @@ class TreePage(BasePage):
             f"orbit rendered {count} cards, expected at least {min_cards}"
         )
 
+    def tab_content_pane(self, tab_name: str) -> Locator:
+        """Return the tab content pane locator (`#tab-<name>.active`)."""
+        return self.page.locator(f"#tab-{tab_name}.active")
+
     def expect_tab_content_active(self, tab_name: str) -> None:
         """Assert the tab content pane is active (`#tab-<name>.active`)."""
         from src.texts import ErrMsg
         expect(
-            self.page.locator(f"#tab-{tab_name}.active"),
+            self.tab_content_pane(tab_name),
             ErrMsg.tab_not_visible,
         ).to_be_visible()
 
@@ -330,9 +334,9 @@ class TreePage(BasePage):
     def soft_check_guest_tabs(self, soft: Expect) -> None:
         """Tabs visible to anonymous visitors (tree + about)."""
         for tab in self.GUEST_TABS:
-            soft(self.page.locator(f'[data-tab="{tab}"]')).to_be_visible()
+            soft(self.tab_locator(tab)).to_be_visible()
 
     def soft_check_authed_tabs(self, soft: Expect) -> None:
         """All 5 tabs visible to authenticated users."""
         for tab in self.AUTHED_TABS:
-            soft(self.page.locator(f'[data-tab="{tab}"]')).to_be_visible()
+            soft(self.tab_locator(tab)).to_be_visible()

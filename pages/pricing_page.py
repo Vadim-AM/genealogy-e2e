@@ -30,6 +30,11 @@ class PricingPage(BasePage):
         """Featured pricing card locator."""
         return self.page.locator('[data-testid="pricing-card-featured"]')
 
+    @property
+    def card_title_headings(self) -> Locator:
+        """All pricing card title locators."""
+        return self.page.locator('[data-testid="pricing-card-title"]')
+
     def cards(self) -> Locator:
         """Return the locator for all pricing cards."""
         return self._cards
@@ -40,8 +45,7 @@ class PricingPage(BasePage):
 
     def card_titles(self) -> list[str]:
         """Return the list of pricing card title texts."""
-        headings = self.page.locator('[data-testid="pricing-card-title"]')
-        return [h.inner_text().strip() for h in headings.all()]
+        return [h.inner_text().strip() for h in self.card_title_headings.all()]
 
     def expect_cards_visible(self, count: int = 4) -> None:
         """Assert the expected number of pricing cards are visible."""
