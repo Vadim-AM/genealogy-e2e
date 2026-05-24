@@ -3,16 +3,25 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import allure
 from playwright.sync_api import Page, expect
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
+    from fixtures.users import AuthUser
+
 from api import routes
+from api.person_api import get_tree
 from assertions.base import should
 from config.timeouts import TIMEOUTS
 from framework.step import step
-from helpers.admin.gedcom_ui import open_import_tab
 from helpers.tree.tree_api import people_count
+from pages.owner_page import OwnerPage
 from src.texts import ErrMsg, GedcomImport, t
 from test_data.gedcom.samples import (
     SAMPLE_GEDCOM_CP1251,
@@ -22,7 +31,9 @@ from test_data.gedcom.samples import (
 
 
 @allure.title("GEDCOM: экспорт дерева и повторный импорт идемпотентен")
-def test_round_trip_export_then_import(owner_page: Page, owner_user, tenant_client) -> None:
+def test_round_trip_export_then_import(
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """Export seed-tree → re-import → DONE показывает «Пропущено», count не вырос."""
     with step("подготовка: экспорт текущего дерева через API"):
         api = tenant_client(owner_user)
@@ -35,7 +46,7 @@ def test_round_trip_export_then_import(owner_page: Page, owner_user, tenant_clie
 
     with step("действие: upload экспортированного файла обратно через UI"):
         # 2. Открываем /owner → вкладка «Импорт/Экспорт» → загружаем экспортированный файл обратно
-        owner = open_import_tab(owner_page)
+        owner = OwnerPage(owner_page).goto_import_tab()
         owner.upload_ged(filename="round-trip.ged", content=ged_text.encode("utf-8"))
 
         # 3. Состояние preview — счётчики видимы
@@ -57,14 +68,16 @@ def test_round_trip_export_then_import(owner_page: Page, owner_user, tenant_clie
 
 
 @allure.title("GEDCOM: импортированные персоны появляются в дереве")
-def test_import_new_persons_visible_in_tree(owner_page: Page, owner_user, tenant_client) -> None:
+def test_import_new_persons_visible_in_tree(
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """Импорт нового GEDCOM добавляет persons в дерево."""
     with step("подготовка: запомнить count до импорта"):
         api = tenant_client(owner_user)
         count_before = people_count(api)
 
     with step("действие: upload и confirm нового GEDCOM"):
-        owner = open_import_tab(owner_page)
+        owner = OwnerPage(owner_page).goto_import_tab()
         owner.upload_ged(filename="fresh.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
         owner.expect_import_state("PREVIEW")
         owner.confirm_import_via_dialog()
@@ -72,18 +85,17 @@ def test_import_new_persons_visible_in_tree(owner_page: Page, owner_user, tenant
 
     with step("проверка: новые персоны появились в /api/tree"):
         api = tenant_client(owner_user)
-        tree_after = api.get(routes.TREE).json()
-        should.greater_or_equal(len(tree_after["people"]), count_before + 2, ErrMsg.tree_count_wrong)
-        names = {p["name"] for p in tree_after["people"]}
+        tree_after = get_tree(api)
+        should.greater_or_equal(len(tree_after.people), count_before + 2, ErrMsg.tree_count_wrong)
+        names = {p.name for p in tree_after.people}
         should.any_match(names, lambda n: "Импортов" in n, ErrMsg.gedcom_new_person_missing)
 
 
-
 @allure.title("GEDCOM: импорт CP1251 корректно отображает кириллицу")
-def test_cp1251_shows_cyrillic_correctly(owner_page: Page, owner_user) -> None:
+def test_cp1251_shows_cyrillic_correctly(owner_page: Page, owner_user: AuthUser) -> None:
     """CP1251 файл показывает badge и кириллицу без mojibake."""
     with step("действие: upload CP1251 файла"):
-        owner = open_import_tab(owner_page)
+        owner = OwnerPage(owner_page).goto_import_tab()
         owner.upload_ged(
             filename="cp1251.ged",
             content=SAMPLE_GEDCOM_CP1251.encode("cp1251"),
@@ -93,7 +105,8 @@ def test_cp1251_shows_cyrillic_correctly(owner_page: Page, owner_user) -> None:
     with step("проверка: encoding badge и кириллица без mojibake"):
         # Бейдж кодировки показывает "cp1251"
         expect(
-            owner.import_encoding_badge, ErrMsg.gedcom_encoding_wrong,
+            owner.import_encoding_badge,
+            ErrMsg.gedcom_encoding_wrong,
         ).to_have_attribute("data-gedcom-encoding", "cp1251")
         expect(owner.import_encoding_badge, ErrMsg.gedcom_encoding_wrong).to_contain_text("Windows-1251")
         # Список preview (раскрываемый details) содержит кириллическое имя — ловит mojibake
@@ -102,22 +115,23 @@ def test_cp1251_shows_cyrillic_correctly(owner_page: Page, owner_user) -> None:
 
 
 @allure.title("GEDCOM: UTF-8 файл показывает нейтральный encoding badge")
-def test_utf8_encoding_badge_is_neutral(owner_page: Page, owner_user) -> None:
+def test_utf8_encoding_badge_is_neutral(owner_page: Page, owner_user: AuthUser) -> None:
     """UTF-8 файл показывает нейтральный encoding badge."""
-    owner = open_import_tab(owner_page)
+    owner = OwnerPage(owner_page).goto_import_tab()
     owner.upload_ged(filename="utf8.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
     owner.expect_import_state("PREVIEW")
     expect(owner.import_encoding_badge, ErrMsg.gedcom_encoding_wrong).to_have_attribute("data-gedcom-encoding", "utf-8")
 
 
-
 @allure.title("GEDCOM: отмена на этапе превью сбрасывает в IDLE")
-def test_cancel_during_preview_resets_to_idle(owner_page: Page, owner_user, tenant_client) -> None:
+def test_cancel_during_preview_resets_to_idle(
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """Cancel на PREVIEW возвращает в IDLE без записи persons."""
     with step("подготовка: запомнить count и upload файла"):
         api = tenant_client(owner_user)
         count_before = people_count(api)
-        owner = open_import_tab(owner_page)
+        owner = OwnerPage(owner_page).goto_import_tab()
         owner.upload_ged(filename="cancel.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
         owner.expect_import_state("PREVIEW")
 
@@ -131,12 +145,14 @@ def test_cancel_during_preview_resets_to_idle(owner_page: Page, owner_user, tena
 
 
 @allure.title("GEDCOM: отмена в диалоге подтверждения не импортирует данные")
-def test_confirm_dialog_cancel_blocks_import(owner_page: Page, owner_user, tenant_client) -> None:
+def test_confirm_dialog_cancel_blocks_import(
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """Отмена в confirmDialog оставляет в PREVIEW без записей в БД."""
     with step("подготовка: upload файла до PREVIEW"):
         api = tenant_client(owner_user)
         count_before = people_count(api)
-        owner = open_import_tab(owner_page)
+        owner = OwnerPage(owner_page).goto_import_tab()
         owner.upload_ged(filename="block.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
         owner.expect_import_state("PREVIEW")
 
@@ -155,10 +171,12 @@ def test_confirm_dialog_cancel_blocks_import(owner_page: Page, owner_user, tenan
 
 
 @allure.title("GEDCOM: повторный импорт показывает счётчик пропущенных")
-def test_done_shows_skipped_count_on_reimport(owner_page: Page, owner_user, tenant_client) -> None:
+def test_done_shows_skipped_count_on_reimport(
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """Повторный импорт показывает «Пропущено» в DONE summary."""
     with step("подготовка: первый импорт файла"):
-        owner = open_import_tab(owner_page)
+        owner = OwnerPage(owner_page).goto_import_tab()
         owner.upload_ged(filename="first.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
         owner.confirm_import_via_dialog()
         owner.expect_import_state("DONE")
@@ -177,17 +195,22 @@ def test_done_shows_skipped_count_on_reimport(owner_page: Page, owner_user, tena
 
 
 @allure.title("GEDCOM: после ошибки сервера Retry сбрасывает в IDLE")
-def test_retry_after_error_resets_to_idle(owner_page: Page, owner_user) -> None:
+def test_retry_after_error_resets_to_idle(owner_page: Page, owner_user: AuthUser) -> None:
     """Retry из ERROR сбрасывает state-machine в IDLE."""
     with step("подготовка: перехват POST и вызов ошибки 500"):
-        owner = open_import_tab(owner_page)
+        owner = OwnerPage(owner_page).goto_import_tab()
+
         # Перехватываем POST /import-gedcom и возвращаем 500
         def _block_500(route):
             if route.request.method == "POST":
-                route.fulfill(status=HTTPStatus.INTERNAL_SERVER_ERROR, body='{"detail":"server boom"}',
-                              content_type="application/json")
+                route.fulfill(
+                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                    body='{"detail":"server boom"}',
+                    content_type="application/json",
+                )
             else:
                 route.continue_()
+
         owner_page.route(f"**{routes.ADMIN_IMPORT_GEDCOM}", _block_500)
         try:
             owner.upload_ged(filename="boom.ged", content=SAMPLE_GEDCOM_UTF8.encode("utf-8"))
@@ -201,16 +224,16 @@ def test_retry_after_error_resets_to_idle(owner_page: Page, owner_user) -> None:
         owner.expect_import_state("IDLE")
 
 
-
 @allure.title("GEDCOM: загрузка .txt файла отклоняется без отправки")
-def test_rejects_non_ged_extension(owner_page: Page, owner_user) -> None:
+def test_rejects_non_ged_extension(owner_page: Page, owner_user: AuthUser) -> None:
     """Файл .txt отклоняется без отправки POST."""
     with step("подготовка: открыть вкладку импорта и установить слушатель"):
-        owner = open_import_tab(owner_page)
+        owner = OwnerPage(owner_page).goto_import_tab()
         posted: list[str] = []
-        owner_page.on("request", lambda req:
-                      posted.append(req.url) if req.method == "POST"
-                      and "/import-gedcom" in req.url else None)
+        owner_page.on(
+            "request",
+            lambda req: posted.append(req.url) if req.method == "POST" and "/import-gedcom" in req.url else None,
+        )
 
     with step("действие: загрузить .txt файл"):
         owner.set_file_raw(name="notgedcom.txt", mime="text/plain", buffer=b"hello")
@@ -224,10 +247,10 @@ def test_rejects_non_ged_extension(owner_page: Page, owner_user) -> None:
 
 
 @allure.title("GEDCOM: пустой .ged файл отклоняется с предупреждением")
-def test_rejects_empty_file(owner_page: Page, owner_user) -> None:
+def test_rejects_empty_file(owner_page: Page, owner_user: AuthUser) -> None:
     """Пустой .ged файл показывает alertDialog «пустой»."""
     with step("действие: загрузить пустой .ged файл"):
-        owner = open_import_tab(owner_page)
+        owner = OwnerPage(owner_page).goto_import_tab()
         owner.set_file_raw(name="empty.ged", mime="application/octet-stream", buffer=b"")
 
     with step("проверка: alertDialog «пустой» и возврат в IDLE"):
@@ -238,7 +261,7 @@ def test_rejects_empty_file(owner_page: Page, owner_user) -> None:
 
 
 @allure.title("GEDCOM: файл больше 10 МБ отклоняется на клиенте")
-def test_rejects_oversize_file(owner_page: Page, owner_user) -> None:
+def test_rejects_oversize_file(owner_page: Page, owner_user: AuthUser) -> None:
     """Файл >10 MB отклоняется на клиенте."""
     with step("подготовка: создать payload >10 MB"):
         # `b"1 NOTE xx\n"` — ровно 10 байт, чтобы multiplier × 10 = bytes.
@@ -246,7 +269,7 @@ def test_rejects_oversize_file(owner_page: Page, owner_user) -> None:
         should.greater(len(big_payload), 10 * 1024 * 1024, ErrMsg.payload_sanity)
 
     with step("действие: загрузить oversize файл"):
-        owner = open_import_tab(owner_page)
+        owner = OwnerPage(owner_page).goto_import_tab()
         owner.set_file_raw(name="huge.ged", mime="application/octet-stream", buffer=big_payload)
 
     with step("проверка: alertDialog «слишком большой» и возврат в IDLE"):
@@ -256,12 +279,11 @@ def test_rejects_oversize_file(owner_page: Page, owner_user) -> None:
         owner.expect_import_state("IDLE")
 
 
-
 @allure.title("GEDCOM: ошибка 400 от бэкенда показывает detail в UI")
-def test_backend_400_shows_friendly_error(owner_page: Page, owner_user) -> None:
+def test_backend_400_shows_friendly_error(owner_page: Page, owner_user: AuthUser) -> None:
     """Backend 400 с detail отображается как inline ERROR."""
     with step("подготовка: перехват POST с ответом 400"):
-        owner = open_import_tab(owner_page)
+        owner = OwnerPage(owner_page).goto_import_tab()
 
         def _block_400(route):
             if route.request.method == "POST":
@@ -285,10 +307,10 @@ def test_backend_400_shows_friendly_error(owner_page: Page, owner_user) -> None:
 
 
 @allure.title("GEDCOM: обрыв сети показывает понятное сообщение об ошибке")
-def test_network_error_shows_friendly_message(owner_page: Page, owner_user) -> None:
+def test_network_error_shows_friendly_message(owner_page: Page, owner_user: AuthUser) -> None:
     """Network abort показывает ERROR с понятным сообщением."""
     with step("подготовка: перехват POST с abort"):
-        owner = open_import_tab(owner_page)
+        owner = OwnerPage(owner_page).goto_import_tab()
         owner_page.route(f"**{routes.ADMIN_IMPORT_GEDCOM}", lambda r: r.abort())
 
     with step("проверка: ERROR с friendly message"):

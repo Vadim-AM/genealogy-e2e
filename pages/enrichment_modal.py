@@ -20,6 +20,7 @@ from __future__ import annotations
 from playwright.sync_api import Locator, Page, expect
 
 from config.timeouts import TIMEOUTS
+from framework.step import step
 
 
 class EnrichmentModal:
@@ -84,11 +85,13 @@ class EnrichmentModal:
 
     def expect_open(self) -> None:
         """Assert the enrichment modal is visible."""
-        expect(self.container).to_be_visible()
+        with step("проверка: модалка обогащения открыта"):
+            expect(self.container).to_be_visible()
 
     def wait_results(self) -> None:
         """Block until the (mock) AI job renders its result body."""
-        expect(self.result_body).to_be_visible(timeout=TIMEOUTS.pw_provision_ms)
+        with step("ожидание: результаты AI"):
+            expect(self.result_body).to_be_visible(timeout=TIMEOUTS.pw_provision_ms)
 
     def _hyp_accept_btn(self, hyp: Locator) -> Locator:
         """Кнопка принятия гипотезы."""
@@ -100,9 +103,10 @@ class EnrichmentModal:
 
     def accept_first_hypothesis(self) -> None:
         """Accept the first AI hypothesis into the person card."""
-        first = self.hypotheses.first
-        self._hyp_accept_btn(first).click()
-        expect(self._hyp_accepted_badge(first)).to_be_visible()
+        with step("действие: принять гипотезу"):
+            first = self.hypotheses.first
+            self._hyp_accept_btn(first).click()
+            expect(self._hyp_accepted_badge(first)).to_be_visible()
 
     def expect_results(self, *, min_archives: int) -> None:
         """Hard count assertion — caller knows how many archives the mock fixture
@@ -117,4 +121,5 @@ class EnrichmentModal:
 
     def close(self) -> None:
         """Close the enrichment modal."""
-        self.btn_close.click()
+        with step("действие: закрыть обогащение"):
+            self.btn_close.click()

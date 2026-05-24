@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 import httpx
 import pyotp
@@ -13,9 +15,14 @@ from framework.response import expect_response
 from framework.step import step
 from src.texts import ErrMsg
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fixtures.users import AuthUser
+
 
 @allure.title("Админ: суперадмин видит список тенантов и свой в нём")
-def test_admin_tenant_listing(superadmin_user, tenant_client) -> None:
+def test_admin_tenant_listing(superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]) -> None:
     """Superadmin lists all tenants and looks one up by slug."""
     with step("действие: получаем список тенантов"):
         api = tenant_client(superadmin_user)
@@ -32,13 +39,17 @@ def test_admin_tenant_listing(superadmin_user, tenant_client) -> None:
 
 
 @allure.title("Вейтлист: подписка, пометка и удаление через админку")
-def test_admin_waitlist_lifecycle(superadmin_user, tenant_client, base_url) -> None:
+def test_admin_waitlist_lifecycle(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client], base_url: str
+) -> None:
     """A waitlist subscriber appears for superadmin, can be marked."""
     with step("подготовка: подписываем email на вейтлист"):
         email = make_email("wl-admin")
         expect_response(
-            httpx.post(f"{base_url}{routes.WAITLIST_SUBSCRIBE}", json={"email": email},
-                       ),
+            httpx.post(
+                f"{base_url}{routes.WAITLIST_SUBSCRIBE}",
+                json={"email": email},
+            ),
             label="waitlist subscribe",
         ).status_ok()
 
@@ -66,13 +77,17 @@ def test_admin_waitlist_lifecycle(superadmin_user, tenant_client, base_url) -> N
 
 
 @allure.title("Вейтлист платформы: подписчик виден суперадмину")
-def test_platform_waitlist_listing(superadmin_user, tenant_client, base_url) -> None:
+def test_platform_waitlist_listing(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client], base_url: str
+) -> None:
     """GET /api/platform/waitlist lists waitlist subscribers for the."""
     with step("подготовка: подписываем email на вейтлист"):
         email = make_email("plat-wl")
         expect_response(
-            httpx.post(f"{base_url}{routes.WAITLIST_SUBSCRIBE}", json={"email": email},
-                       ),
+            httpx.post(
+                f"{base_url}{routes.WAITLIST_SUBSCRIBE}",
+                json={"email": email},
+            ),
             label="waitlist subscribe",
         ).status_ok()
 
@@ -85,7 +100,9 @@ def test_platform_waitlist_listing(superadmin_user, tenant_client, base_url) -> 
 
 
 @allure.title("Бэкапы и напоминания: список снимков и отправка нуджей")
-def test_platform_backups_and_nudges(superadmin_user, tenant_client) -> None:
+def test_platform_backups_and_nudges(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """GET /api/platform/backups lists snapshots; POST send-onboarding-nudges."""
     with step("действие: получаем список бэкапов"):
         api = tenant_client(superadmin_user)
@@ -98,7 +115,9 @@ def test_platform_backups_and_nudges(superadmin_user, tenant_client) -> None:
 
 
 @allure.title("Оверрайд тенанта: установка, чтение и удаление переопределения")
-def test_tenant_override_lifecycle(superadmin_user, tenant_client) -> None:
+def test_tenant_override_lifecycle(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """Superadmin sets a tier override on a tenant, reads it back, deletes."""
     with step("подготовка: настраиваем MFA и step-up"):
         api = tenant_client(superadmin_user)
@@ -113,9 +132,14 @@ def test_tenant_override_lifecycle(superadmin_user, tenant_client) -> None:
     with step("действие: создаём override max_archives=999"):
         slug = superadmin_user.slug
         expect_response(
-            api.post(routes.PLATFORM_TENANT_OVERRIDE, json={
-                "tenant_slug": slug, "field_name": "max_archives", "value": "999",
-            }),
+            api.post(
+                routes.PLATFORM_TENANT_OVERRIDE,
+                json={
+                    "tenant_slug": slug,
+                    "field_name": "max_archives",
+                    "value": "999",
+                },
+            ),
             label="POST tenant override",
         ).status_ok()
 
@@ -136,14 +160,16 @@ def test_tenant_override_lifecycle(superadmin_user, tenant_client) -> None:
 
 @allure.title("Вейтлист: инвайт подписчика возвращает статус invited")
 def test_platform_waitlist_invite_promotes_subscriber(
-    superadmin_user, tenant_client, base_url,
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client], base_url: str
 ) -> None:
     """POST /api/platform/waitlist/{id}/invite promotes a waitlist."""
     with step("подготовка: подписываем email на вейтлист"):
         email = make_email("wl-invite")
         expect_response(
-            httpx.post(f"{base_url}{routes.WAITLIST_SUBSCRIBE}", json={"email": email},
-                       ),
+            httpx.post(
+                f"{base_url}{routes.WAITLIST_SUBSCRIBE}",
+                json={"email": email},
+            ),
             label="waitlist subscribe",
         ).status_ok()
 

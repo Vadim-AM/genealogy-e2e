@@ -27,9 +27,10 @@ def test_signup_form_submits_via_post(page: Page, anon_pages: PageFactory) -> No
         signup = anon_pages.navigate_to(SignupPage)
         signup.fill_required(email=unique_email("formpost"), password=TestConfig.DEFAULT_PASSWORD)
 
-    with step("действие: отправить форму и перехватить запрос"), page.expect_request(
-        lambda req: routes.SIGNUP in req.url
-    ) as req_info:
+    with (
+        step("действие: отправить форму и перехватить запрос"),
+        page.expect_request(lambda req: routes.SIGNUP in req.url) as req_info,
+    ):
         signup.submit_btn_by_id.click()
 
     with step("проверка: метод запроса — POST"):
@@ -45,9 +46,10 @@ def test_login_form_submits_via_post(page: Page, anon_pages: PageFactory) -> Non
         login.email.fill(unique_email("formpost-li"))
         login.password.fill("any-password-here")
 
-    with step("действие: отправить форму и перехватить запрос"), page.expect_request(
-        lambda req: routes.LOGIN in req.url
-    ) as req_info:
+    with (
+        step("действие: отправить форму и перехватить запрос"),
+        page.expect_request(lambda req: routes.LOGIN in req.url) as req_info,
+    ):
         login.submit_btn.click()
 
     with step("проверка: метод запроса — POST"):

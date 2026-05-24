@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import allure
 import pytest
@@ -11,6 +12,14 @@ from api import routes
 from assertions.base import should
 from framework.step import step
 from src.texts import ErrMsg
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
+    from fixtures.users import AuthUser
+
 
 _MALICIOUS_IDS = [
     pytest.param("a" * 2000, id="very-long-2k-chars"),
@@ -23,7 +32,7 @@ _MALICIOUS_IDS = [
 @pytest.mark.parametrize("malicious_id", _MALICIOUS_IDS)
 @allure.title("Безопасность: вредоносный person ID возвращает 400/404, не 500")
 def test_malicious_person_id_returns_404_not_500(
-    owner_user, tenant_client, malicious_id: str,
+    owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client], malicious_id: str
 ) -> None:
     """GET /api/people/{malicious_id} → 404, NOT 500."""
     with step("действие: запросить person с вредоносным ID"):

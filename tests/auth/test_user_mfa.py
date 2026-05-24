@@ -19,11 +19,16 @@ from pages.owner_page import OwnerPage
 from src.texts import ErrMsg, Mfa, t
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
     from fixtures.page_factory import PageFactory
+    from fixtures.users import AuthUser
 
 
 @allure.title("Владелец включает и затем отключает двухфакторную аутентификацию")
-def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user, pages: PageFactory) -> None:
+def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user: AuthUser, pages: PageFactory) -> None:
     """Owner включает 2FA через TOTP → статус on → отключает → статус off."""
     with step("подготовка: открытие вкладки безопасности, статус выключен"):
         _ = pages.navigate_to(OwnerPage)
@@ -41,15 +46,22 @@ def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user, pages: Pa
 
 
 @allure.title("Код восстановления 2FA можно использовать только один раз")
-def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client) -> None:
+def test_user_mfa_recovery_codes_are_one_time(
+    signup_via_api: Callable[..., AuthUser], tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """Recovery codes одноразовые: redeem → count--, повторный redeem → 401."""
     with step("подготовка: signup и включение 2FA"):
         user = signup_via_api(email=make_email("mfa-recovery"))
         api = tenant_client(user)
 
-        setup_data = expect_response(
-            api.post(routes.USER_MFA_SETUP), label="user MFA setup",
-        ).status_ok().data
+        setup_data = (
+            expect_response(
+                api.post(routes.USER_MFA_SETUP),
+                label="user MFA setup",
+            )
+            .status_ok()
+            .data
+        )
         secret = setup_data["secret"]
         expect_response(
             api.post(routes.USER_MFA_VERIFY, json={"code": pyotp.TOTP(secret).now()}),
@@ -57,15 +69,25 @@ def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client) -> 
         ).status_ok()
 
     with step("действие: регенерация кодов и проверка количества"):
-        regen_data = expect_response(
-            api.post(routes.USER_MFA_RECOVERY_REGEN), label="user MFA regen",
-        ).status_ok().data
+        regen_data = (
+            expect_response(
+                api.post(routes.USER_MFA_RECOVERY_REGEN),
+                label="user MFA regen",
+            )
+            .status_ok()
+            .data
+        )
         codes = regen_data["codes"]
         should.have_length(codes, 10, ErrMsg.recovery_code_count_wrong)
 
-        count_data = expect_response(
-            api.get(routes.USER_MFA_RECOVERY_COUNT), label="user MFA recovery count",
-        ).status_ok().data
+        count_data = (
+            expect_response(
+                api.get(routes.USER_MFA_RECOVERY_COUNT),
+                label="user MFA recovery count",
+            )
+            .status_ok()
+            .data
+        )
         count_before = count_data["unused"]
         should.be_equal(count_before, 10, ErrMsg.recovery_code_count_wrong)
 
@@ -74,14 +96,20 @@ def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client) -> 
             api.post(routes.USER_MFA_RECOVERY_REDEEM, json={"code": codes[0]}),
             label="user MFA redeem",
         ).status_ok()
-        count_after_data = expect_response(
-            api.get(routes.USER_MFA_RECOVERY_COUNT), label="user MFA recovery count after",
-        ).status_ok().data
+        count_after_data = (
+            expect_response(
+                api.get(routes.USER_MFA_RECOVERY_COUNT),
+                label="user MFA recovery count after",
+            )
+            .status_ok()
+            .data
+        )
         count_after = count_after_data["unused"]
         should.be_equal(count_after, 9, ErrMsg.recovery_code_not_decremented)
 
     with step("проверка: повторное использование того же кода — 401"):
         again = api.post(routes.USER_MFA_RECOVERY_REDEEM, json={"code": codes[0]})
         expect_response(
-            again, label="recovery code must be one-time",
+            again,
+            label="recovery code must be one-time",
         ).status(HTTPStatus.UNAUTHORIZED)

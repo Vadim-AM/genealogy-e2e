@@ -10,8 +10,9 @@ from __future__ import annotations
 
 from typing import Self
 
-from playwright.sync_api import Locator, Page, expect
+from playwright.sync_api import Locator, Page
 
+from framework.step import step
 
 _CS_WRAPPER = '[data-testid="custom-select"]:has(+ select[data-field="{}"])'
 _CS_TRIGGER = '[data-testid="custom-select-trigger"]'
@@ -21,29 +22,6 @@ _CS_OPTION = '[data-testid="custom-select-option"][data-value="{}"]'
 def custom_select_for(page: Page, field: str) -> Locator:
     """Return the custom-select wrapper for a native select[data-field]."""
     return page.locator(_CS_WRAPPER.format(field))
-
-
-def wait_for_authed_shell(page: Page) -> None:
-    """Block until the authenticated index.html shell has settled.
-
-    Why: `index.html` boots guest-first — `AUTH = {authenticated:false}`
-    then `checkAuth()`/`loadData()` resolve async and re-run
-    `updateGuestUI()`, which is what un-hides the auth-gated tabs
-    (`sources`/`timeline` get an *inline* `display:none` in the guest
-    pass that the `.active` class cannot override — only the authed
-    re-run clears it). A test that clicks a tab right after
-    `domcontentloaded` races that re-run. Under PostgreSQL (slower than
-    the retired in-proc SQLite) the window widened enough to flip these
-    from flaky-green to consistently red.
-
-    The behavioural settle signal: an orbit card has rendered in
-    `#treeContainer`. That can only happen after `/api/tree` resolved,
-    which is the same callback that sets `AUTH.authenticated` and runs
-    the authed `updateGuestUI()`. Asserting render — not a fixed sleep
-    or an internal flag — keeps this robust to refactors (Rule 13).
-    """
-    _ORBIT_CARD = '#treeContainer [data-testid="orbit-card"]'
-    expect(page.locator(_ORBIT_CARD).first).to_be_visible()
 
 
 class BasePage:
@@ -56,16 +34,19 @@ class BasePage:
 
     def goto(self, *, query: str = "") -> Self:
         """Navigate to the page URL and return self for chaining."""
-        url = self.URL + (f"?{query}" if query else "")
-        self.page.goto(url)
+        with step(f"навигация: переход на {self.URL}"):
+            url = self.URL + (f"?{query}" if query else "")
+            self.page.goto(url)
         return self
 
     def goto_and_load(self, *, query: str = "") -> Self:
         """Navigate to the page URL, wait for DOM content loaded, return self."""
-        self.goto(query=query)
-        self.page.wait_for_load_state("domcontentloaded")
+        with step(f"навигация: переход и загрузка {self.URL}"):
+            self.goto(query=query)
+            self.page.wait_for_load_state("domcontentloaded")
         return self
 
     def wait_for_page_load(self) -> None:
         """Wait for the DOM content to be loaded."""
-        self.page.wait_for_load_state("domcontentloaded")
+        with step("ожидание: загрузка DOM"):
+            self.page.wait_for_load_state("domcontentloaded")

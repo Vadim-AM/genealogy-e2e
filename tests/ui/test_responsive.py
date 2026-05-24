@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 from playwright.sync_api import Page, expect
 
@@ -10,6 +12,9 @@ from framework.step import step
 from pages.signup_page import SignupPage
 from pages.tree_page import TreePage
 from src.texts import ErrMsg
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Expect
 
 
 @allure.title("Адаптив 375px: регистрация без горизонтального скролла")
@@ -70,7 +75,7 @@ def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
 
 
 @allure.title("Адаптив 768px: все вкладки видны на iPad portrait")
-def test_all_authed_tabs_visible_on_ipad_portrait(tablet_owner_page: Page, soft_check) -> None:
+def test_all_authed_tabs_visible_on_ipad_portrait(tablet_owner_page: Page, soft_check: Expect) -> None:
     """TC-RESPONSIVE-1 (768): все основные tabs видны без обрезаний."""
     with step("действие: загрузить главную на 768px"):
         tree = TreePage(tablet_owner_page).goto_and_load()

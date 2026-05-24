@@ -70,8 +70,14 @@ for f in sorted(pathlib.Path('tests').rglob('test_*.py')):
 # Rule 35: низкоуровневые Playwright-вызовы в тестах (должно быть 0)
 grep -rn "\.locator(\|\.get_attribute(\|\.click(\|\.fill(\|\.wait_for_load_state\|\.wait_for(" tests/ --include="test_*.py" | grep -v "conftest\|# \|\"\"\"" | wc -l
 
-# Rule 36: standalone helpers вместо POM-методов
-grep -rn "auth_name(\|logout_link(\|login_link(\|wait_for_authed_shell(" tests/ --include="test_*.py" | wc -l
+# Rule 8/22: raw .json() в тестах (цель: < 5, оставляя Playwright Response)
+grep -rn "\.json()" tests/ --include="test_*.py" | grep -v "openapi.json\|test_api_coverage\|# noqa" | wc -l
+
+# Rule 36: standalone helpers с page: Page (цель: 0)
+grep -rn "def .*page: Page" helpers/ --include="*.py" | grep -v "viewport\|__init__" | wc -l
+
+# Rule 36: standalone page-helpers (migrated to POM — should be 0)
+grep -rn "from helpers\." tests/ --include="test_*.py" | grep -v "tree_api\|session_helpers\|timing\|viewport\|i18n_checks\|add_relative" | wc -l
 
 # Rule 37: eager locators в POM __init__ (должно быть 0)
 grep -rn "self\.\w* = .*locator\|self\.\w* = .*get_by_" pages/ --include="*.py" | grep -v "@property\|def " | wc -l

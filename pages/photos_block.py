@@ -17,6 +17,9 @@ from __future__ import annotations
 
 from playwright.sync_api import Locator, Page, expect
 
+from framework.step import step
+from test_data.media.jpeg import MIN_JPEG_BYTES
+
 
 class PhotosBlock:
     """Drives the photos-block: upload, count, remove thumbnails."""
@@ -60,7 +63,8 @@ class PhotosBlock:
 
     def expect_thumb_count(self, n: int) -> None:
         """Assert exactly n thumbnails are present in the grid."""
-        expect(self.thumbs).to_have_count(n)
+        with step("проверка: количество фото"):
+            expect(self.thumbs).to_have_count(n)
 
     def add_btn_for_attr(self) -> str | None:
         """Return the `for` attribute of the add-photo label."""
@@ -69,3 +73,10 @@ class PhotosBlock:
     def file_input_accept(self) -> str | None:
         """Return the `accept` attribute of the file input."""
         return self.file_input.get_attribute("accept")
+
+    def upload_test_jpeg(self, *, name: str = "test.jpg") -> None:
+        """Upload a minimal test JPEG via the file input."""
+        with step("действие: загрузить фото"):
+            self.file_input.set_input_files(
+                files=[{"name": name, "mimeType": "image/jpeg", "buffer": MIN_JPEG_BYTES}]  # type: ignore[arg-type]
+            )

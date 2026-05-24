@@ -20,14 +20,17 @@ from pages.tree_page import TreePage
 from src.texts import ErrMsg, TestData
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from fixtures.page_factory import PageFactory
+    from fixtures.users import AuthUser
 
 _NEW_PASSWORD = "Brand_New_Password_2026"
 
 
 @allure.title("Сброс пароля: полный путь от запроса до входа с новым паролем")
 def test_forgot_password_full_flow_user_logs_in_with_new_password(
-    page: Page, owner_user, read_email_token, anon_pages: PageFactory,
+    page: Page, owner_user: AuthUser, read_email_token: Callable[[str], str], anon_pages: PageFactory
 ) -> None:
     """TC-FP-1: полный путь — запрос сброса → email → новый пароль → вход."""
     with step("действие: запрос сброса пароля через UI"):
@@ -59,14 +62,14 @@ def test_forgot_password_full_flow_user_logs_in_with_new_password(
         login.login(owner_user.email, _NEW_PASSWORD)
         page.wait_for_url("**/")
         tree = TreePage(page)
-        expect(tree.auth_user_name, ErrMsg.auth_name_wrong).to_have_text(
-            TestData.DEFAULT_FULL_NAME
-        )
+        expect(tree.auth_user_name, ErrMsg.auth_name_wrong).to_have_text(TestData.DEFAULT_FULL_NAME)
 
 
 @allure.title("Запрос сброса для неизвестного email показывает тот же успех")
 def test_forgot_password_unknown_email_shows_silent_success_message(
-    page: Page, base_url: str, anon_pages: PageFactory,
+    page: Page,
+    base_url: str,
+    anon_pages: PageFactory,
 ) -> None:
     """F-FP-2 / TC-FP-2: для unknown email UI показывает ту же success-копию."""
     with step("действие: запрос сброса для неизвестного email"):
@@ -87,7 +90,7 @@ def test_forgot_password_unknown_email_shows_silent_success_message(
 
 @allure.title("Повторное открытие ссылки сброса пароля показывает ошибку")
 def test_reset_password_token_used_once_then_invalid_via_ui(
-    page: Page, owner_user, read_email_token, anon_pages: PageFactory,
+    page: Page, owner_user: AuthUser, read_email_token: Callable[[str], str], anon_pages: PageFactory
 ) -> None:
     """F-FP-4 / TC-FP-4: после reset тот же token нельзя использовать повторно."""
     with step("подготовка: запрос сброса и получение токена"):
@@ -110,7 +113,9 @@ def test_reset_password_token_used_once_then_invalid_via_ui(
 
 @allure.title("Пустое поле email не отправляет запрос на сброс пароля")
 def test_forgot_password_empty_field_shows_inline_error_no_request(
-    page: Page, anon_pages: PageFactory, forgot_password_request_spy: list[str],
+    page: Page,
+    anon_pages: PageFactory,
+    forgot_password_request_spy: list[str],
 ) -> None:
     """Пустой email → submit → backend не вызывается (HTML required)."""
     with step("подготовка: открытие формы"):

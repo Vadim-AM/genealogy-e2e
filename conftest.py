@@ -28,6 +28,7 @@ def pytest_configure(config: pytest.Config) -> None:
     except (ImportError, ValueError) as exc:
         pytest.exit(f"Settings validation failed: {exc}", returncode=2)
 
+
 pytest_plugins = (
     "fixtures.patch",
     "fixtures.server",
@@ -57,10 +58,18 @@ def pytest_runtest_makereport(item, call):
             except OSError:
                 pass
 
-_DOMAIN_MARKERS = frozenset({
-    "auth", "tree", "platform", "admin",
-    "security", "enrichment", "ui",
-})
+
+_DOMAIN_MARKERS = frozenset(
+    {
+        "auth",
+        "tree",
+        "platform",
+        "admin",
+        "security",
+        "enrichment",
+        "ui",
+    }
+)
 
 # A test is `serial` (runs single-worker, keeps per-test global reset) if it
 # mutates shared stand/backend state that a unique tenant cannot isolate.
@@ -88,23 +97,25 @@ _SERIAL_FIXTURES = frozenset({"superadmin_user"})
 #     settle-waits (test_logout, test_enrichment_apply already have
 #     wait_for_authed_shell). Moving back to parallel requires proving
 #     stable under `-n 4` on CI hardware — not a code change.
-_SERIAL_FILES = frozenset({
-    "test_ai_disabled_flow.py",
-    "test_security_timing.py",
-    # Heavy GEDCOM-import-via-UI (upload + async import job + render) and
-    # mobile/logout flows: a bounded, well-defined class that is not
-    # concurrency-robust as written. Failure set is non-deterministic
-    # across worker counts/runs (test-robustness, not a product bug);
-    # all deterministically green single-worker.
-    "test_gedcom_import_deep.py",
-    "test_gedcom_import_ui.py",
-    "test_mobile_smoke.py",
-    "test_logout.py",
-    # Enrichment-apply drives the AI modal (async job + result render +
-    # accept/revert) — same heavy-UI, not-concurrency-robust class;
-    # deterministically green single-worker.
-    "test_enrichment_apply.py",
-})
+_SERIAL_FILES = frozenset(
+    {
+        "enrichment/test_ai_disabled_flow.py",
+        "security/test_security_timing.py",
+        # Heavy GEDCOM-import-via-UI (upload + async import job + render) and
+        # mobile/logout flows: a bounded, well-defined class that is not
+        # concurrency-robust as written. Failure set is non-deterministic
+        # across worker counts/runs (test-robustness, not a product bug);
+        # all deterministically green single-worker.
+        "admin/test_gedcom_import_deep.py",
+        "admin/test_gedcom_import_ui.py",
+        "ui/test_mobile_smoke.py",
+        "auth/test_logout.py",
+        # Enrichment-apply drives the AI modal (async job + result render +
+        # accept/revert) — same heavy-UI, not-concurrency-robust class;
+        # deterministically green single-worker.
+        "enrichment/test_enrichment_apply.py",
+    }
+)
 
 
 def pytest_collection_modifyitems(items):
@@ -125,5 +136,5 @@ def pytest_collection_modifyitems(items):
             item.add_marker(getattr(pytest.mark, domain))
 
         fixtures = getattr(item, "fixturenames", ())
-        if _SERIAL_FIXTURES.intersection(fixtures) or item.path.name in _SERIAL_FILES:
+        if _SERIAL_FIXTURES.intersection(fixtures) or any(str(item.path).endswith(sf) for sf in _SERIAL_FILES):
             item.add_marker(pytest.mark.serial)

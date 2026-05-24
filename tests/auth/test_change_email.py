@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import allure
 
@@ -13,10 +14,19 @@ from framework.response import expect_response
 from framework.step import step
 from src.texts import ErrMsg
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
+    from fixtures.users import AuthUser
+
 
 @allure.title("Запрос смены email отправляет токен подтверждения на новый адрес")
 def test_change_email_endpoint_initiates_confirmation(
-    signup_via_api, tenant_client, read_email_token,
+    signup_via_api: Callable[..., AuthUser],
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    read_email_token: Callable[[str], str],
 ) -> None:
     """INV-EMAIL-002: POST /api/account/me/email → 200 + confirmation mail."""
     with step("подготовка: signup и получение клиента"):
@@ -32,7 +42,8 @@ def test_change_email_endpoint_initiates_confirmation(
 
     with step("проверка: статус 200 и токен подтверждения отправлен"):
         expect_response(
-            r, label="change-email should return 200/202 to initiate confirmation",
+            r,
+            label="change-email should return 200/202 to initiate confirmation",
         ).status(HTTPStatus.OK)
 
         token = read_email_token(new_email)

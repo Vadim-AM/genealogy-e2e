@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 from playwright.sync_api import Page, expect
 
@@ -13,10 +15,21 @@ from pages.invite_accept_page import InviteAcceptPage
 from pages.tree_page import TreePage
 from src.texts import ErrMsg, Invite, TestData, t
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+    from playwright.sync_api import BrowserContext
+
+    from fixtures.users import AuthUser
+
 
 @allure.title("Приглашённый видит успех с именем древа на странице принятия")
 def test_invitee_lands_on_accept_page_sees_success_with_tenant_name(
-    auth_context_factory, owner_user, signup_via_api, tenant_client,
+    auth_context_factory: Callable[..., BrowserContext],
+    owner_user: AuthUser,
+    signup_via_api: Callable[..., AuthUser],
+    tenant_client: Callable[[AuthUser], httpx.Client],
 ) -> None:
     """TC-INV-001: invitee открывает invite → видит «Готово!» + ссылку на дерево."""
     with step("подготовка: создание приглашения и signup invitee"):
@@ -46,7 +59,10 @@ def test_invitee_lands_on_accept_page_sees_success_with_tenant_name(
 
 @allure.title("Клик 'Открыть древо' ведёт на главную с авторизацией")
 def test_invitee_clicks_open_tree_lands_on_tree_with_authed_indicator(
-    auth_context_factory, owner_user, signup_via_api, tenant_client,
+    auth_context_factory: Callable[..., BrowserContext],
+    owner_user: AuthUser,
+    signup_via_api: Callable[..., AuthUser],
+    tenant_client: Callable[[AuthUser], httpx.Client],
 ) -> None:
     """Клик «Открыть древо» → / с авторизованным invitee в auth indicator."""
     with step("подготовка: создание приглашения и signup invitee"):
@@ -67,16 +83,14 @@ def test_invitee_clicks_open_tree_lands_on_tree_with_authed_indicator(
     with step("проверка: redirect на главную с авторизованным пользователем"):
         page.wait_for_url("**/")
         tree = TreePage(page)
-        expect(tree.auth_user_name, ErrMsg.auth_name_wrong).to_have_text(
-            TestData.DEFAULT_FULL_NAME
-        )
+        expect(tree.auth_user_name, ErrMsg.auth_name_wrong).to_have_text(TestData.DEFAULT_FULL_NAME)
 
     page.close()
 
 
 @allure.title("Владелец открывает своё приглашение и видит предупреждение")
 def test_owner_opens_own_invite_sees_warning_with_display_name(
-    owner_page: Page, owner_user, tenant_client,
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
 ) -> None:
     """TC-INVITE-1 + BUG-UX-003: owner открывает свой invite → warning с display_name."""
     with step("подготовка: создание invite на свой email"):
@@ -97,7 +111,7 @@ def test_owner_opens_own_invite_sees_warning_with_display_name(
 
 @allure.title("Неавторизованный видит ссылки входа/регистрации с токеном")
 def test_anonymous_invitee_sees_login_links_with_token_in_next(
-    page: Page, owner_user, tenant_client,
+    page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
 ) -> None:
     """TC-INVITE-2: anonymous + invite без email → prompt с login/signup ссылками."""
     with step("подготовка: создание приглашения без email"):
@@ -122,7 +136,7 @@ def test_anonymous_invitee_sees_login_links_with_token_in_next(
 
 @allure.title("Email-приглашение работает как magic-link без логина")
 def test_anonymous_emailed_invite_is_magic_link_auto_accepted(
-    page: Page, owner_user, tenant_client,
+    page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
 ) -> None:
     """v2-Phase1 H5: email-invite = magic-link → auto-accept без логина."""
     with step("подготовка: создание email-приглашения"):
@@ -139,5 +153,7 @@ def test_anonymous_emailed_invite_is_magic_link_auto_accepted(
         expect(invite_page.message, ErrMsg.invite_message_wrong).to_contain_text(t(Invite.ADDED_TO_TREE))
         expect(invite_page.message, ErrMsg.invite_message_wrong).to_contain_text(TestData.DEFAULT_FULL_NAME)
         should.not_contain(
-            invite_page.message.text_content() or "", owner_user.slug, ErrMsg.slug_leaked_in_message,
+            invite_page.message.text_content() or "",
+            owner_user.slug,
+            ErrMsg.slug_leaked_in_message,
         )

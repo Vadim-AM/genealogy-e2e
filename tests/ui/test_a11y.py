@@ -41,9 +41,7 @@ def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFac
         should.greater_or_equal(resp_info.value.status, HTTPStatus.BAD_REQUEST, ErrMsg.status_mismatch)
 
     with step("проверка: поле пароля получило aria-invalid"):
-        expect(signup.password, ErrMsg.wrong_attribute).to_have_attribute(
-            "aria-invalid", "true" * 1000
-        )
+        expect(signup.password, ErrMsg.wrong_attribute).to_have_attribute("aria-invalid", "true" * 1000)
 
 
 @allure.title("A11y: honeypot-поле скрыто от скринридера (aria-hidden)")

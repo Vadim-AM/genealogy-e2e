@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Browser, BrowserContext, Page
+
+    from fixtures.users import AuthUser
+
 
 def localhost_url(base_url: str) -> str:
     """Replace 127.0.0.1 with localhost for WebAuthn RP-id compatibility."""
     return base_url.replace("127.0.0.1", "localhost")
 
 
-def make_localhost_context(browser, superadmin_user, base_url: str):
+def make_localhost_context(browser: Browser, superadmin_user: AuthUser, base_url: str) -> BrowserContext:
     """BrowserContext pointing at http://localhost with superadmin cookies."""
     url = localhost_url(base_url)
     ctx = browser.new_context(
@@ -16,13 +23,11 @@ def make_localhost_context(browser, superadmin_user, base_url: str):
         viewport={"width": 1440, "height": 900},
     )
     for name, value in superadmin_user.cookies.items():
-        ctx.add_cookies(
-            [{"name": name, "value": value, "url": url}]
-        )
+        ctx.add_cookies([{"name": name, "value": value, "url": url}])
     return ctx
 
 
-def add_virtual_authenticator(page) -> str:
+def add_virtual_authenticator(page: Page) -> str:
     """Register a virtual TouchID authenticator via CDP. Returns authenticatorId."""
     cdp = page.context.new_cdp_session(page)
     cdp.send("WebAuthn.enable", {"enableUI": False})

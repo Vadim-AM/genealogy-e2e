@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import allure
 
 from api import routes
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
+    from fixtures.users import AuthUser
 from assertions.base import should
 from config.timeouts import TIMEOUTS
 from framework.response import expect_response
@@ -15,7 +23,9 @@ from src.texts import ErrMsg
 
 
 @allure.title("GEDCOM: владелец экспортирует дерево через auth_v2")
-def test_owner_can_export_gedcom_via_auth_v2(owner_user, tenant_client) -> None:
+def test_owner_can_export_gedcom_via_auth_v2(
+    owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """INV-GEDCOM-001 (export): auth_v2 owner получает 200 + GEDCOM body."""
     with step("действие: экспортировать GEDCOM через auth_v2"):
         api = tenant_client(owner_user)
@@ -30,17 +40,13 @@ def test_owner_can_export_gedcom_via_auth_v2(owner_user, tenant_client) -> None:
 
 
 @allure.title("GEDCOM: владелец импортирует файл через auth_v2")
-def test_owner_can_import_gedcom_via_auth_v2(owner_user, tenant_client) -> None:
+def test_owner_can_import_gedcom_via_auth_v2(
+    owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """INV-GEDCOM-001 (import): auth_v2 owner может POST GEDCOM."""
     with step("подготовка: подготовить минимальный GEDCOM-файл"):
         api = tenant_client(owner_user)
-        minimal_gedcom = (
-            "0 HEAD\n"
-            "1 SOUR Genealogy-e2e\n"
-            "0 @I1@ INDI\n"
-            "1 NAME Тестовый /Импорт/\n"
-            "0 TRLR\n"
-        )
+        minimal_gedcom = "0 HEAD\n1 SOUR Genealogy-e2e\n0 @I1@ INDI\n1 NAME Тестовый /Импорт/\n0 TRLR\n"
 
     with step("действие: импортировать GEDCOM через auth_v2"):
         r = api.post(

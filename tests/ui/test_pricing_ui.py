@@ -20,13 +20,20 @@ from src.texts import ErrMsg
 if TYPE_CHECKING:
     from fixtures.page_factory import PageFactory
 
+
 @allure.title("Тарифы API: /api/tiers/public возвращает 4 тарифа")
 def test_public_tiers_endpoint_returns_four_paid_tiers(uvicorn_server: str) -> None:
     """TC-N2: GET /api/tiers/public должен отдавать 4 publik-тарифа в ₽."""
     with step("действие: запросить /api/tiers/public"):
         r = httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}")
-        expect_response(r, label="GET /api/tiers/public").status(HTTPStatus.OK)
-        body = r.json()
+        body = (
+            expect_response(
+                r,
+                label="GET /api/tiers/public",
+            )
+            .status(HTTPStatus.OK)
+            .data
+        )
 
     with step("проверка: 4 публичных тарифа без служебных"):
         should.be_false(body.get("hidden"), ErrMsg.tiers_hidden_wrong)
@@ -46,7 +53,14 @@ def test_public_tiers_endpoint_returns_four_paid_tiers(uvicorn_server: str) -> N
 def test_public_tiers_have_display_name_and_numeric_prices(uvicorn_server: str) -> None:
     """TC-N1: каждый тариф имеет непустой `display_name` и числовые цены."""
     with step("действие: запросить тарифы"):
-        body = httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}").json()
+        body = (
+            expect_response(
+                httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}"),
+                label="GET tiers",
+            )
+            .status_ok()
+            .data
+        )
         by_name = {i["tier_name"]: i for i in body["items"]}
 
     with step("проверка: display_name и цены корректны"):
@@ -70,7 +84,14 @@ def test_public_tiers_have_display_name_and_numeric_prices(uvicorn_server: str) 
 @allure.title("Тарифы API: тарифы отсортированы по возрастанию цены")
 def test_public_tiers_sorted_by_price_ascending(uvicorn_server: str) -> None:
     """TC-N1: тарифы отсортированы по цене (free → pro)."""
-    body = httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}").json()
+    body = (
+        expect_response(
+            httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}"),
+            label="GET tiers",
+        )
+        .status_ok()
+        .data
+    )
     prices = [i["price_rub_month"] for i in body["items"]]
     should.be_equal(prices, sorted(prices), ErrMsg.tiers_not_sorted)
 
@@ -123,13 +144,20 @@ def test_pricing_cards_show_rub_symbol(page: Page, anon_pages: PageFactory) -> N
 
 @allure.title("Тарифы: карточка Исследователь выделена как featured")
 def test_pricing_researcher_card_is_featured_by_position(
-    page: Page, uvicorn_server: str, anon_pages: PageFactory,
+    page: Page,
+    uvicorn_server: str,
+    anon_pages: PageFactory,
 ) -> None:
     """TC-N1: featured-карточка (CSS-класс `.featured`) соответствует."""
     with step("подготовка: определить позицию researcher в API"):
-        body = httpx.get(
-            f"{uvicorn_server}{routes.TIERS_PUBLIC}"
-        ).json()
+        body = (
+            expect_response(
+                httpx.get(f"{uvicorn_server}{routes.TIERS_PUBLIC}"),
+                label="GET tiers",
+            )
+            .status_ok()
+            .data
+        )
         items = body["items"]
         researcher_idx = next(
             (i for i, t in enumerate(items) if t["tier_name"] == "researcher"),

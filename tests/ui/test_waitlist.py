@@ -76,7 +76,7 @@ def test_wait_duplicate_email_idempotent_status_field(page: Page, anon_pages: Pa
     with step("проверка: первый submit -> status=ok"):
         r1 = r1_info.value
         should.playwright_status(r1, HTTPStatus.OK, ErrMsg.subscribe_status_wrong)
-        body1 = r1.json()
+        body1 = r1.json()  # noqa: drift
         should.be_equal(body1.get("status"), "ok", ErrMsg.subscribe_status_wrong)
         wait.expect_success()
 
@@ -88,5 +88,5 @@ def test_wait_duplicate_email_idempotent_status_field(page: Page, anon_pages: Pa
     with step("проверка: дубликат -> status=already_subscribed"):
         r2 = r2_info.value
         should.playwright_status(r2, HTTPStatus.OK, ErrMsg.subscribe_status_wrong)
-        body2 = r2.json()
+        body2 = r2.json()  # noqa: drift
         should.be_equal(body2.get("status"), "already_subscribed", ErrMsg.subscribe_status_wrong)

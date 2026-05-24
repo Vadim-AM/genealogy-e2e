@@ -10,6 +10,7 @@ from typing import Self
 
 from playwright.sync_api import Locator, Page, expect
 
+from framework.step import step
 from src.texts import Buttons, t
 
 from .base import BasePage
@@ -48,17 +49,20 @@ class LoginPage(BasePage):
 
     def login(self, email: str, password: str) -> Self:
         """Fill credentials and click the login button."""
-        self.email.fill(email)
-        self.password.fill(password)
-        self.submit_btn.click()
+        with step("действие: вход в систему"):
+            self.email.fill(email)
+            self.password.fill(password)
+            self.submit_btn.click()
         return self
 
     def expect_visible_form(self) -> None:
         """Assert email, password and submit button are visible."""
-        expect(self.email).to_be_visible()
-        expect(self.password).to_be_visible()
-        expect(self.submit_btn).to_be_visible()
+        with step("проверка: форма входа видима"):
+            expect(self.email).to_be_visible()
+            expect(self.password).to_be_visible()
+            expect(self.submit_btn).to_be_visible()
 
     def expect_error(self) -> None:
         """Assert the status message contains a non-empty error text."""
-        expect(self.error_msg).not_to_have_text("")
+        with step("проверка: ошибка входа"):
+            expect(self.error_msg).not_to_have_text("")

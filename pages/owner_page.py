@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 from playwright.sync_api import Locator, Page, expect
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Expect
+
+from framework.step import step
 
 from .base import BasePage
 
@@ -168,25 +173,27 @@ class OwnerPage(BasePage):
 
     def open_tab(self, name: str) -> Self:
         """Click a tab by its data-tab name."""
-        self.tab_locator(name).click()
+        with step(f"действие: открыть вкладку {name!r}"):
+            self.tab_locator(name).click()
         return self
 
     def update_settings(self, *, site_name: str | None = None) -> Self:
         """Open the settings tab, optionally set site name, and save."""
-        self.open_tab("settings")
-        if site_name is not None:
-            # The settings tab populates #cfg_site_name asynchronously
-            # via GET /api/site/config (owner.js: `await r.json()`). The
-            # field ships empty (placeholder only), so wait for populate
-            # to fill it before fill() — otherwise the populate response
-            # lands after fill() and overwrites it, and save() submits
-            # the stale default.
-            expect(self.cfg_site_name).not_to_have_value("")
-            self.cfg_site_name.fill(site_name)
-        self.cfg_save.click()
+        with step("действие: обновить настройки"):
+            self.open_tab("settings")
+            if site_name is not None:
+                # The settings tab populates #cfg_site_name asynchronously
+                # via GET /api/site/config (owner.js: `await r.json()`). The
+                # field ships empty (placeholder only), so wait for populate
+                # to fill it before fill() — otherwise the populate response
+                # lands after fill() and overwrites it, and save() submits
+                # the stale default.
+                expect(self.cfg_site_name).not_to_have_value("")
+                self.cfg_site_name.fill(site_name)
+            self.cfg_save.click()
         return self
 
-    def soft_check_all_tabs(self, soft) -> None:
+    def soft_check_all_tabs(self, soft: Expect) -> None:
         """Soft-assert all owner dashboard tabs are visible."""
         for tab in self.TABS:
             soft(self.tab_locator(tab)).to_be_visible()
@@ -198,20 +205,22 @@ class OwnerPage(BasePage):
     def expect_import_state(self, state: str) -> None:
         """Assert import widget is in given state (IDLE, FILE_PICKED,
         UPLOADING, PREVIEW, CONFIRMING, DONE, ERROR)."""
-        expect(self.import_root).to_have_attribute("data-gedcom-state", state)
+        with step(f"проверка: состояние импорта {state!r}"):
+            expect(self.import_root).to_have_attribute("data-gedcom-state", state)
 
     def upload_ged(self, *, filename: str, content: bytes) -> None:
         """Set the file input via in-memory buffer, then click Upload."""
-        self.import_file_input.set_input_files(
-            files=[  # type: ignore[arg-type]
-                {
-                    "name": filename,
-                    "mimeType": "application/octet-stream",
-                    "buffer": content,
-                }
-            ]
-        )
-        self.import_upload_btn.click()
+        with step(f"действие: загрузить GED файл {filename!r}"):
+            self.import_file_input.set_input_files(
+                files=[  # type: ignore[arg-type]
+                    {
+                        "name": filename,
+                        "mimeType": "application/octet-stream",
+                        "buffer": content,
+                    }
+                ]
+            )
+            self.import_upload_btn.click()
 
     def confirm_import_via_dialog(self) -> None:
         """Click widget's Confirm -> confirmDialog appears -> click Confirm.
@@ -219,8 +228,9 @@ class OwnerPage(BasePage):
         Two-stage gate by design: widget triggers confirmDialog before
         writing to DB.
         """
-        self.import_confirm_btn.click()
-        self.confirm_dialog_confirm.click()
+        with step("действие: подтвердить импорт"):
+            self.import_confirm_btn.click()
+            self.confirm_dialog_confirm.click()
 
     def set_file_raw(self, *, name: str, mime: str, buffer: bytes) -> None:
         """Set the file input directly (bypassing upload_ged's Upload click).
@@ -228,6 +238,28 @@ class OwnerPage(BasePage):
         Used for client-side validation tests (wrong extension, empty file,
         oversize) where the widget rejects before any POST.
         """
-        self.import_file_input.set_input_files(
-            files=[{"name": name, "mimeType": mime, "buffer": buffer}]  # type: ignore[arg-type]
-        )
+        with step(f"действие: установить файл {name!r}"):
+            self.import_file_input.set_input_files(
+                files=[{"name": name, "mimeType": mime, "buffer": buffer}]  # type: ignore[arg-type]
+            )
+
+    def import_gedcom_via_ui(self, ged_content: str, filename: str) -> None:
+        """Full import flow: open export tab -> upload -> confirm -> DONE."""
+        with step(f"действие: импорт GEDCOM {filename!r}"):
+            self.goto()
+            self.page.wait_for_load_state("domcontentloaded")
+            self.open_tab("export")
+            expect(self.import_root).to_have_attribute("data-gedcom-state", "IDLE")
+            self.upload_ged(filename=filename, content=ged_content.encode("utf-8"))
+            self.expect_import_state("PREVIEW")
+            self.confirm_import_via_dialog()
+            self.expect_import_state("DONE")
+
+    def goto_import_tab(self) -> Self:
+        """Navigate to /owner and open the GEDCOM import tab."""
+        with step("навигация: вкладка импорта"):
+            self.goto()
+            self.page.wait_for_load_state("domcontentloaded")
+            self.open_tab("export")
+            expect(self.import_root).to_have_attribute("data-gedcom-state", "IDLE")
+        return self

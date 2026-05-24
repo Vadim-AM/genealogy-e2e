@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 import pytest
 
@@ -9,12 +11,18 @@ from assertions.base import should
 from framework.step import step
 from src.texts import ErrMsg
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fixtures.users import AuthUser
+
+
 _RESERVED_SLUGS = ("admin", "api", "www", "root", "mail", "ftp", "support")
 
 
 @pytest.mark.parametrize("reserved", _RESERVED_SLUGS)
 @allure.title("Зарезервированные slug-и не назначаются при регистрации")
-def test_signup_does_not_assign_reserved_slug(signup_via_api, reserved: str) -> None:
+def test_signup_does_not_assign_reserved_slug(signup_via_api: Callable[..., AuthUser], reserved: str) -> None:
     """INV-SLUG-001a: derived slug не совпадает с reserved word."""
     with step(f"действие: signup с email '{reserved}@e2e.example.com'"):
         email = f"{reserved}@e2e.example.com"

@@ -12,17 +12,20 @@ from playwright.sync_api import Page, expect
 
 from api import routes
 from assertions.base import should
+from fixtures.users import AuthUser
 from framework.response import expect_response
 from framework.step import step
 from pages.tree_page import TreePage
 from src.texts import Enrichment, ErrMsg, t
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from fixtures.page_factory import PageFactory
 
 
 @pytest.fixture(autouse=True)
-def ai_search_disabled(uvicorn_server: str):
+def ai_search_disabled(uvicorn_server: str) -> Iterator[None]:
     """Выключает AI search перед каждым тестом файла."""
     httpx.post(
         f"{uvicorn_server}{routes.TEST_SET_PLATFORM_SETTING}",
@@ -33,7 +36,10 @@ def ai_search_disabled(uvicorn_server: str):
 
 @allure.title("AI выключен: кнопка disabled с подсказкой «скоро», POST не улетает")
 def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
-    owner_page: Page, owner_user, pages: PageFactory, enrich_post_spy: list[str],
+    owner_page: Page,
+    owner_user: AuthUser,
+    pages: PageFactory,
+    enrich_post_spy: list[str],
 ) -> None:
     """TC-N5: owner → tree → orbit-center → profile → AI-кнопка disabled."""
     with step("подготовка: открыть профиль demo-self"):
@@ -66,7 +72,8 @@ def test_features_endpoint_public_returns_ai_disabled_flag(uvicorn_server: str) 
 
     with step("проверка: public доступ и ai_search_enabled=false"):
         expect_response(r, label="config/features public").status(HTTPStatus.OK).json_eq(
-            "ai_search_enabled", False,
+            "ai_search_enabled",
+            False,
         )
 
 
@@ -75,23 +82,25 @@ _TEST_JOB = "some_job_id"
 
 _ENRICH_ENDPOINTS = [
     ("POST", routes.enrich(_TEST_PID)),
-    ("GET",  routes.enrich(_TEST_PID)),
-    ("GET",  routes.enrich_history(_TEST_PID)),
-    ("GET",  routes.enrich_acceptances(_TEST_PID)),
+    ("GET", routes.enrich(_TEST_PID)),
+    ("GET", routes.enrich_history(_TEST_PID)),
+    ("GET", routes.enrich_acceptances(_TEST_PID)),
     ("POST", routes.enrich_feedback(_TEST_PID)),
     ("POST", routes.enrich_accept(_TEST_PID)),
     ("POST", routes.ENRICH_LETTERS_SENT),
-    ("GET",  routes.enrich_jobs(_TEST_JOB)),
-    ("GET",  routes.enrich_cache(0)),
+    ("GET", routes.enrich_jobs(_TEST_JOB)),
+    ("GET", routes.enrich_cache(0)),
     ("POST", routes.enrich_revert(0)),
-    ("GET",  routes.ENRICH_HEALTH_API_KEY),
+    ("GET", routes.ENRICH_HEALTH_API_KEY),
 ]
 
 
 @pytest.mark.parametrize("method,path", _ENRICH_ENDPOINTS)
 @allure.title("AI выключен: /api/enrich/* → 503")
 def test_enrich_endpoint_returns_503_when_ai_disabled(
-    uvicorn_server: str, method: str, path: str,
+    uvicorn_server: str,
+    method: str,
+    path: str,
 ) -> None:
     """TC-N4: каждый /api/enrich/* endpoint → 503 при ENABLE_AI_SEARCH=0."""
     r = httpx.request(method, f"{uvicorn_server}{path}", json={})
@@ -100,11 +109,14 @@ def test_enrich_endpoint_returns_503_when_ai_disabled(
 
 @allure.title("AI выключен: bootstrap загружает /api/config/features")
 def test_features_endpoint_fires_on_main_page_bootstrap(
-    page: Page, anon_pages: PageFactory,
+    page: Page,
+    anon_pages: PageFactory,
 ) -> None:
     """TC-N3b: при загрузке / frontend дёргает /api/config/features."""
-    with step("действие: загрузка / и ожидание /api/config/features"), \
-         page.expect_response(f"**{routes.CONFIG_FEATURES}") as resp_ctx:
+    with (
+        step("действие: загрузка / и ожидание /api/config/features"),
+        page.expect_response(f"**{routes.CONFIG_FEATURES}") as resp_ctx,
+    ):
         _ = anon_pages.navigate_to(TreePage)
 
     with step("проверка: /api/config/features ответил 200"):

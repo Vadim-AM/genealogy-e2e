@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import allure
 
@@ -12,10 +13,17 @@ from framework.response import expect_response
 from framework.step import step
 from models.auth import AccountMe
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
+    from fixtures.users import AuthUser
+
 
 @allure.title("GDPR: удаление тенанта инвалидирует сессию владельца")
 def test_delete_tenant_invalidates_owner_session(
-    signup_via_api, tenant_client,
+    signup_via_api: Callable[..., AuthUser], tenant_client: Callable[[AuthUser], httpx.Client]
 ) -> None:
     """INV-GDPR-001a: после soft-delete tenant'а старая cookie owner'а."""
     with step("подготовка: создать пользователя и проверить валидность сессии"):

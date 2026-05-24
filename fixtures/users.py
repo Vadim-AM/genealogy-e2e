@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import httpx
+import pyotp
 import pytest
 
 from api import routes
@@ -132,7 +133,7 @@ def create_invite(uvicorn_server: str) -> Callable[..., str]:
 
 
 @pytest.fixture
-def accept_invite(uvicorn_server: str) -> Callable[..., None]:
+def accept_invite(uvicorn_server: str) -> Callable[..., dict[str, str]]:
     """Factory: accept invite by token, using user's session cookies.
 
     Endpoint: POST /api/account/tenant/invites/{token}/accept.
@@ -150,7 +151,7 @@ def accept_invite(uvicorn_server: str) -> Callable[..., None]:
         cookies.update(r.cookies)
         return cookies
 
-    return _do  # type: ignore[return-value]
+    return _do
 
 
 @pytest.fixture
@@ -263,8 +264,6 @@ def grant_ai_consent(tenant_client: Callable[[AuthUser], httpx.Client]) -> Calla
 
 def setup_and_verify_mfa(api: httpx.Client) -> str:
     """Setup + verify TOTP for the given client. Returns plaintext secret."""
-    import pyotp
-
     setup = api.post(routes.MFA_SETUP).json()
     code = pyotp.TOTP(setup["secret"]).now()
     api.post(routes.MFA_VERIFY, json={"code": code}).raise_for_status()

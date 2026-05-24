@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from playwright.sync_api import Locator, Page, expect
 
+from framework.step import step
+
 
 class SharePage:
     """Drives the public share page: inspect person, check errors."""
@@ -32,12 +34,15 @@ class SharePage:
 
     def expect_person_visible(self, name_substring: str) -> None:
         """Assert the shared person name contains the given substring."""
-        expect(self.person_name).to_contain_text(name_substring)
+        with step("проверка: персона видна на share"):
+            expect(self.person_name).to_contain_text(name_substring)
 
     def expect_error_visible(self) -> None:
         """Assert the share error block is visible."""
-        expect(self.error).to_be_visible()
+        with step("проверка: ошибка share видна"):
+            expect(self.error).to_be_visible()
 
     def expect_no_edit_controls(self) -> None:
         """Assert no edit button is present on the shared page."""
-        expect(self.edit_button).to_have_count(0)
+        with step("проверка: нет контролов редактирования"):
+            expect(self.edit_button).to_have_count(0)

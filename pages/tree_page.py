@@ -11,15 +11,16 @@ from typing import TYPE_CHECKING, Self
 
 from playwright.sync_api import Locator, Page, expect
 
+from api import routes
+from assertions.base import should
 from framework.step import step
-from src.texts import Placeholders, t
+from pages.profile_panel import ProfilePanel
+from src.texts import ErrMsg, Placeholders, t
 
 from .base import BasePage
 
 if TYPE_CHECKING:
     from playwright.sync_api import Expect
-
-    from pages.profile_panel import ProfilePanel
 
 
 class TreePage(BasePage):
@@ -191,6 +192,18 @@ class TreePage(BasePage):
                 expect(self.auth_user_name).to_have_text(display_name)
             expect(self.logout_btn).to_be_visible()
 
+    def wait_for_auth_resolved(self, *, expected: bool = True, timeout_ms: int = 5_000) -> None:
+        """Poll window.AUTH.authenticated until it matches expected or timeout.
+
+        Deep links race the /api/auth/me round-trip; this waits for the JS
+        auth state to settle rather than relying on DOM side-effects.
+        """
+        self.page.wait_for_function(
+            "(want) => window.AUTH && window.AUTH.authenticated === want",
+            arg=expected,
+            timeout=timeout_ms,
+        )
+
     def expect_guest_state(self) -> None:
         """Проверяет гостевой режим: login видна, authed-вкладки скрыты."""
         with step("проверка гостевого режима"):
@@ -202,7 +215,6 @@ class TreePage(BasePage):
 
     def logout(self) -> None:
         """Клик по «Выйти» с ожиданием POST /logout."""
-        from api import routes
         with step("клик «Выйти»"):
             with self.page.expect_response(
                 lambda r: routes.LOGOUT in r.url and r.request.method == "POST"
@@ -213,7 +225,6 @@ class TreePage(BasePage):
 
     def open_center_profile(self) -> ProfilePanel:
         """Клик по центральной orbit-карточке → открывает профиль demo-self."""
-        from pages.profile_panel import ProfilePanel
 
         with step("клик по orbit-center → открытие профиля"):
             expect(self.orbit_center).to_be_visible()
@@ -247,9 +258,7 @@ class TreePage(BasePage):
         # Auto-wait until the orbit renderer attaches at least one card.
         expect(self.orbit_cards.first).to_be_visible()
         count = self.orbit_cards.count()
-        assert count >= min_cards,  # precondition (
-            f"orbit rendered {count} cards, expected at least {min_cards}"
-        )
+        should.greater_or_equal(count, min_cards, ErrMsg.orbit_card_not_visible)
 
     def tab_content_pane(self, tab_name: str) -> Locator:
         """Return the tab content pane locator (`#tab-<name>.active`)."""
@@ -257,7 +266,6 @@ class TreePage(BasePage):
 
     def expect_tab_content_active(self, tab_name: str) -> None:
         """Assert the tab content pane is active (`#tab-<name>.active`)."""
-        from src.texts import ErrMsg
         expect(
             self.tab_content_pane(tab_name),
             ErrMsg.tab_not_visible,
@@ -323,6 +331,32 @@ class TreePage(BasePage):
         self.page.goto(f"/{fragment}")
         self.page.wait_for_load_state("domcontentloaded")
         return self
+
+    def search_and_open_profile(self, query: str) -> ProfilePanel:
+        """Search for a person, click result, open profile via center card."""
+
+        with step(f"действие: найти и открыть профиль {query!r}"):
+            with self.page.expect_response(lambda r: "/api/tree" in r.url and r.ok):
+                self.goto()
+            self.search_input.fill(query)
+            expect(self.search_results.first).to_be_visible()
+            self.search_results.first.click()
+            expect(self.orbit_center).to_contain_text(query)
+            self.orbit_center.click()
+            panel = ProfilePanel(self.page)
+            panel.expect_visible()
+            return panel
+
+    def search_and_orbit(self, query: str) -> Self:
+        """Search for a person, click result, stay on orbit view."""
+        with step(f"действие: найти и сфокусировать {query!r}"):
+            with self.page.expect_response(lambda r: "/api/tree" in r.url and r.ok):
+                self.goto()
+            self.search_input.fill(query)
+            expect(self.search_results.first).to_be_visible()
+            self.search_results.first.click()
+            expect(self.orbit_center).to_be_visible()
+            return self
 
 
 

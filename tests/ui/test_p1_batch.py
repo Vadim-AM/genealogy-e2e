@@ -12,15 +12,16 @@ from playwright.sync_api import Page, Route, expect
 from api import routes
 from assertions.base import should
 from framework.step import step
+from pages.add_relative_modal import AddRelativeModal
 from pages.base import custom_select_for
 from pages.confirm_dialog import ConfirmDialog
-from pages.person_editor import AddRelativeModal
 from pages.profile_panel import ProfilePanel, open_editor_for
 from pages.tree_page import TreePage
 from src.texts import AboutTab, ErrMsg, Placeholders, TestData, t
 
 if TYPE_CHECKING:
     from fixtures.page_factory import PageFactory
+
 
 @allure.title("Древо: минимапа видна авторизованному пользователю")
 def test_minimap_visible_on_tree_tab_for_authed_owner(pages: PageFactory) -> None:
@@ -84,9 +85,9 @@ def test_confirm_dialog_escape_cancels(owner_page: Page) -> None:
         delete_responses: list[int] = []
         owner_page.on(
             "response",
-            lambda r: delete_responses.append(r.status)
-            if routes.PEOPLE in r.url and r.request.method == "DELETE"
-            else None,
+            lambda r: (
+                delete_responses.append(r.status) if routes.PEOPLE in r.url and r.request.method == "DELETE" else None
+            ),
         )
 
     with step("действие: открыть confirm-dialog через delete"):
@@ -164,6 +165,7 @@ def test_add_relative_shows_error_on_409_conflict(owner_page: Page) -> None:
     """TC-09.10: при попытке создать дубликат person backend возвращает."""
 
     with step("подготовка: подменить API на 409 через route"):
+
         def conflict_handler(route: Route) -> None:
             route.fulfill(
                 status=409,
@@ -218,11 +220,12 @@ def test_confirm_dialog_enter_confirms_delete(owner_page: Page) -> None:
         dialog = ConfirmDialog(owner_page)
         dialog.expect_visible()
 
-    with step("действие: подтвердить Enter и проверить DELETE"), \
-         owner_page.expect_request(
-             lambda req: bool(re.search(rf"{routes.PEOPLE}/[^/?]+", req.url)
-             and req.method == "DELETE")
-         ):
+    with (
+        step("действие: подтвердить Enter и проверить DELETE"),
+        owner_page.expect_request(
+            lambda req: bool(re.search(rf"{routes.PEOPLE}/[^/?]+", req.url) and req.method == "DELETE")
+        ),
+    ):
         dialog.confirm()
 
 
@@ -234,9 +237,9 @@ def test_confirm_dialog_backdrop_click_cancels(owner_page: Page) -> None:
         delete_responses: list[int] = []
         owner_page.on(
             "response",
-            lambda r: delete_responses.append(r.status)
-            if routes.PEOPLE in r.url and r.request.method == "DELETE"
-            else None,
+            lambda r: (
+                delete_responses.append(r.status) if routes.PEOPLE in r.url and r.request.method == "DELETE" else None
+            ),
         )
 
     with step("действие: открыть confirm-dialog"):

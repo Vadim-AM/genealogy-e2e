@@ -21,9 +21,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(params=list(DEVICE_DESCRIPTORS), ids=list(DEVICE_DESCRIPTORS))
-def mobile_context(
-    request, browser: Browser, base_url: str
-) -> Iterator[BrowserContext]:
+def mobile_context(request: pytest.FixtureRequest, browser: Browser, base_url: str) -> Iterator[BrowserContext]:
     """Per-device context. Виртуальное устройство задаёт viewport, UA,."""
     device_descriptor = DEVICE_DESCRIPTORS[request.param]
     ctx = browser.new_context(
@@ -99,9 +97,7 @@ def test_about_beta_card_visible_for_guest_on_mobile(mobile_page: Page) -> None:
 
 
 @allure.title("Мобильный: форма регистрации заполняется и отправляется")
-def test_signup_form_submittable_on_mobile(
-    mobile_page: Page, base_url: str
-) -> None:
+def test_signup_form_submittable_on_mobile(mobile_page: Page, base_url: str) -> None:
     """TC-MOBILE-4: signup-форма работоспособна с touch — поля заполняются,."""
     with step("подготовка: открыть signup на мобильном"):
         signup = SignupPage(mobile_page).goto_and_load()

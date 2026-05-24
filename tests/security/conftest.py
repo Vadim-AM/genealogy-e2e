@@ -1,5 +1,8 @@
 """Security domain fixtures."""
+
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import httpx
 import pytest
@@ -8,11 +11,19 @@ from api import routes
 from config.constants import TestConfig, unique_email
 from fixtures.users import AuthUser
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 @pytest.fixture
 def viewer_in_owners_tenant(
-    signup_via_api, signup_unverified, read_email_token, login_existing,
-    create_invite, accept_invite, base_url: str,
+    signup_via_api: Callable[..., AuthUser],
+    signup_unverified: Callable[..., str],
+    read_email_token: Callable[[str], str],
+    login_existing: Callable[..., dict[str, str]],
+    create_invite: Callable[..., str],
+    accept_invite: Callable[..., dict[str, str]],
+    base_url: str,
 ):
     """Build a viewer-membership pair: returns (owner, viewer_auth_user).
 

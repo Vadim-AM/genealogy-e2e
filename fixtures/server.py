@@ -14,6 +14,7 @@ from typing import Any
 
 import httpx
 import pytest
+from filelock import FileLock
 from tenacity import retry, retry_if_exception_type, stop_after_delay, wait_fixed
 
 from api import routes
@@ -29,7 +30,7 @@ def wait_for_health(base_url: str, *, timeout: float) -> None:
     @retry(
         stop=stop_after_delay(timeout),
         wait=wait_fixed(TIMEOUTS.polling_interval),
-        retry=retry_if_exception_type(ConnectionError),
+        retry=retry_if_exception_type((ConnectionError, httpx.ConnectError)),
         reraise=True,
     )
     def _check() -> None:
@@ -88,8 +89,6 @@ def baseline_reset(uvicorn_server: str, tmp_path_factory: pytest.TempPathFactory
     if os.environ.get("PYTEST_XDIST_WORKER") is None:
         post_reset(uvicorn_server)  # master / no xdist
         return
-    from filelock import FileLock
-
     root = tmp_path_factory.getbasetemp().parent  # shared across workers
     flag = root / "e2ebaseline_reset.done"
     with FileLock(str(flag) + ".lock"):

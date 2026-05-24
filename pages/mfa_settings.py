@@ -22,6 +22,8 @@ from typing import Self
 import pyotp
 from playwright.sync_api import Locator, Page, expect
 
+from framework.step import step
+
 
 class MfaSettings:
     """Drives the owner's 2FA settings: enable, verify, recovery, disable."""
@@ -81,26 +83,30 @@ class MfaSettings:
 
     def open_tab(self) -> Self:
         """Click the Security tab to reveal MFA controls."""
-        self.tab.click()
+        with step("навигация: вкладка безопасности"):
+            self.tab.click()
         return self
 
     def enable_with_totp(self) -> None:
         """Click Enable -> read the TOTP secret -> submit a generated code."""
-        self.btn_enable.click()
-        expect(self.setup_secret).to_be_visible()
-        self._secret = self.setup_secret.inner_text().strip()
-        self.verify_code.fill(pyotp.TOTP(self._secret).now())
-        self.verify_code.press("Enter")
+        with step("действие: включить 2FA через TOTP"):
+            self.btn_enable.click()
+            expect(self.setup_secret).to_be_visible()
+            self._secret = self.setup_secret.inner_text().strip()
+            self.verify_code.fill(pyotp.TOTP(self._secret).now())
+            self.verify_code.press("Enter")
 
     def finish_recovery(self) -> None:
         """The verify step shows 10 recovery codes -- acknowledge them."""
-        expect(self.recovery_codes).to_have_count(10)
-        self.recovery_done.click()
+        with step("действие: подтвердить recovery-коды"):
+            expect(self.recovery_codes).to_have_count(10)
+            self.recovery_done.click()
 
     def disable_with_stepup(self) -> None:
         """Click Disable -> step-up dialog -> submit a generated TOTP code."""
-        self.btn_disable.click()
-        expect(self.stepup_code).to_be_visible()
-        assert self._secret, "enable_with_totp must run before disable"  # precondition
-        self.stepup_code.fill(pyotp.TOTP(self._secret).now())
-        self.stepup_code.press("Enter")
+        with step("действие: отключить 2FA через step-up"):
+            self.btn_disable.click()
+            expect(self.stepup_code).to_be_visible()
+            assert self._secret, "enable_with_totp must run before disable"  # precondition
+            self.stepup_code.fill(pyotp.TOTP(self._secret).now())
+            self.stepup_code.press("Enter")

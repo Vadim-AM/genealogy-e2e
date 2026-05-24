@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
@@ -21,8 +22,6 @@ if TYPE_CHECKING:
 @allure.title("Лендинг: заголовок страницы содержит название бренда")
 def test_landing_title_has_brand(page: Page, anon_pages: PageFactory) -> None:
     """F-LND-2: title contains a brand fragment."""
-    import re
-
     with step("действие: открыть главную"):
         _ = anon_pages.navigate_to(TreePage)
 

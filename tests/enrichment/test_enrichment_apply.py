@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 from playwright.sync_api import Page, expect
 
@@ -13,19 +15,27 @@ from models.enrichment import EnrichJobResponse
 from pages.confirm_dialog import ConfirmDialog
 from pages.enrichment_modal import EnrichmentModal
 from pages.profile_panel import ProfilePanel
+from pages.tree_page import TreePage
 from src.texts import ErrMsg, TestData
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
+    from fixtures.users import AuthUser
 
 
 @allure.title("AI-обогащение: принятие гипотезы и откат через UI")
 def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
-    owner_page: Page, owner_user, grant_ai_consent,
+    owner_page: Page, owner_user: AuthUser, grant_ai_consent: Callable[[AuthUser], None]
 ) -> None:
     """Owner принимает AI-гипотезу → chip в карточке → откат → chip исчез."""
     with step("подготовка: consent и открытие профиля"):
         grant_ai_consent(owner_user)
 
         panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
-        tree.expect_authed_state()
+        TreePage(owner_page).expect_authed_state()
 
     with step("действие: запуск enrichment и принятие гипотезы"):
         panel.trigger_enrichment()
@@ -55,7 +65,9 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
 
 @allure.title("AI-обогащение: кэш отдаёт результат, health, фидбек и письма принимаются")
 def test_enrichment_cache_and_health_invariants(
-    owner_user, grant_ai_consent, tenant_client,
+    owner_user: AuthUser,
+    grant_ai_consent: Callable[[AuthUser], None],
+    tenant_client: Callable[[AuthUser], httpx.Client],
 ) -> None:
     """Кэш отдаёт результат по id, health отвечает, feedback и letters принимаются."""
     with step("подготовка: consent и запуск enrichment job"):
@@ -77,12 +89,21 @@ def test_enrichment_cache_and_health_invariants(
         health = api.get(routes.ENRICH_HEALTH_API_KEY)
         expect_response(health, label="GET enrich health").status_ok().json_has("configured")
 
-        feedback = api.post(routes.enrich_feedback(TestData.DEMO_PERSON_ID), json={
-            "enrichment_id": enrichment_id, "feedback_type": "overall", "thumb": "up",
-        })
+        feedback = api.post(
+            routes.enrich_feedback(TestData.DEMO_PERSON_ID),
+            json={
+                "enrichment_id": enrichment_id,
+                "feedback_type": "overall",
+                "thumb": "up",
+            },
+        )
         expect_response(feedback, label="POST enrich feedback").status_ok()
 
-        letter = api.post(routes.ENRICH_LETTERS_SENT, json={
-            "enrichment_id": enrichment_id, "archive_name": "ЦАМО",
-        })
+        letter = api.post(
+            routes.ENRICH_LETTERS_SENT,
+            json={
+                "enrichment_id": enrichment_id,
+                "archive_name": "ЦАМО",
+            },
+        )
         expect_response(letter, label="POST letters-sent").status_ok()

@@ -7,8 +7,9 @@ from playwright.sync_api import Page, expect
 
 from assertions.base import should
 from framework.step import step
-from helpers.enrichment.enrichment_ui import get_consent_dialog, open_demo_self
-from src.texts import AiConsent, ErrMsg, t
+from pages.confirm_dialog import ConfirmDialog
+from pages.profile_panel import ProfilePanel
+from src.texts import AiConsent, ErrMsg, TestData, t
 
 
 @allure.title("AI-согласие: первый клик показывает модалку с Anthropic и политикой")
@@ -17,9 +18,9 @@ def test_first_enrich_click_renders_consent_modal_with_legal_content(
 ) -> None:
     """TC-AI-1 (positive): первый click ★ → modal с Anthropic + privacy policy."""
     with step("действие: открыть профиль и кликнуть обогащение"):
-        panel = open_demo_self(owner_page)
+        panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.trigger_enrichment()
-        dialog = get_consent_dialog(owner_page)
+        dialog = ConfirmDialog(owner_page)
         dialog.expect_visible()
 
     with step("проверка: модалка содержит Anthropic, политику и shared data"):
@@ -36,15 +37,16 @@ def test_first_enrich_click_renders_consent_modal_with_legal_content(
 
 @allure.title("AI-согласие: отказ закрывает модалку и блокирует запрос")
 def test_consent_decline_closes_modal_and_blocks_enrich_post(
-    owner_page: Page, enrich_post_spy: list[str],
+    owner_page: Page,
+    enrich_post_spy: list[str],
 ) -> None:
     """TC-AI-1 (negative): Cancel в consent modal — modal закрывается, POST не уходит."""
     with step("подготовка: открыть профиль"):
-        panel = open_demo_self(owner_page)
+        panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
 
     with step("действие: клик обогащения и отказ в consent"):
         panel.trigger_enrichment()
-        dialog = get_consent_dialog(owner_page)
+        dialog = ConfirmDialog(owner_page)
         dialog.expect_visible()
         dialog.click_button(t(AiConsent.DECLINE_LABEL))
 
@@ -57,14 +59,14 @@ def test_consent_decline_closes_modal_and_blocks_enrich_post(
 def test_consent_re_click_after_decline_re_renders_modal(owner_page: Page) -> None:
     """Повторный click ★ после Decline снова показывает consent modal."""
     with step("подготовка: открыть профиль и отказаться от consent"):
-        panel = open_demo_self(owner_page)
+        panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
 
         panel.trigger_enrichment()
-        dialog = get_consent_dialog(owner_page)
+        dialog = ConfirmDialog(owner_page)
         dialog.expect_visible()
         dialog.click_button(t(AiConsent.DECLINE_LABEL))
         dialog.expect_hidden()
 
     with step("проверка: повторный клик снова показывает consent modal"):
         panel.trigger_enrichment()
-        get_consent_dialog(owner_page).expect_visible()
+        ConfirmDialog(owner_page).expect_visible()

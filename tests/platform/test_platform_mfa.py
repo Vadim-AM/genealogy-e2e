@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import allure
 import pyotp
@@ -16,18 +17,28 @@ from framework.step import step
 from models.mfa import MfaVerifyResponse
 from src.texts import ErrMsg
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
+    from fixtures.users import AuthUser
+
+
 _BASE32_RE = re.compile(r"^[A-Z2-7]+$")
 
 
 @allure.title("MFA: настройка запрещена обычному владельцу")
-def test_mfa_setup_requires_superadmin(owner_user, tenant_client) -> None:
+def test_mfa_setup_requires_superadmin(owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]) -> None:
     """TC-PA-MFA-1: regular owner → 401/403 на /mfa/setup."""
     r = tenant_client(owner_user).post(routes.MFA_SETUP)
     expect_response(r, label="owner MFA setup").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("MFA: setup возвращает secret, otpauth-ссылку и issuer")
-def test_mfa_setup_returns_secret_and_uri(superadmin_user, tenant_client) -> None:
+def test_mfa_setup_returns_secret_and_uri(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-MFA-2: setup возвращает secret + otpauth_url + issuer."""
     with step("действие: вызываем MFA setup"):
         setup = mfa_api.setup_mfa(tenant_client(superadmin_user))
@@ -40,7 +51,9 @@ def test_mfa_setup_returns_secret_and_uri(superadmin_user, tenant_client) -> Non
 
 
 @allure.title("MFA: повторный setup без сброса отклоняется (409)")
-def test_mfa_setup_409_when_already_configured(superadmin_user, tenant_client) -> None:
+def test_mfa_setup_409_when_already_configured(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-MFA-3: повторный setup без сброса → 409 (mfa_already_configured)."""
     api = tenant_client(superadmin_user)
 
@@ -53,7 +66,9 @@ def test_mfa_setup_409_when_already_configured(superadmin_user, tenant_client) -
 
 
 @allure.title("MFA: верный TOTP-код подтверждает двухфакторку")
-def test_mfa_verify_correct_code_returns_ok(superadmin_user, tenant_client) -> None:
+def test_mfa_verify_correct_code_returns_ok(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-MFA-4: setup → verify с актуальным TOTP-кодом → 200 + valid_until."""
     api = tenant_client(superadmin_user)
 
@@ -70,7 +85,9 @@ def test_mfa_verify_correct_code_returns_ok(superadmin_user, tenant_client) -> N
 
 
 @allure.title("MFA: неверный TOTP-код отклоняется (401)")
-def test_mfa_verify_wrong_code_401(superadmin_user, tenant_client) -> None:
+def test_mfa_verify_wrong_code_401(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-MFA-5: setup → verify с заведомо неверным кодом → 401."""
     api = tenant_client(superadmin_user)
 
@@ -83,14 +100,18 @@ def test_mfa_verify_wrong_code_401(superadmin_user, tenant_client) -> None:
 
 
 @allure.title("MFA: verify без предварительного setup отклоняется (409)")
-def test_mfa_verify_409_without_setup(superadmin_user, tenant_client) -> None:
+def test_mfa_verify_409_without_setup(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-MFA-6: verify без предшествующего setup → 409 (mfa_not_configured)."""
     r = tenant_client(superadmin_user).post(routes.MFA_VERIFY, json={"code": "123456"})
     expect_response(r, label="MFA verify without setup").status(HTTPStatus.CONFLICT)
 
 
 @allure.title("MFA: статус до настройки — не сконфигурировано")
-def test_mfa_status_initial_not_configured(superadmin_user, tenant_client) -> None:
+def test_mfa_status_initial_not_configured(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-MFA-7: до setup — configured=False, fresh=False."""
     status = mfa_api.get_mfa_status(tenant_client(superadmin_user))
     should.be_false(status.configured, ErrMsg.mfa_configured_wrong)
@@ -98,7 +119,9 @@ def test_mfa_status_initial_not_configured(superadmin_user, tenant_client) -> No
 
 
 @allure.title("MFA: после подтверждения статус — сконфигурировано и свежее")
-def test_mfa_status_after_verify_is_fresh(superadmin_user, tenant_client) -> None:
+def test_mfa_status_after_verify_is_fresh(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-MFA-8: после успешного verify — configured=True, fresh=True."""
     api = tenant_client(superadmin_user)
 
@@ -114,7 +137,9 @@ def test_mfa_status_after_verify_is_fresh(superadmin_user, tenant_client) -> Non
 
 
 @allure.title("MFA: генерация выдаёт ровно 10 резервных кодов")
-def test_recovery_regenerate_returns_10_codes(superadmin_user, tenant_client) -> None:
+def test_recovery_regenerate_returns_10_codes(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-MFA-9: regenerate возвращает ровно 10 кодов в формате xxxx-xxxx-xxxx-xxxx."""
     api = tenant_client(superadmin_user)
 
@@ -133,7 +158,9 @@ def test_recovery_regenerate_returns_10_codes(superadmin_user, tenant_client) ->
 
 
 @allure.title("MFA: счётчик резервных кодов равен 10 после генерации")
-def test_recovery_count_after_regenerate_is_10(superadmin_user, tenant_client) -> None:
+def test_recovery_count_after_regenerate_is_10(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-MFA-10: count returns unused=10 после свежего regenerate."""
     api = tenant_client(superadmin_user)
 
@@ -147,7 +174,9 @@ def test_recovery_count_after_regenerate_is_10(superadmin_user, tenant_client) -
 
 
 @allure.title("MFA: использование резервного кода уменьшает счётчик")
-def test_recovery_redeem_consumes_one_code(superadmin_user, tenant_client) -> None:
+def test_recovery_redeem_consumes_one_code(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-MFA-11: redeem валидного кода → 200, count → 9, повторный redeem → 401."""
     api = tenant_client(superadmin_user)
 
@@ -171,7 +200,9 @@ def test_recovery_redeem_consumes_one_code(superadmin_user, tenant_client) -> No
 
 
 @allure.title("MFA: перегенерация инвалидирует старые резервные коды")
-def test_recovery_regenerate_invalidates_old_codes(superadmin_user, tenant_client) -> None:
+def test_recovery_regenerate_invalidates_old_codes(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-MFA-12: вторая regenerate инвалидирует первые 10 кодов."""
     api = tenant_client(superadmin_user)
 

@@ -11,6 +11,8 @@ from typing import Self
 
 from playwright.sync_api import Locator, Page, expect
 
+from framework.step import step
+
 from .base import BasePage
 
 
@@ -54,7 +56,8 @@ class FeatureFlagsPage(BasePage):
 
     def expect_section_visible(self) -> None:
         """Assert the Feature Flags section is visible."""
-        expect(self.section).to_be_visible()
+        with step("проверка: секция Feature Flags видима"):
+            expect(self.section).to_be_visible()
 
     def wait_for_settings_loaded(self) -> None:
         """Wait for loadSettings() to populate inputs.
@@ -62,7 +65,8 @@ class FeatureFlagsPage(BasePage):
         CSP-safe locator assertion (not wait_for_function); beta_cap_input
         receives a value only after loadSettings() completes.
         """
-        expect(self.beta_cap_input).not_to_have_value("")
+        with step("ожидание: загрузка настроек"):
+            expect(self.beta_cap_input).not_to_have_value("")
 
     def group_title_texts(self) -> set[str]:
         """Return the set of visible group title texts."""
@@ -84,7 +88,8 @@ class FeatureFlagsPage(BasePage):
 
     def click_ai_search_toggle(self) -> Self:
         """Click the AI search toggle."""
-        self.ai_search_toggle.click()
+        with step("действие: переключить AI search"):
+            self.ai_search_toggle.click()
         return self
 
     def help_tooltip_texts(self) -> list[str]:

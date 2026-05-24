@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 from playwright.sync_api import Page, expect
 
@@ -9,14 +11,21 @@ from api import routes
 from assertions.base import should
 from framework.step import step
 from helpers.tree.tree_api import people_count, seed_person
-from helpers.tree.tree_navigation import open_demo_self_profile
-from pages.person_editor import AddRelativeModal
+from pages.add_relative_modal import AddRelativeModal
+from pages.profile_panel import ProfilePanel
 from src.texts import ErrMsg, LinkedChip, TestData, t
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
+    from fixtures.users import AuthUser
 
 
 @allure.title("Привязка существующего сиблинга создаёт только связь, не персону")
 def test_link_existing_sibling_creates_only_relationship(
-    owner_page: Page, owner_user, tenant_client
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
 ) -> None:
     """Привязка существующего person'а создаёт только relationship, не дубликат."""
     with step("подготовка: создание существующей персоны"):
@@ -31,7 +40,7 @@ def test_link_existing_sibling_creates_only_relationship(
         count_before = people_count(api)
 
     with step("действие: поиск и привязка через автоподсказку"):
-        panel = open_demo_self_profile(owner_page)
+        panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
 
         modal = AddRelativeModal(owner_page)
@@ -55,9 +64,7 @@ def test_link_existing_sibling_creates_only_relationship(
 
         def _track(response):
             nonlocal post_people_count
-            if response.request.method == "POST" and response.url.endswith(
-                routes.PEOPLE
-            ):
+            if response.request.method == "POST" and response.url.endswith(routes.PEOPLE):
                 post_people_count += 1
 
         owner_page.on("response", _track)
@@ -77,7 +84,7 @@ def test_link_existing_sibling_creates_only_relationship(
 
 @allure.title("Отвязка привязанной персоны возвращает форму в режим создания")
 def test_unlink_existing_returns_to_create_mode(
-    owner_page: Page, owner_user, tenant_client
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
 ) -> None:
     """Отвязка возвращает форму в create-mode, правка + Save создаёт нового."""
     with step("подготовка: создание существующей персоны"):
@@ -92,7 +99,7 @@ def test_unlink_existing_returns_to_create_mode(
         count_before = people_count(api)
 
     with step("действие: привязка существующего через автоподсказку"):
-        panel = open_demo_self_profile(owner_page)
+        panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
 
         modal = AddRelativeModal(owner_page)
@@ -110,9 +117,7 @@ def test_unlink_existing_returns_to_create_mode(
         modal.surname.fill("Семёнов-Новый")
 
     with step("действие: сохранение нового человека"):
-        with owner_page.expect_response(
-            lambda r: routes.PEOPLE in r.url and r.request.method == "POST"
-        ) as person_info:
+        with owner_page.expect_response(lambda r: routes.PEOPLE in r.url and r.request.method == "POST") as person_info:
             modal.btn_save.click()
         should.playwright_ok(person_info.value, ErrMsg.pw_response_not_ok)
 
@@ -122,10 +127,12 @@ def test_unlink_existing_returns_to_create_mode(
 
 
 @allure.title("Автоподсказка исключает текущую персону из списка")
-def test_dropdown_excludes_self(owner_page: Page, owner_user, tenant_client) -> None:
+def test_dropdown_excludes_self(
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """Dropdown исключает currentPerson из результатов поиска."""
     with step("действие: поиск по подстроке имени текущей персоны"):
-        panel = open_demo_self_profile(owner_page)
+        panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
 
         modal = AddRelativeModal(owner_page)
@@ -141,7 +148,7 @@ def test_dropdown_excludes_self(owner_page: Page, owner_user, tenant_client) -> 
 
 @allure.title("Стрелка вниз и Enter выбирают кандидата из автоподсказки")
 def test_keyboard_arrow_down_enter_picks_first_candidate(
-    owner_page: Page, owner_user, tenant_client
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
 ) -> None:
     """ArrowDown + Enter выбирает первого кандидата из dropdown."""
     with step("подготовка: создание персоны для клавиатурного выбора"):
@@ -155,7 +162,7 @@ def test_keyboard_arrow_down_enter_picks_first_candidate(
         )
 
     with step("действие: открытие модалки и ввод фамилии"):
-        panel = open_demo_self_profile(owner_page)
+        panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
 
         modal = AddRelativeModal(owner_page)
@@ -170,7 +177,7 @@ def test_keyboard_arrow_down_enter_picks_first_candidate(
 
 @allure.title("Esc закрывает выпадающий список, но не модалку добавления")
 def test_escape_closes_dropdown_keeps_modal(
-    owner_page: Page, owner_user, tenant_client
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
 ) -> None:
     """Esc закрывает dropdown, но не модалку добавления."""
     with step("подготовка: создание персоны и открытие dropdown"):
@@ -183,7 +190,7 @@ def test_escape_closes_dropdown_keeps_modal(
             given_name="Антон",
         )
 
-        panel = open_demo_self_profile(owner_page)
+        panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
 
         modal = AddRelativeModal(owner_page)

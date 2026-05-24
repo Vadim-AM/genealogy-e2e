@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 import pytest
+from filelock import FileLock
 
 from config.settings import settings
 
@@ -16,7 +17,6 @@ def _allure_environment(tmp_path_factory: pytest.TempPathFactory) -> None:
     props_path = results_dir / "environment.properties"
 
     if os.environ.get("PYTEST_XDIST_WORKER") is not None:
-        from filelock import FileLock
         root = tmp_path_factory.getbasetemp().parent
         with FileLock(str(root / "allure_env.lock")):
             if props_path.exists():

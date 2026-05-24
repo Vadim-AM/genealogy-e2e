@@ -97,6 +97,8 @@ class ResponseExpectation:
     def json_has(self, *keys: str) -> ResponseExpectation:
         """Проверяет наличие ключей в JSON-ответе."""
         data = self._r.json()
+        if not isinstance(data, dict):
+            self._fail(f"expected JSON object, got {type(data).__name__}")
         missing = [k for k in keys if k not in data]
         if missing:
             self._fail(f"missing keys {missing} in {sorted(data)}")
@@ -105,6 +107,8 @@ class ResponseExpectation:
     def json_eq(self, key: str, value: Any) -> ResponseExpectation:
         """Проверяет значение ключа в JSON-ответе."""
         data = self._r.json()
+        if not isinstance(data, dict):
+            self._fail(f"expected JSON object, got {type(data).__name__}")
         actual = data.get(key, "<MISSING>")
         if actual != value:
             self._fail(f"{key}: expected {value!r}, got {actual!r}")

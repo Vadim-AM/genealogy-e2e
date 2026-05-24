@@ -2,19 +2,28 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 import httpx
 
 from api import routes
 from assertions.base import should
 from config.constants import unique_email
+from framework.response import expect_response
 from framework.step import step
+from models.auth import EmailResponse
 from src.texts import ErrMsg
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fixtures.users import AuthUser
 
 
 @allure.title("Welcome-письмо содержит URL из GENEALOGY_PUBLIC_URL, не прод")
 def test_welcome_email_uses_public_url_env_not_hardcoded_prod(
-    signup_via_api, uvicorn_server: str,
+    signup_via_api: Callable[..., AuthUser], uvicorn_server: str
 ) -> None:
     """Welcome-email должен ссылаться на GENEALOGY_PUBLIC_URL, не на prod-домен."""
     with step("подготовка: signup и получение welcome-email"):
@@ -23,10 +32,9 @@ def test_welcome_email_uses_public_url_env_not_hardcoded_prod(
 
         with httpx.Client(base_url=uvicorn_server) as c:
             mail = c.get(routes.TEST_LAST_EMAIL, params={"to": email})
-            mail.raise_for_status()
-            body = mail.json()
-            text_body = body.get("text_body") or ""
-            html_body = body.get("html_body") or ""
+            mail_data = expect_response(mail, label="welcome email").status_ok().schema(EmailResponse)
+            text_body = mail_data.text_body or ""
+            html_body = mail_data.html_body or ""
             full_body = text_body + html_body
 
     with step("проверка: URL из GENEALOGY_PUBLIC_URL, не hardcoded prod"):

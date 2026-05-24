@@ -7,6 +7,7 @@ from typing import Self
 from playwright.sync_api import Locator, Page, expect
 
 from config.timeouts import TIMEOUTS
+from framework.step import step
 
 from .base import BasePage
 
@@ -24,7 +25,8 @@ class VerifyPage(BasePage):
 
     def open_with_token(self, token: str) -> Self:
         """Navigate to the verify page with the given token."""
-        self.page.goto(f"{self.URL}?token={token}")
+        with step("навигация: открыть верификацию по токену"):
+            self.page.goto(f"{self.URL}?token={token}")
         return self
 
     def expect_success(self) -> None:
@@ -37,4 +39,5 @@ class VerifyPage(BasePage):
         Under `-n auto` parallel load, with xdist workers contending, that
         round-trip can exceed the default expect window — and `#link` is
         populated by JS only once the POST returns."""
-        expect(self.next_link).to_be_visible(timeout=TIMEOUTS.pw_provision_ms)
+        with step("проверка: верификация успешна"):
+            expect(self.next_link).to_be_visible(timeout=TIMEOUTS.pw_provision_ms)

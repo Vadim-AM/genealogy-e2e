@@ -6,7 +6,6 @@ import allure
 from playwright.sync_api import Page, expect
 
 from framework.step import step
-from helpers.auth.auth_ui import wait_for_auth_state
 from pages.profile_panel import ProfilePanel
 from pages.tree_page import TreePage
 from src.texts import ErrMsg, TestData
@@ -22,7 +21,7 @@ def test_deep_link_to_demo_self_preserves_auth(owner_page: Page) -> None:
         expect(panel.title, ErrMsg.wrong_text_content).not_to_have_text("")
         expect(panel.container, ErrMsg.profile_not_visible).to_be_visible()
 
-        wait_for_auth_state(owner_page, expected=True)
+        TreePage(owner_page).wait_for_auth_resolved(expected=True)
 
 
 @allure.title("Ссылка на несуществующую персону не сбрасывает авторизацию")
@@ -34,4 +33,4 @@ def test_deep_link_to_unknown_id_keeps_auth(owner_page: Page) -> None:
 
     with step("проверка: вкладка дерева видна и авторизация сохранена"):
         expect(tree.tab_tree, ErrMsg.tab_not_visible).to_be_visible()
-        wait_for_auth_state(owner_page, expected=True)
+        tree.wait_for_auth_resolved(expected=True)

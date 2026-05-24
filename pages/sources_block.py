@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from playwright.sync_api import Locator, Page, expect
 
+from framework.step import step
+
 
 class SourcesBlock:
     """Drives the sources-block: create+link a source, unlink one."""
@@ -50,8 +52,9 @@ class SourcesBlock:
         """Type a new source name and click link. With no dropdown
         pick, the block auto-creates the source (default type) and links
         it to the person."""
-        self.search.fill(name)
-        self.btn_link.click()
+        with step("действие: создать и привязать источник"):
+            self.search.fill(name)
+            self.btn_link.click()
 
     @property
     def item_names(self) -> Locator:
@@ -65,9 +68,11 @@ class SourcesBlock:
 
     def expect_attached(self, name: str) -> None:
         """Assert exactly one source is attached with the given name."""
-        expect(self.items).to_have_count(1)
-        expect(self.item_names).to_contain_text(name)
+        with step("проверка: источник привязан"):
+            expect(self.items).to_have_count(1)
+            expect(self.item_names).to_contain_text(name)
 
     def unlink_first(self) -> None:
         """Click the remove button on the first attached source."""
-        self.item_remove_btns.first.click()
+        with step("действие: отвязать первый источник"):
+            self.item_remove_btns.first.click()

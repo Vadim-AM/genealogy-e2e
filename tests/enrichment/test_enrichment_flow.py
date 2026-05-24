@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import allure
 
@@ -12,12 +13,22 @@ from config.timeouts import TIMEOUTS
 from framework.response import expect_response
 from framework.step import step
 from helpers.tree.tree_api import demo_pid
+from models.enrichment import EnrichHistoryResponse
 from src.texts import ErrMsg
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
+    from fixtures.users import AuthUser
 
 
 @allure.title("AI-обогащение: mock-результат содержит архивные подсказки")
 def test_enrichment_endpoint_returns_mocked_output(
-    owner_user, grant_ai_consent, tenant_client,
+    owner_user: AuthUser,
+    grant_ai_consent: Callable[[AuthUser], None],
+    tenant_client: Callable[[AuthUser], httpx.Client],
 ) -> None:
     """F-AI-3: POST /api/enrich/{id} → job_id → poll → output содержит mock fixture."""
     with step("подготовка: consent и запуск enrichment"):
@@ -42,7 +53,9 @@ def test_enrichment_endpoint_returns_mocked_output(
 
 @allure.title("AI-обогащение: история возвращает dict с ключом items")
 def test_enrichment_history_endpoint_returns_items_dict(
-    owner_user, grant_ai_consent, tenant_client,
+    owner_user: AuthUser,
+    grant_ai_consent: Callable[[AuthUser], None],
+    tenant_client: Callable[[AuthUser], httpx.Client],
 ) -> None:
     """TC-E2E-010: GET /api/enrich/{pid}/history возвращает dict с ключом items."""
     with step("подготовка: consent и запрос истории"):
@@ -54,14 +67,15 @@ def test_enrichment_history_endpoint_returns_items_dict(
         expect_response(r, label="GET enrich history").status_ok()
 
     with step("проверка: ответ — dict с ключом items (list)"):
-        from models.enrichment import EnrichHistoryResponse
-        history = EnrichHistoryResponse.model_validate(r.json())
+        history = EnrichHistoryResponse.model_validate(r.json())  # noqa: drift
         should.be_instance(history.items, list, ErrMsg.enrichment_history_not_list)
 
 
 @allure.title("AI-обогащение: первый запуск не упирается в квоту (429)")
 def test_enrichment_first_run_does_not_hit_quota(
-    owner_user, grant_ai_consent, tenant_client,
+    owner_user: AuthUser,
+    grant_ai_consent: Callable[[AuthUser], None],
+    tenant_client: Callable[[AuthUser], httpx.Client],
 ) -> None:
     """F-AI-9: одиночный mocked enrichment не возвращает 429."""
     with step("подготовка: consent и запуск первого enrichment"):

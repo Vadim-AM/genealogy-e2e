@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 from playwright.sync_api import Page, expect
 
@@ -12,6 +14,13 @@ from pages.confirm_dialog import ConfirmDialog
 from pages.profile_panel import open_editor_for
 from src.texts import Buttons, ErrMsg, TestData, t
 from src.texts import ConfirmDialog as ConfirmDialogMsg
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
+    from fixtures.users import AuthUser
 
 
 @allure.title("Редактор: девичья фамилия видна только для женского пола")
@@ -35,7 +44,9 @@ def test_maiden_name_visible_only_for_female_gender(owner_page: Page) -> None:
 
 
 @allure.title("Кнопка 'Удалить' открывает диалог подтверждения с предупреждением")
-def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tenant_client) -> None:
+def test_delete_button_invokes_confirm_dialog(
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """Confirm dialog упоминает удаление, необратимость и связи."""
     with step("подготовка: открыть редактор non-root персоны"):
         editor = open_editor_for(owner_page, person_id="demo-grandpa")
@@ -43,9 +54,9 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tena
         delete_responses: list[int] = []
         owner_page.on(
             "response",
-            lambda r: delete_responses.append(r.status)
-            if r.request.method == "DELETE" and routes.PEOPLE in r.url
-            else None,
+            lambda r: (
+                delete_responses.append(r.status) if r.request.method == "DELETE" and routes.PEOPLE in r.url else None
+            ),
         )
 
     with step("действие: нажать Удалить и проверить текст диалога"):
@@ -72,7 +83,7 @@ def test_delete_button_invokes_confirm_dialog(owner_page: Page, owner_user, tena
 
 @allure.title("Редактирование описания через UI сохраняется в бэкенде")
 def test_owner_edits_demo_self_summary_through_ui(
-    owner_page: Page, owner_user, tenant_client,
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
 ) -> None:
     """Summary заполненный через UI сохраняется в бэкенде."""
     with step("действие: заполнить summary и сохранить через UI"):
@@ -80,9 +91,7 @@ def test_owner_edits_demo_self_summary_through_ui(
         editor = open_editor_for(owner_page)
 
         editor.summary.fill(summary)
-        with owner_page.expect_response(
-            f"**/api/people/{TestData.DEMO_PERSON_ID}"
-        ) as resp_info:
+        with owner_page.expect_response(f"**/api/people/{TestData.DEMO_PERSON_ID}") as resp_info:
             editor.save()
         should.playwright_ok(resp_info.value, ErrMsg.pw_response_not_ok)
 
@@ -93,9 +102,8 @@ def test_owner_edits_demo_self_summary_through_ui(
         should.be_equal(person.summary, summary, ErrMsg.summary_not_persisted)
 
 
-
 @allure.title("Кнопка удаления скрыта для корневой персоны дерева")
-def test_delete_button_hidden_for_root_subject(owner_page) -> None:
+def test_delete_button_hidden_for_root_subject(owner_page: Page) -> None:
     """Кнопка «Удалить» скрыта для root subject."""
     editor = open_editor_for(owner_page)
     expect(editor.delete_btn_by_role(), ErrMsg.element_should_be_hidden).to_be_hidden()

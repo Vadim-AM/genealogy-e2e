@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from playwright.sync_api import Locator, Page, expect
 
+from framework.step import step
 from src.texts import Buttons, t
 
 
@@ -36,7 +37,8 @@ class ConfirmDialog:
 
     def expect_visible(self) -> None:
         """Assert the confirm dialog is visible."""
-        expect(self.container).to_be_visible()
+        with step("проверка: диалог виден"):
+            expect(self.container).to_be_visible()
 
     def text(self) -> str:
         """Return the text content of the dialog."""
@@ -44,7 +46,8 @@ class ConfirmDialog:
 
     def confirm(self) -> None:
         """Press Enter to confirm (confirm-dialog.js: Enter -> cleanup(true))."""
-        self.page.keyboard.press("Enter")
+        with step("действие: подтвердить"):
+            self.page.keyboard.press("Enter")
 
     @property
     def cancel_btn(self) -> Locator:
@@ -53,25 +56,30 @@ class ConfirmDialog:
 
     def cancel(self) -> None:
         """Click the Cancel button inside the dialog."""
-        self.cancel_btn.click()
+        with step("действие: отменить"):
+            self.cancel_btn.click()
 
     def cancel_and_settle(self) -> None:
         """Click Cancel and wait for the DOM to settle after dialog closes."""
-        self.cancel()
-        self.page.wait_for_load_state("domcontentloaded")
+        with step("действие: отменить и дождаться закрытия"):
+            self.cancel()
+            self.page.wait_for_load_state("domcontentloaded")
 
     def dismiss_via_escape(self) -> None:
         """Press Escape to dismiss (confirm-dialog.js: Escape -> cleanup(false))."""
-        self.page.keyboard.press("Escape")
+        with step("действие: закрыть по Escape"):
+            self.page.keyboard.press("Escape")
 
     def dismiss_via_backdrop(self) -> None:
         """Click the backdrop overlay to dismiss."""
-        expect(self.backdrop).to_be_visible()
-        self.backdrop.click(position={"x": 5, "y": 5})
+        with step("действие: закрыть по backdrop"):
+            expect(self.backdrop).to_be_visible()
+            self.backdrop.click(position={"x": 5, "y": 5})
 
     def expect_hidden(self) -> None:
         """Assert the confirm dialog is no longer visible."""
-        expect(self.container).not_to_be_visible()
+        with step("проверка: диалог скрыт"):
+            expect(self.container).not_to_be_visible()
 
     def dialog_button(self, name: str) -> Locator:
         """Return a button inside the dialog by accessible name."""

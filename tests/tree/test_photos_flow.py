@@ -11,7 +11,6 @@ from playwright.sync_api import Page, expect
 from api import routes
 from assertions.base import should
 from framework.step import step
-from helpers.tree.photos import upload_jpeg
 from pages.photos_block import PhotosBlock
 from pages.profile_panel import open_editor_for
 from src.texts import Buttons, ErrMsg, t
@@ -43,10 +42,11 @@ def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page) -> 
         photos = PhotosBlock(owner_page)
         initial_thumbs = photos.thumb_count()
 
-    with step("действие: загрузка JPEG"), owner_page.expect_response(
-        lambda r: routes.UPLOAD_PHOTO in r.url and r.status == HTTPStatus.OK
+    with (
+        step("действие: загрузка JPEG"),
+        owner_page.expect_response(lambda r: routes.UPLOAD_PHOTO in r.url and r.status == HTTPStatus.OK),
     ):
-        upload_jpeg(owner_page)
+        photos.upload_test_jpeg()
 
     with step("проверка: миниатюра добавлена в сетку"):
         photos.expect_thumb_count(initial_thumbs + 1)
@@ -60,15 +60,16 @@ def test_photo_remove_button_drops_thumb_from_grid(owner_page: Page) -> None:
         photos = PhotosBlock(owner_page)
         initial = photos.thumb_count()
 
-        with owner_page.expect_response(
-            lambda r: routes.UPLOAD_PHOTO in r.url and r.status == HTTPStatus.OK
-        ):
-            upload_jpeg(owner_page)
+        with owner_page.expect_response(lambda r: routes.UPLOAD_PHOTO in r.url and r.status == HTTPStatus.OK):
+            photos.upload_test_jpeg()
         photos.expect_thumb_count(initial + 1)
         after_upload = initial + 1
 
-    with step("действие: удалить последнюю миниатюру"), owner_page.expect_response(
-        lambda r: bool(re.search(rf"{routes.PEOPLE}/[^/]+$", r.url) and r.request.method == "PATCH")
+    with (
+        step("действие: удалить последнюю миниатюру"),
+        owner_page.expect_response(
+            lambda r: bool(re.search(rf"{routes.PEOPLE}/[^/]+$", r.url) and r.request.method == "PATCH")
+        ),
     ):
         photos.remove_last_thumb().click()
 

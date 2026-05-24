@@ -10,6 +10,7 @@ from playwright.sync_api import Page, expect
 
 from assertions.base import should
 from framework.step import step
+from pages.profile_panel import ProfilePanel
 from pages.tree_page import TreePage
 from src.texts import ErrMsg, TestData
 
@@ -47,8 +48,6 @@ def test_search_returns_results_for_seeded_person(owner_page: Page, pages: PageF
 @allure.title("Обновление страницы F5 сохраняет открытый профиль персоны")
 def test_f5_keeps_profile_open(owner_page: Page, pages: PageFactory) -> None:
     """F5 на profile URL сохраняет hash профиля."""
-    from pages.profile_panel import ProfilePanel
-
     with step("действие: открыть профиль и перезагрузить страницу"):
         profile_hash = f"#/p/{TestData.DEMO_PERSON_ID}"
         _ = pages.navigate_to(TreePage)
@@ -65,8 +64,6 @@ def test_f5_keeps_profile_open(owner_page: Page, pages: PageFactory) -> None:
 @allure.title("Возврат к дереву из профиля по клику на вкладку")
 def test_back_to_tree_from_profile(owner_page: Page, pages: PageFactory) -> None:
     """Клик по вкладке дерева возвращает из профиля."""
-    from pages.profile_panel import ProfilePanel
-
     with step("действие: открыть профиль и вернуться в дерево"):
         ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         tree = pages.create(TreePage)

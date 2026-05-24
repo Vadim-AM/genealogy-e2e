@@ -14,11 +14,13 @@ from assertions.base import should
 from config.timeouts import TIMEOUTS
 from framework.response import expect_response
 from framework.step import step
+from models.auth import AccountMe
 from pages.login_page import LoginPage
 from src.texts import ErrMsg, Links, t
 
 if TYPE_CHECKING:
     from fixtures.page_factory import PageFactory
+    from fixtures.users import AuthUser
 
 
 @allure.title("Форма логина содержит поля email, пароль и кнопку входа")
@@ -30,7 +32,7 @@ def test_login_form_renders(anon_pages: PageFactory) -> None:
 
 @allure.title("Вход с правильным паролем выдаёт сессию и доступ к /me")
 def test_login_with_correct_credentials_succeeds(
-    page: Page, base_url: str, owner_user, anon_pages: PageFactory
+    page: Page, base_url: str, owner_user: AuthUser, anon_pages: PageFactory
 ) -> None:
     """F-LG-1, F-LG-4: правильные credentials → session cookie + /me возвращает tenant."""
     with step("действие: вход с правильными credentials"):
@@ -47,12 +49,12 @@ def test_login_with_correct_credentials_succeeds(
 
     with step("проверка: /me возвращает правильный tenant"):
         me = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", cookies=cookies)
-        expect_response(me, label="/me after login").status_ok()
-        should.be_equal(me.json()["tenant"]["slug"], owner_user.slug, ErrMsg.login_slug_mismatch)
+        me_data = expect_response(me, label="/me after login").status_ok().schema(AccountMe)
+        should.be_equal(me_data.tenant.slug, owner_user.slug, ErrMsg.login_slug_mismatch)
 
 
 @allure.title("Неверный пароль показывает ошибку на странице логина")
-def test_login_with_wrong_password_shows_error(page: Page, owner_user, anon_pages: PageFactory) -> None:
+def test_login_with_wrong_password_shows_error(page: Page, owner_user: AuthUser, anon_pages: PageFactory) -> None:
     """S-LG-1: неверные credentials → inline error, без redirect с /login."""
     with step("действие: вход с неверным паролем"):
         login = anon_pages.navigate_to(LoginPage)
@@ -65,7 +67,7 @@ def test_login_with_wrong_password_shows_error(page: Page, owner_user, anon_page
 
 @allure.title("Ошибки для неизвестного email и неверного пароля одинаковы")
 def test_login_unknown_email_returns_same_error_as_wrong_password(
-    page: Page, owner_user, anon_pages: PageFactory
+    page: Page, owner_user: AuthUser, anon_pages: PageFactory
 ) -> None:
     """S-LG-1, S-SU-2: unknown email vs wrong password — одинаковый текст ошибки."""
     _NON_EMPTY = re.compile(r"\S")
@@ -80,7 +82,8 @@ def test_login_unknown_email_returns_same_error_as_wrong_password(
         login_unknown = anon_pages.navigate_to(LoginPage)
         login_unknown.login("does-not-exist@e2e.example.com", "any_password_2026")
         expect(
-            login_unknown.error_msg, ErrMsg.wrong_text_content,
+            login_unknown.error_msg,
+            ErrMsg.wrong_text_content,
         ).to_have_text(_NON_EMPTY, timeout=TIMEOUTS.pw_action_ms)
         msg_unknown = login_unknown.error_msg.text_content()
 

@@ -79,3 +79,5 @@ pytest --collect-only tests/<файл>
 - Никогда голый `assert` — три канала: `expect(loc, ErrMsg)`, `expect_response(r)`, `should.*`
 - Все строки ошибок через `ErrMsg` из `src/texts.py`
 - При падении смотри step-имена — подготовка/действие/проверка
+- Все API-ответы через `.schema(Model)` или typed helpers — не raw `.json()`
+- `pages/add_relative_modal.py` — отдельный POM для модалки добавления родственника (вынесен из person_editor.py)

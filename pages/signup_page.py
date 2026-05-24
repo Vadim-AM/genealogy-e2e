@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import re
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 from playwright.sync_api import Locator, Page, expect
 
+if TYPE_CHECKING:
+    from playwright.sync_api import Expect
+
+from framework.step import step
 from src.texts import Buttons, Labels, t
 
 from .base import BasePage
@@ -104,27 +109,31 @@ class SignupPage(BasePage):
         UI их больше не показывает; через JSON API всё ещё доходят.
         """
         del full_name, birth_year  # silence unused — параметры for API-compat
-        self.email.fill(email)
-        self.password.fill(password)
-        if agree:
-            self.agree_terms.check()
+        with step("действие: заполнить форму регистрации"):
+            self.email.fill(email)
+            self.password.fill(password)
+            if agree:
+                self.agree_terms.check()
         return self
 
     def submit(self) -> Self:
         """Click the signup submit button."""
-        self.submit_btn.click()
+        with step("действие: отправить регистрацию"):
+            self.submit_btn.click()
         return self
 
     def expect_verification_message(self) -> None:
         """After successful submit `#signupMsg` gets the `success` class added.
         Regex match — survives copy / class additions."""
-        expect(self.signup_msg).to_have_class(re.compile(r"\bsuccess\b"))
+        with step("проверка: сообщение верификации"):
+            expect(self.signup_msg).to_have_class(re.compile(r"\bsuccess\b"))
 
     def expect_visible_form(self) -> None:
         """Assert email, password and submit button are visible."""
-        expect(self.email).to_be_visible()
-        expect(self.password).to_be_visible()
-        expect(self.submit_btn).to_be_visible()
+        with step("проверка: форма регистрации видима"):
+            expect(self.email).to_be_visible()
+            expect(self.password).to_be_visible()
+            expect(self.submit_btn).to_be_visible()
 
     @property
     def form(self) -> Locator:
@@ -163,7 +172,24 @@ class SignupPage(BasePage):
         """
         self.page.evaluate("document.getElementById('password').removeAttribute('minlength')")
 
-    def soft_check_form_basics(self, soft) -> None:
+    def mock_overflow_response(self, *, email: str, subscribed: bool = True) -> None:
+        """Intercept POST /api/account/signup and return waitlist_required."""
+
+        def _handler(route) -> None:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps({
+                    "status": "waitlist_required",
+                    "email": email,
+                    "waitlist_subscribed": subscribed,
+                }),
+            )
+
+        with step("действие: мок overflow ответа"):
+            self.page.route("**/api/account/signup", _handler)
+
+    def soft_check_form_basics(self, soft: Expect) -> None:
         """Smoke for X-SU-1..11: input attrs, autocomplete, required.
 
         После Wave-9 форма имеет один consent (`#agreeTerms`); privacy /

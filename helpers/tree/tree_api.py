@@ -5,6 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from api import routes
+from api.person_api import get_people
+from framework.response import expect_response
+from models.person import RelationshipResponse
 from src.texts import TestData
 
 if TYPE_CHECKING:
@@ -13,16 +16,14 @@ if TYPE_CHECKING:
 
 def people(api: httpx.Client) -> list[dict[str, Any]]:
     """Fetch all people from /api/tree."""
-    r = api.get(routes.TREE)
-    r.raise_for_status()
-    return r.json()["people"]  # type: ignore[no-any-return]
+    return [p.model_dump() for p in get_people(api)]
 
 
 def relationships(api: httpx.Client) -> list[dict[str, Any]]:
     """Fetch all relationships from /api/relationships."""
     r = api.get(routes.RELATIONSHIPS)
-    r.raise_for_status()
-    return r.json()  # type: ignore[no-any-return]
+    items = expect_response(r, label="GET relationships").status_ok().list_schema(RelationshipResponse)
+    return [item.model_dump() for item in items]
 
 
 def demo_parents_of_self(api: httpx.Client) -> dict[str, str]:
@@ -62,9 +63,7 @@ def find_person_by_name(api: httpx.Client, *substrings: str) -> dict[str, Any]:
 
 def people_count(api: httpx.Client) -> int:
     """Return the number of people in the tree."""
-    r = api.get(routes.TREE)
-    r.raise_for_status()
-    return len(r.json()["people"])
+    return len(get_people(api))
 
 
 def seed_person(api: httpx.Client, *, pid: str, name: str, **extra: Any) -> str:
@@ -83,8 +82,6 @@ def seed_person(api: httpx.Client, *, pid: str, name: str, **extra: Any) -> str:
 
 def demo_pid(api: httpx.Client) -> str:
     """Fetch the first seeded demo-person id from /api/tree."""
-    r = api.get(routes.TREE)
-    r.raise_for_status()
-    ppl = r.json()["people"]
+    ppl = get_people(api)
     assert ppl, "fresh tenant must have demo people seeded"
-    return ppl[0]["id"]  # type: ignore[no-any-return]
+    return ppl[0].id

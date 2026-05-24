@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from playwright.sync_api import Locator, Page, expect
 
+from framework.step import step
+
 from .base import BasePage
 
 
@@ -49,4 +51,5 @@ class PricingPage(BasePage):
 
     def expect_cards_visible(self, count: int = 4) -> None:
         """Assert the expected number of pricing cards are visible."""
-        expect(self._cards).to_have_count(count)
+        with step("проверка: карточки тарифов видны"):
+            expect(self._cards).to_have_count(count)

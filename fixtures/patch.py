@@ -39,14 +39,14 @@ TEST_TOKEN = settings.test_token
 # our test instance — the same one prod uses behind Caddy — not a
 # product change).
 #
-# Gated on `PYTESTXDIST_WORKER`: the serial pass runs `-p no:xdist`
+# Gated on `PYTEST_XDIST_WORKER`: the serial pass runs `-p no:xdist`
 # (var unset) → no injection → real `request.client.host` preserved, so
 # serial semantics and the audit-log IP-hash tests are unchanged.
-XDIST_WORKER = os.environ.get("PYTESTXDIST_WORKER")  # "gw3" | None
+XDIST_WORKER = os.environ.get("PYTEST_XDIST_WORKER")  # "gw3" | None
 
 
 def worker_octet() -> int:
-    """Extract numeric worker index from PYTESTXDIST_WORKER and wrap to 0-255."""
+    """Extract numeric worker index from PYTEST_XDIST_WORKER and wrap to 0-255."""
     digits = "".join(c for c in (XDIST_WORKER or "") if c.isdigit())
     return (int(digits) if digits else 0) % 256
 

@@ -12,9 +12,14 @@ NB: PR-4 убрала старый ASCII-funnel (`#funnel`) — заменён �
 
 from __future__ import annotations
 
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 from playwright.sync_api import Locator, Page, expect
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Expect
+
+from framework.step import step
 
 from .base import BasePage
 
@@ -394,16 +399,17 @@ class PlatformDashboardPage(BasePage):
 
     def grant_free_license(self, email: str) -> Self:
         """Fill the grant email and click the grant button."""
-        self.grant_email.fill(email)
-        self.grant_btn.click()
+        with step("действие: выдать бесплатную лицензию"):
+            self.grant_email.fill(email)
+            self.grant_btn.click()
         return self
 
-    def soft_check_metrics_loaded(self, soft) -> None:
+    def soft_check_metrics_loaded(self, soft: Expect) -> None:
         """Soft-assert core metric cards and tenants table are visible."""
         for loc in (self.m_tenants, self.m_signups, self.tenants_table):
             soft(loc).to_be_visible()
 
-    def soft_check_phase1_widgets_present(self, soft) -> None:
+    def soft_check_phase1_widgets_present(self, soft: Expect) -> None:
         """Smoke-check that new Phase 1 sections are present in the DOM.
 
         One check: "all 9 widgets are present after bootstrap()".
@@ -424,8 +430,10 @@ class PlatformDashboardPage(BasePage):
 
     def expect_mfa_overlay_open(self) -> None:
         """Assert the MFA overlay is showing."""
-        expect(self.mfa_overlay).to_have_class("mfa-overlay show")
+        with step("проверка: MFA overlay открыт"):
+            expect(self.mfa_overlay).to_have_class("mfa-overlay show")
 
     def expect_no_mfa_overlay(self) -> None:
         """Assert the MFA overlay is not showing."""
-        expect(self.mfa_overlay).not_to_have_class("mfa-overlay show")
+        with step("проверка: MFA overlay закрыт"):
+            expect(self.mfa_overlay).not_to_have_class("mfa-overlay show")

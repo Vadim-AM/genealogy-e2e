@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
@@ -82,7 +83,6 @@ def test_legal_has_no_unrendered_markdown_links(page: Page, path: str) -> None:
         legal.wait_for_page_load()
 
     with step("проверка: нет markdown-ссылок в тексте"):
-        import re
         body = legal.body_text()
         md_links = re.findall(r"\[[^\]]+\]\([^\)]+\)", body)
         should.be_empty(md_links, ErrMsg.raw_markdown_links)
@@ -91,7 +91,9 @@ def test_legal_has_no_unrendered_markdown_links(page: Page, path: str) -> None:
 @pytest.mark.parametrize("href", ["/privacy", "/terms"])
 @allure.title("Футер: юридические ссылки открываются в новой вкладке")
 def test_landing_footer_legal_link_is_visible_and_target_blank(
-    page: Page, href: str, anon_pages: PageFactory,
+    page: Page,
+    href: str,
+    anon_pages: PageFactory,
 ) -> None:
     """TC-24.03: footer на / содержит link на /privacy и /terms; target=_blank."""
     with step("действие: открыть главную и найти ссылку"):
@@ -107,7 +109,8 @@ def test_landing_footer_legal_link_is_visible_and_target_blank(
 @pytest.mark.parametrize("href", ["/privacy", "/terms"])
 @allure.title("Футер: юридические ссылки ведут на существующие страницы")
 def test_landing_footer_legal_link_resolves_to_200(
-    base_url: str, href: str,
+    base_url: str,
+    href: str,
 ) -> None:
     """TC-24.03: переход по footer-link реально возвращает 200 + HTML."""
     with step("действие: запросить юридическую страницу"):

@@ -18,8 +18,6 @@ def enrich_post_spy(owner_page: Page) -> list[str]:
     calls: list[str] = []
     owner_page.on(
         "request",
-        lambda req: calls.append(req.url)
-        if req.method == "POST" and routes.ENRICH_PREFIX in req.url
-        else None,
+        lambda req: calls.append(req.url) if req.method == "POST" and routes.ENRICH_PREFIX in req.url else None,
     )
     return calls

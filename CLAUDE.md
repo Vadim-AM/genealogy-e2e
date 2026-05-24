@@ -179,6 +179,10 @@ resp = ApiResponse(raw_response)
 data = resp.expect(label="create person").status(HTTPStatus.CREATED).schema(PersonResponse)
 ```
 
+Raw `.json()` is allowed only in `test_api_coverage.py` (OpenAPI spec
+parsing) and Playwright `Response` objects. All httpx `2xx` responses
+must go through `.schema(Model)` or typed API helpers from `api/`.
+
 ### 9. No raw `httpx.*` calls — go through `tenant_client(user)`
 
 Each test was repeating `cookies=user.cookies, headers={"X-Tenant-Slug":
@@ -580,18 +584,25 @@ def test_login_success(pages, auth_client) -> None:
 - Returns target POM for fluent chaining where applicable
 - Never contains `assert` / `should.*` — only Playwright interactions
 
-### 36. Standalone helpers → POM methods
+### 36. Standalone helpers → POM methods (migration complete)
 
-Functions like `auth_name(page)`, `logout_link(page)`,
-`wait_for_authed_shell(page)` in `helpers/auth/auth_ui.py` are
-anti-pattern — they operate on a Page but aren't POM methods.
+UI-bound helper functions (`auth_name(page)`, `logout_link(page)`,
+`wait_for_authed_shell(page)`, etc.) have been migrated to POM methods.
+Deleted: `helpers/auth/auth_ui.py`, `helpers/auth/signup_helpers.py`,
+`helpers/admin/gedcom_ui.py`, `helpers/enrichment/enrichment_ui.py`,
+`helpers/tree/photos.py`, `helpers/tree/tree_navigation.py`.
 
-Move them to the POM class that owns the page region:
-- `auth_name(page)` → `TreePage.auth_user_name` (property)
-- `logout_link(page).click()` → `TreePage.logout()` (scenario method)
-- `wait_for_authed_shell(page)` → `TreePage.expect_authed_state()`
+The remaining `helpers/` files are API-level (httpx, not page-bound) or
+cross-POM orchestration — they correctly stay in `helpers/`:
+- `helpers/auth/session_helpers.py` — API-level session management
+- `helpers/tree/tree_api.py` — API-level tree operations
+- `helpers/tree/add_relative.py` — orchestration across multiple POMs
+- `helpers/security/timing.py` — benchmarks (no Playwright)
+- `helpers/ui/viewport.py` — browser context factory
+- `helpers/ui/i18n_checks.py` — text utility
 
-The helpers module becomes unnecessary when POM covers all interactions.
+**Rule for new code:** if a function takes a `Page` or `Locator` and
+performs UI interactions, it belongs on a POM class, not in `helpers/`.
 
 ### 37. Locators as `@property`, not `self.xxx =` in `__init__`
 
@@ -670,14 +681,13 @@ genealogy-e2e/
 │   ├── base.py               # BasePage, custom_select_for
 │   ├── tree_page.py          # TreePage (orbit cards, tabs, search, open_center_profile)
 │   ├── profile_panel.py      # ProfilePanel + open_editor_for
-│   ├── person_editor.py      # PersonEditor, AddRelativeModal
+│   ├── person_editor.py      # PersonEditor
+│   ├── add_relative_modal.py  # AddRelativeModal (dedup, link-mode, suggestions)
 │   └── ...                   # login, signup, forgot, invite, owner, mfa, enrichment, etc.
-├── helpers/                  # Domain-organized helper functions
-│   ├── auth/                 # auth_ui, signup_helpers, session_helpers
-│   ├── tree/                 # tree_api, tree_navigation, photos, add_relative
-│   ├── admin/                # gedcom_ui
-│   ├── security/             # timing
-│   ├── enrichment/           # enrichment_ui
+├── helpers/                  # Domain helpers (API-level + cross-POM orchestration)
+│   ├── auth/                 # session_helpers (API-level)
+│   ├── tree/                 # tree_api (API-level), add_relative (cross-POM)
+│   ├── security/             # timing (benchmarks)
 │   └── ui/                   # viewport, i18n_checks
 ├── src/texts.py              # ErrMsg + locale-aware UI strings + t() resolver
 ├── test_data/                # Pure test data (no logic)

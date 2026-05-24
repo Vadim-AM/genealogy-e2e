@@ -18,7 +18,12 @@ from pages.owner_page import OwnerPage
 from src.texts import ErrMsg, TestData
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
     from fixtures.page_factory import PageFactory
+    from fixtures.users import AuthUser
 
 
 @allure.title("Админка владельца: вкладка настроек содержит поля ввода")
@@ -34,15 +39,16 @@ def test_owner_settings_tab_has_inputs(owner_page: Page, pages: PageFactory) -> 
 
 
 @allure.title("Админка владельца: сохранение site_name попадает в бэкенд")
-def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_client, pages: PageFactory) -> None:
+def test_owner_settings_save_persists(
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client], pages: PageFactory
+) -> None:
     """Сохранение site_name через UI отражается в бэкенде."""
     with step("действие: сохранение нового site_name через UI"):
         owner = pages.navigate_to(OwnerPage)
 
         new_name = TestData.SAMPLE_SITE_NAME
         with owner_page.expect_response(
-            lambda r: r.url.endswith(routes.SITE_CONFIG)
-            and r.request.method != "GET"
+            lambda r: r.url.endswith(routes.SITE_CONFIG) and r.request.method != "GET"
         ) as resp_info:
             owner.update_settings(site_name=new_name)
         should.playwright_ok(resp_info.value, ErrMsg.save_config_failed)
@@ -54,7 +60,9 @@ def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_clien
 
 
 @allure.title("Экспорт: GEDCOM содержит заголовок 5.5.1 и SOUR проекта")
-def test_owner_export_gedcom_returns_valid_dump(owner_user, tenant_client) -> None:
+def test_owner_export_gedcom_returns_valid_dump(
+    owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """GEDCOM export: 5.5.1 header, attachment disposition, SOUR identifier."""
     with step("действие: экспорт GEDCOM"):
         api = tenant_client(owner_user)
@@ -76,7 +84,9 @@ def test_owner_export_gedcom_returns_valid_dump(owner_user, tenant_client) -> No
 
 
 @allure.title("Экспорт: ZIP содержит people.json и MANIFEST.txt")
-def test_owner_export_zip_contains_manifest_and_people(owner_user, tenant_client) -> None:
+def test_owner_export_zip_contains_manifest_and_people(
+    owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """ZIP export: magic bytes, people.json и MANIFEST.txt внутри."""
     with step("действие: экспорт ZIP"):
         api = tenant_client(owner_user)

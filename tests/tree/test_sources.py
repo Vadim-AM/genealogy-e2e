@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import allure
 from playwright.sync_api import Page, expect
@@ -17,10 +18,17 @@ from pages.profile_panel import ProfilePanel
 from pages.sources_block import SourcesBlock
 from src.texts import ErrMsg, TestData
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
+    from fixtures.users import AuthUser
+
 
 @allure.title("Владелец привязывает источник к персоне и отвязывает обратно")
 def test_owner_attaches_and_unlinks_a_source(
-    owner_page: Page, owner_user, tenant_client,
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
 ) -> None:
     """Привязать источник → виден в UI и API → отвязать → нет."""
     with step("подготовка: открыть редактор персоны"):
@@ -50,14 +58,19 @@ def test_owner_attaches_and_unlinks_a_source(
 
     with step("проверка: источник отвязан в бэкенде"):
         after = api.get(routes.person_sources(pid))
-        after_sources = expect_response(
-            after, label="GET person-sources after unlink",
-        ).status_ok().list_schema(SourceResponse)
+        after_sources = (
+            expect_response(
+                after,
+                label="GET person-sources after unlink",
+            )
+            .status_ok()
+            .list_schema(SourceResponse)
+        )
         should.be_empty(after_sources, ErrMsg.source_still_linked)
 
 
 @allure.title("Жизненный цикл источника: создание, переименование, удаление")
-def test_source_record_crud_lifecycle(owner_user, tenant_client) -> None:
+def test_source_record_crud_lifecycle(owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]) -> None:
     """Create → PATCH rename → DELETE → отсутствует в списке."""
     with step("действие: создать источник"):
         api = tenant_client(owner_user)

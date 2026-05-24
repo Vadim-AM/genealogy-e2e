@@ -93,7 +93,7 @@ def test_landing_html_has_no_inline_event_handlers(base_url: str) -> None:
         # Матчим `on<lowercase-ident>=` как HTML-атрибут (пробел перед,
         # `=` после). Исключаем ложные срабатывания вроде `name="oncall"`,
         # т.к. у них `=` после `name`, а не после подстроки `on*`.
-        pattern = re.compile(r'\s(on[a-z]+)\s*=', re.IGNORECASE)
+        pattern = re.compile(r"\s(on[a-z]+)\s*=", re.IGNORECASE)
         matches = pattern.findall(html)
         should.be_empty(matches, ErrMsg.inline_handlers_found)
 

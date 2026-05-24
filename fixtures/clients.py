@@ -15,6 +15,8 @@ import allure
 import httpx
 import pytest
 
+from config.settings import settings as _settings
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
     from pathlib import Path
@@ -78,7 +80,6 @@ def auth_context_factory(
     created_contexts = []
 
     def _make(user: AuthUser, *, with_tenant_header: bool = True) -> BrowserContext:
-        from config.settings import settings as _settings
 
         extra_headers = {"X-Tenant-Slug": user.slug} if with_tenant_header else {}
         video_opts: dict[str, Any] = {}
@@ -117,9 +118,10 @@ def auth_context_factory(
 
     yield _make
 
-    from config.settings import settings as _settings
-
-    failed = getattr(getattr(request.node, "rep_call", None), "failed", False)
+    failed = (
+        getattr(getattr(request.node, "rep_call", None), "failed", False)
+        or getattr(getattr(request.node, "rep_setup", None), "failed", False)
+    )
     for i, ctx in enumerate(created_contexts):
         if failed:
             trace_path = tmp_path / f"trace-{i}.zip"

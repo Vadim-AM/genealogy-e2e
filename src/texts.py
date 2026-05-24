@@ -588,6 +588,8 @@ class ErrMsg:
     # API coverage
     stale_known_gaps = "KNOWN_GAPS содержит устаревшие записи"
     unknown_endpoints_found = "Обнаружены неизвестные эндпоинты"
+    schema_drift_detected = "Поля Pydantic-модели отсутствуют в OpenAPI-схеме бэкенда"
+    schema_not_found = "Pydantic-модель не найдена в OpenAPI-схемах бэкенда"
 
     # WebAuthn
     no_webauthn_credentials_missing = "no_webauthn_credentials отсутствует в ответе"

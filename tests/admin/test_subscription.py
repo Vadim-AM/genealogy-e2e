@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import allure
 import httpx
@@ -12,6 +13,12 @@ from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
 from src.texts import ErrMsg
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fixtures.users import AuthUser
+
 
 REQUIRED_KEYS = {
     "tier",
@@ -26,13 +33,14 @@ REQUIRED_KEYS = {
 
 
 @allure.title("Подписка: free-тариф показывает лимит 3 и 0 использованных")
-def test_subscription_usage_shape_for_free_owner(owner_user, tenant_client) -> None:
+def test_subscription_usage_shape_for_free_owner(
+    owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """Free-tier owner получает canonical usage shape."""
     with step("действие: запросить usage для free-tier owner"):
         api = tenant_client(owner_user)
         r = api.get(routes.SUBSCRIPTION_USAGE_LEGACY)
-        expect_response(r, label="GET subscription/usage").status_ok()
-        data = r.json()
+        data = expect_response(r, label="GET subscription/usage").status_ok().data
 
     with step("проверка: все обязательные ключи присутствуют"):
         missing = REQUIRED_KEYS - set(data.keys())

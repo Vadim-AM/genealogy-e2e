@@ -15,16 +15,19 @@ from assertions.base import should
 from config.constants import TestConfig, make_email
 from framework.response import expect_response
 from framework.step import step
+from models.auth import AccountMe, EmailResponse, LoginResponse
 from pages.signup_page import SignupPage
 from pages.verify_page import VerifyPage
 from src.texts import ErrMsg
 
 if TYPE_CHECKING:
+    from playwright.sync_api import Expect
+
     from fixtures.page_factory import PageFactory
 
 
 @allure.title("Форма регистрации содержит обязательные поля и honeypot")
-def test_signup_form_has_required_inputs(anon_pages: PageFactory, soft_check) -> None:
+def test_signup_form_has_required_inputs(anon_pages: PageFactory, soft_check: Expect) -> None:
     """F-SU-1, X-SU-1..11: обязательные поля + autocomplete + honeypot tabindex."""
     signup = anon_pages.navigate_to(SignupPage)
     signup.expect_visible_form()
@@ -50,8 +53,8 @@ def test_signup_happy_path_sends_verification_email(page: Page, base_url: str, a
 
     with step("проверка: письмо с токеном верификации отправлено"):
         r = httpx.get(f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": email})
-        expect_response(r, label="last-email").status_ok()
-        should.contain(r.json()["text_body"] or "", "token=", ErrMsg.verify_token_missing)
+        mail_body = expect_response(r, label="last-email").status_ok().schema(EmailResponse)
+        should.contain(mail_body.text_body or "", "token=", ErrMsg.verify_token_missing)
 
 
 @allure.title("Подтверждение email автоматически авторизует пользователя")
@@ -67,22 +70,17 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str, ano
         ).submit()
         signup.expect_verification_message()
 
-        mail = httpx.get(
-            f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": email}
-        )
-        expect_response(mail, label="last-email").status_ok()
-        m = re.search(r"token=([\w\-]+)", mail.json()["text_body"])
+        mail = httpx.get(f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": email})
+        mail_data = expect_response(mail, label="last-email").status_ok().schema(EmailResponse)
+        m = re.search(r"token=([\w\-]+)", mail_data.text_body or "")
         should.not_none(m, ErrMsg.verify_token_missing)
         token = m.group(1)
 
     with step("действие: verify-email и проверка auto_login"):
-        verify = httpx.post(
-            f"{base_url}{routes.VERIFY_EMAIL}", json={"token": token}
-        )
-        expect_response(verify, label="verify-email").status_ok()
-        body = verify.json()
-        should.be_equal(body.get("auto_login"), True, ErrMsg.verify_auto_login_missing)
-        should.be_true(body.get("tenant_slug"), ErrMsg.verify_slug_missing)
+        verify = httpx.post(f"{base_url}{routes.VERIFY_EMAIL}", json={"token": token})
+        verify_data = expect_response(verify, label="verify-email").status_ok().data
+        should.be_equal(verify_data.get("auto_login"), True, ErrMsg.verify_auto_login_missing)
+        should.be_true(verify_data.get("tenant_slug"), ErrMsg.verify_slug_missing)
 
     with step("проверка: session cookie установлена и /me доступен"):
         cookies = dict(verify.cookies)
@@ -90,8 +88,8 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str, ano
         should.be_true(session_cookie, ErrMsg.verify_cookie_missing)
 
         me = httpx.get(f"{base_url}{routes.ACCOUNT_ME}", cookies=cookies)
-        expect_response(me, label="/me after verify").status_ok()
-        should.be_equal(me.json()["tenant"]["slug"], body["tenant_slug"], ErrMsg.verify_slug_mismatch)
+        me_data = expect_response(me, label="/me after verify").status_ok().schema(AccountMe)
+        should.be_equal(me_data.tenant.slug, verify_data["tenant_slug"], ErrMsg.verify_slug_mismatch)
 
 
 @allure.title("После верификации email создаётся тенант для пользователя")
@@ -107,11 +105,9 @@ def test_signup_then_verify_creates_tenant(page: Page, base_url: str, anon_pages
         ).submit()
         signup.expect_verification_message()
 
-        mail = httpx.get(
-            f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": email}
-        )
-        expect_response(mail, label="last-email").status_ok()
-        m = re.search(r"token=([\w\-]+)", mail.json()["text_body"])
+        mail = httpx.get(f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": email})
+        mail_data = expect_response(mail, label="last-email").status_ok().schema(EmailResponse)
+        m = re.search(r"token=([\w\-]+)", mail_data.text_body or "")
         should.not_none(m, ErrMsg.verify_token_missing)
         token = m.group(1)
 
@@ -123,8 +119,8 @@ def test_signup_then_verify_creates_tenant(page: Page, base_url: str, anon_pages
             f"{base_url}{routes.LOGIN}",
             json={"email": email, "password": TestConfig.DEFAULT_PASSWORD},
         )
-        expect_response(me, label="login after verify").status_ok()
-        should.be_true(me.json()["tenant_slug"], ErrMsg.tenant_slug_missing)
+        login_data = expect_response(me, label="login after verify").status_ok().schema(LoginResponse)
+        should.be_true(login_data.tenant_slug, ErrMsg.tenant_slug_missing)
 
 
 @allure.title("Заполненный honeypot даёт тихий 200 без отправки письма")

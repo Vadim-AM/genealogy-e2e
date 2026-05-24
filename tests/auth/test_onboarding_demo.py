@@ -14,13 +14,19 @@ from pages.owner_page import OwnerPage
 from src.texts import ErrMsg
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
     from playwright.sync_api import Page
 
     from fixtures.page_factory import PageFactory
+    from fixtures.users import AuthUser
 
 
 @allure.title("Владелец удаляет демо-родственников из дерева")
-def test_owner_clears_demo_relatives(owner_page: Page, owner_user, tenant_client, pages: PageFactory) -> None:
+def test_owner_clears_demo_relatives(
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client], pages: PageFactory
+) -> None:
     """Owner стирает демо-родственников через настройки."""
     with step("подготовка: проверка наличия демо-данных"):
         api = tenant_client(owner_user)
@@ -41,7 +47,9 @@ def test_owner_clears_demo_relatives(owner_page: Page, owner_user, tenant_client
 
 
 @allure.title("Владелец сохраняет демо-данные как шаблон для дерева")
-def test_owner_keeps_demo_as_template(owner_page: Page, owner_user, tenant_client, pages: PageFactory) -> None:
+def test_owner_keeps_demo_as_template(
+    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client], pages: PageFactory
+) -> None:
     """Owner сохраняет демо-данные как шаблон для дерева."""
     with step("подготовка: проверка наличия демо-данных"):
         api = tenant_client(owner_user)

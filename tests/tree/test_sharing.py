@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 
 from api import routes, site_api
@@ -12,10 +14,18 @@ from models.site import ShareListResponse
 from pages.share_page import SharePage
 from src.texts import ErrMsg, TestData
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+    from playwright.sync_api import Browser
+
+    from fixtures.users import AuthUser
+
 
 @allure.title("Публичная ссылка: аноним видит карточку, после отзыва -- нет")
 def test_owner_shares_card_anon_views_then_revoke_kills_link(
-    owner_user, tenant_client, browser,
+    owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client], browser: Browser
 ) -> None:
     """Полный цикл: создание ссылки → аноним видит карточку → отзыв → ошибка."""
     with step("подготовка: создать публичную ссылку"):
@@ -52,7 +62,7 @@ def test_owner_shares_card_anon_views_then_revoke_kills_link(
 
 
 @allure.title("Список шаринг-ссылок не содержит секретных токенов")
-def test_share_list_never_leaks_tokens(owner_user, tenant_client) -> None:
+def test_share_list_never_leaks_tokens(owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]) -> None:
     """GET /api/share/list не выдаёт секретный token url."""
     with step("подготовка: создать публичную ссылку"):
         api = tenant_client(owner_user)

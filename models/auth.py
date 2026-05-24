@@ -52,3 +52,4 @@ class EmailResponse(BaseModel, extra="allow"):
     """Response from GET /api/_test/last-email."""
 
     text_body: str | None = None
+    html_body: str | None = None

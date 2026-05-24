@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import allure
@@ -15,26 +16,32 @@ from framework.step import step
 from src.texts import ErrMsg, TestData
 from test_data.payloads.injection import SQL_PAYLOADS
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fixtures.users import AuthUser
+
 
 @pytest.mark.security
 @pytest.mark.parametrize("payload", SQL_PAYLOADS, ids=lambda p: p[:30])
 @allure.title("SQL injection: payload в имени персоны не вызывает 500")
 def test_person_name_sql_injection_safe(
-    owner_user,
-    tenant_client,
-    payload,
+    owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client], payload: str
 ) -> None:
     """SEC-INJ-5: SQL в person name → 2xx (stored as text) or 4xx, never 500."""
     api = tenant_client(owner_user)
     pid = f"sqli-{uuid4().hex[:8]}"
 
     with step("создать персону с SQL-payload в имени"):
-        r = api.post(routes.PEOPLE, json={
-            "id": pid,
-            "name": payload,
-            "branch": "paternal",
-            "gender": "m",
-        })
+        r = api.post(
+            routes.PEOPLE,
+            json={
+                "id": pid,
+                "name": payload,
+                "branch": "paternal",
+                "gender": "m",
+            },
+        )
 
     with step("проверить что backend не упал"):
         should.less(r.status_code, HTTPStatus.INTERNAL_SERVER_ERROR, ErrMsg.server_error_on_injection)
@@ -45,10 +52,7 @@ def test_person_name_sql_injection_safe(
 @pytest.mark.security
 @pytest.mark.parametrize("payload", SQL_PAYLOADS, ids=lambda p: p[:30])
 @allure.title("SQL injection: payload в email при signup не вызывает 500")
-def test_signup_email_sql_injection_safe(
-    base_url,
-    payload,
-) -> None:
+def test_signup_email_sql_injection_safe(base_url: str, payload: str) -> None:
     """SEC-INJ-6: SQL in signup email → 422 (validation), never 500."""
     with step("отправить signup с SQL-payload в email"):
         r = httpx.post(
@@ -73,18 +77,19 @@ def test_signup_email_sql_injection_safe(
 @pytest.mark.parametrize("payload", SQL_PAYLOADS, ids=lambda p: p[:30])
 @allure.title("SQL injection: payload в PATCH person fields не вызывает 500")
 def test_person_patch_sql_injection_safe(
-    owner_user,
-    tenant_client,
-    payload,
+    owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client], payload: str
 ) -> None:
     """SEC-INJ-7: SQL in PATCH person summary/notes → safe."""
     api = tenant_client(owner_user)
 
     with step("обновить summary демо-персоны с SQL-payload"):
-        r = api.patch(routes.person(TestData.DEMO_PERSON_ID), json={
-            "summary": payload,
-            "notes": payload,
-        })
+        r = api.patch(
+            routes.person(TestData.DEMO_PERSON_ID),
+            json={
+                "summary": payload,
+                "notes": payload,
+            },
+        )
 
     with step("проверить что backend не упал и не утёк SQL"):
         should.less(r.status_code, HTTPStatus.INTERNAL_SERVER_ERROR, ErrMsg.server_error_on_injection)

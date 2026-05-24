@@ -28,7 +28,9 @@ def step(title: str) -> Iterator[None]:
     """Context manager that logs and reports a named test phase via Allure."""
     _log.info("STEP → %s", title)
     ok = False
-    with allure.step(title):
-        yield
-        ok = True
-    _log.info("STEP %s %s", "✓" if ok else "✗", title)
+    try:
+        with allure.step(title):
+            yield
+            ok = True
+    finally:
+        _log.info("STEP %s %s", "✓" if ok else "✗", title)

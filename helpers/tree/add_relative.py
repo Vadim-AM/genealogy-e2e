@@ -5,8 +5,10 @@ from __future__ import annotations
 from playwright.sync_api import Page, expect
 
 from api import routes
-from pages.person_editor import AddRelativeModal
+from assertions.base import should
+from pages.add_relative_modal import AddRelativeModal
 from pages.profile_panel import ProfilePanel
+from src.texts import ErrMsg
 
 
 def add_sibling_without_auto_parents(
@@ -33,8 +35,6 @@ def add_sibling_without_auto_parents(
 
     with page.expect_response(f"**{routes.PEOPLE}**") as resp:
         modal.save()
-    assert resp.value.ok, (
-        f"POST /api/people failed: {resp.value.status} {resp.value.text()[:200]}"
-    )
+    should.be_true(resp.value.ok, ErrMsg.editor_save_failed)
     expect(modal.overlay).not_to_be_visible()
     return modal

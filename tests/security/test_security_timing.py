@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 import httpx
 import pytest
@@ -14,6 +16,12 @@ from helpers.security.timing import ITERATIONS, RATIO_THRESHOLD, measure
 from helpers.security.timing import ratio as compute_ratio
 from src.texts import ErrMsg
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fixtures.users import AuthUser
+
+
 # Тесты затратные (60+ HTTP roundtrip'ов) и чувствительны к runner jitter,
 # но это не повод их скипать — timing-attack это security regression,
 # должно ловиться. Помечены `@pytest.mark.slow` для отдельной фильтрации
@@ -23,7 +31,7 @@ pytestmark = pytest.mark.slow
 
 
 @allure.title("Timing: signup не выдаёт существование аккаунта по времени")
-def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_api) -> None:
+def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_api: Callable[..., AuthUser]) -> None:
     """TC-SEC-3: signup p50 latency for existing ≈ new email (ratio < 3×)."""
     with step("подготовка: зарегистрировать существующего пользователя"):
         reset_url = f"{uvicorn_server}{routes.TEST_RESET_SIGNUP_RATE}"
@@ -37,6 +45,7 @@ def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_ap
         }
 
     with step("действие: замерить latency для existing и new email"):
+
         def call_existing(c: httpx.Client) -> None:
             c.post(routes.SIGNUP, json={**payload_template, "email": existing_email})
 
@@ -56,7 +65,7 @@ def test_signup_no_timing_account_enumeration(uvicorn_server: str, signup_via_ap
 
 
 @allure.title("Timing: login не выдаёт существование аккаунта по времени")
-def test_login_no_timing_account_enumeration(uvicorn_server: str, signup_via_api) -> None:
+def test_login_no_timing_account_enumeration(uvicorn_server: str, signup_via_api: Callable[..., AuthUser]) -> None:
     """TC-SEC-4: login p50 latency for wrong-password ≈ non-existent (ratio < 3×)."""
     with step("подготовка: зарегистрировать существующего пользователя"):
         reset_url = f"{uvicorn_server}{routes.TEST_RESET_SIGNUP_RATE}"
@@ -64,6 +73,7 @@ def test_login_no_timing_account_enumeration(uvicorn_server: str, signup_via_api
         signup_via_api(email=existing_email)
 
     with step("действие: замерить latency для existing и nonexistent email"):
+
         def call_existing_wrong_pwd(c: httpx.Client) -> None:
             c.post(
                 routes.LOGIN,

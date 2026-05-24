@@ -6,6 +6,7 @@ from typing import Self
 
 from playwright.sync_api import Locator, Page, expect
 
+from framework.step import step
 from src.texts import Buttons, Labels, t
 
 from .base import BasePage
@@ -39,21 +40,24 @@ class WaitPage(BasePage):
 
     def submit_email(self, email: str) -> Self:
         """Fill the email and click submit to join the waitlist."""
-        self.email.fill(email)
-        self.submit_btn.click()
+        with step("действие: отправить email"):
+            self.email.fill(email)
+            self.submit_btn.click()
         return self
 
     def expect_success(self) -> None:
         """`#result` becomes visible with non-empty content. Auto-wait via
         Playwright default — no explicit timeout needed."""
-        expect(self.result).to_be_visible()
-        expect(self.result).not_to_have_text("")
+        with step("проверка: ожидание подтверждено"):
+            expect(self.result).to_be_visible()
+            expect(self.result).not_to_have_text("")
 
     def expect_visible_form(self) -> None:
         """Assert the waitlist form elements are visible."""
-        expect(self.form).to_be_visible()
-        expect(self.email).to_be_visible()
-        expect(self.submit_btn).to_be_visible()
+        with step("проверка: форма видима"):
+            expect(self.form).to_be_visible()
+            expect(self.email).to_be_visible()
+            expect(self.submit_btn).to_be_visible()
 
     def is_email_valid(self) -> bool:
         """Return the HTML5 validity state of the email input."""

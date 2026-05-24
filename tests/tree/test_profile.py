@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 
 from api import person_api, routes
@@ -11,9 +13,18 @@ from framework.step import step
 from models.person import PersonResponse
 from src.texts import ErrMsg
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
+    from fixtures.users import AuthUser
+
 
 @allure.title("Каноническое имя собирается из фамилии, имени и отчества")
-def test_canonical_name_assembled_from_split_fields(owner_user, tenant_client) -> None:
+def test_canonical_name_assembled_from_split_fields(
+    owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """PATCH surname/given_name/patronymic собирает canonical name."""
     with step("подготовка: получить ID первой персоны из дерева"):
         api = tenant_client(owner_user)

@@ -86,6 +86,8 @@ class _Should:
     @staticmethod
     def have_length(collection: Sized, expected: int, what: str = "") -> None:
         """len(collection) == expected."""
+        if collection is None:
+            pytest.fail(f"expected collection with length {expected}, got None{_ctx(what)}")
         actual = len(collection)
         if actual != expected:
             pytest.fail(f"ожидали длину {expected}, получили {actual}{_ctx(what)}")
@@ -93,12 +95,16 @@ class _Should:
     @staticmethod
     def be_empty(collection: Sized, what: str = "") -> None:
         """len(collection) == 0."""
+        if collection is None:
+            pytest.fail(f"expected empty collection, got None{_ctx(what)}")
         if len(collection) != 0:
             pytest.fail(f"коллекция должна быть пустой, содержит {len(collection)}{_ctx(what)}")
 
     @staticmethod
     def not_empty(collection: Sized, what: str = "") -> None:
         """len(collection) > 0."""
+        if collection is None:
+            pytest.fail(f"expected non-empty collection, got None{_ctx(what)}")
         if len(collection) == 0:
             pytest.fail(f"коллекция не должна быть пустой{_ctx(what)}")
 

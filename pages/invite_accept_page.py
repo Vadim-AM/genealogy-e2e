@@ -6,6 +6,7 @@ from typing import Self
 
 from playwright.sync_api import Locator, Page, expect
 
+from framework.step import step
 from src.texts import Invite, t
 
 from .base import BasePage
@@ -44,12 +45,14 @@ class InviteAcceptPage(BasePage):
 
     def open_with_token(self, token: str) -> Self:
         """Navigate to the invite-accept page with the given token."""
-        self.page.goto(f"{self.URL}?token={token}")
+        with step("навигация: открыть приглашение по токену"):
+            self.page.goto(f"{self.URL}?token={token}")
         return self
 
     def expect_message_loaded(self) -> None:
         """Assert the status message is visible."""
-        expect(self.message).to_be_visible()
+        with step("проверка: текст приглашения загружен"):
+            expect(self.message).to_be_visible()
 
     def get_link_href(self) -> str:
         """Return the href attribute of the #link element."""
@@ -57,7 +60,8 @@ class InviteAcceptPage(BasePage):
 
     def click_open_tree(self) -> None:
         """Click the open-tree link to navigate to the tenant tree."""
-        self.link.click()
+        with step("действие: кликнуть Открыть дерево"):
+            self.link.click()
 
     def get_login_href(self) -> str:
         """Return the href attribute of the login link."""

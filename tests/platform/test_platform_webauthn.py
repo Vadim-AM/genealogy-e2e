@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import allure
 
@@ -14,32 +15,45 @@ from pages.platform_dashboard_page import PlatformDashboardPage
 from src.texts import ErrMsg
 from tests.platform.conftest import add_virtual_authenticator, make_localhost_context
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+    from playwright.sync_api import Browser, BrowserContext
+
+    from fixtures.users import AuthUser
+
 
 @allure.title("WebAuthn: список ключей недоступен обычному владельцу")
-def test_webauthn_list_403_for_non_super(owner_user, tenant_client) -> None:
+def test_webauthn_list_403_for_non_super(
+    owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-WEBAUTHN-1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(routes.WEBAUTHN_LIST)
     expect_response(r, label="WebAuthn list for non-super").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("WebAuthn: список ключей пуст у нового суперадмина")
-def test_webauthn_list_initially_empty(superadmin_user, tenant_client) -> None:
+def test_webauthn_list_initially_empty(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-WEBAUTHN-2: свежий superadmin без зарегистрированных credentials → []."""
     with step("действие: запрашиваем список WebAuthn-ключей"):
         r = tenant_client(superadmin_user).get(routes.WEBAUTHN_LIST)
-        r.raise_for_status()
+        data = expect_response(r, label="WebAuthn list").status_ok().data
 
     with step("проверка: список пуст"):
-        should.be_equal(r.json()["items"], [], ErrMsg.webauthn_list_not_empty)
+        should.be_equal(data["items"], [], ErrMsg.webauthn_list_not_empty)
 
 
 @allure.title("WebAuthn: начало регистрации возвращает challenge и rp")
-def test_webauthn_register_begin_returns_challenge_and_rp(superadmin_user, tenant_client) -> None:
+def test_webauthn_register_begin_returns_challenge_and_rp(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-WEBAUTHN-3: register/begin отдаёт challenge + rp.id (контракт WebAuthn)."""
     with step("действие: вызываем register/begin"):
         r = tenant_client(superadmin_user).post(routes.WEBAUTHN_REGISTER_BEGIN)
-        r.raise_for_status()
-        data = r.json()
+        data = expect_response(r, label="WebAuthn register/begin").status_ok().data
 
     with step("проверка: challenge, rp, user, pubKeyCredParams присутствуют"):
         for key in ("challenge", "rp", "user", "pubKeyCredParams"):
@@ -49,20 +63,25 @@ def test_webauthn_register_begin_returns_challenge_and_rp(superadmin_user, tenan
 
 
 @allure.title("WebAuthn: аутентификация без ключей возвращает 404")
-def test_webauthn_authenticate_begin_404_without_credentials(superadmin_user, tenant_client) -> None:
+def test_webauthn_authenticate_begin_404_without_credentials(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-WEBAUTHN-4: authenticate/begin → 404 (no_webauthn_credentials),."""
     with step("действие: вызываем authenticate/begin без credentials"):
         r = tenant_client(superadmin_user).post(routes.WEBAUTHN_AUTH_BEGIN)
 
     with step("проверка: 404 с no_webauthn_credentials"):
         expect_response(
-            r, label="authenticate/begin without credentials",
+            r,
+            label="authenticate/begin without credentials",
         ).status(HTTPStatus.NOT_FOUND)
         should.contain(r.text, "no_webauthn_credentials", ErrMsg.no_webauthn_credentials_missing)
 
 
 @allure.title("WebAuthn: завершение регистрации без challenge — 400")
-def test_webauthn_register_complete_400_without_challenge(superadmin_user, tenant_client) -> None:
+def test_webauthn_register_complete_400_without_challenge(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-WEBAUTHN-5: complete без предшествующего begin → 400 (no_pending_challenge)."""
     with step("действие: вызываем complete без begin"):
         r = tenant_client(superadmin_user).post(
@@ -72,13 +91,14 @@ def test_webauthn_register_complete_400_without_challenge(superadmin_user, tenan
 
     with step("проверка: 400 no_pending_challenge"):
         expect_response(
-            r, label="register/complete without begin",
+            r,
+            label="register/complete without begin",
         ).status(HTTPStatus.BAD_REQUEST)
 
 
 @allure.title("WebAuthn: полный цикл регистрации ключа через UI")
 def test_webauthn_full_register_via_ui(
-    browser, superadmin_user, tenant_client, base_url: str,
+    browser: Browser, superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client], base_url: str
 ) -> None:
     """TC-PA-WEBAUTHN-UI-1: full WebAuthn register flow через UI с virtual authenticator."""
     ctx = make_localhost_context(browser, superadmin_user, base_url)
@@ -97,8 +117,7 @@ def test_webauthn_full_register_via_ui(
 
         with step("проверка: credential появился в API"):
             r = tenant_client(superadmin_user).get(routes.WEBAUTHN_LIST)
-            r.raise_for_status()
-            items = r.json()["items"]
+            items = expect_response(r, label="WebAuthn list after register").status_ok().data["items"]
             should.have_length(items, 1, ErrMsg.webauthn_credential_count_wrong)
             should.be_equal(items[0]["label"], label, ErrMsg.webauthn_label_wrong)
     finally:
@@ -106,9 +125,7 @@ def test_webauthn_full_register_via_ui(
 
 
 @allure.title("WebAuthn: регистрация и аутентификация в одной сессии")
-def test_webauthn_register_then_authenticate_via_ui(
-    browser, superadmin_user, base_url: str,
-) -> None:
+def test_webauthn_register_then_authenticate_via_ui(browser: Browser, superadmin_user: AuthUser, base_url: str) -> None:
     """TC-PA-WEBAUTHN-UI-2: register → authenticate в одной сессии."""
     ctx = make_localhost_context(browser, superadmin_user, base_url)
     try:
@@ -131,7 +148,7 @@ def test_webauthn_register_then_authenticate_via_ui(
 
 @allure.title("WebAuthn: кнопка TouchID присутствует в setup-модалке")
 def test_setup_modal_has_webauthn_button_first(
-    auth_context_factory, superadmin_user
+    auth_context_factory: Callable[..., BrowserContext], superadmin_user: AuthUser
 ) -> None:
     """TC-PA-WEBAUTHN-UI-3: в setup-модалке кнопка WebAuthn (#mfa_setup_webauthn)."""
     with step("подготовка: открываем дашборд суперадмина"):

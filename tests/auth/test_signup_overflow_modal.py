@@ -8,9 +8,8 @@ import allure
 from playwright.sync_api import Page, expect
 
 from assertions.base import should
-from config.constants import unique_email
+from config.constants import TestConfig, unique_email
 from framework.step import step
-from helpers.auth.signup_helpers import fill_and_submit, mock_signup_overflow
 from pages.signup_page import SignupPage
 from pages.waitlist_modal import WaitlistModal
 from src.texts import ErrMsg, Waitlist, t
@@ -25,8 +24,10 @@ def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page, a
     with step("подготовка: мок overflow response и submit формы"):
         test_email = unique_email("overflow-modal")
         _ = anon_pages.navigate_to(SignupPage)
-        mock_signup_overflow(page, email=test_email)
-        fill_and_submit(page, test_email)
+        signup = SignupPage(page)
+        signup.mock_overflow_response(email=test_email)
+        signup.fill_required(email=test_email, password=TestConfig.DEFAULT_PASSWORD)
+        signup.submit()
 
     with step("проверка: модалка открылась с email и правильным title"):
         modal = WaitlistModal(page)
@@ -44,8 +45,10 @@ def test_waitlist_modal_ok_button_redirects_to_landing(page: Page, anon_pages: P
     with step("подготовка: вызов overflow модалки"):
         test_email = unique_email("overflow-ok")
         _ = anon_pages.navigate_to(SignupPage)
-        mock_signup_overflow(page, email=test_email)
-        fill_and_submit(page, test_email)
+        signup = SignupPage(page)
+        signup.mock_overflow_response(email=test_email)
+        signup.fill_required(email=test_email, password=TestConfig.DEFAULT_PASSWORD)
+        signup.submit()
 
     with step("действие: клик 'Понятно' и проверка redirect"):
         modal = WaitlistModal(page)
@@ -60,8 +63,10 @@ def test_waitlist_modal_esc_closes_without_redirect(page: Page, anon_pages: Page
     with step("подготовка: вызов overflow модалки"):
         test_email = unique_email("overflow-esc")
         _ = anon_pages.navigate_to(SignupPage)
-        mock_signup_overflow(page, email=test_email)
-        fill_and_submit(page, test_email)
+        signup = SignupPage(page)
+        signup.mock_overflow_response(email=test_email)
+        signup.fill_required(email=test_email, password=TestConfig.DEFAULT_PASSWORD)
+        signup.submit()
 
         modal = WaitlistModal(page)
         modal.expect_open()
@@ -80,8 +85,10 @@ def test_waitlist_modal_shows_wait_link_when_auto_subscribe_failed(page: Page, a
     with step("подготовка: вызов overflow модалки (subscribed=false)"):
         test_email = unique_email("overflow-fallback")
         _ = anon_pages.navigate_to(SignupPage)
-        mock_signup_overflow(page, email=test_email, subscribed=False)
-        fill_and_submit(page, test_email)
+        signup = SignupPage(page)
+        signup.mock_overflow_response(email=test_email, subscribed=False)
+        signup.fill_required(email=test_email, password=TestConfig.DEFAULT_PASSWORD)
+        signup.submit()
 
     with step("проверка: модалка показывает fallback-ссылку /wait"):
         modal = WaitlistModal(page)

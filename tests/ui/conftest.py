@@ -1,4 +1,5 @@
 """UI domain fixtures — viewport-specific page factories."""
+
 from __future__ import annotations
 
 import contextlib
@@ -11,12 +12,15 @@ from helpers.ui.viewport import make_page
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from pathlib import Path
 
     from playwright.sync_api import Browser, Page
 
+    from fixtures.users import AuthUser
+
 
 @pytest.fixture
-def mobile_page(request, browser: Browser, base_url: str) -> Iterator[Page]:
+def mobile_page(request: pytest.FixtureRequest, browser: Browser, base_url: str) -> Iterator[Page]:
     """iPhone SE viewport — anonymous (no cookies)."""
     gen = make_page(browser, base_url, w=375, h=812)
     page = next(gen)
@@ -30,7 +34,7 @@ def mobile_page(request, browser: Browser, base_url: str) -> Iterator[Page]:
 
 @pytest.fixture
 def tablet_owner_page(
-    request, browser: Browser, base_url: str, owner_user, tmp_path
+    request: pytest.FixtureRequest, browser: Browser, base_url: str, owner_user: AuthUser, tmp_path: Path
 ) -> Iterator[Page]:
     """iPad portrait viewport with owner_user cookies + tenant header."""
     ctx = browser.new_context(
@@ -42,8 +46,7 @@ def tablet_owner_page(
     for name, value in owner_user.cookies.items():
         ctx.add_cookies([{"name": name, "value": value, "url": base_url}])
     ctx.add_init_script(
-        "try { localStorage.setItem('v1', '1'); "
-        "localStorage.setItem('genealogy_tour_v1', '1'); } catch (e) {}"
+        "try { localStorage.setItem('v1', '1'); localStorage.setItem('genealogy_tour_v1', '1'); } catch (e) {}"
     )
     ctx.tracing.start(screenshots=True, snapshots=True, sources=True)
     page = ctx.new_page()

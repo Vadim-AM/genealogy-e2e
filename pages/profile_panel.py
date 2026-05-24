@@ -12,15 +12,12 @@ that keeps tests stable when the BUG-SEC-002 sweep moves these handlers to
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from playwright.sync_api import Locator, Page, expect
 
+from config.timeouts import TIMEOUTS
 from framework.step import step
+from pages.person_editor import PersonEditor
 from src.texts import Buttons, Enrichment, FamilyGroups, TestData, t
-
-if TYPE_CHECKING:
-    from pages.person_editor import PersonEditor
 
 
 def open_editor_for(
@@ -32,7 +29,6 @@ def open_editor_for(
     Returns the ready-to-use PersonEditor. Shared helper — replaces the
     copy-pasted `_open_editor` that lived in three test files.
     """
-    from pages.person_editor import PersonEditor
 
     page.goto(f"/#/p/{person_id}")
     page.wait_for_load_state("domcontentloaded")
@@ -103,7 +99,6 @@ class ProfilePanel:
 
     def open_editor(self) -> PersonEditor:
         """Click Edit and return the person editor."""
-        from pages.person_editor import PersonEditor
 
         with step("открытие редактора персоны"):
             self.btn_edit.click()
@@ -162,6 +157,20 @@ class ProfilePanel:
             page.wait_for_load_state("domcontentloaded")
             panel = ProfilePanel(page)
             panel.expect_visible()
+            return panel
+
+    @staticmethod
+    def navigate_to_fresh(page: Page, person_id: str) -> ProfilePanel:
+        """Double-navigation for re-init (init.js has no hashchange listener)."""
+        with step(f"навигация к профилю {person_id} (fresh)"):
+            page.goto("/")
+            page.wait_for_load_state("domcontentloaded")
+            page.goto(f"/#/p/{person_id}")
+            page.wait_for_load_state("domcontentloaded")
+            panel = ProfilePanel(page)
+            panel.expect_visible()
+            title = page.locator('[data-testid="profile-section-title"]')
+            expect(title).not_to_have_text("", timeout=TIMEOUTS.pw_expect_ms)
             return panel
 
     # ──────────────────────────────────────────────────────────────────

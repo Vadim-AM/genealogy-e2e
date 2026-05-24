@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import allure
 import pyotp
@@ -15,10 +16,17 @@ from framework.response import expect_response
 from framework.step import step
 from src.texts import ErrMsg
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
+    from fixtures.users import AuthUser
+
 
 @allure.title("Step-up: критичное действие без подтверждения — 403")
 def test_grant_license_403_step_up_required_without_step_up(
-    superadmin_user, tenant_client,
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
 ) -> None:
     """TC-PA-STEPUP-1: critical endpoint требует step_up_verified, иначе 403."""
     with step("подготовка: setup MFA без step-up"):
@@ -36,7 +44,7 @@ def test_grant_license_403_step_up_required_without_step_up(
 
 @allure.title("Step-up: TOTP-подтверждение разблокирует выдачу лицензии")
 def test_step_up_with_valid_totp_unlocks_critical_action(
-    superadmin_user, tenant_client,
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
 ) -> None:
     """TC-PA-STEPUP-2: step-up TOTP → grant-license проходит."""
     with step("подготовка: setup MFA и step-up через TOTP"):
@@ -55,7 +63,7 @@ def test_step_up_with_valid_totp_unlocks_critical_action(
 
 
 @allure.title("Step-up: неверный TOTP-код отклоняется (401)")
-def test_step_up_invalid_totp_401(superadmin_user, tenant_client) -> None:
+def test_step_up_invalid_totp_401(superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]) -> None:
     """TC-PA-STEPUP-3: неверный TOTP в step-up → 401."""
     api = tenant_client(superadmin_user)
 
@@ -68,7 +76,9 @@ def test_step_up_invalid_totp_401(superadmin_user, tenant_client) -> None:
 
 
 @allure.title("Step-up: неизвестный метод подтверждения — 400")
-def test_step_up_unknown_method_400(superadmin_user, tenant_client) -> None:
+def test_step_up_unknown_method_400(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-STEPUP-4: method=garbage → 400 (unknown_method)."""
     api = tenant_client(superadmin_user)
 
@@ -81,7 +91,9 @@ def test_step_up_unknown_method_400(superadmin_user, tenant_client) -> None:
 
 
 @allure.title("Step-up: успешное подтверждение записывается в аудит")
-def test_step_up_writes_audit_event(superadmin_user, tenant_client) -> None:
+def test_step_up_writes_audit_event(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-STEPUP-5: успешный step-up пишет audit-запись step_up_verified."""
     with step("подготовка: setup MFA и step-up"):
         api = tenant_client(superadmin_user)
@@ -104,7 +116,9 @@ def test_step_up_writes_audit_event(superadmin_user, tenant_client) -> None:
 
 
 @allure.title("Step-up: резервный код работает как метод подтверждения")
-def test_recovery_redeem_works_as_step_up_method(superadmin_user, tenant_client) -> None:
+def test_recovery_redeem_works_as_step_up_method(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-STEPUP-6: method=recovery с валидным кодом → 200."""
     api = tenant_client(superadmin_user)
 
@@ -119,7 +133,9 @@ def test_recovery_redeem_works_as_step_up_method(superadmin_user, tenant_client)
 
 
 @allure.title("CSP: дашборд возвращает Content-Security-Policy заголовок")
-def test_dashboard_returns_csp_header(superadmin_user, tenant_client) -> None:
+def test_dashboard_returns_csp_header(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-STEPUP-7: GET /platform/dashboard → Content-Security-Policy установлен."""
     with step("действие: запрашиваем дашборд"):
         r = tenant_client(superadmin_user).get("/platform/dashboard")
@@ -137,7 +153,9 @@ def test_dashboard_returns_csp_header(superadmin_user, tenant_client) -> None:
 
 
 @allure.title("Безопасность: X-Frame-Options = DENY на дашборде")
-def test_dashboard_returns_x_frame_options_deny(superadmin_user, tenant_client) -> None:
+def test_dashboard_returns_x_frame_options_deny(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-STEPUP-8: X-Frame-Options: DENY (anti-clickjacking)."""
     with step("действие: запрашиваем дашборд"):
         r = tenant_client(superadmin_user).get("/platform/dashboard")
@@ -148,7 +166,9 @@ def test_dashboard_returns_x_frame_options_deny(superadmin_user, tenant_client) 
 
 
 @allure.title("Безопасность: Referrer-Policy = no-referrer на дашборде")
-def test_dashboard_returns_referrer_policy_no_referrer(superadmin_user, tenant_client) -> None:
+def test_dashboard_returns_referrer_policy_no_referrer(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-STEPUP-9: Referrer-Policy: no-referrer."""
     with step("действие: запрашиваем дашборд"):
         r = tenant_client(superadmin_user).get("/platform/dashboard")
@@ -159,7 +179,9 @@ def test_dashboard_returns_referrer_policy_no_referrer(superadmin_user, tenant_c
 
 
 @allure.title("Безопасность: Permissions-Policy разрешает WebAuthn")
-def test_dashboard_returns_permissions_policy_for_webauthn(superadmin_user, tenant_client) -> None:
+def test_dashboard_returns_permissions_policy_for_webauthn(
+    superadmin_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """TC-PA-STEPUP-10: Permissions-Policy разрешает publickey-credentials."""
     with step("действие: запрашиваем дашборд"):
         r = tenant_client(superadmin_user).get("/platform/dashboard")

@@ -9,12 +9,19 @@ from playwright.sync_api import Page, expect
 
 from api import routes
 from assertions.base import should
+from framework.response import expect_response
 from framework.step import step
+from models.auth import AccountMe
 from pages.tree_page import TreePage
 from src.texts import ErrMsg
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import httpx
+
     from fixtures.page_factory import PageFactory
+    from fixtures.users import AuthUser
 
 DEMO_SEED_RING_CARDS = 2
 
@@ -61,12 +68,14 @@ def test_first_visit_tour_replay_button_visible(owner_page: Page, pages: PageFac
 
 
 @allure.title("Эндпоинт /me возвращает slug тенанта после авторизации")
-def test_me_endpoint_returns_tenant_after_login(owner_user, tenant_client) -> None:
+def test_me_endpoint_returns_tenant_after_login(
+    owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+) -> None:
     """F-FV-1: /api/account/me возвращает user + tenant slug."""
     with step("действие: запрос /me"):
         api = tenant_client(owner_user)
         r = api.get(routes.ACCOUNT_ME)
-        r.raise_for_status()
 
     with step("проверка: slug тенанта совпадает"):
-        should.be_equal(r.json()["tenant"]["slug"], owner_user.slug, ErrMsg.me_slug_mismatch)
+        me_data = expect_response(r, label="GET /me").status_ok().schema(AccountMe)
+        should.be_equal(me_data.tenant.slug, owner_user.slug, ErrMsg.me_slug_mismatch)
