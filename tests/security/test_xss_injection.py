@@ -1,10 +1,4 @@
-"""XSS injection tests — payloads in person fields must be escaped in HTML.
-
-SEC-INJ-1..4: XSS vectors in person name, site name, search, and notes
-are stored by the backend but MUST be HTML-escaped when rendered in the
-browser. A passing test = the raw payload appears as text, not as active
-DOM elements.
-"""
+"""XSS injection tests — payloads in person fields must be escaped in HTML."""
 
 from __future__ import annotations
 
@@ -15,11 +9,12 @@ import allure
 import pytest
 
 from api import person_api, site_api
+from assertions.base import should
 from framework.step import step
 from models.person import PersonCreate
 from pages.profile_panel import ProfilePanel
 from pages.tree_page import TreePage
-from src.texts import TestData
+from src.texts import ErrMsg, TestData
 from test_data.payloads.injection import XSS_PAYLOADS
 
 if TYPE_CHECKING:
@@ -51,9 +46,9 @@ def test_person_name_xss_is_escaped(
     with step("открыть дерево и проверить экранирование"):
         _ = pages.navigate_to(TreePage)
         content = owner_page.content()
-        assert "<script>alert" not in content, f"XSS payload rendered as executable HTML: {payload}"
-        assert "onerror=alert" not in content, f"XSS event handler rendered: {payload}"
-        assert "onload=alert" not in content, f"XSS event handler rendered: {payload}"
+        should.not_contain(content, "<script>alert", ErrMsg.xss_script_rendered)
+        should.not_contain(content, "onerror=alert", ErrMsg.xss_handler_rendered)
+        should.not_contain(content, "onload=alert", ErrMsg.xss_handler_rendered)
 
 
 @pytest.mark.security
@@ -75,8 +70,8 @@ def test_person_notes_xss_is_escaped(
     with step("открыть профиль и проверить экранирование"):
         ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         content = owner_page.content()
-        assert "<script>alert" not in content, f"XSS payload in summary rendered as HTML: {payload}"
-        assert "onerror=alert" not in content, f"XSS event handler in summary: {payload}"
+        should.not_contain(content, "<script>alert", ErrMsg.xss_script_rendered)
+        should.not_contain(content, "onerror=alert", ErrMsg.xss_handler_rendered)
 
 
 @pytest.mark.security
@@ -98,5 +93,5 @@ def test_site_name_xss_is_escaped(
     with step("открыть главную и проверить экранирование"):
         _ = pages.navigate_to(TreePage)
         content = owner_page.content()
-        assert "<script>alert" not in content, f"XSS payload in site_name rendered as HTML: {payload}"
-        assert "onerror=alert" not in content, f"XSS event handler in site_name: {payload}"
+        should.not_contain(content, "<script>alert", ErrMsg.xss_script_rendered)
+        should.not_contain(content, "onerror=alert", ErrMsg.xss_handler_rendered)

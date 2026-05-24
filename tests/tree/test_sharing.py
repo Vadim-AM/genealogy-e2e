@@ -1,46 +1,38 @@
-"""Sharing journey — owner creates a public link, an anonymous visitor
-sees the card read-only, owner revokes, the link dies.
-
-BUG-SHARE-PG-001 is fixed: `share_token` is platform-scoped and the
-public view resolves the owning tenant by the token's `tenant_slug`, so
-the anonymous /share/{token} page works with no tenant context at all.
-"""
+"""Sharing: создание публичной ссылки, анонимный просмотр, отзыв."""
 
 from __future__ import annotations
 
 import allure
 
 from api import routes, site_api
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
 from models.site import ShareListResponse
 from pages.share_page import SharePage
-from src.texts import TestData
+from src.texts import ErrMsg, TestData
 
 
 @allure.title("Публичная ссылка: аноним видит карточку, после отзыва -- нет")
 def test_owner_shares_card_anon_views_then_revoke_kills_link(
     owner_user, tenant_client, browser,
 ) -> None:
-    """Owner creates a person share link; an anonymous visitor opens it
-    and sees the person read-only; owner revokes; the same link then
-    shows the dead-link page. Covers create / list / view / revoke."""
+    """Полный цикл: создание ссылки → аноним видит карточку → отзыв → ошибка."""
     with step("подготовка: создать публичную ссылку"):
         api = tenant_client(owner_user)
 
         share = site_api.create_share(api, TestData.DEMO_PERSON_ID)
         share_id = share.id
         share_url = share.url
-        assert "/share/" in share_url, f"share url missing /share/ segment: {share_url!r}"
+        should.contain(share_url, "/share/", ErrMsg.share_url_wrong)
 
     with step("проверка: ссылка в списке без утечки токена"):
         r_list = api.get(routes.SHARE_LIST)
         share_list = expect_response(r_list, label="share list").status_ok().schema(ShareListResponse)
-        assert any(s.id == share_id for s in share_list.items), \
-            "created share must appear in the owner's list"
+        should.any_match(share_list.items, lambda s: s.id == share_id, ErrMsg.share_not_in_list)
         for s in share_list.items:
             extra = s.model_extra or {}
-            assert "url" not in extra, f"GET /api/share/list leaked a token: {s}"
+            should.be_false("url" in extra, ErrMsg.share_token_leaked)
 
     with step("действие: аноним видит карточку, после отзыва -- ошибку"):
         anon = browser.new_context()
@@ -61,20 +53,16 @@ def test_owner_shares_card_anon_views_then_revoke_kills_link(
 
 @allure.title("Список шаринг-ссылок не содержит секретных токенов")
 def test_share_list_never_leaks_tokens(owner_user, tenant_client) -> None:
-    """Security invariant: GET /api/share/list returns the owner's shares
-    but never the token url — tokens must not reach logs."""
+    """GET /api/share/list не выдаёт секретный token url."""
     with step("подготовка: создать публичную ссылку"):
         api = tenant_client(owner_user)
         share = site_api.create_share(api, TestData.DEMO_PERSON_ID)
-        assert share.url, \
-            f"create response must carry the share url, got {share!r}"
+        should.be_true(share.url, ErrMsg.share_url_missing)
 
     with step("проверка: список не содержит секретных токенов"):
         r_list = api.get(routes.SHARE_LIST)
         share_list = expect_response(r_list, label="share list").status_ok().schema(ShareListResponse)
-        assert share_list.items, "the created share must appear in the list (empty list)"
+        should.not_empty(share_list.items, ErrMsg.share_list_empty)
         for item in share_list.items:
             extra = item.model_extra or {}
-            leaked_url = extra.get("url")
-            assert not leaked_url, \
-                f"GET /api/share/list leaked a token url: {leaked_url}"
+            should.be_false(extra.get("url"), ErrMsg.share_token_leaked)

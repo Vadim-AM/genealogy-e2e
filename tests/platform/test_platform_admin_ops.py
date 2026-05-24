@@ -1,10 +1,4 @@
-"""Backend invariants for superadmin platform/admin endpoints.
-
-Superadmin-only, no journey UI — tenant listing, waitlist management,
-backups, onboarding nudges, tier overrides. Step-up-gated ops
-(tenant-override) run right after a fresh platform-MFA verify, which
-opens the 5-minute step-up window.
-"""
+"""Backend invariants for superadmin platform/admin endpoints."""
 
 from __future__ import annotations
 
@@ -13,9 +7,11 @@ import httpx
 import pyotp
 
 from api import mfa_api, routes
+from assertions.base import should
 from config.constants import make_email
 from framework.response import expect_response
 from framework.step import step
+from src.texts import ErrMsg
 
 
 @allure.title("Админ: суперадмин видит список тенантов и свой в нём")
@@ -28,8 +24,7 @@ def test_admin_tenant_listing(superadmin_user, tenant_client) -> None:
         tenants = raw if isinstance(raw, list) else raw["items"]
 
     with step("проверка: собственный тенант в списке"):
-        assert any(t_item["slug"] == superadmin_user.slug for t_item in tenants), \
-            "superadmin's own tenant must appear in the listing"
+        should.any_match(tenants, lambda t_item: t_item["slug"] == superadmin_user.slug, ErrMsg.own_tenant_missing)
 
     with step("проверка: GET тенанта по slug возвращает правильный slug"):
         one = api.get(routes.admin_tenant(superadmin_user.slug))
@@ -38,8 +33,7 @@ def test_admin_tenant_listing(superadmin_user, tenant_client) -> None:
 
 @allure.title("Вейтлист: подписка, пометка и удаление через админку")
 def test_admin_waitlist_lifecycle(superadmin_user, tenant_client, base_url) -> None:
-    """A waitlist subscriber appears for superadmin, can be marked
-    contacted (PATCH) and removed (DELETE)."""
+    """A waitlist subscriber appears for superadmin, can be marked."""
     with step("подготовка: подписываем email на вейтлист"):
         email = make_email("wl-admin")
         expect_response(
@@ -53,7 +47,7 @@ def test_admin_waitlist_lifecycle(superadmin_user, tenant_client, base_url) -> N
         r = api.get(routes.ADMIN_WAITLIST)
         items = expect_response(r, label="GET admin/waitlist").status_ok().data
         sub = next((s for s in items if s["email"] == email), None)
-        assert sub, f"subscribed email not in admin waitlist: {items}"
+        should.be_true(sub, ErrMsg.item_not_found)
 
     with step("действие: помечаем contacted и удаляем подписчика"):
         expect_response(
@@ -68,15 +62,12 @@ def test_admin_waitlist_lifecycle(superadmin_user, tenant_client, base_url) -> N
     with step("проверка: удалённый подписчик больше не в списке"):
         r2 = api.get(routes.ADMIN_WAITLIST)
         after = expect_response(r2, label="GET admin/waitlist after").status_ok().data
-        assert not any(s["id"] == sub["id"] for s in after), \
-            "deleted subscriber still listed"
+        should.be_false(any(s["id"] == sub["id"] for s in after), ErrMsg.item_not_found)
 
 
 @allure.title("Вейтлист платформы: подписчик виден суперадмину")
 def test_platform_waitlist_listing(superadmin_user, tenant_client, base_url) -> None:
-    """GET /api/platform/waitlist lists waitlist subscribers for the
-    superadmin. (BUG-WAITLIST-PG-002 — UnboundExecutionError — fixed
-    upstream by PR #167 / 6e3565f.)"""
+    """GET /api/platform/waitlist lists waitlist subscribers for the."""
     with step("подготовка: подписываем email на вейтлист"):
         email = make_email("plat-wl")
         expect_response(
@@ -90,14 +81,12 @@ def test_platform_waitlist_listing(superadmin_user, tenant_client, base_url) -> 
         r = api.get(routes.PLATFORM_WAITLIST)
         raw = expect_response(r, label="GET platform/waitlist").status_ok().data
         items = raw if isinstance(raw, list) else raw["items"]
-        assert any(s.get("email") == email for s in items), \
-            f"subscribed email not in platform waitlist: {items}"
+        should.any_match(items, lambda s: s.get("email") == email, ErrMsg.item_not_found)
 
 
 @allure.title("Бэкапы и напоминания: список снимков и отправка нуджей")
 def test_platform_backups_and_nudges(superadmin_user, tenant_client) -> None:
-    """GET /api/platform/backups lists snapshots; POST send-onboarding-nudges
-    reports how many nudges were sent."""
+    """GET /api/platform/backups lists snapshots; POST send-onboarding-nudges."""
     with step("действие: получаем список бэкапов"):
         api = tenant_client(superadmin_user)
         backups = api.get(routes.PLATFORM_BACKUPS)
@@ -110,9 +99,7 @@ def test_platform_backups_and_nudges(superadmin_user, tenant_client) -> None:
 
 @allure.title("Оверрайд тенанта: установка, чтение и удаление переопределения")
 def test_tenant_override_lifecycle(superadmin_user, tenant_client) -> None:
-    """Superadmin sets a tier override on a tenant, reads it back, deletes
-    it. tenant-override POST/DELETE are step-up-gated — a fresh
-    platform-MFA verify opens the window."""
+    """Superadmin sets a tier override on a tenant, reads it back, deletes."""
     with step("подготовка: настраиваем MFA и step-up"):
         api = tenant_client(superadmin_user)
         setup = mfa_api.setup_mfa(api)
@@ -135,8 +122,7 @@ def test_tenant_override_lifecycle(superadmin_user, tenant_client) -> None:
     with step("проверка: override виден в списке"):
         r = api.get(routes.tenant_overrides(slug))
         overrides_data = expect_response(r, label="GET tenant overrides").status_ok().data
-        assert any(o["field_name"] == "max_archives" for o in overrides_data["items"]), \
-            "the override must be listed back"
+        should.any_match(overrides_data["items"], lambda o: o["field_name"] == "max_archives", ErrMsg.item_not_found)
 
     with step("действие: удаляем override и проверяем"):
         expect_response(
@@ -145,16 +131,14 @@ def test_tenant_override_lifecycle(superadmin_user, tenant_client) -> None:
         ).status_ok()
         r2 = api.get(routes.tenant_overrides(slug))
         after = expect_response(r2, label="GET tenant overrides after").status_ok().data
-        assert not any(o["field_name"] == "max_archives" for o in after["items"]), \
-            "deleted override must be gone"
+        should.be_false(any(o["field_name"] == "max_archives" for o in after["items"]), ErrMsg.item_not_found)
 
 
 @allure.title("Вейтлист: инвайт подписчика возвращает статус invited")
 def test_platform_waitlist_invite_promotes_subscriber(
     superadmin_user, tenant_client, base_url,
 ) -> None:
-    """POST /api/platform/waitlist/{id}/invite promotes a waitlist
-    subscriber into a tenant + user."""
+    """POST /api/platform/waitlist/{id}/invite promotes a waitlist."""
     with step("подготовка: подписываем email на вейтлист"):
         email = make_email("wl-invite")
         expect_response(
@@ -174,7 +158,4 @@ def test_platform_waitlist_invite_promotes_subscriber(
 
     with step("проверка: статус invited или already_exists"):
         inv_data = expect_response(invited, label="waitlist invite").status_ok().data
-        assert inv_data["status"] in ("invited", "already_exists"), (
-            f"waitlist invite returned unexpected status: "
-            f"{inv_data.get('status')!r}"
-        )
+        should.be_in(inv_data["status"], ("invited", "already_exists"), ErrMsg.subscribe_status_wrong)

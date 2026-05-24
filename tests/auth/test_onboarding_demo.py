@@ -1,10 +1,4 @@
-"""Onboarding demo-data journeys — clear or keep the seeded demo relatives.
-
-A fresh tenant seeds demo people (Иван, Мария …). In owner settings the
-owner chooses to erase them outright or keep them as an editable
-template. Two tenants — each test gets its own owner — so the two
-mutually-exclusive choices are exercised independently.
-"""
+"""Onboarding demo-data journeys — удаление или сохранение демо-данных."""
 
 from __future__ import annotations
 
@@ -13,9 +7,11 @@ from typing import TYPE_CHECKING
 import allure
 
 from api import person_api
+from assertions.base import should
 from framework.step import step
 from pages.confirm_dialog import ConfirmDialog
 from pages.owner_page import OwnerPage
+from src.texts import ErrMsg
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
@@ -25,12 +21,11 @@ if TYPE_CHECKING:
 
 @allure.title("Владелец удаляет демо-родственников из дерева")
 def test_owner_clears_demo_relatives(owner_page: Page, owner_user, tenant_client, pages: PageFactory) -> None:
-    """Owner opens settings → 'Стереть демо-родственников' → confirms →
-    the demo people are removed from the tree."""
+    """Owner стирает демо-родственников через настройки."""
     with step("подготовка: проверка наличия демо-данных"):
         api = tenant_client(owner_user)
         before = person_api.get_people(api)
-        assert len(before) > 1, "a fresh tenant seeds demo relatives"
+        should.greater(len(before), 1, ErrMsg.demo_seed_required)
 
     with step("действие: удаление демо-родственников через UI"):
         _ = pages.navigate_to(OwnerPage)
@@ -42,18 +37,16 @@ def test_owner_clears_demo_relatives(owner_page: Page, owner_user, tenant_client
 
     with step("проверка: количество персон уменьшилось"):
         after = person_api.get_people(api)
-        assert len(after) < len(before), \
-            f"demo relatives must be gone: {len(before)} → {len(after)}"
+        should.less(len(after), len(before), ErrMsg.demo_not_cleared)
 
 
 @allure.title("Владелец сохраняет демо-данные как шаблон для дерева")
 def test_owner_keeps_demo_as_template(owner_page: Page, owner_user, tenant_client, pages: PageFactory) -> None:
-    """Owner opens settings → 'Использовать как шаблон' → confirms →
-    the tree structure stays (people are kept, not deleted)."""
+    """Owner сохраняет демо-данные как шаблон для дерева."""
     with step("подготовка: проверка наличия демо-данных"):
         api = tenant_client(owner_user)
         before = person_api.get_people(api)
-        assert len(before) > 1, "a fresh tenant seeds demo relatives"
+        should.greater(len(before), 1, ErrMsg.demo_seed_required)
 
     with step("действие: сохранение демо-данных как шаблона"):
         _ = pages.navigate_to(OwnerPage)
@@ -65,5 +58,4 @@ def test_owner_keeps_demo_as_template(owner_page: Page, owner_user, tenant_clien
 
     with step("проверка: количество персон не изменилось"):
         after = person_api.get_people(api)
-        assert len(after) == len(before), \
-            f"keep-as-template must preserve the structure: {len(before)} → {len(after)}"
+        should.be_equal(len(after), len(before), ErrMsg.demo_not_preserved)

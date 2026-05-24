@@ -1,13 +1,4 @@
-"""INV-AI-005: AI consent gate — backend enforcement.
-
-`tests/test_enrichment_consent.py` (Wave 7) проверяет UI-side gate
-через `confirm()` диалог. Backend gate ловит **API-driven** обход:
-attacker дёргает POST `/api/enrich/{pid}` напрямую без consent.
-
-Был xfail до commit `19fdd41` ("fix(enrichment): enforce
-ai_consent_at gate on POST + history"). Regression-trail для 152-ФЗ /
-GDPR compliance.
-"""
+"""INV-AI-005: AI consent gate — backend enforcement regression."""
 
 from __future__ import annotations
 
@@ -24,11 +15,7 @@ from framework.step import step
 def test_post_enrich_without_consent_is_forbidden(
     signup_via_api, tenant_client,
 ) -> None:
-    """INV-AI-005: backend должен отбивать enrich-вызов до того, как
-    пользователь записал явное согласие на AI processing.
-
-    Was xfail until upstream commit `19fdd41`. Regression-trail.
-    """
+    """Backend отбивает enrich-вызов до записи согласия на AI processing."""
     with step("подготовка: создать пользователя без AI-согласия"):
         user = signup_via_api()
         api = tenant_client(user)

@@ -1,10 +1,4 @@
-"""Platform superadmin audit log — TC-PA-AUDIT-* (PR-5).
-
-Покрывает:
-  • GET /api/platform/audit-log — фильтры + canonical shape
-  • Integration: write-endpoint (settings_patch) пишет audit-запись
-  • GDPR: ip_hash в формате hex, не raw IP
-"""
+"""Platform superadmin audit log — TC-PA-AUDIT-* (PR-5)."""
 
 from __future__ import annotations
 
@@ -14,8 +8,10 @@ from http import HTTPStatus
 import allure
 
 from api import platform_api, routes
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
+from src.texts import ErrMsg
 
 
 @allure.title("Аудит: журнал недоступен обычному владельцу")
@@ -27,17 +23,15 @@ def test_audit_log_403_for_non_super(owner_user, tenant_client) -> None:
 
 @allure.title("Аудит: ответ содержит items, count и limit")
 def test_audit_log_returns_canonical_shape(superadmin_user, tenant_client) -> None:
-    """TC-PA-AUDIT-2: items, count, limit + per-item: id, ts, actor_email,
-    action, target_type, target_id, payload, ip_hash."""
+    """TC-PA-AUDIT-2: items, count, limit + per-item: id, ts, actor_email,."""
     with step("действие: запрашиваем audit-log с limit=10"):
         r = tenant_client(superadmin_user).get(routes.PLATFORM_AUDIT_LOG, params={"limit": 10})
         data = expect_response(r, label="audit-log shape").status_ok().data
 
     with step("проверка: items, count, limit присутствуют и limit=10"):
         for key in ("items", "count", "limit"):
-            assert key in data, f"field {key!r} missing: {sorted(data)}"
-        assert data["limit"] == 10, \
-            f"default limit should be 10, got {data.get('limit')}"
+            should.be_in(key, data, ErrMsg.metric_key_missing)
+        should.be_equal(data["limit"], 10, ErrMsg.audit_limit_wrong)
 
 
 @allure.title("Аудит: limit=0 ограничивается снизу до 1")
@@ -68,10 +62,7 @@ def test_audit_log_invalid_since_iso_returns_400(superadmin_user, tenant_client)
 
 @allure.title("Аудит: изменение настроек создаёт запись settings_patch")
 def test_settings_patch_writes_audit_entry(superadmin_user, tenant_client) -> None:
-    """TC-PA-AUDIT-6: PATCH /settings → запись в audit-log с action=settings_patch.
-
-    Канонический сценарий: меняем soft_warn_threshold → ищем запись.
-    """
+    """TC-PA-AUDIT-6: PATCH /settings → запись в audit-log с action=settings_patch."""
     api = tenant_client(superadmin_user)
     new_value = 0.7
 
@@ -85,19 +76,15 @@ def test_settings_patch_writes_audit_entry(superadmin_user, tenant_client) -> No
         audit = platform_api.get_audit_log(api, action="settings_patch", limit=5)
 
     with step("проверка: audit-запись содержит корректные action, target_type и payload"):
-        assert len(audit.items) >= 1, "settings_patch audit entry not created after PATCH"
+        should.greater_or_equal(len(audit.items), 1, ErrMsg.audit_entry_missing)
         latest = audit.items[0]
-        assert latest.action == "settings_patch", \
-            f"latest audit action: expected 'settings_patch', got {latest.action!r}"
+        should.be_equal(latest.action, "settings_patch", ErrMsg.audit_action_wrong)
         target_type = latest.model_extra.get("target_type")
-        assert target_type == "platform_settings", \
-            f"target_type: expected 'platform_settings', got {target_type!r}"
+        should.be_equal(target_type, "platform_settings", ErrMsg.audit_action_wrong)
         # Payload содержит changes + before
         payload = latest.model_extra.get("payload", {})
-        assert "changes" in payload, \
-            f"audit payload must contain 'changes': {sorted(payload)}"
-        assert payload["changes"]["soft_warn_threshold"] == new_value, \
-            f"soft_warn_threshold not recorded: {payload.get('changes')}"
+        should.be_in("changes", payload, ErrMsg.audit_payload_wrong)
+        should.be_equal(payload["changes"]["soft_warn_threshold"], new_value, ErrMsg.audit_payload_wrong)
 
 
 @allure.title("Аудит GDPR: ip_hash — hex-хеш, а не сырой IP-адрес")
@@ -115,17 +102,12 @@ def test_audit_log_ip_hash_is_hex_not_raw_ip(superadmin_user, tenant_client) -> 
         audit = platform_api.get_audit_log(api, limit=1)
 
     with step("проверка: ip_hash — 16-символьный hex, не IPv4"):
-        assert len(audit.items) == 1, (
-            f"expected exactly 1 audit item with limit=1, got {len(audit.items)}"
-        )
+        should.have_length(audit.items, 1, ErrMsg.audit_entry_missing)
         ip_hash = audit.items[0].ip_hash
-        assert ip_hash is not None, "ip_hash must be present (audit logs requesting client)"
-        assert re.match(r"^[0-9a-f]{16}$", ip_hash), \
-            f"ip_hash must be 16-char hex, got {ip_hash!r}"
+        should.not_none(ip_hash, ErrMsg.audit_ip_hash_wrong)
+        should.be_true(re.match(r"^[0-9a-f]{16}$", ip_hash), ErrMsg.audit_ip_hash_wrong)
         # Не должно выглядеть как IPv4
-        assert not re.match(r"^\d+\.\d+\.\d+\.\d+", ip_hash), (
-            f"ip_hash looks like raw IPv4 (GDPR violation): {ip_hash!r}"
-        )
+        should.be_false(re.match(r"^\d+\.\d+\.\d+\.\d+", ip_hash), ErrMsg.audit_ip_raw)
 
 
 @allure.title("Аудит: фильтр по action возвращает только нужные записи")
@@ -142,5 +124,4 @@ def test_audit_log_filters_by_action(superadmin_user, tenant_client) -> None:
     with step("проверка: фильтр по action возвращает только settings_patch"):
         audit = platform_api.get_audit_log(api, action="settings_patch", limit=20)
         for it in audit.items:
-            assert it.action == "settings_patch", \
-                f"filter leak: got action={it.action!r}"
+            should.be_equal(it.action, "settings_patch", ErrMsg.audit_filter_leak)

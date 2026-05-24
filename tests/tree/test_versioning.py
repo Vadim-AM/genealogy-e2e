@@ -1,8 +1,4 @@
-"""Versioning regression — TC-BUG-VER-001.
-
-Footer version must come from `/api/site/config.app_version` (single source
-of truth in `js/init.js:286`), not be hardcoded in HTML.
-"""
+"""TC-BUG-VER-001: версия в футере совпадает с /api/site/config.app_version."""
 
 from __future__ import annotations
 
@@ -13,6 +9,7 @@ import httpx
 from playwright.sync_api import Page, expect
 
 from api import routes
+from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
 from models.site import SiteConfigResponse
@@ -25,20 +22,15 @@ if TYPE_CHECKING:
 
 @allure.title("Конфиг сайта содержит непустую версию приложения")
 def test_site_config_exposes_app_version(base_url: str) -> None:
-    """`/api/site/config` returns a non-empty `app_version` string."""
+    """app_version в /api/site/config — непустая строка."""
     r = httpx.get(f"{base_url}{routes.SITE_CONFIG}")
     config = expect_response(r, label="GET /api/site/config").status_ok().schema(SiteConfigResponse)
-    assert isinstance(config.app_version, str) and config.app_version.strip(), \
-        f"app_version must be a non-empty string: {config.app_version!r}"
+    should.be_true(isinstance(config.app_version, str) and config.app_version.strip(), ErrMsg.app_version_empty)
 
 
 @allure.title("Версия в футере совпадает с версией из API")
 def test_footer_version_matches_api_app_version(page: Page, base_url: str, anon_pages: PageFactory) -> None:
-    """TC-BUG-VER-001: footer version equals `/api/site/config.app_version`.
-
-    Strict equality with the API source-of-truth — catches any new hardcoding,
-    not just the original `v2.1.0`.
-    """
+    """Версия в футере строго равна app_version из API."""
     with step("подготовка: получить версию из API"):
         r = httpx.get(f"{base_url}{routes.SITE_CONFIG}")
         config = expect_response(r, label="GET /api/site/config").status_ok().schema(SiteConfigResponse)

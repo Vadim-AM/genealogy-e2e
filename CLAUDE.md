@@ -508,10 +508,65 @@ public functions are public: `Timeouts`, `LOCALE`, `build_timeouts()`.
 httpx default timeout (10s) is built into the monkey-patch — don't pass
 `timeout=` explicitly unless overriding to `TIMEOUTS.api_long`.
 
+### 34. No bare `assert` in tests — use `should.*` or `expect_response`
+
+Three assertion channels, zero bare `assert`:
+- **Playwright UI**: `expect(locator, ErrMsg.x).to_be_visible()`
+- **httpx API**: `expect_response(r).status(HTTPStatus.OK).json_eq("key", val)`
+- **Everything else**: `should.be_equal(actual, expected, ErrMsg.x)`
+
+```python
+# bad
+assert len(tree.people) == 3, f"expected 3, got {len(tree.people)}"
+
+# good
+from assertions.base import should
+should.have_length(tree.people, 3, ErrMsg.count_mismatch)
+```
+
+Custom assertions live in `assertions/`:
+- `base.py` — universal: `should.be_equal`, `contain`, `any_match`,
+  `be_empty`, `playwright_status`, etc.
+- `tree.py`, `auth.py`, `platform.py` — domain-specific wrappers.
+
+All `what` parameters use `ErrMsg.*` — no inline strings.
+
+### 35. Test = clean scenario, details in POM
+
+A test reads as a high-level user scenario. Implementation details
+(locator queries, waits, form fills) belong in POM methods with
+`step()` inside. POM methods that change page state return the target
+POM for fluent chaining.
+
+```python
+# bad — low-level details in test
+center = page.locator('[data-testid="orbit-center-card"]')
+center.click()
+profile = page.locator('[data-testid="profile-page"]')
+
+# good — scenario-level POM method
+panel = tree.open_center_profile()  # returns ProfilePanel, step() inside
+```
+
+### 36. Docstrings — 1 sentence, TC-ID preserved
+
+Module docstring: 1 line. Function docstring: 1 sentence + TC-ID.
+No multi-paragraph explanations — the code and step names tell the story.
+
+```python
+"""AI search disabled flow — TC-N3, TC-N4, TC-N5."""  # module
+
+def test_ai_button_disabled(...) -> None:
+    """TC-N5: owner → profile → AI-кнопка disabled."""  # function
+```
+
 ## Project structure
 
 ```
 genealogy-e2e/
+├── assertions/               # Custom assertion functions (should.* + domain wrappers)
+│   ├── base.py               # should.be_equal, contain, any_match, be_empty, playwright_status
+│   ├── tree.py, auth.py, platform.py  # domain-specific assertion wrappers
 ├── api/                      # routes.py (endpoint catalogue) + typed API wrappers
 │   ├── routes.py             # module-level constants + builder functions
 │   ├── person_api.py         # get_tree, create_person, patch_person, delete_person
@@ -726,6 +781,7 @@ already cost a near-lost rewrite.
 | A global fixture | `fixtures/<topic>.py` |
 | A domain fixture | `tests/<domain>/conftest.py` |
 | A UI string / ErrMsg | `src/texts.py` |
+| A custom assertion | `assertions/base.py` (universal) or `assertions/<domain>.py` |
 | An env var | `config/settings.py` (Pydantic field) |
 
 ## When in doubt

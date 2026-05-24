@@ -1,15 +1,4 @@
-"""Domain invariants — INV-DOMAIN-001..005, INV-DATE-001, INV-CASCADE-001,
-INV-TXN-001, INV-DATA-001.
-
-Backend хранит persons + relationships. У этих сущностей есть
-**доменные инварианты**, которые backend обязан валидировать
-независимо от frontend (frontend может скрыть кнопку, но прямой
-PATCH/POST через API должен отбиваться).
-
-Все тесты используют `tenant_client(user)` factory — `httpx.Client`
-pre-wired с base_url + cookies + slug header. Никаких raw httpx-
-вызовов из тестов.
-"""
+"""Domain invariants — валидация бэкендом persons + relationships."""
 
 from __future__ import annotations
 
@@ -18,24 +7,18 @@ from http import HTTPStatus
 import allure
 
 from api import person_api, relationship_api, routes
+from assertions.base import should
 from config.constants import unique_email
 from framework.response import expect_response
 from framework.step import step
 from models.person import PersonCreate
-from src.texts import TestData
+from src.texts import ErrMsg, TestData
 from test_data.payloads.tree import parent_rel
-
-# ─────────────────────────────────────────────────────────────────────────
-# INV-DOMAIN-001 / INV-DOMAIN-004 / INV-DATE-001 — date validation
-# ─────────────────────────────────────────────────────────────────────────
 
 
 @allure.title("Бэкенд отклоняет дату смерти раньше даты рождения")
 def test_patch_person_death_before_birth_is_422(owner_user, tenant_client) -> None:
-    """INV-DOMAIN-001: backend rejects death year < birth year.
-
-    Was xfail until upstream commit `7499d92`. Now regression.
-    """
+    """INV-DOMAIN-001: death year < birth year отклоняется."""
     api = tenant_client(owner_user)
     r = api.patch(
         routes.person(TestData.DEMO_PERSON_ID),
@@ -46,11 +29,7 @@ def test_patch_person_death_before_birth_is_422(owner_user, tenant_client) -> No
 
 @allure.title("Бэкенд отклоняет рождение родителя позже ребёнка")
 def test_patch_parent_birth_after_child_is_422(signup_via_api, tenant_client) -> None:
-    """INV-DOMAIN-004: parent.birth must precede child.birth (>= ~14y).
-
-    Was xfail (partial fix until PATCH-handler validation). Closed by
-    upstream batch-6/7. Now regular regression.
-    """
+    """INV-DOMAIN-004: рождение родителя должно предшествовать ребёнку."""
     with step("подготовка: создание ребёнка (1985) и родителя (1960) со связью"):
         user = signup_via_api(email=unique_email("dom004"))
         api = tenant_client(user)
@@ -74,11 +53,7 @@ def test_patch_parent_birth_after_child_is_422(signup_via_api, tenant_client) ->
 
 @allure.title("Бэкенд отклоняет непарсируемую дату рождения")
 def test_patch_person_garbage_birth_is_422(owner_user, tenant_client) -> None:
-    """INV-DATE-001: birth='foobar' (non-parseable) must be rejected.
-
-    Was xfail until upstream batch-6/7 (date format validator).
-    Now regular regression.
-    """
+    """INV-DATE-001: непарсируемая дата рождения отклоняется."""
     api = tenant_client(owner_user)
     r = api.patch(
         routes.person(TestData.DEMO_PERSON_ID),
@@ -87,17 +62,10 @@ def test_patch_person_garbage_birth_is_422(owner_user, tenant_client) -> None:
     expect_response(r, label="garbage birth value").status(HTTPStatus.BAD_REQUEST, HTTPStatus.UNPROCESSABLE_ENTITY)
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# INV-DOMAIN-002 — >2 parents
-# ─────────────────────────────────────────────────────────────────────────
-
 
 @allure.title("Бэкенд отклоняет третьего родителя у ребёнка")
 def test_third_parent_relationship_is_rejected(signup_via_api, tenant_client) -> None:
-    """INV-DOMAIN-002: backend should reject >2 parents per child.
-
-    Was xfail until upstream commit `7499d92`. Now regression.
-    """
+    """INV-DOMAIN-002: >2 родителей у ребёнка отклоняется."""
     with step("подготовка: создание ребёнка и трёх родителей, привязка двух"):
         user = signup_via_api(email=unique_email("dom002"))
         api = tenant_client(user)
@@ -120,17 +88,10 @@ def test_third_parent_relationship_is_rejected(signup_via_api, tenant_client) ->
         )
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# INV-DOMAIN-003 — cycle in parent graph
-# ─────────────────────────────────────────────────────────────────────────
-
 
 @allure.title("Бэкенд отклоняет цикл в графе родительских связей")
 def test_parent_cycle_is_rejected(signup_via_api, tenant_client) -> None:
-    """INV-DOMAIN-003: A parent of B + B parent of A → backend rejects 2nd.
-
-    Was xfail until upstream commit `7499d92`. Now regression.
-    """
+    """INV-DOMAIN-003: цикл A→B→A в parent graph отклоняется."""
     with step("подготовка: создание A, B и связи A→B"):
         user = signup_via_api(email=unique_email("dom003"))
         api = tenant_client(user)
@@ -149,17 +110,10 @@ def test_parent_cycle_is_rejected(signup_via_api, tenant_client) -> None:
         )
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# INV-DOMAIN-005 — subject не может уйти на branch=demo
-# ─────────────────────────────────────────────────────────────────────────
-
 
 @allure.title("Корневой субъект нельзя перевести в ветку demo")
 def test_subject_cannot_be_demoted_to_demo_branch(owner_user, tenant_client) -> None:
-    """INV-DOMAIN-005: root subject can't have branch=demo.
-
-    Was xfail until upstream batch-6/7. Now regular regression.
-    """
+    """INV-DOMAIN-005: root subject нельзя перевести в branch=demo."""
     api = tenant_client(owner_user)
     r = api.patch(routes.person(TestData.DEMO_PERSON_ID), json={"branch": "demo"})
     expect_response(r, label="subject demoted to demo").status(
@@ -167,21 +121,12 @@ def test_subject_cannot_be_demoted_to_demo_branch(owner_user, tenant_client) -> 
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# INV-CASCADE-001 — DELETE non-root → 500 unhandled
-# ─────────────────────────────────────────────────────────────────────────
-
 
 @allure.title("Удаление персоны со связями не вызывает ошибку 500")
 def test_delete_non_root_person_with_relationship_does_not_500(
     signup_via_api, tenant_client,
 ) -> None:
-    """INV-CASCADE-001: DELETE non-root person *с relationships* must
-    not crash with 500. Изолированный person удалялся и без cascade-
-    handling — реальный баг проявлялся когда есть FK.
-
-    Was xfail at Run security 28.04 night. Closed by upstream batch-2.
-    """
+    """INV-CASCADE-001: DELETE персоны со связями не должен возвращать 500."""
     with step("подготовка: создание ребёнка, родителя и связи"):
         user = signup_via_api(email=unique_email("cascade"))
         api = tenant_client(user)
@@ -194,26 +139,15 @@ def test_delete_non_root_person_with_relationship_does_not_500(
 
     with step("проверка: DELETE не вызывает 500"):
         r = api.delete(routes.person("cascade-parent"))
-        assert r.status_code < HTTPStatus.INTERNAL_SERVER_ERROR, (
-            f"DELETE /api/people/cascade-parent crashed {r.status_code} -- "
-            f"cascade not handled. Body: {r.text[:300]}"
-        )
+        should.less(r.status_code, HTTPStatus.INTERNAL_SERVER_ERROR, ErrMsg.delete_500_crash)
 
-
-# ─────────────────────────────────────────────────────────────────────────
-# INV-TXN-001 — orphan FK → 500 unhandled
-# ─────────────────────────────────────────────────────────────────────────
 
 
 @allure.title("Связь с несуществующей персоной возвращает 404, не 500")
 def test_relationship_with_orphan_person_id_returns_404_not_500(
     signup_via_api, tenant_client,
 ) -> None:
-    """INV-TXN-001: POST relationship referencing non-existent person
-    must return 404 (or 422), never 500.
-
-    Was xfail until upstream commit `4007a3a`. Now regression.
-    """
+    """INV-TXN-001: связь с несуществующим person → 4xx, не 500."""
     with step("подготовка: создание реальной персоны"):
         user = signup_via_api(email=unique_email("txn001"))
         api = tenant_client(user)
@@ -229,17 +163,10 @@ def test_relationship_with_orphan_person_id_returns_404_not_500(
         )
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# INV-DATA-001 — нет upper bound на размер surname/notes
-# ─────────────────────────────────────────────────────────────────────────
-
 
 @allure.title("Бэкенд отклоняет слишком длинные заметки (50 КБ)")
 def test_patch_person_huge_notes_is_rejected(owner_user, tenant_client) -> None:
-    """INV-DATA-001: notes > reasonable bound (e.g. 10K) must be rejected.
-
-    Was xfail until upstream commit `187bedb`. Now regression.
-    """
+    """INV-DATA-001: notes > 50KB отклоняются."""
     api = tenant_client(owner_user)
     r = api.patch(
         routes.person(TestData.DEMO_PERSON_ID),
@@ -252,10 +179,7 @@ def test_patch_person_huge_notes_is_rejected(owner_user, tenant_client) -> None:
 
 @allure.title("Бэкенд отклоняет слишком длинную фамилию (5000 символов)")
 def test_patch_person_huge_surname_is_rejected(owner_user, tenant_client) -> None:
-    """INV-DATA-001: surname > reasonable bound (e.g. 100) must be rejected.
-
-    Was xfail until upstream commit `187bedb`. Now regression.
-    """
+    """INV-DATA-001: surname > 5000 символов отклоняется."""
     api = tenant_client(owner_user)
     r = api.patch(
         routes.person(TestData.DEMO_PERSON_ID),

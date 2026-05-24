@@ -1,16 +1,4 @@
-"""Cross-tenant isolation invariants.
-
-Multi-tenant SQLite — большая поверхность для багов: тенант видит чужие
-данные, slug-collision при одинаковых ФИО, parallel signup race, cookie/
-session leak.
-
-Эти тесты проверяют что **изоляция реально работает**, а не предполагается
-от architecture. Каждый тест создаёт два независимых tenant'а и
-проверяет один граничный сценарий.
-
-Стиль: API-only (без UI) — быстро и стабильно. UI-сценарии — отдельные
-тесты в `tests/ui/`.
-"""
+"""Cross-tenant isolation invariants."""
 
 from __future__ import annotations
 
@@ -20,25 +8,22 @@ from http import HTTPStatus
 import allure
 
 from api import routes
+from assertions.base import should
 from config.timeouts import TIMEOUTS
 from framework.response import expect_response
 from framework.step import step
-
-# ─────────────────────────────────────────────────────────────────────────
-# Data isolation
-# ─────────────────────────────────────────────────────────────────────────
+from src.texts import ErrMsg
 
 
 @allure.title("Изоляция: персона тенанта A не видна тенанту B")
 def test_person_created_in_tenant_a_not_visible_in_tenant_b(
     signup_via_api, tenant_client
 ) -> None:
-    """Тенант A создаёт person → тенант B не видит его в /api/tree
-    (главный изоляционный invariant)."""
+    """Тенант A создаёт person, тенант B не видит его в /api/tree."""
     with step("подготовка: создать два независимых тенанта"):
         user_a = signup_via_api()
         user_b = signup_via_api()
-        assert user_a.slug != user_b.slug, "fixture sanity: tenants must differ"
+        should.not_equal(user_a.slug, user_b.slug, ErrMsg.tenants_must_differ)
 
         api_a = tenant_client(user_a)
         api_b = tenant_client(user_b)
@@ -53,25 +38,21 @@ def test_person_created_in_tenant_a_not_visible_in_tenant_b(
                 "gender": "m",
             },
         ).json()
-        assert created["id"], "created person must have an id"
+        should.be_true(created["id"], ErrMsg.person_must_have_id)
 
     with step("проверка: тенант B не видит person'а тенанта A"):
         tree_b = api_b.get(routes.TREE).json()
         b_person_ids = {p["id"] for p in tree_b["people"]}
         b_names = {p["name"] for p in tree_b["people"]}
-        assert created["id"] not in b_person_ids, (
-            "LEAK: tenant_a's person id seen in tenant_b tree"
-        )
-        assert "Тенант-А Уникум" not in b_names, (
-            f"LEAK: tenant_a's person name seen in tenant_b tree: {b_names}"
-        )
+        should.not_contain(str(b_person_ids), created["id"], ErrMsg.person_id_leaked)
+        should.not_contain(str(b_names), "Тенант-А Уникум", ErrMsg.person_name_leaked)
 
 
 @allure.title("Изоляция: чтение чужой персоны по ID возвращает 404")
 def test_tenant_b_cannot_read_tenant_a_person_by_id(
     signup_via_api, tenant_client
 ) -> None:
-    """Прямой GET /api/people/{id} с чужим id → 404 (per-tenant scope hides)."""
+    """Прямой GET /api/people/{id} с чужим id возвращает 404."""
     with step("подготовка: создать два тенанта и person в тенанте A"):
         user_a = signup_via_api()
         user_b = signup_via_api()
@@ -82,7 +63,7 @@ def test_tenant_b_cannot_read_tenant_a_person_by_id(
         created = api_a.post(
             routes.PEOPLE, json={"name": "Чужой Person", "gender": "m"}
         ).json()
-        assert created["id"], "created person must have an id"
+        should.be_true(created["id"], ErrMsg.person_must_have_id)
 
     with step("проверка: тенант B получает 404 при чтении чужого person"):
         r = api_b.get(routes.person(created["id"]))
@@ -91,7 +72,7 @@ def test_tenant_b_cannot_read_tenant_a_person_by_id(
 
 @allure.title("Изоляция: редактирование чужой персоны возвращает 404")
 def test_tenant_b_cannot_patch_tenant_a_person(signup_via_api, tenant_client) -> None:
-    """Write-leak проверка: PATCH чужого person → 404 (per-tenant scope hides)."""
+    """PATCH чужого person возвращает 404."""
     with step("подготовка: создать два тенанта и person в тенанте A"):
         user_a = signup_via_api()
         user_b = signup_via_api()
@@ -106,15 +87,9 @@ def test_tenant_b_cannot_patch_tenant_a_person(signup_via_api, tenant_client) ->
         expect_response(r, label="cross-tenant write person").status(HTTPStatus.NOT_FOUND)
 
 
-# ─────────────────────────────────────────────────────────────────────────
-# Slug & UUID independence
-# ─────────────────────────────────────────────────────────────────────────
-
-
 @allure.title("Изоляция: одинаковый display_slug допустим в разных тенантах")
 def test_same_display_slug_allowed_across_tenants(signup_via_api, tenant_client) -> None:
-    """display_slug — per-tenant, не global. Tenant A и B могут оба иметь
-    person с `display_slug='ivan-ivanov'` — без коллизии."""
+    """Tenant A и B могут иметь person с одинаковым display_slug без коллизии."""
     with step("подготовка: создать два тенанта"):
         user_a = signup_via_api()
         user_b = signup_via_api()
@@ -135,34 +110,25 @@ def test_same_display_slug_allowed_across_tenants(signup_via_api, tenant_client)
         expect_response(r_b, label="cross-tenant slug reuse").status(HTTPStatus.CREATED)
 
     with step("проверка: UUID'ы разные, коллизии нет"):
-        assert r_a.json()["id"] != r_b.json()["id"], \
-            "same display_slug must resolve to different people across tenants"
+        should.not_equal(r_a.json()["id"], r_b.json()["id"], ErrMsg.slug_collision)
 
 
 @allure.title("Изоляция: одинаковые ФИО получают разные tenant_slug")
 def test_tenant_signup_with_same_display_name_gets_different_slugs(
     signup_via_api, tenant_client
 ) -> None:
-    """Два signup'а с одинаковым `full_name` → разные tenant_slug
-    (auto-suffix или random). Без этого — overlap данных."""
+    """Два signup с одинаковым full_name получают разные tenant_slug."""
     with step("действие: два signup с одинаковым full_name"):
         user_a = signup_via_api(full_name="Семья Ивановых")
         user_b = signup_via_api(full_name="Семья Ивановых")
 
     with step("проверка: tenant_slug различаются"):
-        assert user_a.slug != user_b.slug, (
-            f"tenants got same slug {user_a.slug!r} — collision risk"
-        )
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# GEDCOM isolation
-# ─────────────────────────────────────────────────────────────────────────
+        should.not_equal(user_a.slug, user_b.slug, ErrMsg.slug_collision)
 
 
 @allure.title("Изоляция: GEDCOM-экспорт содержит только свои данные")
 def test_gedcom_export_returns_only_own_tenant_data(signup_via_api, tenant_client) -> None:
-    """Tenant A экспортирует GEDCOM → файл содержит только его данные."""
+    """Tenant A экспортирует GEDCOM — файл содержит только его данные."""
     with step("подготовка: создать два тенанта с уникальными person'ами"):
         user_a = signup_via_api()
         user_b = signup_via_api()
@@ -177,18 +143,15 @@ def test_gedcom_export_returns_only_own_tenant_data(signup_via_api, tenant_clien
         ged = api_a.get(routes.ADMIN_EXPORT_GEDCOM, timeout=TIMEOUTS.api_long).text
 
     with step("проверка: экспорт содержит только данные тенанта A"):
-        assert "ExportA" in ged, \
-            f"GEDCOM export must contain own tenant's data: {ged[:100]!r}"
-        assert "ExportB" not in ged, (
-            "LEAK: tenant_a GEDCOM export contains tenant_b person name"
-        )
+        should.contain(ged, "ExportA", ErrMsg.gedcom_missing_own_data)
+        should.not_contain(ged, "ExportB", ErrMsg.gedcom_leaked_foreign_data)
 
 
 @allure.title("Изоляция: GEDCOM-импорт не затрагивает чужой тенант")
 def test_gedcom_import_creates_persons_only_in_uploading_tenant(
     signup_via_api, tenant_client
 ) -> None:
-    """Tenant A импортирует .ged → tenant B свой tree не меняется."""
+    """Tenant A импортирует .ged, дерево tenant B не меняется."""
     with step("подготовка: создать два тенанта, запомнить размер дерева B"):
         user_a = signup_via_api()
         user_b = signup_via_api()
@@ -222,23 +185,14 @@ def test_gedcom_import_creates_persons_only_in_uploading_tenant(
 
     with step("проверка: дерево тенанта B не изменилось"):
         b_count_after = len(api_b.get(routes.TREE).json()["people"])
-        assert b_count_after == b_count_before, (
-            f"LEAK: tenant_b's tree changed after tenant_a's GEDCOM import "
-            f"(before={b_count_before}, after={b_count_after})"
-        )
-
-
-# ─────────────────────────────────────────────────────────────────────────
-# Concurrent operations
-# ─────────────────────────────────────────────────────────────────────────
+        should.be_equal(b_count_after, b_count_before, ErrMsg.tree_changed_after_import)
 
 
 @allure.title("Изоляция: параллельные записи двух тенантов не пересекаются")
 def test_concurrent_creates_in_two_tenants_dont_interfere(
     signup_via_api, tenant_client
 ) -> None:
-    """Параллельные create-операции в двух tenant'ах — никаких cross-effects
-    (без потери записей, без чужих записей)."""
+    """Параллельные create в двух tenant'ах не создают cross-effects."""
     with step("подготовка: создать два тенанта"):
         user_a = signup_via_api()
         user_b = signup_via_api()
@@ -264,16 +218,9 @@ def test_concurrent_creates_in_two_tenants_dont_interfere(
         a_names = {p["name"] for p in api_a.get(routes.TREE).json()["people"]}
         b_names = {p["name"] for p in api_b.get(routes.TREE).json()["people"]}
 
-        # A видит только свои concurr-A-* persons
         for i in range(5):
-            assert f"Concurr-A-Person-{i}" in a_names, \
-                f"tenant_a missing own person Concurr-A-Person-{i}: {a_names}"
-            assert f"Concurr-B-Person-{i}" not in a_names, (
-                f"LEAK: tenant_a sees tenant_b person Concurr-B-Person-{i}"
-            )
-        # B видит только свои concurr-B-* persons
+            should.be_in(f"Concurr-A-Person-{i}", a_names, ErrMsg.own_person_missing)
+            should.not_contain(str(a_names), f"Concurr-B-Person-{i}", ErrMsg.foreign_person_visible)
         for i in range(5):
-            assert f"Concurr-B-Person-{i}" in b_names, \
-                f"tenant_b missing own person Concurr-B-Person-{i}: {b_names}"
-            assert f"Concurr-A-Person-{i}" not in b_names, \
-                f"LEAK: tenant_b sees tenant_a person Concurr-A-Person-{i}"
+            should.be_in(f"Concurr-B-Person-{i}", b_names, ErrMsg.own_person_missing)
+            should.not_contain(str(b_names), f"Concurr-A-Person-{i}", ErrMsg.foreign_person_visible)

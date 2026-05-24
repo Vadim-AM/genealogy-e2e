@@ -1,18 +1,4 @@
-"""INV-EMAIL-002: endpoint для смены email отсутствует.
-
-Compromised account нельзя восстановить кроме как через delete +
-re-signup (потеря данных). Run security 28.04 night confirmed:
-POST /me/email, PATCH /me, POST change-email — все 404/405.
-
-Этот тест **pin'ит конкретный канонический контракт**: после
-`POST /api/account/me/email` с правильным payload — backend должен
-вернуть 200 + отправить confirmation mail на новый адрес. Это
-двух-шаговый flow (новый адрес подтверждается ссылкой); тест
-проверяет первый шаг — initiation.
-
-Если backend выберет другой path/method — тест fail с понятным
-сообщением; обновить на canonical contract когда product решит.
-"""
+"""INV-EMAIL-002: endpoint для смены email — initiation step."""
 
 from __future__ import annotations
 
@@ -21,21 +7,18 @@ from http import HTTPStatus
 import allure
 
 from api import routes
+from assertions.base import should
 from config.constants import make_email, unique_email
 from framework.response import expect_response
 from framework.step import step
+from src.texts import ErrMsg
 
 
 @allure.title("Запрос смены email отправляет токен подтверждения на новый адрес")
 def test_change_email_endpoint_initiates_confirmation(
     signup_via_api, tenant_client, read_email_token,
 ) -> None:
-    """INV-EMAIL-002: POST /api/account/me/email c `{new_email,
-    current_password}` → 200/202 + confirmation mail на new_email.
-
-    Was xfail until upstream commit `64a206a` ("feat(auth-v2):
-    change-email endpoint"). Now plain regression-trail.
-    """
+    """INV-EMAIL-002: POST /api/account/me/email → 200 + confirmation mail."""
     with step("подготовка: signup и получение клиента"):
         user = signup_via_api(email=make_email("orig"))
         api = tenant_client(user)
@@ -53,4 +36,4 @@ def test_change_email_endpoint_initiates_confirmation(
         ).status(HTTPStatus.OK)
 
         token = read_email_token(new_email)
-        assert token, f"no confirmation token sent to new email {new_email}"
+        should.be_true(token, ErrMsg.change_email_token_missing)

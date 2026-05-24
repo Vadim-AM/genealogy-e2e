@@ -1,15 +1,4 @@
-"""Forgot-password / reset-password — TC-FP-1..6 user-flow E2E.
-
-Полный путь юзера через UI:
-1. /account/forgot-password → fill email → submit.
-2. MockSender capture reset-link (через test endpoint — single API hop —
-   симуляция реального email-чтения; нет UI surface для inbox).
-3. /account/reset-password?token=… → fill new password (×2) → submit.
-4. Redirect на /login → log in новым паролем → indicator authed.
-
-UI-flow ловит: success/error banner state на reset-page, redirect timing,
-empty-password validation, login form readiness, success copy.
-"""
+"""Forgot-password / reset-password — TC-FP-1..6 user-flow E2E."""
 
 from __future__ import annotations
 
@@ -21,6 +10,7 @@ import httpx
 from playwright.sync_api import Page, expect
 
 from api import routes
+from assertions.base import should
 from config.constants import make_email
 from framework.response import expect_response
 from framework.step import step
@@ -39,19 +29,13 @@ _NEW_PASSWORD = "Brand_New_Password_2026"
 def test_forgot_password_full_flow_user_logs_in_with_new_password(
     page: Page, owner_user, read_email_token, anon_pages: PageFactory,
 ) -> None:
-    """TC-FP-1: full user journey — request reset → email → reset page →
-    new password → /login form → indicator shows authed user.
-
-    Никаких httpx-логинов в финале — реальный flow проходит через
-    `LoginPage`, и indicator проверяется DOM-ом (catches «password updated
-    но cookie не выдан», «form errors но redirect happens» и подобные).
-    """
+    """TC-FP-1: полный путь — запрос сброса → email → новый пароль → вход."""
     with step("действие: запрос сброса пароля через UI"):
         fp = anon_pages.navigate_to(ForgotPasswordPage)
         fp.expect_visible_form()
         with page.expect_response("**/api/account/forgot-password") as resp_info:
             fp.request_reset(owner_user.email)
-        assert resp_info.value.ok, f"forgot-password returned {resp_info.value.status}"
+        should.playwright_ok(resp_info.value, ErrMsg.forgot_response_not_ok)
         fp.expect_success_message()
 
     with step("действие: получение токена и сброс пароля"):
@@ -60,21 +44,18 @@ def test_forgot_password_full_flow_user_logs_in_with_new_password(
         rp = ResetPasswordPage(page).open_with_token(token)
         with page.expect_response("**/api/account/reset-password") as resp_info:
             rp.submit_new_password(_NEW_PASSWORD)
-        assert resp_info.value.ok, f"reset-password returned {resp_info.value.status}"
+        should.playwright_ok(resp_info.value, ErrMsg.reset_response_not_ok)
         rp.expect_success_message()
 
     with step("проверка: старый пароль не работает"):
-        # Backend page редиректит на /login (см. main.py reset-password HTML).
         page.wait_for_url("**/login")
 
-        # Login form открыта — старый пароль больше не работает.
         login = LoginPage(page)
         login.expect_visible_form()
         login.login(owner_user.email, owner_user.password)
         login.expect_error()  # #msg текст non-empty → старый pass отвергнут
 
     with step("проверка: вход с новым паролем успешен"):
-        # Новый пароль — успех. После login redirect на / + indicator authed.
         login.login(owner_user.email, _NEW_PASSWORD)
         page.wait_for_url("**/")
         expect(auth_name(page), ErrMsg.auth_name_wrong).to_have_text(
@@ -86,21 +67,13 @@ def test_forgot_password_full_flow_user_logs_in_with_new_password(
 def test_forgot_password_unknown_email_shows_silent_success_message(
     page: Page, base_url: str, anon_pages: PageFactory,
 ) -> None:
-    """F-FP-2 / TC-FP-2: anti-enumeration — для unknown email UI показывает
-    ту же success-копию (никакой подсказки «такого user не существует»).
-
-    Backend assertion (single hop) — MockSender пуст для unknown адреса.
-    UI inbox у нас нет, эта часть остаётся API-проверкой:
-    «backend NOT sending» — это negative invariant без UI surface.
-    """
+    """F-FP-2 / TC-FP-2: для unknown email UI показывает ту же success-копию."""
     with step("действие: запрос сброса для неизвестного email"):
         unknown_email = make_email("never-registered")
         fp = anon_pages.navigate_to(ForgotPasswordPage)
         with page.expect_response("**/api/account/forgot-password") as resp_info:
             fp.request_reset(unknown_email)
-        assert resp_info.value.ok, (
-            f"unknown-email request returned {resp_info.value.status} (must be silent 200)"
-        )
+        should.playwright_ok(resp_info.value, ErrMsg.forgot_response_not_ok)
         fp.expect_success_message()
 
     with step("проверка: письмо не отправлено для неизвестного email"):
@@ -115,13 +88,7 @@ def test_forgot_password_unknown_email_shows_silent_success_message(
 def test_reset_password_token_used_once_then_invalid_via_ui(
     page: Page, owner_user, read_email_token, anon_pages: PageFactory,
 ) -> None:
-    """F-FP-4 / TC-FP-4: после успешного reset тот же token нельзя
-    использовать повторно. UI показывает error-banner вместо success.
-
-    User scenario: пользователь применил reset-link, потом случайно
-    открыл его ещё раз из истории браузера / другой вкладки — ожидаем
-    понятную error-copy, а не silent success или 500.
-    """
+    """F-FP-4 / TC-FP-4: после reset тот же token нельзя использовать повторно."""
     with step("подготовка: запрос сброса и получение токена"):
         fp = anon_pages.navigate_to(ForgotPasswordPage)
         fp.request_reset(owner_user.email)
@@ -144,8 +111,7 @@ def test_reset_password_token_used_once_then_invalid_via_ui(
 def test_forgot_password_empty_field_shows_inline_error_no_request(
     page: Page, anon_pages: PageFactory,
 ) -> None:
-    """Form-level guard: пустой email → submit → backend не вызывается
-    (HTML required validation либо JS-side check)."""
+    """Пустой email → submit → backend не вызывается (HTML required)."""
     with step("подготовка: открытие формы и установка перехватчика"):
         fp = anon_pages.navigate_to(ForgotPasswordPage)
         fp.expect_visible_form()
@@ -162,7 +128,4 @@ def test_forgot_password_empty_field_shows_inline_error_no_request(
         fp.submit_btn.click()
 
     with step("проверка: сетевой запрос не отправлен"):
-        # Validation: HTML5 required атрибут не пропускает submit. Если бы
-        # backend всё-таки получил пустой email — тест ловит это (regression
-        # against future «required» strip).
-        assert not requests_seen, f"empty email triggered network call: {requests_seen!r}"
+        should.be_empty(requests_seen, ErrMsg.empty_email_triggered_request)

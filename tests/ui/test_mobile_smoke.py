@@ -1,14 +1,4 @@
-"""Mobile smoke tests — TC-MOBILE-* (P1.1.2 для бета-запуска).
-
-CSS responsive у нас на 480/768 breakpoints, но без device-эмуляции
-никто не проверял — флоу мог сломаться на тачскринах. 5 ключевых
-сценариев на двух устройствах (iPhone 13 + Pixel 7) через Playwright.
-
-Hard rules: hard `expect`, single canonical selector. Без skip-fallback.
-
-Запуск через Playwright pytest-plugin с явной фикстурой `mobile_context`,
-которая создаётся для каждого устройства из `playwright.devices`.
-"""
+"""Mobile smoke tests — TC-MOBILE-* (P1.1.2 для бета-запуска)."""
 
 from __future__ import annotations
 
@@ -18,6 +8,7 @@ import allure
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Page, expect
 
+from assertions.base import should
 from framework.step import step
 from pages.signup_page import SignupPage
 from src.texts import ErrMsg
@@ -31,8 +22,7 @@ if TYPE_CHECKING:
 def mobile_context(
     request, browser: Browser, base_url: str
 ) -> Iterator[BrowserContext]:
-    """Per-device context. Виртуальное устройство задаёт viewport, UA,
-    deviceScaleFactor, hasTouch, isMobile."""
+    """Per-device context. Виртуальное устройство задаёт viewport, UA,."""
     device_descriptor = DEVICE_DESCRIPTORS[request.param]
     ctx = browser.new_context(
         **device_descriptor,  # type: ignore[arg-type]
@@ -62,11 +52,6 @@ def mobile_page(mobile_context: BrowserContext) -> Iterator[Page]:
     page.close()
 
 
-# ─────────────────────────────────────────────────────────────────
-# Smoke-сценарии — 5 ключевых проверок, parametrize по устройству
-# ─────────────────────────────────────────────────────────────────
-
-
 @allure.title("Мобильный: лендинг показывает древо без горизонтального скролла")
 def test_landing_loads_and_shows_demo_tree_on_mobile(mobile_page: Page) -> None:
     """TC-MOBILE-1: лендинг рендерится, treeContainer виден, нет horizontal scroll."""
@@ -84,19 +69,12 @@ def test_landing_loads_and_shows_demo_tree_on_mobile(mobile_page: Page) -> None:
         # должен быть меньше или равен viewport (с tolerance 4px для рендер-багов).
         sw = mobile_page.evaluate("document.documentElement.scrollWidth")
         cw = mobile_page.evaluate("document.documentElement.clientWidth")
-        assert sw <= cw + 4, f"horizontal scroll: scrollWidth={sw}, clientWidth={cw}"
+        should.less(sw, cw + 5, ErrMsg.horizontal_scroll_detected)
 
 
 @allure.title("Мобильный: вкладки Древо и О проекте кликабельны")
 def test_landing_tabs_clickable_on_mobile(mobile_page: Page) -> None:
-    """TC-MOBILE-2: гостевые вкладки (Древо + О проекте) кликаются и
-    переключаются. На мобайле tap-target 44×44 — проверяем visible +
-    clickable.
-
-    Note: map/sources/timeline вкладки auth-gated (см. TreePage POM,
-    `AUTHED_TABS`); guest их не видит. Не проверяем здесь, чтобы не
-    смешивать smoke с auth-flow.
-    """
+    """TC-MOBILE-2: гостевые вкладки (Древо + О проекте) кликаются и."""
     import re
 
     with step("действие: загрузить лендинг"):
@@ -115,8 +93,7 @@ def test_landing_tabs_clickable_on_mobile(mobile_page: Page) -> None:
 
 @allure.title("Мобильный: бета-карточка с CTA видна гостю в About")
 def test_about_beta_card_visible_for_guest_on_mobile(mobile_page: Page) -> None:
-    """TC-MOBILE-3 (P1.2.3): на мобайле в About-вкладке гость видит beta-card
-    с CTA на /wait. Пр authenticated — не видит."""
+    """TC-MOBILE-3 (P1.2.3): на мобайле в About-вкладке гость видит beta-card."""
     with step("действие: открыть About на мобильном"):
         mobile_page.goto("/")
         mobile_page.wait_for_load_state("domcontentloaded")
@@ -133,8 +110,7 @@ def test_about_beta_card_visible_for_guest_on_mobile(mobile_page: Page) -> None:
 def test_signup_form_submittable_on_mobile(
     mobile_page: Page, base_url: str
 ) -> None:
-    """TC-MOBILE-4: signup-форма работоспособна с touch — поля заполняются,
-    cross_border_consent чекбокс кликается, submit идёт."""
+    """TC-MOBILE-4: signup-форма работоспособна с touch — поля заполняются,."""
     with step("подготовка: открыть signup на мобильном"):
         mobile_page.goto("/signup")
         mobile_page.wait_for_load_state("domcontentloaded")
@@ -153,8 +129,7 @@ def test_signup_form_submittable_on_mobile(
         expect(submit, ErrMsg.button_not_visible).to_be_visible()
         expect(submit, ErrMsg.button_not_enabled).to_be_enabled()
         box = submit.bounding_box()
-        assert box is not None and box["height"] >= 36, \
-            f"submit button too small for touch: {box}"
+        should.be_true(box is not None and box["height"] >= 36, ErrMsg.touch_target_too_small)
 
     with step("действие: отправить форму"):
         # Отправка (форма скорее всего пройдёт если backend готов, или упадёт
@@ -174,8 +149,7 @@ def test_signup_form_submittable_on_mobile(
 
 @allure.title("Мобильный: форма вейтлиста на /wait работает на тачскрине")
 def test_wait_form_submittable_on_mobile(mobile_page: Page) -> None:
-    """TC-MOBILE-5: /wait — основной CTA для guest'ов в бета-режиме.
-    Форма должна быть полностью функциональной на тачскрине."""
+    """TC-MOBILE-5: /wait — основной CTA для guest'ов в бета-режиме."""
     with step("действие: открыть /wait и заполнить форму"):
         mobile_page.goto("/wait")
         mobile_page.wait_for_load_state("domcontentloaded")

@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-
 if TYPE_CHECKING:
     from collections.abc import Callable
 

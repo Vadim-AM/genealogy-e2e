@@ -1,20 +1,4 @@
-"""TC-i18N-1 / BUG-i18N-001: backend возвращает error detail на английском.
-
-Genealogy позиционируется как RU-product (домен .ru, аудитория РФ +
-post-Soviet diaspora). UI полностью на русском. Но **backend** при
-ошибках валидации возвращает error.detail на английском — например
-«Invalid email or password», «Password too short» и т.п.
-
-Симптом видимый: пользователь, заполнивший signup на русском, видит
-красное сообщение под полем на английском — disconnect, downgrades
-trust.
-
-Тест: triggering известную ошибку — login с wrong password, signup с
-short password — проверяем что detail на русском (содержит кириллицу).
-
-Снять xfail когда backend локализует error messages (через FastAPI
-gettext-like layer или просто Russian strings в auth handler).
-"""
+"""TC-i18N-1 / BUG-i18N-001: backend возвращает error detail на английском."""
 
 from __future__ import annotations
 
@@ -24,10 +8,12 @@ import allure
 import httpx
 
 from api import routes
+from assertions.base import should
 from config.constants import unique_email
 from framework.response import expect_response
 from framework.step import step
 from helpers.ui.i18n_checks import has_cyrillic
+from src.texts import ErrMsg
 
 
 @allure.title("i18n: ошибка входа с неверным паролем приходит на русском")
@@ -49,9 +35,7 @@ def test_login_wrong_credentials_error_detail_in_russian(uvicorn_server: str) ->
         body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
         detail = body.get("detail") or body.get("message") or ""
 
-        assert has_cyrillic(detail), (
-            f"login error detail must be in Russian; got: {detail!r}"
-        )
+        should.be_true(has_cyrillic(detail), ErrMsg.error_not_russian)
 
 
 @allure.title("i18n: ошибка валидации при регистрации приходит на русском")
@@ -83,8 +67,6 @@ def test_signup_validation_error_detail_in_russian(uvicorn_server: str) -> None:
         detail = body.get("detail")
         if isinstance(detail, list):
             msgs = [item.get("msg", "") for item in detail if isinstance(item, dict)]
-            assert any(has_cyrillic(m) for m in msgs), \
-                f"all signup validation msgs in English: {msgs!r}"
+            should.be_true(any(has_cyrillic(m) for m in msgs), ErrMsg.error_not_russian)
         else:
-            assert has_cyrillic(str(detail)), \
-                f"signup error detail must be in Russian; got: {detail!r}"
+            should.be_true(has_cyrillic(str(detail)), ErrMsg.error_not_russian)

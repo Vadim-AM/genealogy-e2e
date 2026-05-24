@@ -1,7 +1,4 @@
-"""Landing (этап 0 funnel — F-LND-1..5, U-LND-1, C-LND-1..3).
-
-Public landing page rendering, headers, content guarantees.
-"""
+"""Landing (этап 0 funnel — F-LND-1..5, U-LND-1, C-LND-1..3)."""
 
 from __future__ import annotations
 
@@ -12,6 +9,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from api import routes
+from assertions.base import should
 from framework.step import step
 from pages.tree_page import TreePage
 from src.texts import PII, Brand, ErrMsg, t
@@ -22,12 +20,7 @@ if TYPE_CHECKING:
 
 @allure.title("Лендинг: заголовок страницы содержит название бренда")
 def test_landing_title_has_brand(page: Page, anon_pages: PageFactory) -> None:
-    """F-LND-2: title contains a brand fragment.
-
-    Title is finalised by `_bootstrapSiteConfig` (js/init.js) after fetching
-    /api/site/config — Playwright `expect(page).to_have_title(...)` auto-waits
-    через polling, не требует `networkidle`.
-    """
+    """F-LND-2: title contains a brand fragment."""
     import re
 
     with step("действие: открыть главную"):
@@ -41,14 +34,7 @@ def test_landing_title_has_brand(page: Page, anon_pages: PageFactory) -> None:
 
 @allure.title("Лендинг: нет JS-ошибок в консоли при загрузке")
 def test_landing_no_console_errors(page: Page, anon_pages: PageFactory) -> None:
-    """N-1: no JS exceptions on landing; only allowlisted 401-on-anon network errors.
-
-    Two channels are tracked separately:
-      - `pageerror`: uncaught JS exceptions — must be empty.
-      - `response`: 4xx/5xx network responses — 401s on known anon-rejected
-        endpoints are allowlisted by URL (browser console error text alone
-        does not include the URL).
-    """
+    """N-1: no JS exceptions on landing; only allowlisted 401-on-anon network errors."""
     with step("подготовка: подключить listeners на ошибки"):
         js_errors: list[str] = []
         bad_responses: list[tuple[str, int]] = []
@@ -71,17 +57,13 @@ def test_landing_no_console_errors(page: Page, anon_pages: PageFactory) -> None:
         _ = anon_pages.navigate_to(TreePage)
 
     with step("проверка: нет JS-ошибок и неожиданных сетевых ошибок"):
-        assert not js_errors, f"JS pageerrors on landing: {js_errors}"
-        assert not bad_responses, f"unexpected network errors: {bad_responses}"
+        should.be_empty(js_errors, ErrMsg.js_errors_on_page)
+        should.be_empty(bad_responses, ErrMsg.network_errors_on_page)
 
 
 @allure.title("Лендинг: гость видит вкладки Древо и О проекте")
 def test_landing_has_main_tabs(page: Page, anon_pages: PageFactory) -> None:
-    """U-LND-1: guest-visible tabs are present.
-
-    Guests see only `tree` and `about`; map/sources/timeline are auth-gated
-    by `updateGuestUI()` in index.html.
-    """
+    """U-LND-1: guest-visible tabs are present."""
     with step("действие: открыть лендинг"):
         tree = anon_pages.navigate_to(TreePage)
 
@@ -92,20 +74,14 @@ def test_landing_has_main_tabs(page: Page, anon_pages: PageFactory) -> None:
 
 @allure.title("Лендинг: на главной нет персональных данных владельца")
 def test_landing_no_personal_owner_data(page: Page, anon_pages: PageFactory) -> None:
-    """C-LND-3: public landing must not leak owner family names (PII).
-
-    Was xfailed under BUG-COPY-001 until upstream commit `fc2849e`
-    ("fix(landing): clear inline owner PII from index.html") landed in
-    dev on 28.04. Now a regular regression — the page MUST stay clean
-    of any owner family names (`PII.OWNER_FAMILY_NAMES`).
-    """
+    """C-LND-3: public landing must not leak owner family names (PII)."""
     with step("действие: загрузить главную"):
         _ = anon_pages.navigate_to(TreePage)
         body = page.content()
 
     with step("проверка: нет PII владельца в контенте"):
         for needle in PII.OWNER_FAMILY_NAMES:
-            assert needle not in body, f"PII leak: '{needle}' visible on /"
+            should.not_contain(body, needle, ErrMsg.pii_leaked)
 
 
 @allure.title("Лендинг: CSS/JS-ресурсы загружаются без ошибок")
@@ -126,4 +102,4 @@ def test_static_assets_load(page: Page, anon_pages: PageFactory) -> None:
 
     with step("проверка: все статические ресурсы отдали 2xx/3xx"):
         bad = {url: status for url, status in statuses.items() if status >= HTTPStatus.BAD_REQUEST}
-        assert not bad, f"static assets returned errors: {bad}"
+        should.be_empty(bad, ErrMsg.static_assets_failed)
