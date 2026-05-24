@@ -25,6 +25,7 @@ from tests._core.constants import make_email
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
+from tests.helpers.api import person_api, site_api
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
@@ -38,11 +39,9 @@ def test_bug_auth_001_authv2_owner_reads_enrichment(
     with step("подготовка: consent и получение pid"):
         grant_ai_consent(owner_user)
         api = tenant_client(owner_user)
-        r = api.get(API.TREE)
-        expect_response(r, label="tree").status_ok().json_has("people")
-        people = r.json()["people"]
-        assert people, f"new tenant must have demo people seeded; got: {r.json()}"
-        pid = people[0]["id"]
+        tree = person_api.get_tree(api)
+        assert tree.people, "new tenant must have demo people seeded"
+        pid = tree.people[0].id
 
     with step("проверка: history и acceptances доступны (200/204)"):
         for path in (API.enrich_history(pid), API.enrich_acceptances(pid)):
@@ -99,15 +98,11 @@ def test_bug_mt_001_site_config_is_per_tenant(signup_via_api, tenant_client):
         api_b = tenant_client(user_b)
 
     with step("действие: изменить site_name в тенанте A"):
-        expect_response(
-            api_a.patch(API.SITE_CONFIG, json={"site_name": "Tenant A Brand"}),
-            label="patch site config A",
-        ).status_ok()
+        site_api.patch_site_config(api_a, site_name="Tenant A Brand")
 
     with step("проверка: тенант B не содержит site_name тенанта A"):
-        r = api_b.get(API.SITE_CONFIG)
-        expect_response(r, label="get site config B").status_ok()
-        assert r.json()["site_name"] != "Tenant A Brand", \
+        config_b = site_api.get_site_config(api_b)
+        assert config_b.site_name != "Tenant A Brand", \
             "BUG-MT-001: tenant A's config leaked into tenant B"
 
 
@@ -120,11 +115,9 @@ def test_bug_auth_003_sse_reconnect_recovers(
     with step("подготовка: consent и получение pid"):
         grant_ai_consent(owner_user)
         api = tenant_client(owner_user)
-        r = api.get(API.TREE)
-        expect_response(r, label="tree").status_ok().json_has("people")
-        people = r.json()["people"]
-        assert people, "new tenant must have demo people seeded"
-        pid = people[0]["id"]
+        tree = person_api.get_tree(api)
+        assert tree.people, "new tenant must have demo people seeded"
+        pid = tree.people[0].id
 
     with step("действие: первый streaming enrichment POST"):
         r1 = api.post(

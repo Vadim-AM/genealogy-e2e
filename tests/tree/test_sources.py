@@ -14,6 +14,7 @@ from tests._core.api_paths import API
 from tests._core.messages import TestData
 from tests._core.response import expect_response
 from tests._core.step import step
+from tests._models.site import SourceResponse
 from tests.helpers.api import site_api
 from tests.pages.person_editor import PersonEditor
 from tests.pages.profile_panel import ProfilePanel
@@ -43,9 +44,9 @@ def test_owner_attaches_and_unlinks_a_source(
 
     with step("проверка: источник привязан в бэкенде"):
         linked = api.get(API.person_sources(pid))
-        expect_response(linked, label="GET person-sources").status_ok()
-        assert any(s["name"] == src_name for s in linked.json()), \
-            f"source not linked backend-side: {linked.json()}"
+        linked_sources = expect_response(linked, label="GET person-sources").status_ok().list_schema(SourceResponse)
+        assert any(s.name == src_name for s in linked_sources), \
+            f"source not linked backend-side: {[s.name for s in linked_sources]}"
 
     with step("действие: отвязать источник"):
         with owner_page.expect_response("**/api/person-sources/**"):
@@ -54,8 +55,10 @@ def test_owner_attaches_and_unlinks_a_source(
 
     with step("проверка: источник отвязан в бэкенде"):
         after = api.get(API.person_sources(pid))
-        expect_response(after, label="GET person-sources after unlink").status_ok()
-        assert not after.json(), f"source still linked after unlink: {after.json()}"
+        after_sources = expect_response(
+            after, label="GET person-sources after unlink",
+        ).status_ok().list_schema(SourceResponse)
+        assert not after_sources, f"source still linked after unlink: {[s.name for s in after_sources]}"
 
 
 @allure.title("Жизненный цикл источника: создание, переименование, удаление")
@@ -71,7 +74,9 @@ def test_source_record_crud_lifecycle(owner_user, tenant_client):
 
     with step("действие: переименовать источник"):
         patched = api.patch(API.source(sid), json={"name": TestData.SOURCE_NAME_PATCHED})
-        expect_response(patched, label="PATCH source").status_ok().json_eq("name", TestData.SOURCE_NAME_PATCHED)
+        patched_src = expect_response(patched, label="PATCH source").status_ok().schema(SourceResponse)
+        assert patched_src.name == TestData.SOURCE_NAME_PATCHED, \
+            f"patched name: expected {TestData.SOURCE_NAME_PATCHED!r}, got {patched_src.name!r}"
 
     with step("действие: удалить источник"):
         deleted = api.delete(API.source(sid))

@@ -18,6 +18,7 @@ from tests._core.api_paths import API
 from tests._core.constants import unique_email
 from tests._core.response import expect_response
 from tests._core.step import step
+from tests._models.auth import AccountMe
 
 
 @allure.title("GDPR: удаление тенанта инвалидирует сессию владельца")
@@ -33,11 +34,11 @@ def test_delete_tenant_invalidates_owner_session(
     with step("подготовка: создать пользователя и проверить валидность сессии"):
         user = signup_via_api(email=unique_email("gdpr"))
         api = tenant_client(user)
-        expect_response(api.get(API.ACCOUNT_ME), label="pre-delete /me").status(200)
+        expect_response(api.get(API.ACCOUNT_ME), label="pre-delete /me").status_ok().schema(AccountMe)
 
     with step("действие: удалить тенант через soft-delete"):
         r = api.post(API.DELETE_TENANT, json={"confirm_slug": user.slug})
-        expect_response(r, label="delete-tenant").status(200)
+        expect_response(r, label="delete-tenant").status_ok()
 
     with step("проверка: cookie отозвана, /me возвращает 401"):
         me_after = api.get(API.ACCOUNT_ME)

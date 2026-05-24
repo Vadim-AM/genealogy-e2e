@@ -25,13 +25,12 @@ def test_admin_tenant_listing(superadmin_user, tenant_client):
     """Superadmin lists all tenants and looks one up by slug."""
     with step("действие: получаем список тенантов"):
         api = tenant_client(superadmin_user)
-        listed = api.get(API.ADMIN_TENANTS)
-        expect_response(listed, label="GET admin/tenants").status_ok()
-        raw = listed.json()
+        r = api.get(API.ADMIN_TENANTS)
+        raw = expect_response(r, label="GET admin/tenants").status_ok().data
         tenants = raw if isinstance(raw, list) else raw["items"]
 
     with step("проверка: собственный тенант в списке"):
-        assert any(t["slug"] == superadmin_user.slug for t in tenants), \
+        assert any(t_item["slug"] == superadmin_user.slug for t_item in tenants), \
             "superadmin's own tenant must appear in the listing"
 
     with step("проверка: GET тенанта по slug возвращает правильный slug"):
@@ -45,23 +44,32 @@ def test_admin_waitlist_lifecycle(superadmin_user, tenant_client, base_url):
     contacted (PATCH) and removed (DELETE)."""
     with step("подготовка: подписываем email на вейтлист"):
         email = make_email("wl-admin")
-        httpx.post(f"{base_url}{API.WAITLIST_SUBSCRIBE}", json={"email": email},
-                   timeout=TIMEOUTS.api_request).raise_for_status()
+        expect_response(
+            httpx.post(f"{base_url}{API.WAITLIST_SUBSCRIBE}", json={"email": email},
+                       timeout=TIMEOUTS.api_request),
+            label="waitlist subscribe",
+        ).status_ok()
 
     with step("проверка: подписчик виден в admin waitlist"):
         api = tenant_client(superadmin_user)
-        items = api.get(API.ADMIN_WAITLIST).json()
+        r = api.get(API.ADMIN_WAITLIST)
+        items = expect_response(r, label="GET admin/waitlist").status_ok().data
         sub = next((s for s in items if s["email"] == email), None)
         assert sub, f"subscribed email not in admin waitlist: {items}"
 
     with step("действие: помечаем contacted и удаляем подписчика"):
-        api.patch(
-            API.admin_waitlist_item(sub["id"]), json={"contacted": True},
-        ).raise_for_status()
-        api.delete(API.admin_waitlist_item(sub["id"])).raise_for_status()
+        expect_response(
+            api.patch(API.admin_waitlist_item(sub["id"]), json={"contacted": True}),
+            label="PATCH waitlist item contacted",
+        ).status_ok()
+        expect_response(
+            api.delete(API.admin_waitlist_item(sub["id"])),
+            label="DELETE waitlist item",
+        ).status_ok()
 
     with step("проверка: удалённый подписчик больше не в списке"):
-        after = api.get(API.ADMIN_WAITLIST).json()
+        r2 = api.get(API.ADMIN_WAITLIST)
+        after = expect_response(r2, label="GET admin/waitlist after").status_ok().data
         assert not any(s["id"] == sub["id"] for s in after), \
             "deleted subscriber still listed"
 
@@ -73,14 +81,16 @@ def test_platform_waitlist_listing(superadmin_user, tenant_client, base_url):
     upstream by PR #167 / 6e3565f.)"""
     with step("подготовка: подписываем email на вейтлист"):
         email = make_email("plat-wl")
-        httpx.post(f"{base_url}{API.WAITLIST_SUBSCRIBE}", json={"email": email},
-                   timeout=TIMEOUTS.api_request).raise_for_status()
+        expect_response(
+            httpx.post(f"{base_url}{API.WAITLIST_SUBSCRIBE}", json={"email": email},
+                       timeout=TIMEOUTS.api_request),
+            label="waitlist subscribe",
+        ).status_ok()
 
     with step("проверка: подписчик виден в platform waitlist"):
         api = tenant_client(superadmin_user)
         r = api.get(API.PLATFORM_WAITLIST)
-        expect_response(r, label="GET platform/waitlist").status_ok()
-        raw = r.json()
+        raw = expect_response(r, label="GET platform/waitlist").status_ok().data
         items = raw if isinstance(raw, list) else raw["items"]
         assert any(s.get("email") == email for s in items), \
             f"subscribed email not in platform waitlist: {items}"
@@ -110,25 +120,33 @@ def test_tenant_override_lifecycle(superadmin_user, tenant_client):
         setup = mfa_api.setup_mfa(api)
         totp = pyotp.TOTP(setup.secret)
         mfa_api.verify_mfa(api, totp.now())
-        api.post(
-            API.MFA_STEP_UP, json={"method": "totp", "code": totp.now()},
-        ).raise_for_status()
+        expect_response(
+            api.post(API.MFA_STEP_UP, json={"method": "totp", "code": totp.now()}),
+            label="MFA step-up",
+        ).status_ok()
 
     with step("действие: создаём override max_archives=999"):
         slug = superadmin_user.slug
-        api.post(API.PLATFORM_TENANT_OVERRIDE, json={
-            "tenant_slug": slug, "field_name": "max_archives", "value": "999",
-        }).raise_for_status()
+        expect_response(
+            api.post(API.PLATFORM_TENANT_OVERRIDE, json={
+                "tenant_slug": slug, "field_name": "max_archives", "value": "999",
+            }),
+            label="POST tenant override",
+        ).status_ok()
 
     with step("проверка: override виден в списке"):
-        overrides = api.get(API.tenant_overrides(slug))
-        expect_response(overrides, label="GET tenant overrides").status_ok()
-        assert any(o["field_name"] == "max_archives" for o in overrides.json()["items"]), \
+        r = api.get(API.tenant_overrides(slug))
+        overrides_data = expect_response(r, label="GET tenant overrides").status_ok().data
+        assert any(o["field_name"] == "max_archives" for o in overrides_data["items"]), \
             "the override must be listed back"
 
     with step("действие: удаляем override и проверяем"):
-        api.delete(API.tenant_override_field(slug, "max_archives")).raise_for_status()
-        after = api.get(API.tenant_overrides(slug)).json()
+        expect_response(
+            api.delete(API.tenant_override_field(slug, "max_archives")),
+            label="DELETE tenant override",
+        ).status_ok()
+        r2 = api.get(API.tenant_overrides(slug))
+        after = expect_response(r2, label="GET tenant overrides after").status_ok().data
         assert not any(o["field_name"] == "max_archives" for o in after["items"]), \
             "deleted override must be gone"
 
@@ -141,20 +159,24 @@ def test_platform_waitlist_invite_promotes_subscriber(
     subscriber into a tenant + user."""
     with step("подготовка: подписываем email на вейтлист"):
         email = make_email("wl-invite")
-        httpx.post(f"{base_url}{API.WAITLIST_SUBSCRIBE}", json={"email": email},
-                   timeout=TIMEOUTS.api_request).raise_for_status()
+        expect_response(
+            httpx.post(f"{base_url}{API.WAITLIST_SUBSCRIBE}", json={"email": email},
+                       timeout=TIMEOUTS.api_request),
+            label="waitlist subscribe",
+        ).status_ok()
 
     with step("подготовка: находим подписчика в admin waitlist"):
         api = tenant_client(superadmin_user)
-        items = api.get(API.ADMIN_WAITLIST).json()
+        r = api.get(API.ADMIN_WAITLIST)
+        items = expect_response(r, label="GET admin/waitlist").status_ok().data
         sub = next(s for s in items if s["email"] == email)
 
     with step("действие: инвайтим подписчика"):
         invited = api.post(API.platform_waitlist_invite(sub["id"]))
 
     with step("проверка: статус invited или already_exists"):
-        expect_response(invited, label="waitlist invite").status_ok()
-        assert invited.json()["status"] in ("invited", "already_exists"), (
+        inv_data = expect_response(invited, label="waitlist invite").status_ok().data
+        assert inv_data["status"] in ("invited", "already_exists"), (
             f"waitlist invite returned unexpected status: "
-            f"{invited.json().get('status')!r}"
+            f"{inv_data.get('status')!r}"
         )

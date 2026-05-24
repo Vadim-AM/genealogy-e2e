@@ -13,6 +13,8 @@ empty-password validation, login form readiness, success copy.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 import httpx
 from playwright.sync_api import Page, expect
@@ -27,12 +29,15 @@ from tests.helpers.auth.auth_ui import auth_name
 from tests.pages.forgot_password_page import ForgotPasswordPage, ResetPasswordPage
 from tests.pages.login_page import LoginPage
 
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
+
 _NEW_PASSWORD = "Brand_New_Password_2026"
 
 
 @allure.title("Сброс пароля: полный путь от запроса до входа с новым паролем")
 def test_forgot_password_full_flow_user_logs_in_with_new_password(
-    page: Page, owner_user, read_email_token,
+    page: Page, owner_user, read_email_token, anon_pages: PageFactory,
 ):
     """TC-FP-1: full user journey — request reset → email → reset page →
     new password → /login form → indicator shows authed user.
@@ -42,7 +47,7 @@ def test_forgot_password_full_flow_user_logs_in_with_new_password(
     но cookie не выдан», «form errors но redirect happens» и подобные).
     """
     with step("действие: запрос сброса пароля через UI"):
-        fp = ForgotPasswordPage(page).goto()
+        fp = anon_pages.navigate_to(ForgotPasswordPage)
         fp.expect_visible_form()
         with page.expect_response("**/api/account/forgot-password") as resp_info:
             fp.request_reset(owner_user.email)
@@ -79,7 +84,7 @@ def test_forgot_password_full_flow_user_logs_in_with_new_password(
 
 @allure.title("Запрос сброса для неизвестного email показывает тот же успех")
 def test_forgot_password_unknown_email_shows_silent_success_message(
-    page: Page, base_url: str,
+    page: Page, base_url: str, anon_pages: PageFactory,
 ):
     """F-FP-2 / TC-FP-2: anti-enumeration — для unknown email UI показывает
     ту же success-копию (никакой подсказки «такого user не существует»).
@@ -90,7 +95,7 @@ def test_forgot_password_unknown_email_shows_silent_success_message(
     """
     with step("действие: запрос сброса для неизвестного email"):
         unknown_email = make_email("never-registered")
-        fp = ForgotPasswordPage(page).goto()
+        fp = anon_pages.navigate_to(ForgotPasswordPage)
         with page.expect_response("**/api/account/forgot-password") as resp_info:
             fp.request_reset(unknown_email)
         assert resp_info.value.ok, (
@@ -109,7 +114,7 @@ def test_forgot_password_unknown_email_shows_silent_success_message(
 
 @allure.title("Повторное открытие ссылки сброса пароля показывает ошибку")
 def test_reset_password_token_used_once_then_invalid_via_ui(
-    page: Page, owner_user, read_email_token,
+    page: Page, owner_user, read_email_token, anon_pages: PageFactory,
 ):
     """F-FP-4 / TC-FP-4: после успешного reset тот же token нельзя
     использовать повторно. UI показывает error-banner вместо success.
@@ -119,7 +124,7 @@ def test_reset_password_token_used_once_then_invalid_via_ui(
     понятную error-copy, а не silent success или 500.
     """
     with step("подготовка: запрос сброса и получение токена"):
-        fp = ForgotPasswordPage(page).goto()
+        fp = anon_pages.navigate_to(ForgotPasswordPage)
         fp.request_reset(owner_user.email)
         fp.expect_success_message()
         token = read_email_token(owner_user.email)
@@ -138,12 +143,12 @@ def test_reset_password_token_used_once_then_invalid_via_ui(
 
 @allure.title("Пустое поле email не отправляет запрос на сброс пароля")
 def test_forgot_password_empty_field_shows_inline_error_no_request(
-    page: Page,
+    page: Page, anon_pages: PageFactory,
 ):
     """Form-level guard: пустой email → submit → backend не вызывается
     (HTML required validation либо JS-side check)."""
     with step("подготовка: открытие формы и установка перехватчика"):
-        fp = ForgotPasswordPage(page).goto()
+        fp = anon_pages.navigate_to(ForgotPasswordPage)
         fp.expect_visible_form()
 
         # Никаких сетевых запросов на forgot-password от пустого submit.

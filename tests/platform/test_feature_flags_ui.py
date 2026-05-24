@@ -28,8 +28,10 @@ import httpx
 from playwright.sync_api import expect
 
 from tests._core.api_paths import API
+from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
+from tests.helpers.api import platform_api
 
 # ─────────────────────────────────────────────────────────────────────────
 # Markup smoke — структура секции рендерится
@@ -221,27 +223,24 @@ def test_patch_settings_writes_to_platformsettings_db(superadmin_user, tenant_cl
     """
     with step("подготовка: читаем текущее значение enable_ai_search из БД"):
         api = tenant_client(superadmin_user)
-        r = api.get(API.PLATFORM_SETTINGS)
-        r.raise_for_status()
-        initial_db = r.json()["enable_ai_search"]
+        initial = platform_api.get_platform_settings(api)
+        initial_db = initial.enable_ai_search
 
     with step("действие: PATCH с инвертированным значением"):
         new_value = not initial_db
         patch_r = api.patch(API.PLATFORM_SETTINGS, json={"enable_ai_search": new_value})
-        assert patch_r.status_code == 200, \
-            f"PATCH должен вернуть 200, получили {patch_r.status_code}: {patch_r.text[:200]}"
+        expect_response(patch_r, label="PATCH platform settings").status_ok()
 
     with step("проверка: GET возвращает новое значение"):
-        r2 = api.get(API.PLATFORM_SETTINGS)
-        r2.raise_for_status()
-        actual_db = r2.json()["enable_ai_search"]
-        assert actual_db == new_value, (
+        after = platform_api.get_platform_settings(api)
+        assert after.enable_ai_search == new_value, (
             f"БД не обновилась после PATCH: было {initial_db}, "
-            f"PATCHили на {new_value}, получили {actual_db}"
+            f"PATCHили на {new_value}, получили {after.enable_ai_search}"
         )
 
     with step("подготовка: откат значения для последующих тестов"):
-        api.patch(API.PLATFORM_SETTINGS, json={"enable_ai_search": initial_db}).raise_for_status()
+        rollback = api.patch(API.PLATFORM_SETTINGS, json={"enable_ai_search": initial_db})
+        expect_response(rollback, label="rollback platform settings").status_ok()
 
 
 @allure.title("Флаги: некорректный llm_provider отклоняется с 400")

@@ -125,7 +125,7 @@ def test_signup_then_verify_creates_tenant(page: Page, base_url: str, anon_pages
         token = m.group(1)
 
     with step("действие: верификация email через UI"):
-        VerifyPage(page).open_with_token(token).expect_success()
+        anon_pages.create(VerifyPage).open_with_token(token).expect_success()
 
     with step("проверка: login возвращает tenant_slug"):
         me = httpx.post(

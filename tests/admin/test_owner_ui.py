@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import io
 import zipfile
+from typing import TYPE_CHECKING
 
 import allure
 from playwright.sync_api import Page, expect
@@ -21,14 +22,18 @@ from tests._core.messages import TestData
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
+from tests.helpers.api import site_api
 from tests.pages.owner_page import OwnerPage
+
+if TYPE_CHECKING:
+    from tests._fixtures.page_factory import PageFactory
 
 
 @allure.title("Админка владельца: вкладка настроек содержит поля ввода")
-def test_owner_settings_tab_has_inputs(owner_page: Page):
+def test_owner_settings_tab_has_inputs(owner_page: Page, pages: PageFactory):
     """F-OU-2: settings tab has site_name input and save button."""
     with step("действие: открытие вкладки настроек"):
-        owner = OwnerPage(owner_page).goto()
+        owner = pages.navigate_to(OwnerPage)
         owner_page.wait_for_load_state("domcontentloaded")
         owner.open_tab("settings")
 
@@ -38,7 +43,7 @@ def test_owner_settings_tab_has_inputs(owner_page: Page):
 
 
 @allure.title("Админка владельца: сохранение site_name попадает в бэкенд")
-def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_client):
+def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_client, pages: PageFactory):
     """F-OU-2: save site_name → backend reflects the new value via /api/site/config.
 
     Awaits the WRITE specifically — a non-GET /api/site/config response,
@@ -47,7 +52,7 @@ def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_clien
     submits the typed value rather than the stale default.
     """
     with step("действие: сохранение нового site_name через UI"):
-        owner = OwnerPage(owner_page).goto()
+        owner = pages.navigate_to(OwnerPage)
         owner_page.wait_for_load_state("domcontentloaded")
 
         new_name = TestData.SAMPLE_SITE_NAME
@@ -61,8 +66,9 @@ def test_owner_settings_save_persists(owner_page: Page, owner_user, tenant_clien
 
     with step("проверка: backend отдаёт новое значение"):
         api = tenant_client(owner_user)
-        r = api.get(API.SITE_CONFIG)
-        expect_response(r, label="GET site/config").status_ok().json_eq("site_name", new_name)
+        cfg = site_api.get_site_config(api)
+        assert cfg.site_name == new_name, \
+            f"site_name: expected {new_name!r}, got {cfg.site_name!r}"
 
 
 @allure.title("Экспорт: GEDCOM содержит заголовок 5.5.1 и SOUR проекта")

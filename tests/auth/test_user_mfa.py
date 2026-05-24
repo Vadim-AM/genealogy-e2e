@@ -18,6 +18,7 @@ from playwright.sync_api import Page, expect
 from tests._core.api_paths import API
 from tests._core.constants import make_email
 from tests._core.messages import Mfa, t
+from tests._core.response import expect_response
 from tests._core.step import step
 from tests.pages.mfa_settings import MfaSettings
 
@@ -52,28 +53,38 @@ def test_user_mfa_recovery_codes_are_one_time(signup_via_api, tenant_client):
         user = signup_via_api(email=make_email("mfa-recovery"))
         api = tenant_client(user)
 
-        setup = api.post(API.USER_MFA_SETUP)
-        setup.raise_for_status()
-        secret = setup.json()["secret"]
-        api.post(
-            API.USER_MFA_VERIFY, json={"code": pyotp.TOTP(secret).now()},
-        ).raise_for_status()
+        setup_data = expect_response(
+            api.post(API.USER_MFA_SETUP), label="user MFA setup",
+        ).status_ok().data
+        secret = setup_data["secret"]
+        expect_response(
+            api.post(API.USER_MFA_VERIFY, json={"code": pyotp.TOTP(secret).now()}),
+            label="user MFA verify",
+        ).status_ok()
 
     with step("действие: регенерация кодов и проверка количества"):
-        regen = api.post(API.USER_MFA_RECOVERY_REGEN)
-        regen.raise_for_status()
-        codes = regen.json()["codes"]
+        regen_data = expect_response(
+            api.post(API.USER_MFA_RECOVERY_REGEN), label="user MFA regen",
+        ).status_ok().data
+        codes = regen_data["codes"]
         assert len(codes) == 10, f"expected 10 recovery codes, got {len(codes)}"
 
-        count_before = api.get(API.USER_MFA_RECOVERY_COUNT).json()["unused"]
+        count_data = expect_response(
+            api.get(API.USER_MFA_RECOVERY_COUNT), label="user MFA recovery count",
+        ).status_ok().data
+        count_before = count_data["unused"]
         assert count_before == 10, \
             f"fresh regenerate should yield 10 codes, got {count_before}"
 
     with step("действие: использование кода и проверка декремента"):
-        api.post(
-            API.USER_MFA_RECOVERY_REDEEM, json={"code": codes[0]},
-        ).raise_for_status()
-        count_after = api.get(API.USER_MFA_RECOVERY_COUNT).json()["unused"]
+        expect_response(
+            api.post(API.USER_MFA_RECOVERY_REDEEM, json={"code": codes[0]}),
+            label="user MFA redeem",
+        ).status_ok()
+        count_after_data = expect_response(
+            api.get(API.USER_MFA_RECOVERY_COUNT), label="user MFA recovery count after",
+        ).status_ok().data
+        count_after = count_after_data["unused"]
         assert count_after == 9, \
             f"redeeming a code must decrement the count: {count_before}→{count_after}"
 

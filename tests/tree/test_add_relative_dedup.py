@@ -22,7 +22,10 @@ from playwright.sync_api import Page, expect
 
 from tests._core.api_paths import API
 from tests._core.messages import AgeValidation, FamilyGroups, TestData, t
+from tests._core.response import expect_response
 from tests._core.step import step
+from tests._models.person import PersonCreate
+from tests.helpers.api import person_api
 from tests.helpers.tree.add_relative import add_sibling_without_auto_parents
 from tests.helpers.tree.tree_api import (
     demo_parents_of_self,
@@ -161,17 +164,14 @@ def test_no_suggestion_when_no_siblings(
         api = tenant_client(owner_user)
         demo_parents_of_self(api)  # sanity: seed правильно собрался
 
-        r = api.post(
-            API.PEOPLE,
-            json={
-                "name": "Одинокий Тестовый",
-                "gender": "m",
-                "birth": "1980",
-                "branch": "other",
-            },
-        )
-        r.raise_for_status()
-        lonely_id = r.json()["id"]
+        lonely = person_api.create_person(api, PersonCreate(
+            id="lonely-test",
+            name="Одинокий Тестовый",
+            gender="m",
+            birth="1980",
+            branch="other",
+        ))
+        lonely_id = lonely.id
 
     with step("действие: открыть профиль и нажать + родитель"):
         panel = open_profile(owner_page, lonely_id)
@@ -193,19 +193,18 @@ def test_no_suggestion_when_siblings_have_no_parents(
     with step("подготовка: создать двух сиблингов без родителей"):
         api = tenant_client(owner_user)
 
-        api.post(API.PEOPLE, json={
-            "id": "lone_a", "name": "Одинокий Альфа",
-            "surname": "Одинокий", "given_name": "Альфа",
-            "gender": "m", "branch": "other", "status": "confirmed",
-        }).raise_for_status()
-        api.post(API.PEOPLE, json={
-            "id": "lone_b", "name": "Одинокий Бета",
-            "surname": "Одинокий", "given_name": "Бета",
-            "gender": "m", "branch": "other", "status": "confirmed",
-        }).raise_for_status()
-        api.post(API.RELATIONSHIPS, json={
-            "type": "sibling", "person1_id": "lone_a", "person2_id": "lone_b"
-        }).raise_for_status()
+        person_api.create_person(api, PersonCreate(
+            id="lone_a", name="Одинокий Альфа",
+            gender="m", branch="other", status="confirmed",
+        ))
+        person_api.create_person(api, PersonCreate(
+            id="lone_b", name="Одинокий Бета",
+            gender="m", branch="other", status="confirmed",
+        ))
+        r_rel = api.post(API.RELATIONSHIPS, json={
+            "type": "sibling", "person1_id": "lone_a", "person2_id": "lone_b",
+        })
+        expect_response(r_rel, label="create sibling rel").status_ok()
 
     with step("действие: открыть профиль и нажать + родитель"):
         panel = open_profile(owner_page, "lone_a")

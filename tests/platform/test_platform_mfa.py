@@ -27,6 +27,7 @@ from tests._core.api_paths import API
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._fixtures.users import setup_and_verify_mfa
+from tests._models.mfa import MfaVerifyResponse
 from tests.helpers.api import mfa_api
 
 _BASE32_RE = re.compile(r"^[A-Z2-7]+$")
@@ -197,7 +198,8 @@ def test_recovery_redeem_consumes_one_code(superadmin_user, tenant_client):
 
     with step("действие: redeem первого кода"):
         r1 = api.post(API.MFA_RECOVERY_REDEEM, json={"code": one})
-        expect_response(r1, label="recovery redeem").status_ok().json_eq("status", "ok")
+        resp = expect_response(r1, label="recovery redeem").status_ok().schema(MfaVerifyResponse)
+        assert resp.status == "ok", f"redeem status: expected 'ok', got {resp.status!r}"
 
     with step("проверка: счётчик уменьшился до 9"):
         count = mfa_api.get_recovery_count(api)

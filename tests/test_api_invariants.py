@@ -19,6 +19,7 @@ from tests._core.messages import TestData
 from tests._core.response import expect_response
 from tests._core.step import step
 from tests._core.timeouts import TIMEOUTS
+from tests._models.person import LocationResponse, PersonResponse
 from tests._models.site import RetentionOfferApply, RetentionOfferStatus, SubscriptionResponse
 from tests.helpers.api import platform_api
 
@@ -36,10 +37,9 @@ def test_my_tenants_lists_the_owners_tenant(owner_user, tenant_client):
     with step("действие: запросить my-tenants"):
         api = tenant_client(owner_user)
         r = api.get(API.MY_TENANTS)
-        expect_response(r, label="my-tenants").status_ok()
+        items = expect_response(r, label="my-tenants").status_ok().data
 
     with step("проверка: собственный тенант в списке"):
-        items = r.json()
         assert any(it["slug"] == owner_user.slug for it in items), \
             f"own tenant {owner_user.slug} missing from my-tenants: {items}"
 
@@ -162,7 +162,8 @@ def test_relationship_delete_removes_the_edge(owner_user, tenant_client):
     tree seeds relationships; deleting one drops the count."""
     with step("подготовка: получить список связей"):
         api = tenant_client(owner_user)
-        before = api.get(API.RELATIONSHIPS).json()
+        r = api.get(API.RELATIONSHIPS)
+        before = expect_response(r, label="GET relationships").status_ok().data
         assert before, "demo tenant must seed relationships"
         rel_id = before[0]["id"]
 
@@ -171,7 +172,8 @@ def test_relationship_delete_removes_the_edge(owner_user, tenant_client):
         expect_response(deleted, label="DELETE relationship").status(204)
 
     with step("проверка: количество связей уменьшилось на 1"):
-        after = api.get(API.RELATIONSHIPS).json()
+        r2 = api.get(API.RELATIONSHIPS)
+        after = expect_response(r2, label="GET relationships after").status_ok().data
         assert len(after) == len(before) - 1, \
             f"relationship must be gone: {len(before)} → {len(after)}"
 
@@ -203,10 +205,9 @@ def test_invite_revoke(owner_user, tenant_client, create_invite):
     with step("подготовка: создать приглашение и получить токен"):
         create_invite(owner_user, role="editor", name="Гость")
         api = tenant_client(owner_user)
-        pending = api.get(API.TENANT_INVITES)
-        expect_response(pending, label="tenant invites").status_ok()
-        items = pending.json()
-        items = items if isinstance(items, list) else items["items"]
+        r = api.get(API.TENANT_INVITES)
+        raw = expect_response(r, label="tenant invites").status_ok().data
+        items = raw if isinstance(raw, list) else raw["items"]
         assert items, "issued invite must be pending"
         token = items[0]["token"]
 
@@ -226,8 +227,8 @@ def test_photo_upload_and_caption(owner_user, tenant_client):
             params={"person_id": TestData.DEMO_PERSON_ID},
             files={"file": ("e2e.png", _PNG_1PX, "image/png")},
         )
-        expect_response(uploaded, label="photo upload").status_ok().json_has("photo_id")
-        photo_id = uploaded.json()["photo_id"]
+        data = expect_response(uploaded, label="photo upload").status_ok().json_has("photo_id").data
+        photo_id = data["photo_id"]
 
     with step("проверка: подпись устанавливается через PATCH"):
         patched = api.patch(API.photo(photo_id), json={"caption": "Тестовая подпись"})
@@ -259,12 +260,11 @@ def test_person_by_display_slug_resolves(owner_user, tenant_client):
         created = api.post(
             API.PEOPLE, json={"name": "Слаг Тест", "display_slug": slug},
         )
-        expect_response(created, label="create person with slug").status_ok().json_has("id")
-        pid = created.json()["id"]
+        person = expect_response(created, label="create person with slug").status_ok().schema(PersonResponse)
 
     with step("проверка: by-display-slug возвращает ту же персону"):
         resolved = api.get(API.person_by_slug(slug))
-        expect_response(resolved, label="by-display-slug").status_ok().json_eq("id", pid)
+        expect_response(resolved, label="by-display-slug").status_ok().json_eq("id", person.id)
 
 
 @allure.title("API: удалённый тенант восстанавливается в grace-период")
@@ -303,11 +303,10 @@ def test_locations_create_then_list(owner_user, tenant_client):
             "id": "loc-test-msk", "name": "Москва",
             "lat": 55.75, "lng": 37.62, "type": "other", "note": "",
         })
-        expect_response(created, label="create location").status_ok().json_has("id")
-        loc_id = created.json()["id"]
+        loc = expect_response(created, label="create location").status_ok().schema(LocationResponse)
 
     with step("проверка: локация появилась в списке"):
         listed = api.get(API.LOCATIONS)
-        expect_response(listed, label="list locations").status_ok()
-        assert any(loc["id"] == loc_id for loc in listed.json()), \
+        locations = expect_response(listed, label="list locations").status_ok().list_schema(LocationResponse)
+        assert any(item.id == loc.id for item in locations), \
             "created location must appear in the list"
