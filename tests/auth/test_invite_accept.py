@@ -9,8 +9,8 @@ from api import auth_api
 from assertions.base import should
 from config.constants import make_email
 from framework.step import step
-from helpers.auth.auth_ui import auth_name
 from pages.invite_accept_page import InviteAcceptPage
+from pages.tree_page import TreePage
 from src.texts import ErrMsg, Invite, TestData, t
 
 
@@ -36,10 +36,9 @@ def test_invitee_lands_on_accept_page_sees_success_with_tenant_name(
         expect(invite_page.title_el, ErrMsg.invite_title_wrong).to_contain_text(t(Invite.ACCEPT_SUCCESS_TITLE))
         expect(invite_page.message, ErrMsg.invite_message_wrong).to_contain_text(TestData.DEFAULT_FULL_NAME)
 
-        link = invite_page.link
-        expect(link, ErrMsg.invite_link_not_visible).to_be_visible()
-        expect(link, ErrMsg.wrong_text_content).to_have_text(t(Invite.OPEN_TREE_LINK))
-        href = link.get_attribute("href") or ""
+        expect(invite_page.link, ErrMsg.invite_link_not_visible).to_be_visible()
+        expect(invite_page.link, ErrMsg.wrong_text_content).to_have_text(t(Invite.OPEN_TREE_LINK))
+        href = invite_page.get_link_href()
         should.be_in(href, ("/", ""), ErrMsg.invite_href_wrong)
 
     page.close()
@@ -61,14 +60,14 @@ def test_invitee_clicks_open_tree_lands_on_tree_with_authed_indicator(
         page = ctx.new_page()
 
     with step("действие: принятие приглашения и клик 'Открыть древо'"):
-        InviteAcceptPage(page).open_with_token(invite_token)
-        open_link = page.locator("#link")  # no semantic: dynamic content, no ARIA
-        expect(open_link, ErrMsg.invite_link_not_visible).to_be_visible()
-        open_link.click()
+        invite_page = InviteAcceptPage(page).open_with_token(invite_token)
+        expect(invite_page.link, ErrMsg.invite_link_not_visible).to_be_visible()
+        invite_page.click_open_tree()
 
     with step("проверка: redirect на главную с авторизованным пользователем"):
         page.wait_for_url("**/")
-        expect(auth_name(page), ErrMsg.auth_name_wrong).to_have_text(
+        tree = TreePage(page)
+        expect(tree.auth_user_name, ErrMsg.auth_name_wrong).to_have_text(
             TestData.DEFAULT_FULL_NAME
         )
 
@@ -112,13 +111,11 @@ def test_anonymous_invitee_sees_login_links_with_token_in_next(
     with step("проверка: ссылки входа/регистрации с токеном в next"):
         expect(invite_page.message, ErrMsg.invite_message_wrong).to_contain_text(t(Invite.LOGIN_REQUIRED_MSG))
 
-        login_link = page.get_by_role("link", name=t(Invite.LOGIN_LINK), exact=False).first
-        signup_link = page.get_by_role("link", name=t(Invite.SIGNUP_LINK), exact=False).first
-        expect(login_link, ErrMsg.link_not_visible).to_be_visible()
-        expect(signup_link, ErrMsg.link_not_visible).to_be_visible()
+        expect(invite_page.login_link, ErrMsg.link_not_visible).to_be_visible()
+        expect(invite_page.signup_link, ErrMsg.link_not_visible).to_be_visible()
 
-        login_href = login_link.get_attribute("href") or ""
-        signup_href = signup_link.get_attribute("href") or ""
+        login_href = invite_page.get_login_href()
+        signup_href = invite_page.get_signup_href()
         should.contain(login_href, invite_token, ErrMsg.invite_token_missing_in_href)
         should.contain(signup_href, invite_token, ErrMsg.invite_token_missing_in_href)
 

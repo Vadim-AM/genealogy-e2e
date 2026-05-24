@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Self
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 from framework.step import step
 from src.texts import Placeholders, t
@@ -52,6 +52,28 @@ class TreePage(BasePage):
         self.auth_user_name = self.auth_indicator.locator('[data-testid="auth-user-name"]')
         self.logout_btn = self.auth_indicator.locator('a[data-action="logout"]')
         self.login_link = page.locator('#authIndicator a[href="/login"]')
+
+        # ── Tab content locators ────────────────────────────────────────
+        # no semantic: tab without role="tab"; decorative element
+        self.sources_footer_ornament = page.locator('#tab-sources [data-testid="footer-ornament"]')
+        # no semantic: decorative element
+        self.timeline_footer_ornament = page.locator('#tab-timeline [data-testid="footer-ornament"]')
+        # no semantic: custom filter, no button role
+        self.river_filters = page.locator('#riverFilters button[data-testid^="river-filter"]')
+        # no semantic: input without label
+        self.sources_search = page.locator("#evidenceSearch")
+        # no semantic: custom filter button
+        self.sources_filter_all = page.locator('.filter-btn[data-filter="all"]')
+        # no semantic: content container
+        self.about_placeholder = page.locator('[data-config-empty="about_text"]')
+        # no semantic: content container
+        self.contact_text = page.locator('[data-testid="contact-text"]')
+        # no semantic: content container
+        self.contact_email = page.locator('[data-testid="contact-email"]')
+        # no semantic: placeholder container
+        self.contact_box_placeholder = page.locator("#contactBoxPlaceholder")
+        # no semantic: content card, no ARIA
+        self.about_beta_card = page.locator("#aboutBetaCard")
 
     # ── Сценарные методы (auth state) ─────────────────────────────────
 
@@ -123,10 +145,83 @@ class TreePage(BasePage):
             f"orbit rendered {count} cards, expected at least {min_cards}"
         )
 
+    def expect_tab_content_active(self, tab_name: str) -> None:
+        """Assert the tab content pane is active (`#tab-<name>.active`)."""
+        from src.texts import ErrMsg
+        expect(
+            self.page.locator(f"#tab-{tab_name}.active"),
+            ErrMsg.tab_not_visible,
+        ).to_be_visible()
+
+    def footer_link(self, href: str) -> Locator:
+        """Return the first footer link matching the given href."""
+        return self.page.locator(f"a[href='{href}']").first
+
+    def tab_locator(self, tab_name: str) -> Locator:
+        """Return a tab locator by data-tab name."""
+        return self.page.locator(f'[data-tab="{tab_name}"]')
+
     def search_person(self, query: str) -> Self:
         """Type a search query into the tree search input."""
         self.search_input.fill(query)
         return self
+
+    def river_filter_btn(self, branch: str) -> Locator:
+        """Return a river-filter button by branch name (e.g. 'all', 'maternal')."""
+        # no semantic: custom filter, no button role
+        return self.page.locator(f'[data-testid="river-filter-{branch}"]')
+
+    def river_filter_branches(self) -> list[str | None]:
+        """Return the list of data-branch values for all river-filter buttons."""
+        return [
+            self.river_filters.nth(i).get_attribute("data-branch")
+            for i in range(self.river_filters.count())
+        ]
+
+    def orbit_card_by_name(self, name: str) -> Locator:
+        """Return an orbit card filtered by visible name text."""
+        # no semantic: data-testid element, no ARIA
+        return self.orbit_cards.filter(has_text=name).first
+
+    def orbit_card_relation(self, card: Locator) -> Locator:
+        """Return the relation-label locator inside an orbit card."""
+        # no semantic: data-testid element, no ARIA
+        return card.locator('[data-testid="orbit-card-relation"]')
+
+    def non_center_orbit_card(self) -> Locator:
+        """Return the first non-center orbit card in the tree container."""
+        # no semantic: canvas card, no ARIA
+        return self.tree_container.locator(
+            '[data-testid="orbit-card"][data-person-id]'
+            ':not([data-testid="orbit-center-card"])'
+        ).first
+
+    def orbit_center_for_person(self, person_id: str) -> Locator:
+        """Return the orbit-center card locator for a specific person."""
+        # no semantic: canvas card, no ARIA
+        return self.page.locator(
+            f'.orbit-zone-center [data-testid="orbit-center-card"]'
+            f'[data-person-id=\'{person_id}\']'
+        )
+
+    def minimap_computed_display(self) -> str:
+        """Return the computed CSS display value of the minimap element."""
+        return self.minimap.evaluate("(el) => getComputedStyle(el).display")
+
+    def goto_hash(self, fragment: str) -> Self:
+        """Navigate to a hash route (e.g. /#/p/some-id) and wait for load."""
+        self.page.goto(f"/{fragment}")
+        self.page.wait_for_load_state("domcontentloaded")
+        return self
+
+    def wait_for_page_load(self) -> None:
+        """Wait for domcontentloaded after navigation."""
+        self.page.wait_for_load_state("domcontentloaded")
+
+    @property
+    def header_search(self) -> Locator:
+        """Return the #headerSearch locator."""
+        return self.page.locator("#headerSearch")  # no semantic: form input without label
 
     def soft_check_guest_tabs(self, soft) -> None:
         """Tabs visible to anonymous visitors (tree + about)."""

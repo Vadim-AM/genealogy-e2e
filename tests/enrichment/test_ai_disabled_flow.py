@@ -47,15 +47,14 @@ def test_owner_opens_profile_and_ai_button_is_disabled_with_tooltip(
             ErrMsg.ai_button_should_be_disabled,
         ).to_be_disabled()
 
-        title = panel.btn_enrich_disabled.first.get_attribute("title") or ""
-        should.contain(title, t(Enrichment.BETA_KEYWORD), ErrMsg.ai_tooltip_wrong)
+        should.contain(panel.enrich_disabled_tooltip, t(Enrichment.BETA_KEYWORD), ErrMsg.ai_tooltip_wrong)
 
         expect(panel.btn_enrich_active, ErrMsg.wrong_count).to_have_count(0)
 
     with step("проверка: клик по disabled-кнопке не вызывает POST enrich"):
         posts_before = len(enrich_post_spy)
         panel.btn_enrich_disabled.first.click(force=True)
-        owner_page.wait_for_load_state("networkidle")
+        panel.wait_for_network_idle()
         should.be_equal(len(enrich_post_spy), posts_before, ErrMsg.enrich_post_leaked)
 
 

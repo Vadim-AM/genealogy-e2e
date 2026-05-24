@@ -130,13 +130,89 @@ class ProfilePanel:
         panel.expect_visible()
         return panel
 
+    # ──────────────────────────────────────────────────────────────────
+    # Profile data locators (data-testid sections)
+    # ──────────────────────────────────────────────────────────────────
+
+    @property
+    def dates(self) -> Locator:
+        """Locator for `[data-testid="profile-dates"]` inside the profile."""
+        # no semantic: data-testid element, no role
+        return self.container.locator('[data-testid="profile-dates"]')
+
+    @property
+    def place(self) -> Locator:
+        """Locator for `[data-testid="profile-place"]` inside the profile."""
+        # no semantic: data-testid element, no role
+        return self.container.locator('[data-testid="profile-place"]')
+
+    @property
+    def story(self) -> Locator:
+        """Locator for `[data-testid="profile-story"]` inside the profile."""
+        # no semantic: data-testid element, no role
+        return self.container.locator('[data-testid="profile-story"]')
+
+    @property
+    def family_section(self) -> Locator:
+        """Locator for `[data-testid="profile-family"]` inside the profile."""
+        # no semantic: data-testid element, no role
+        return self.container.locator('[data-testid="profile-family"]')
+
+    @property
+    def all_family_links(self) -> Locator:
+        """Return all profile-link anchors across the entire family section."""
+        return self.family_section.locator('a[data-action="open-profile"]')
+
+    def family_group(self, group_label: str) -> Locator:
+        """Return the family-group container scoped by its visible label."""
+        # no semantic: data-testid element, no role
+        return self.container.locator(
+            '[data-testid="profile-family-group"]',
+            has_text=group_label,
+        )
+
+    def family_links(self, group_label: str) -> Locator:
+        """Return all profile-link anchors inside a family group."""
+        return self.family_group(group_label).locator(
+            'a[data-action="open-profile"]'
+        )
+
+    def family_link(self, group_label: str, name_substring: str) -> Locator:
+        """Return a specific profile-link anchor inside a family group."""
+        return self.family_links(group_label).filter(has_text=name_substring)
+
     def click_family_link(self, group_label: str, name_substring: str) -> None:
         """Click a relative's name link inside a family group."""
-        group = (
-            self.page.locator('[data-testid="profile-family-group"]')
-            .filter(has_text=group_label)
-        )
-        group.locator(
-            'a[data-action="open-profile"]'
-        ).filter(has_text=name_substring).click()
+        self.family_link(group_label, name_substring).click()
         expect(self.container).to_be_visible()
+
+    # ──────────────────────────────────────────────────────────────────
+    # AI enrichment chips (accepted facts)
+    # ──────────────────────────────────────────────────────────────────
+
+    @property
+    def accepted_chips(self) -> Locator:
+        """Return all accepted AI fact chips in the profile."""
+        # no semantic: data-testid element, no role
+        return self.accepted_facts_block.locator('[data-testid="profile-ai-chip"]')
+
+    def revert_first_chip(self) -> None:
+        """Click the revert button on the first accepted AI chip."""
+        # no semantic: data-testid element, no role
+        self.accepted_chips.first.locator('[data-testid="profile-ai-chip-revert"]').click()
+
+    def confirm_revert(self) -> None:
+        """Click the revert confirmation button in the prompt."""
+        from src.texts import Enrichment, t
+        self.page.get_by_role(
+            "button", name=t(Enrichment.REVERT_OK), exact=True,
+        ).click()
+
+    @property
+    def enrich_disabled_tooltip(self) -> str:
+        """Return the title attribute of the disabled enrichment button."""
+        return self.btn_enrich_disabled.first.get_attribute("title") or ""
+
+    def wait_for_network_idle(self) -> None:
+        """Wait for network to settle after an action."""
+        self.page.wait_for_load_state("networkidle")

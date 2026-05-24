@@ -55,3 +55,13 @@ class BasePage:
         url = self.URL + (f"?{query}" if query else "")
         self.page.goto(url)
         return self
+
+    def goto_and_load(self, *, query: str = "") -> Self:
+        """Navigate to the page URL, wait for DOM content loaded, return self."""
+        self.goto(query=query)
+        self.page.wait_for_load_state("domcontentloaded")
+        return self
+
+    def wait_for_page_load(self) -> None:
+        """Wait for the DOM content to be loaded."""
+        self.page.wait_for_load_state("domcontentloaded")

@@ -41,3 +41,11 @@ class PhotosBlock:
     def expect_thumb_count(self, n: int) -> None:
         """Assert exactly n thumbnails are present in the grid."""
         expect(self.thumbs).to_have_count(n)
+
+    def add_btn_for_attr(self) -> str | None:
+        """Return the `for` attribute of the add-photo label."""
+        return self.add_btn.get_attribute("for")
+
+    def file_input_accept(self) -> str | None:
+        """Return the `accept` attribute of the file input."""
+        return self.file_input.get_attribute("accept")

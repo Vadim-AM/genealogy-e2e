@@ -38,3 +38,11 @@ class WaitPage(BasePage):
         expect(self.form).to_be_visible()
         expect(self.email).to_be_visible()
         expect(self.submit_btn).to_be_visible()
+
+    def is_email_valid(self) -> bool:
+        """Return the HTML5 validity state of the email input."""
+        return self.page.evaluate("() => document.getElementById('email').checkValidity()")
+
+    def page_content(self) -> str:
+        """Return the full HTML content of the page."""
+        return self.page.content()

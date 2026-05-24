@@ -35,11 +35,10 @@ def test_platform_metrics_visible(auth_context_factory, superadmin_user, soft_ch
     with step("подготовка: открываем дашборд суперадмина"):
         ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
         page = ctx.new_page()
-        page.goto("/platform/dashboard")
-        page.wait_for_load_state("domcontentloaded")
+        dashboard = PlatformDashboardPage(page)
+        dashboard.goto_and_load()
 
     with step("проверка: карточки метрик отображаются"):
-        dashboard = PlatformDashboardPage(page)
         dashboard.soft_check_metrics_loaded(soft_check)
 
 

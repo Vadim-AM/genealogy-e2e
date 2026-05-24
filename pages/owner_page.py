@@ -111,3 +111,13 @@ class OwnerPage(BasePage):
         """
         self.import_confirm_btn.click()
         self.confirm_dialog_confirm.click()
+
+    def set_file_raw(self, *, name: str, mime: str, buffer: bytes) -> None:
+        """Set the file input directly (bypassing upload_ged's Upload click).
+
+        Used for client-side validation tests (wrong extension, empty file,
+        oversize) where the widget rejects before any POST.
+        """
+        self.import_file_input.set_input_files(
+            files=[{"name": name, "mimeType": mime, "buffer": buffer}]  # type: ignore[arg-type]
+        )

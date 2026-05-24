@@ -13,37 +13,40 @@ from api import platform_api, routes
 from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
+from pages.feature_flags_page import FeatureFlagsPage
 from src.texts import ErrMsg
+
+
+def _open_feature_flags(auth_context_factory, superadmin_user) -> FeatureFlagsPage:
+    """Open the platform dashboard and return a FeatureFlagsPage POM."""
+    ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
+    page = ctx.new_page()
+    ff = FeatureFlagsPage(page)
+    ff.goto()
+    return ff
 
 
 @allure.title("Флаги: секция Feature Flags видна на дашборде")
 def test_dashboard_has_feature_flags_section(auth_context_factory, superadmin_user) -> None:
     """TC-N6: на /platform/dashboard есть секция Feature Flags."""
     with step("подготовка: открываем дашборд суперадмина"):
-        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-        page = ctx.new_page()
-        r = page.goto("/platform/dashboard")
+        ff = _open_feature_flags(auth_context_factory, superadmin_user)
+        r = ff.page.goto("/platform/dashboard")
         should.be_true(r is not None and r.status == HTTPStatus.OK, ErrMsg.platform_navigation_failed)
 
     with step("проверка: секция Feature Flags видна"):
-        section = page.locator("#feature_flags_section")  # no semantic: layout container
-        expect(section, ErrMsg.element_not_visible).to_be_visible()
+        ff.expect_section_visible()
 
 
 @allure.title("Флаги: секция содержит ровно 5 групп с заголовками")
 def test_feature_flags_has_five_groups(auth_context_factory, superadmin_user) -> None:
     """TC-N6: секция содержит 5 групп с заголовками."""
     with step("подготовка: открываем дашборд и ждём секцию"):
-        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-        page = ctx.new_page()
-        page.goto("/platform/dashboard")
-        # no semantic: layout container
-        expect(page.locator("#feature_flags_section"), ErrMsg.element_not_visible).to_be_visible()
+        ff = _open_feature_flags(auth_context_factory, superadmin_user)
+        ff.expect_section_visible()
 
     with step("проверка: ровно 5 групп с ожидаемыми заголовками"):
-        # no semantic: data-testid element, no role
-        groups = page.locator('[data-testid="ff-group"]')
-        should.be_equal(groups.count(), 5, ErrMsg.ff_group_count_wrong)
+        should.be_equal(ff.groups.count(), 5, ErrMsg.ff_group_count_wrong)
 
         expected_titles = {
             "Поиск / AI",
@@ -52,32 +55,23 @@ def test_feature_flags_has_five_groups(auth_context_factory, superadmin_user) ->
             "Обслуживание",  # Wave-9 локализовал "Maintenance" → RU
             "Безопасность / алерты",
         }
-        # no semantic: data-testid element, no role
-        found_titles = {h.inner_text().strip() for h in page.locator('[data-testid="ff-group-title"]').all()}
+        found_titles = ff.group_title_texts()
         missing = expected_titles - found_titles
         should.be_empty(missing, ErrMsg.ff_group_missing)
 
 
 @allure.title("Флаги: каждый переключатель имеет tooltip с описанием")
 def test_feature_flags_have_tooltips(auth_context_factory, superadmin_user) -> None:
-    """TC-N6: каждый флаг имеет ⓘ tooltip с описанием (атрибут title)."""
+    """TC-N6: каждый флаг имеет tooltip с описанием (атрибут title)."""
     with step("подготовка: открываем дашборд и ждём секцию"):
-        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-        page = ctx.new_page()
-        page.goto("/platform/dashboard")
-        # no semantic: layout container
-        expect(page.locator("#feature_flags_section"), ErrMsg.element_not_visible).to_be_visible()
+        ff = _open_feature_flags(auth_context_factory, superadmin_user)
+        ff.expect_section_visible()
 
     with step("проверка: минимум 8 tooltip-элементов с описаниями"):
-        # no semantic: data-testid element, no role
-        helps = page.locator('#feature_flags_section [data-testid="ff-help"]')
-        should.greater_or_equal(helps.count(), 8, ErrMsg.ff_tooltip_empty)
+        should.greater_or_equal(ff.help_icons.count(), 8, ErrMsg.ff_tooltip_empty)
 
-        empty_tooltips = []
-        for i in range(helps.count()):
-            title = helps.nth(i).get_attribute("title") or ""
-            if len(title.strip()) < 20:
-                empty_tooltips.append(i)
+        tooltips = ff.help_tooltip_texts()
+        empty_tooltips = [i for i, text in enumerate(tooltips) if len(text) < 20]
         should.be_empty(empty_tooltips, ErrMsg.ff_tooltip_empty)
 
 
@@ -85,17 +79,12 @@ def test_feature_flags_have_tooltips(auth_context_factory, superadmin_user) -> N
 def test_ai_search_toggle_visible(auth_context_factory, superadmin_user) -> None:
     """TC-N6: toggle #ff_enable_ai_search присутствует в группе AI."""
     with step("подготовка: открываем дашборд и ждём секцию"):
-        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-        page = ctx.new_page()
-        page.goto("/platform/dashboard")
-        # no semantic: layout container
-        expect(page.locator("#feature_flags_section"), ErrMsg.element_not_visible).to_be_visible()
+        ff = _open_feature_flags(auth_context_factory, superadmin_user)
+        ff.expect_section_visible()
 
     with step("проверка: toggle AI-поиска виден и имеет верный data-flag"):
-        # no semantic: form input without label
-        toggle = page.locator("#ff_enable_ai_search")
-        expect(toggle, ErrMsg.element_not_visible).to_be_visible()
-        should.be_equal(toggle.get_attribute("data-flag"), "enable_ai_search", ErrMsg.ff_data_flag_wrong)
+        expect(ff.ai_search_toggle, ErrMsg.element_not_visible).to_be_visible()
+        should.be_equal(ff.ai_search_data_flag(), "enable_ai_search", ErrMsg.ff_data_flag_wrong)
 
 
 @allure.title("Флаги: toggle AI-поиска отражает значение False из БД")
@@ -110,60 +99,29 @@ def test_ai_search_toggle_reflects_db_value_when_off(
         ).raise_for_status()
 
     with step("действие: открываем дашборд и ждём загрузку настроек"):
-        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-        page = ctx.new_page()
-        page.goto("/platform/dashboard")
-        # no semantic: form input without label
-        expect(page.locator("#ff_enable_ai_search"), ErrMsg.element_not_visible).to_be_visible()
-        # Сигнал завершения loadSettings(), CSP-безопасный. tenants.js:121
-        # присваивает `set_beta_cap.value = s.beta_user_cap`; input не имеет
-        # атрибута value, поэтому читает "" пока loadSettings не заполнит.
-        # Две причины, почему старый `wait_for_function("…>0")` сломался
-        # после перехода: (1) dashboard теперь отдаёт `script-src 'self'`
-        # без 'unsafe-eval', Playwright'овский string-predicate eval
-        # блокируется CSP; (2) seed-дефолт PR-B7 для beta_user_cap = 0 —
-        # валидное загруженное значение, `>0` никогда не выполнялось.
-        # Locator assertion работает на уровне драйвера (без page eval),
-        # и `not_to_have_value("")` агностичен к значению: только ""
-        # означает «ещё не загружено».
-        # no semantic: form input without label
-        expect(page.locator("#set_beta_cap"), ErrMsg.feature_flag_state_wrong).not_to_have_value("")
+        ff = _open_feature_flags(auth_context_factory, superadmin_user)
+        expect(ff.ai_search_toggle, ErrMsg.element_not_visible).to_be_visible()
+        ff.wait_for_settings_loaded()
 
     with step("проверка: toggle AI-поиска не отмечен"):
-        # no semantic: form input without label
-        is_checked = page.locator("#ff_enable_ai_search").is_checked()
-        should.be_false(is_checked, ErrMsg.ff_toggle_state_wrong)
+        should.be_false(ff.is_ai_search_checked(), ErrMsg.ff_toggle_state_wrong)
 
 
 @allure.title("Флаги: клик по toggle добавляет класс .dirty на строку")
 def test_dirty_class_appears_on_toggle_change(auth_context_factory, superadmin_user) -> None:
     """TC-N6: при клике на toggle строка получает класс .dirty."""
     with step("подготовка: открываем дашборд и ждём загрузку настроек"):
-        ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-        page = ctx.new_page()
-        page.goto("/platform/dashboard")
-        # no semantic: form input without label
-        expect(page.locator("#ff_enable_ai_search"), ErrMsg.element_not_visible).to_be_visible()
+        ff = _open_feature_flags(auth_context_factory, superadmin_user)
+        expect(ff.ai_search_toggle, ErrMsg.element_not_visible).to_be_visible()
+        ff.wait_for_settings_loaded()
 
-        # Ждём loadSettings(), чтобы клик произошёл после привязки
-        # change-listener. CSP-безопасный locator assertion (не
-        # wait_for_function — `script-src 'self'` на dashboard блокирует
-        # string-predicate eval); см. аналогичный комментарий в
-        # test_ai_search_toggle_reflects_db_value_when_off.
-        # no semantic: form input without label
-        expect(page.locator("#set_beta_cap"), ErrMsg.feature_flag_state_wrong).not_to_have_value("")
-
-        # Локатор должен использовать `contains` — на строке в .dirty состоянии
-        # `class='ff-row dirty'`, exact match по ='ff-row' не сработает.
-        row = page.locator(
-            "#ff_enable_ai_search >> xpath=ancestor::div[contains(@class, 'ff-row')]"
-        ).first
+        row = ff.ai_search_row()
 
     with step("проверка: до клика .dirty отсутствует"):
         expect(row, ErrMsg.feature_flag_state_wrong).not_to_have_class(re.compile(r"\bdirty\b"))
 
     with step("действие: кликаем toggle AI-поиска"):
-        page.locator("#ff_enable_ai_search").click()  # no semantic: form input without label
+        ff.click_ai_search_toggle()
 
     with step("проверка: после клика строка получает класс .dirty"):
         expect(row, ErrMsg.feature_flag_state_wrong).to_have_class(re.compile(r"\bdirty\b"))

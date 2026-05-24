@@ -42,6 +42,11 @@ class ConfirmDialog:
         """Click the Cancel button inside the dialog."""
         self.container.get_by_role("button", name=t(Buttons.CANCEL)).click()
 
+    def cancel_and_settle(self) -> None:
+        """Click Cancel and wait for the DOM to settle after dialog closes."""
+        self.cancel()
+        self.page.wait_for_load_state("domcontentloaded")
+
     def dismiss_via_escape(self) -> None:
         """Press Escape to dismiss (confirm-dialog.js: Escape -> cleanup(false))."""
         self.page.keyboard.press("Escape")
@@ -54,3 +59,7 @@ class ConfirmDialog:
     def expect_hidden(self) -> None:
         """Assert the confirm dialog is no longer visible."""
         expect(self.container).not_to_be_visible()
+
+    def click_button(self, name: str) -> None:
+        """Click a button inside the dialog by its accessible name."""
+        self.container.get_by_role("button", name=name).click()

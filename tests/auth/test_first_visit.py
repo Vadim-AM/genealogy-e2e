@@ -24,7 +24,7 @@ def test_first_visit_renders_tree_with_demo_seed(owner_page: Page, pages: PageFa
     """F-FV-1, F-FV-2: owner переходит на / и orbit-view рендерит демо-кольцо."""
     with step("действие: переход на главную"):
         tree = pages.navigate_to(TreePage)
-        owner_page.wait_for_load_state("domcontentloaded")
+        tree.wait_for_page_load()
 
     with step("проверка: orbit-view отрисовал демо-карточки"):
         tree.expect_tree_rendered(min_cards=DEMO_SEED_RING_CARDS)
@@ -35,7 +35,7 @@ def test_first_visit_shows_authed_tabs(owner_page: Page, pages: PageFactory) -> 
     """F-FV-4: основные навигационные вкладки видны."""
     with step("действие: переход на главную"):
         tree = pages.navigate_to(TreePage)
-        owner_page.wait_for_load_state("domcontentloaded")
+        tree.wait_for_page_load()
 
     with step("проверка: навигационные вкладки видны"):
         expect(tree.tab_tree, ErrMsg.tab_not_visible).to_be_visible()
@@ -47,19 +47,17 @@ def test_first_visit_shows_authed_tabs(owner_page: Page, pages: PageFactory) -> 
 @allure.title("Поле поиска отображается в шапке после входа")
 def test_first_visit_search_input_visible(owner_page: Page, pages: PageFactory) -> None:
     """F-FV-5: поле поиска видно в шапке для авторизованных."""
-    _ = pages.navigate_to(TreePage)
-    owner_page.wait_for_load_state("domcontentloaded")
-    # no semantic: form input without label
-    expect(owner_page.locator("#headerSearch"), ErrMsg.element_not_visible).to_be_visible()
+    tree = pages.navigate_to(TreePage)
+    tree.wait_for_page_load()
+    expect(tree.header_search, ErrMsg.element_not_visible).to_be_visible()
 
 
 @allure.title("Кнопка повтора тура видна на главной после входа")
 def test_first_visit_tour_replay_button_visible(owner_page: Page, pages: PageFactory) -> None:
     """F-FV-6: кнопка повтора тура видна."""
-    _ = pages.navigate_to(TreePage)
-    owner_page.wait_for_load_state("domcontentloaded")
-    # no semantic: custom widget, no ARIA
-    expect(owner_page.locator("#tourReplayBtn"), ErrMsg.button_not_visible).to_be_visible()
+    tree = pages.navigate_to(TreePage)
+    tree.wait_for_page_load()
+    expect(tree.tour_replay_btn, ErrMsg.button_not_visible).to_be_visible()
 
 
 @allure.title("Эндпоинт /me возвращает slug тенанта после авторизации")

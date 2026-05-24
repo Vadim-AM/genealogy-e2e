@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING
 
 import allure
@@ -13,12 +12,11 @@ from config.constants import unique_email
 from framework.step import step
 from helpers.auth.signup_helpers import fill_and_submit, mock_signup_overflow
 from pages.signup_page import SignupPage
+from pages.waitlist_modal import WaitlistModal
 from src.texts import ErrMsg, Waitlist, t
 
 if TYPE_CHECKING:
     from fixtures.page_factory import PageFactory
-
-_IS_OPEN = re.compile(r"\bis-open\b")
 
 
 @allure.title("Модалка листа ожидания открывается с email пользователя")
@@ -31,14 +29,11 @@ def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page, a
         fill_and_submit(page, test_email)
 
     with step("проверка: модалка открылась с email и правильным title"):
-        overlay = page.locator("#waitlistOverlay")  # no semantic: custom widget, no ARIA
-        expect(overlay, ErrMsg.wrong_css_class).to_have_class(_IS_OPEN)
-        # no semantic: custom widget, no ARIA
-        expect(page.locator("#waitlistTitle"), ErrMsg.wrong_text_content).to_contain_text(t(Waitlist.OVERFLOW_TITLE))
-        # no semantic: dynamic content, no ARIA
-        expect(page.locator("#waitlistBody2"), ErrMsg.wrong_text_content).to_contain_text(test_email)
-        # no semantic: dynamic content, no ARIA
-        expect(page.locator("#waitlistBody2"), ErrMsg.wrong_text_content).to_contain_text(
+        modal = WaitlistModal(page)
+        modal.expect_open()
+        expect(modal.title, ErrMsg.wrong_text_content).to_contain_text(t(Waitlist.OVERFLOW_TITLE))
+        expect(modal.body, ErrMsg.wrong_text_content).to_contain_text(test_email)
+        expect(modal.body, ErrMsg.wrong_text_content).to_contain_text(
             t(Waitlist.WAITLIST_KEYWORD),
         )
 
@@ -53,10 +48,10 @@ def test_waitlist_modal_ok_button_redirects_to_landing(page: Page, anon_pages: P
         fill_and_submit(page, test_email)
 
     with step("действие: клик 'Понятно' и проверка redirect"):
-        # no semantic: custom widget, no ARIA
-        expect(page.locator("#waitlistOverlay"), ErrMsg.wrong_css_class).to_have_class(_IS_OPEN)
-        page.locator("#waitlistOk").click()  # no semantic: custom widget, no ARIA
-        page.wait_for_url(re.compile(r"/$"))
+        modal = WaitlistModal(page)
+        modal.expect_open()
+        modal.click_ok()
+        page.wait_for_url("**/")
 
 
 @allure.title("Esc закрывает модалку ожидания без перенаправления")
@@ -68,14 +63,14 @@ def test_waitlist_modal_esc_closes_without_redirect(page: Page, anon_pages: Page
         mock_signup_overflow(page, email=test_email)
         fill_and_submit(page, test_email)
 
-        overlay = page.locator("#waitlistOverlay")  # no semantic: custom widget, no ARIA
-        expect(overlay, ErrMsg.wrong_css_class).to_have_class(_IS_OPEN)
+        modal = WaitlistModal(page)
+        modal.expect_open()
 
     with step("действие: нажатие Esc"):
-        page.keyboard.press("Escape")
+        modal.dismiss_via_escape()
 
     with step("проверка: модалка закрылась, URL остался /signup"):
-        expect(overlay, ErrMsg.overlay_should_be_closed).not_to_have_class(_IS_OPEN)
+        modal.expect_closed()
         should.be_true(page.url.rstrip("/").endswith("/signup"), ErrMsg.signup_url_not_preserved)
 
 
@@ -89,8 +84,6 @@ def test_waitlist_modal_shows_wait_link_when_auto_subscribe_failed(page: Page, a
         fill_and_submit(page, test_email)
 
     with step("проверка: модалка показывает fallback-ссылку /wait"):
-        # no semantic: custom widget, no ARIA
-        expect(page.locator("#waitlistOverlay"), ErrMsg.wrong_css_class).to_have_class(_IS_OPEN)
-        # no semantic: dynamic content, no ARIA
-        fallback_link = page.locator('#waitlistBody2 a[href*="/wait"]')
-        expect(fallback_link, ErrMsg.link_not_visible).to_be_visible()
+        modal = WaitlistModal(page)
+        modal.expect_open()
+        expect(modal.fallback_link(), ErrMsg.link_not_visible).to_be_visible()
