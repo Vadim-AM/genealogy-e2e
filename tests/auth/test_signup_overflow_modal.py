@@ -51,11 +51,16 @@ def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page, a
         fill_and_submit(page, test_email)
 
     with step("проверка: модалка открылась с email и правильным title"):
-        overlay = page.locator("#waitlistOverlay")
+        overlay = page.locator("#waitlistOverlay")  # no semantic: custom widget, no ARIA
         expect(overlay, ErrMsg.wrong_css_class).to_have_class(_IS_OPEN)
+        # no semantic: custom widget, no ARIA
         expect(page.locator("#waitlistTitle"), ErrMsg.wrong_text_content).to_contain_text(t(Waitlist.OVERFLOW_TITLE))
+        # no semantic: dynamic content, no ARIA
         expect(page.locator("#waitlistBody2"), ErrMsg.wrong_text_content).to_contain_text(test_email)
-        expect(page.locator("#waitlistBody2"), ErrMsg.wrong_text_content).to_contain_text(t(Waitlist.WAITLIST_KEYWORD))
+        # no semantic: dynamic content, no ARIA
+        expect(page.locator("#waitlistBody2"), ErrMsg.wrong_text_content).to_contain_text(
+            t(Waitlist.WAITLIST_KEYWORD),
+        )
 
 
 @allure.title("Кнопка 'Понятно' в модалке ожидания ведёт на главную")
@@ -70,8 +75,9 @@ def test_waitlist_modal_ok_button_redirects_to_landing(page: Page, anon_pages: P
         fill_and_submit(page, test_email)
 
     with step("действие: клик 'Понятно' и проверка redirect"):
+        # no semantic: custom widget, no ARIA
         expect(page.locator("#waitlistOverlay"), ErrMsg.wrong_css_class).to_have_class(_IS_OPEN)
-        page.locator("#waitlistOk").click()
+        page.locator("#waitlistOk").click()  # no semantic: custom widget, no ARIA
         page.wait_for_url(re.compile(r"/$"))
 
 
@@ -87,7 +93,7 @@ def test_waitlist_modal_esc_closes_without_redirect(page: Page, anon_pages: Page
         mock_signup_overflow(page, email=test_email)
         fill_and_submit(page, test_email)
 
-        overlay = page.locator("#waitlistOverlay")
+        overlay = page.locator("#waitlistOverlay")  # no semantic: custom widget, no ARIA
         expect(overlay, ErrMsg.wrong_css_class).to_have_class(_IS_OPEN)
 
     with step("действие: нажатие Esc"):
@@ -113,6 +119,8 @@ def test_waitlist_modal_shows_wait_link_when_auto_subscribe_failed(page: Page, a
         fill_and_submit(page, test_email)
 
     with step("проверка: модалка показывает fallback-ссылку /wait"):
+        # no semantic: custom widget, no ARIA
         expect(page.locator("#waitlistOverlay"), ErrMsg.wrong_css_class).to_have_class(_IS_OPEN)
+        # no semantic: dynamic content, no ARIA
         fallback_link = page.locator('#waitlistBody2 a[href*="/wait"]')
         expect(fallback_link, ErrMsg.link_not_visible).to_be_visible()

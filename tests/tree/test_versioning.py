@@ -46,8 +46,7 @@ def test_footer_version_matches_api_app_version(page: Page, base_url: str, anon_
 
     with step("проверка: футер показывает ту же версию"):
         _ = anon_pages.navigate_to(TreePage)
-        # no semantic: version stamp, no ARIA
         expect(
-            page.locator('[data-testid="footer-version"]').first,
+            page.locator('[data-testid="footer-version"]').first,  # no semantic: version stamp, no ARIA
             ErrMsg.wrong_text_content,
         ).to_have_text(f"v{api_version}")

@@ -64,6 +64,7 @@ def test_first_visit_search_input_visible(owner_page: Page, pages: PageFactory) 
     """F-FV-5: search input is in the header for authed users."""
     _ = pages.navigate_to(TreePage)
     owner_page.wait_for_load_state("domcontentloaded")
+    # no semantic: form input without label
     expect(owner_page.locator("#headerSearch"), ErrMsg.element_not_visible).to_be_visible()
 
 
@@ -72,6 +73,7 @@ def test_first_visit_tour_replay_button_visible(owner_page: Page, pages: PageFac
     """F-FV-6: '?' tour replay button is visible."""
     _ = pages.navigate_to(TreePage)
     owner_page.wait_for_load_state("domcontentloaded")
+    # no semantic: custom widget, no ARIA
     expect(owner_page.locator("#tourReplayBtn"), ErrMsg.button_not_visible).to_be_visible()
 
 

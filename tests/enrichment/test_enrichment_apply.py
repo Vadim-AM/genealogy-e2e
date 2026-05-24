@@ -50,11 +50,13 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
     with step("проверка: принятые факты отображаются как chips"):
         accepted = panel.accepted_facts_block
         expect(accepted, ErrMsg.element_not_visible).to_be_visible()
+        # no semantic: data-testid element, no role
         chips = accepted.locator('[data-testid="profile-ai-chip"]')
         # Accepting the hypothesis writes its claim + reasoning as 2 chips.
         expect(chips, ErrMsg.wrong_count).to_have_count(2)
 
     with step("действие: откат принятой гипотезы"):
+        # no semantic: data-testid element, no role
         chips.first.locator('[data-testid="profile-ai-chip-revert"]').click()
         # revert opens a prompt for an optional reason — confirm it.
         owner_page.get_by_role(

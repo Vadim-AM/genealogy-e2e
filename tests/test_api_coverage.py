@@ -26,6 +26,7 @@ import allure
 import httpx
 
 from api import routes
+from framework.response import expect_response
 from framework.step import step
 
 # Принятые пробелы покрытия — реестр долга. Каждая строка помечена
@@ -80,10 +81,9 @@ def _backend_api_paths(base_url: str) -> set[str]:
     product surface the suite must cover.
     """
     r = httpx.get(f"{base_url}/openapi.json")
-    assert r.status_code == HTTPStatus.OK, (
-        f"GET /openapi.json → {r.status_code}; the backend must be booted "
-        f"with GENEALOGY_DOCS_ENABLED=1 (see CLAUDE.md 'Running locally')."
-    )
+    expect_response(
+        r, label="GET /openapi.json (boot with GENEALOGY_DOCS_ENABLED=1)",
+    ).status(HTTPStatus.OK)
     spec = r.json()
     return {
         _normalise(path)

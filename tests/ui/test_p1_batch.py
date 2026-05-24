@@ -22,7 +22,7 @@ from api import routes
 from framework.step import step
 from pages.base import custom_select_for, wait_for_authed_shell
 from pages.confirm_dialog import ConfirmDialog
-from pages.person_editor import AddRelativeModal, PersonEditor
+from pages.person_editor import AddRelativeModal
 from pages.profile_panel import ProfilePanel, open_editor_for
 from pages.tree_page import TreePage
 from src.texts import AboutTab, ErrMsg, Placeholders, TestData, t
@@ -202,6 +202,7 @@ def test_footer_ornament_present_in_sources_and_timeline_tabs(owner_page: Page, 
     with step("проверка: footer-ornament в sources и timeline"):
         # no semantic: tab without role="tab"; decorative element
         sources_ornament = owner_page.locator('#tab-sources [data-testid="footer-ornament"]')
+        # no semantic: decorative element
         timeline_ornament = owner_page.locator('#tab-timeline [data-testid="footer-ornament"]')
         assert sources_ornament.count() == 1, (
             f"#tab-sources должен содержать ровно один footer-ornament; "
@@ -425,6 +426,7 @@ def test_timeline_river_filter_click_switches_active(owner_page: Page, pages: Pa
     with step("действие: кликнуть по фильтру maternal"):
         # no semantic: custom filter, no button role
         all_btn = owner_page.locator('[data-testid="river-filter-all"]')
+        # no semantic: custom filter, no button role
         maternal_btn = owner_page.locator('[data-testid="river-filter-maternal"]')
         expect(all_btn, ErrMsg.wrong_css_class).to_have_class(re.compile(r"\bactive\b"))
         maternal_btn.click()

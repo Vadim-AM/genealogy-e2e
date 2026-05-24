@@ -158,7 +158,7 @@ def test_honeypot_field_silently_succeeds(page: Page, base_url: str, anon_pages:
         )
 
         with page.expect_response("**/api/account/signup") as resp_info:
-            page.locator("#signupBtn").click()
+            page.locator("#signupBtn").click()  # no semantic: submit button without accessible name
         assert resp_info.value.status == HTTPStatus.OK, \
             f"signup with honeypot returned {resp_info.value.status} (expected 200 silent)"
 
@@ -188,8 +188,9 @@ def test_disposable_email_rejected_inline(page: Page, base_url: str, anon_pages:
         ).submit()
 
     with step("проверка: inline-ошибка в поле email и письмо не отправлено"):
-        email_err = page.locator("#email-err")
+        email_err = page.locator("#email-err")  # no semantic: dynamic content, no ARIA
         expect(email_err, ErrMsg.wrong_text_content).not_to_have_text("")
+        # no semantic: form input without label
         expect(page.locator("#email"), ErrMsg.wrong_attribute).to_have_attribute("aria-invalid", "true")
 
         r = httpx.get(f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": disposable_email})

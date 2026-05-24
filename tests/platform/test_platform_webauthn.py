@@ -21,8 +21,10 @@ from http import HTTPStatus
 import allure
 
 from api import routes
+from framework.response import expect_response
 from framework.step import step
 from pages.platform_dashboard_page import PlatformDashboardPage
+from tests.platform.conftest import add_virtual_authenticator, make_localhost_context
 
 # ─────────────────────────────────────────────────────────────────────
 # API-уровень
@@ -33,8 +35,7 @@ from pages.platform_dashboard_page import PlatformDashboardPage
 def test_webauthn_list_403_for_non_super(owner_user, tenant_client) -> None:
     """TC-PA-WEBAUTHN-1: regular owner → 401/403."""
     r = tenant_client(owner_user).get(routes.WEBAUTHN_LIST)
-    assert r.status_code == HTTPStatus.FORBIDDEN, \
-        f"expected 403, got {r.status_code}"
+    expect_response(r, label="WebAuthn list for non-super").status(HTTPStatus.FORBIDDEN)
 
 
 @allure.title("WebAuthn: список ключей пуст у нового суперадмина")
@@ -73,8 +74,9 @@ def test_webauthn_authenticate_begin_404_without_credentials(superadmin_user, te
         r = tenant_client(superadmin_user).post(routes.WEBAUTHN_AUTH_BEGIN)
 
     with step("проверка: 404 с no_webauthn_credentials"):
-        assert r.status_code == HTTPStatus.NOT_FOUND, \
-            f"expected 404, got {r.status_code}"
+        expect_response(
+            r, label="authenticate/begin without credentials",
+        ).status(HTTPStatus.NOT_FOUND)
         assert "no_webauthn_credentials" in r.text, \
             f"expected 'no_webauthn_credentials' in response: {r.text[:200]}"
 
@@ -89,8 +91,9 @@ def test_webauthn_register_complete_400_without_challenge(superadmin_user, tenan
         )
 
     with step("проверка: 400 no_pending_challenge"):
-        assert r.status_code == HTTPStatus.BAD_REQUEST, \
-            f"expected 400, got {r.status_code}"
+        expect_response(
+            r, label="register/complete without begin",
+        ).status(HTTPStatus.BAD_REQUEST)
 
 
 # ─────────────────────────────────────────────────────────────────────

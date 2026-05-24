@@ -75,6 +75,7 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
         expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Андрей")
         expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Сидоров")
         expect(
+            # no semantic: data-testid element, no role
             panel.container.locator('[data-testid="profile-dates"]'),
             ErrMsg.profile_dates_wrong,
         ).to_contain_text("1980")
@@ -83,6 +84,7 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
         # их было бы 4. Точный count ловит обе регрессии: «нет связей» и
         # «дубли».
         parents_group = panel.container.locator(
+            # no semantic: data-testid element, no role
             '[data-testid="profile-family-group"]', has_text=t(FamilyGroups.PARENTS),
         )
         expect(
@@ -95,12 +97,14 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
         click_family_link(panel, t(FamilyGroups.PARENTS), "Сергей")
         expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Сергей")
         expect(
+            # no semantic: data-testid element, no role
             panel.container.locator('[data-testid="profile-dates"]'),
             ErrMsg.profile_dates_wrong,
         ).to_contain_text("1950")
 
         # Bidirectional: Сергей → Андрей (в «Дети»). Ровно один ребёнок.
         children_group = panel.container.locator(
+            # no semantic: data-testid element, no role
             '[data-testid="profile-family-group"]', has_text=t(FamilyGroups.CHILDREN),
         )
         expect(
@@ -115,6 +119,7 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
     with step("проверка: навигация Сергей → Елена (супруга) и bidirectional spouse"):
         # Connection: Сергей → Елена (супруга). Ровно один супруг.
         spouse_group = panel.container.locator(
+            # no semantic: data-testid element, no role
             '[data-testid="profile-family-group"]', has_text=t(FamilyGroups.SPOUSE),
         )
         expect(
@@ -124,12 +129,14 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
         click_family_link(panel, t(FamilyGroups.SPOUSE), "Елена")
         expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Елена")
         expect(
+            # no semantic: data-testid element, no role
             panel.container.locator('[data-testid="profile-dates"]'),
             ErrMsg.profile_dates_wrong,
         ).to_contain_text("1952")
 
         # Bidirectional spouse: Елена → Сергей (count=1).
         elena_spouse_group = panel.container.locator(
+            # no semantic: data-testid element, no role
             '[data-testid="profile-family-group"]', has_text=t(FamilyGroups.SPOUSE),
         )
         expect(
@@ -149,10 +156,12 @@ def test_user_imports_three_generation_family_and_navigates_via_ui(
 
         # Iван (generation 1): daдy + место + год смерти.
         expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Иван")
+        # no semantic: data-testid element, no role
         dates_loc = panel.container.locator('[data-testid="profile-dates"]')
         expect(dates_loc, ErrMsg.profile_dates_wrong).to_contain_text("1920")
         expect(dates_loc, ErrMsg.profile_dates_wrong).to_contain_text("1990")
         expect(
+            # no semantic: data-testid element, no role
             panel.container.locator('[data-testid="profile-place"]'),
             ErrMsg.profile_place_wrong,
         ).to_contain_text("Краснодар")
@@ -185,10 +194,12 @@ def test_user_imports_cyrillic_data_renders_without_mojibake_via_ui(
         expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Аксёнов-Жёлтый")
 
         # Даты + место с буквой ё в имени села.
+        # no semantic: data-testid element, no role
         dates_loc = panel.container.locator('[data-testid="profile-dates"]')
         expect(dates_loc, ErrMsg.profile_dates_wrong).to_contain_text("1900")
         expect(dates_loc, ErrMsg.profile_dates_wrong).to_contain_text("1973")
         expect(
+            # no semantic: data-testid element, no role
             panel.container.locator('[data-testid="profile-place"]'),
             ErrMsg.profile_place_wrong,
         ).to_contain_text("Ёлкино")
@@ -231,6 +242,7 @@ def test_user_imports_minimal_indi_profile_renders_without_crash(
     with step("проверка: даты пустые и нет фантомных связей"):
         # Дата отсутствует — `[data-testid="profile-dates"]` либо empty, либо отсутствует.
         # Контракт: рендер не падает, даже если у profile нет жизненных дат.
+        # no semantic: data-testid element, no role
         dates_loc = panel.container.locator('[data-testid="profile-dates"]')
         if dates_loc.count() > 0:
             # Если элемент есть — он не должен содержать «1970», «1980» или
@@ -244,6 +256,7 @@ def test_user_imports_minimal_indi_profile_renders_without_crash(
         # Братья), но без relations: ни одной `<a data-action="open-profile">`
         # ссылки на родственника. Селектор `[data-testid="profile-family"]` — стабильный
         # контейнер (не зависит от локали section-title).
+        # no semantic: data-testid element, no role
         family_block = panel.container.locator('[data-testid="profile-family"]')
         expect(family_block, ErrMsg.element_not_visible).to_be_visible()
         expect(family_block.locator('a[data-action="open-profile"]'), ErrMsg.family_group_count_wrong).to_have_count(0)
@@ -274,6 +287,7 @@ def test_user_imports_indi_with_note_renders_biography_in_profile_story(
         expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Захар")
         expect(panel.title, ErrMsg.profile_title_wrong).to_contain_text("Семёнов")
 
+        # no semantic: data-testid element, no role
         story = panel.container.locator('[data-testid="profile-story"]')
         expect(story, ErrMsg.story_not_visible).to_be_visible()
         # Полный текст биографии (берём 3 опорные фразы — медаль, профессия,
@@ -309,6 +323,7 @@ def test_user_imports_male_and_female_show_correct_relation_label_in_orbit(
         # Orbit-cards вокруг Андрея. Кажда parent-card — отдельная `.orbit-card`
         # с `.orbit-card-relation` под именем. Фильтруем by name → один card
         # на родителя, читаем relation.
+        # no semantic: data-testid element, no role
         orbit_cards = owner_page.locator('[data-testid="orbit-card"]')
         sergey_card = orbit_cards.filter(has_text="Сергей").first
         elena_card = orbit_cards.filter(has_text="Елена").first
@@ -316,10 +331,12 @@ def test_user_imports_male_and_female_show_correct_relation_label_in_orbit(
         expect(elena_card, ErrMsg.orbit_card_not_visible).to_be_visible()
 
         expect(
+            # no semantic: data-testid element, no role
             sergey_card.locator('[data-testid="orbit-card-relation"]'),
             ErrMsg.orbit_card_relation_wrong,
         ).to_have_text(t(RelationLabels.FATHER))
         expect(
+            # no semantic: data-testid element, no role
             elena_card.locator('[data-testid="orbit-card-relation"]'),
             ErrMsg.orbit_card_relation_wrong,
         ).to_have_text(t(RelationLabels.MOTHER))
@@ -371,6 +388,7 @@ def test_user_reimports_same_file_does_not_duplicate_persons(
         # 2. У Андрея всё ещё ровно 2 родителя (не 4 — что было бы при дубле
         # relationship-rows).
         parents_group = panel.container.locator(
+            # no semantic: data-testid element, no role
             '[data-testid="profile-family-group"]', has_text=t(FamilyGroups.PARENTS),
         )
         expect(
