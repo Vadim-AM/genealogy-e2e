@@ -42,7 +42,7 @@ def test_owner_shares_card_anon_views_then_revoke_kills_link(
         should.any_match(share_list.items, lambda s: s.id == share_id, ErrMsg.share_not_in_list)
         for s in share_list.items:
             extra = s.model_extra or {}
-            should.be_false("url" in extra, ErrMsg.share_token_leaked)
+            should.be_false(extra.get("url"), ErrMsg.share_token_leaked)
 
     with step("действие: аноним видит карточку, после отзыва -- ошибку"):
         anon = browser.new_context()

@@ -35,7 +35,7 @@ def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
         grant_ai_consent(owner_user)
 
         panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
-        TreePage(owner_page).expect_authed_state()
+        TreePage(owner_page).wait_for_auth_resolved()
 
     with step("действие: запуск enrichment и принятие гипотезы"):
         panel.trigger_enrichment()
