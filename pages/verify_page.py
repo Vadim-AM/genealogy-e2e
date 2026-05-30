@@ -15,7 +15,7 @@ from .base import BasePage
 class VerifyPage(BasePage):
     URL = "/verify"
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         super().__init__(page)
 
     @property

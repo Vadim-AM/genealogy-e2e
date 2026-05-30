@@ -18,6 +18,8 @@ Fixture content lives in `fixtures/`:
 
 from __future__ import annotations
 
+import contextlib
+
 import allure
 import pytest
 
@@ -41,7 +43,7 @@ pytest_plugins = (
 
 
 @pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(item, call):
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):  # type: ignore[type-arg]
     outcome = yield
     report = outcome.get_result()
     setattr(item, f"rep_{report.when}", report)
@@ -49,14 +51,12 @@ def pytest_runtest_makereport(item, call):
     if report.when == "call" and report.failed:
         page = getattr(item, "_pw_page", None)
         if page is not None and not page.is_closed():
-            try:
+            with contextlib.suppress(OSError):
                 allure.attach(
                     page.screenshot(),
                     name="screenshot",
                     attachment_type=allure.attachment_type.PNG,
                 )
-            except OSError:
-                pass
 
 
 _DOMAIN_MARKERS = frozenset(
@@ -118,7 +118,7 @@ _SERIAL_FILES = frozenset(
 )
 
 
-def pytest_collection_modifyitems(items):
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Auto-apply markers by convention so individual files need no
     `pytestmark` lines:
 

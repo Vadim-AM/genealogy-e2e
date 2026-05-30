@@ -12,12 +12,13 @@
 from __future__ import annotations
 
 import json
-from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
+    from http import HTTPStatus
+
     import httpx
 
 T = TypeVar("T", bound=BaseModel)

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import allure
 from playwright.sync_api import Page, expect
 
 from assertions.base import should
-from fixtures.users import AuthUser
 from framework.step import step
 from pages.owner_page import OwnerPage
 from pages.tree_page import TreePage
@@ -17,6 +18,9 @@ from test_data.gedcom.samples import (
     GEDCOM_THREE_GEN,
     GEDCOM_WITH_NOTE,
 )
+
+if TYPE_CHECKING:
+    from fixtures.users import AuthUser
 
 
 @allure.title("GEDCOM: импорт 3 поколений и навигация по семейным связям")

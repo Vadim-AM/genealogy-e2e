@@ -15,7 +15,7 @@ from .base import BasePage
 class WaitPage(BasePage):
     URL = "/wait"
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         super().__init__(page)
 
     @property
@@ -73,7 +73,7 @@ class WaitPage(BasePage):
 
     def is_email_valid(self) -> bool:
         """Return the HTML5 validity state of the email input."""
-        return self.page.evaluate("() => document.getElementById('email').checkValidity()")
+        return bool(self.page.evaluate("() => document.getElementById('email').checkValidity()"))
 
     def page_content(self) -> str:
         """Return the full HTML content of the page."""

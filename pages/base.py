@@ -8,11 +8,12 @@ Pattern:
 
 from __future__ import annotations
 
-from typing import Self
-
-from playwright.sync_api import Locator, Page
+from typing import TYPE_CHECKING, Self
 
 from framework.step import step
+
+if TYPE_CHECKING:
+    from playwright.sync_api import Dialog, Locator, Page
 
 _CS_WRAPPER = '[data-testid="custom-select"]:has(+ select[data-field="{}"])'
 _CS_TRIGGER = '[data-testid="custom-select-trigger"]'
@@ -50,3 +51,51 @@ class BasePage:
         """Wait for the DOM content to be loaded."""
         with step("ожидание: загрузка DOM"):
             self.page.wait_for_load_state("domcontentloaded")
+
+    # ── Document-level measurements (shared by ui/responsive tests) ──
+
+    def html_lang(self) -> str:
+        """Return the document's <html lang> attribute value."""
+        return str(self.page.evaluate("() => document.documentElement.lang"))
+
+    def seed_local_storage(self, key: str, value: str) -> Self:
+        """Pre-seed a localStorage key via init script (before navigation)."""
+        self.page.add_init_script(
+            f"try {{ localStorage.setItem({key!r}, {value!r}); }} catch (e) {{}}"
+        )
+        return self
+
+    def has_horizontal_overflow(self) -> bool:
+        """Whether the document overflows horizontally (scrollWidth > clientWidth)."""
+        return bool(
+            self.page.evaluate(
+                "() => document.documentElement.scrollWidth"
+                " > document.documentElement.clientWidth"
+            )
+        )
+
+    def element_size(self, locator: Locator) -> tuple[float, float]:
+        """Return (width, height) of a rendered element's bounding box."""
+        box = locator.bounding_box()
+        if box is None:
+            raise RuntimeError("bounding_box() is None — element not rendered")
+        return box["width"], box["height"]
+
+    def element_right_edge(self, locator: Locator) -> float:
+        """Return the x-coordinate of an element's right edge (x + width)."""
+        box = locator.bounding_box()
+        if box is None:
+            raise RuntimeError("bounding_box() is None — element not rendered")
+        return box["x"] + box["width"]
+
+    def watch_dialogs(self) -> list[str]:
+        """Register a JS-dialog listener; the returned list fills with any
+        alert/confirm/prompt messages — used to detect an executed XSS payload."""
+        messages: list[str] = []
+
+        def _on_dialog(dialog: Dialog) -> None:
+            messages.append(dialog.message)
+            dialog.dismiss()
+
+        self.page.on("dialog", _on_dialog)
+        return messages

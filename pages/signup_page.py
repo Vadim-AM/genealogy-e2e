@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Self
 from playwright.sync_api import Locator, Page, expect
 
 if TYPE_CHECKING:
-    from playwright.sync_api import Expect
+    from playwright.sync_api import Expect, Route
 
 from framework.step import step
 from src.texts import Buttons, Labels, t
@@ -20,7 +20,7 @@ from .base import BasePage
 class SignupPage(BasePage):
     URL = "/signup"
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         super().__init__(page)
 
     # ── Locator properties ──────────────────────────────────────────
@@ -160,7 +160,7 @@ class SignupPage(BasePage):
 
     def check_password_validity(self) -> bool:
         """Return the HTML5 checkValidity() result for the password field."""
-        return self.page.evaluate("() => document.getElementById('password').checkValidity()")
+        return bool(self.page.evaluate("() => document.getElementById('password').checkValidity()"))
 
     def fill_honeypot_via_js(self, *, email: str, password: str, honeypot: str) -> None:
         """Fill form fields including the hidden honeypot via JS evaluate.
@@ -188,7 +188,7 @@ class SignupPage(BasePage):
     def mock_overflow_response(self, *, email: str, subscribed: bool = True) -> None:
         """Intercept POST /api/account/signup and return waitlist_required."""
 
-        def _handler(route) -> None:
+        def _handler(route: Route) -> None:
             route.fulfill(
                 status=200,
                 content_type="application/json",

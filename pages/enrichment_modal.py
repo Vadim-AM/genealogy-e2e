@@ -26,7 +26,7 @@ from framework.step import step
 class EnrichmentModal:
     """Modal driving AI search, accept/reject hypotheses, view history."""
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         self.page = page
 
     # ── Locator properties ──────────────────────────────────────────

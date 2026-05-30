@@ -27,7 +27,7 @@ from .base import BasePage
 class PlatformDashboardPage(BasePage):
     URL = "/platform/dashboard"
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         super().__init__(page)
 
     # ── Original metric cards (TC-PA-2 contract) ─────────────────
