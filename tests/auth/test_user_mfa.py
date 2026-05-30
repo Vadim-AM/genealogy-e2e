@@ -32,7 +32,7 @@ def test_owner_enables_then_disables_2fa(owner_page: Page, owner_user: AuthUser,
     """Owner включает 2FA через TOTP → статус on → отключает → статус off."""
     with step("подготовка: открытие вкладки безопасности, статус выключен"):
         _ = pages.navigate_to(OwnerPage)
-        mfa = MfaSettings(owner_page).open_tab()
+        mfa = pages.create(MfaSettings).open_tab()
         expect(mfa.status_text, ErrMsg.mfa_status_wrong).to_contain_text(t(Mfa.STATUS_OFF))
 
     with step("действие: включение 2FA через TOTP"):

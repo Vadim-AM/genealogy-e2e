@@ -18,9 +18,12 @@ import pytest
 from pages.base import BasePage
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from playwright.sync_api import Page
 
-T = TypeVar("T", bound=BasePage)
+T = TypeVar("T")
+B = TypeVar("B", bound=BasePage)
 
 
 class PageFactory:
@@ -29,14 +32,18 @@ class PageFactory:
     def __init__(self, page: Page) -> None:
         self._page = page
 
-    def navigate_to(self, page_cls: type[T]) -> T:
-        """Create POM instance and navigate to its URL."""
+    def navigate_to(self, page_cls: type[B]) -> B:
+        """Create a full-page POM and navigate to its URL (requires goto/URL)."""
         instance = page_cls(self._page)
         instance.goto()
         return instance
 
-    def create(self, page_cls: type[T]) -> T:
-        """Create POM instance without navigation (already on the page)."""
+    def create(self, page_cls: Callable[[Page], T]) -> T:
+        """Create a POM or component bound to the current page (no navigation).
+
+        Accepts both BasePage subclasses and page-bound components
+        (modals, panels, dialogs) whose __init__ takes the Page.
+        """
         return page_cls(self._page)
 
     @property

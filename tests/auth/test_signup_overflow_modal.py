@@ -30,7 +30,7 @@ def test_waitlist_modal_opens_with_user_email_on_overflow_response(page: Page, a
         signup.submit()
 
     with step("проверка: модалка открылась с email и правильным title"):
-        modal = WaitlistModal(page)
+        modal = anon_pages.create(WaitlistModal)
         modal.expect_open()
         expect(modal.title, ErrMsg.wrong_text_content).to_contain_text(t(Waitlist.OVERFLOW_TITLE))
         expect(modal.body, ErrMsg.wrong_text_content).to_contain_text(test_email)
@@ -51,7 +51,7 @@ def test_waitlist_modal_ok_button_redirects_to_landing(page: Page, anon_pages: P
         signup.submit()
 
     with step("действие: клик 'Понятно' и проверка redirect"):
-        modal = WaitlistModal(page)
+        modal = anon_pages.create(WaitlistModal)
         modal.expect_open()
         modal.click_ok()
         page.wait_for_url("**/")
@@ -68,7 +68,7 @@ def test_waitlist_modal_esc_closes_without_redirect(page: Page, anon_pages: Page
         signup.fill_required(email=test_email, password=TestConfig.DEFAULT_PASSWORD)
         signup.submit()
 
-        modal = WaitlistModal(page)
+        modal = anon_pages.create(WaitlistModal)
         modal.expect_open()
 
     with step("действие: нажатие Esc"):
@@ -91,6 +91,6 @@ def test_waitlist_modal_shows_wait_link_when_auto_subscribe_failed(page: Page, a
         signup.submit()
 
     with step("проверка: модалка показывает fallback-ссылку /wait"):
-        modal = WaitlistModal(page)
+        modal = anon_pages.create(WaitlistModal)
         modal.expect_open()
         expect(modal.fallback_link(), ErrMsg.link_not_visible).to_be_visible()

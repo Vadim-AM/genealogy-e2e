@@ -74,7 +74,7 @@ def test_custom_select_closes_on_escape_keyboard(owner_page: Page) -> None:
 
 
 @allure.title("Диалог подтверждения: Escape отменяет удаление персоны")
-def test_confirm_dialog_escape_cancels(owner_page: Page) -> None:
+def test_confirm_dialog_escape_cancels(owner_page: Page, pages: PageFactory) -> None:
     """TC-20.02 (Esc): открываем confirmDialog через delete-flow на."""
     with step("подготовка: открыть editor и listener на DELETE"):
         editor = open_editor_for(owner_page, person_id="demo-grandpa")
@@ -88,7 +88,7 @@ def test_confirm_dialog_escape_cancels(owner_page: Page) -> None:
 
     with step("действие: открыть confirm-dialog через delete"):
         editor.delete()
-        dialog = ConfirmDialog(owner_page)
+        dialog = pages.create(ConfirmDialog)
         dialog.expect_visible()
 
     with step("действие: нажать Escape"):
@@ -157,7 +157,7 @@ def test_about_tab_shows_placeholder_when_about_text_is_empty(pages: PageFactory
 
 
 @allure.title("Родственник: при 409-конфликте модалка остаётся открытой")
-def test_add_relative_shows_error_on_409_conflict(owner_page: Page) -> None:
+def test_add_relative_shows_error_on_409_conflict(owner_page: Page, pages: PageFactory) -> None:
     """TC-09.10: при попытке создать дубликат person backend возвращает."""
 
     with step("подготовка: подменить API на 409 через route"):
@@ -178,7 +178,7 @@ def test_add_relative_shows_error_on_409_conflict(owner_page: Page) -> None:
         panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
 
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
         modal.fill_and_save(surname="Дубликат", given="Тест")
 
@@ -207,12 +207,12 @@ def test_custom_select_arrow_down_then_enter_selects_option(owner_page: Page) ->
 
 
 @allure.title("Диалог подтверждения: Enter подтверждает удаление")
-def test_confirm_dialog_enter_confirms_delete(owner_page: Page) -> None:
+def test_confirm_dialog_enter_confirms_delete(owner_page: Page, pages: PageFactory) -> None:
     """TC-20.02 (Enter): Enter в открытом confirmDialog → resolve(true)."""
     with step("подготовка: открыть confirm-dialog через delete"):
         editor = open_editor_for(owner_page, person_id="demo-grandpa")
         editor.delete()
-        dialog = ConfirmDialog(owner_page)
+        dialog = pages.create(ConfirmDialog)
         dialog.expect_visible()
 
     with (
@@ -225,7 +225,7 @@ def test_confirm_dialog_enter_confirms_delete(owner_page: Page) -> None:
 
 
 @allure.title("Диалог подтверждения: клик по фону отменяет удаление")
-def test_confirm_dialog_backdrop_click_cancels(owner_page: Page) -> None:
+def test_confirm_dialog_backdrop_click_cancels(owner_page: Page, pages: PageFactory) -> None:
     """TC-20.02 (backdrop): click на overlay вне `.confirm-dialog`."""
     with step("подготовка: открыть editor и listener на DELETE"):
         editor = open_editor_for(owner_page, person_id="demo-grandpa")
@@ -239,7 +239,7 @@ def test_confirm_dialog_backdrop_click_cancels(owner_page: Page) -> None:
 
     with step("действие: открыть confirm-dialog"):
         editor.delete()
-        dialog = ConfirmDialog(owner_page)
+        dialog = pages.create(ConfirmDialog)
         dialog.expect_visible()
 
     with step("действие: кликнуть по backdrop"):

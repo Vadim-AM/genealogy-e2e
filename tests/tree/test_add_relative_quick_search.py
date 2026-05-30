@@ -21,12 +21,16 @@ if TYPE_CHECKING:
     import httpx
     from playwright.sync_api import Response
 
+    from fixtures.page_factory import PageFactory
     from fixtures.users import AuthUser
 
 
 @allure.title("Привязка существующего сиблинга создаёт только связь, не персону")
 def test_link_existing_sibling_creates_only_relationship(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Привязка существующего person'а создаёт только relationship, не дубликат."""
     with step("подготовка: создание существующей персоны"):
@@ -44,7 +48,7 @@ def test_link_existing_sibling_creates_only_relationship(
         panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
 
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
 
         modal.search_existing(surname="Иван")
@@ -85,7 +89,10 @@ def test_link_existing_sibling_creates_only_relationship(
 
 @allure.title("Отвязка привязанной персоны возвращает форму в режим создания")
 def test_unlink_existing_returns_to_create_mode(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Отвязка возвращает форму в create-mode, правка + Save создаёт нового."""
     with step("подготовка: создание существующей персоны"):
@@ -103,7 +110,7 @@ def test_unlink_existing_returns_to_create_mode(
         panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
 
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
         modal.search_existing(surname="Семён")
         modal.expect_dropdown_open()
@@ -129,14 +136,17 @@ def test_unlink_existing_returns_to_create_mode(
 
 @allure.title("Автоподсказка исключает текущую персону из списка")
 def test_dropdown_excludes_self(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Dropdown исключает currentPerson из результатов поиска."""
     with step("действие: поиск по подстроке имени текущей персоны"):
         panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
 
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
         modal.search_existing(given="Польз")
 
@@ -149,7 +159,10 @@ def test_dropdown_excludes_self(
 
 @allure.title("Стрелка вниз и Enter выбирают кандидата из автоподсказки")
 def test_keyboard_arrow_down_enter_picks_first_candidate(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """ArrowDown + Enter выбирает первого кандидата из dropdown."""
     with step("подготовка: создание персоны для клавиатурного выбора"):
@@ -166,7 +179,7 @@ def test_keyboard_arrow_down_enter_picks_first_candidate(
         panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
 
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
         modal.search_existing(surname="Глеб")
         modal.expect_dropdown_open()
@@ -178,7 +191,10 @@ def test_keyboard_arrow_down_enter_picks_first_candidate(
 
 @allure.title("Esc закрывает выпадающий список, но не модалку добавления")
 def test_escape_closes_dropdown_keeps_modal(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Esc закрывает dropdown, но не модалку добавления."""
     with step("подготовка: создание персоны и открытие dropdown"):
@@ -194,7 +210,7 @@ def test_escape_closes_dropdown_keeps_modal(
         panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
 
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
         modal.search_existing(surname="Антон")
         modal.expect_dropdown_open()

@@ -35,7 +35,7 @@ def test_owner_clears_demo_relatives(
 
     with step("действие: удаление демо-родственников через UI"):
         owner = pages.navigate_to(OwnerPage)
-        dialog = ConfirmDialog(owner_page)
+        dialog = pages.create(ConfirmDialog)
         with owner_page.expect_response("**/api/onboarding/clear-demo"):
             owner.click_clear_demo()
             dialog.expect_visible()
@@ -58,7 +58,7 @@ def test_owner_keeps_demo_as_template(
 
     with step("действие: сохранение демо-данных как шаблона"):
         owner = pages.navigate_to(OwnerPage)
-        dialog = ConfirmDialog(owner_page)
+        dialog = pages.create(ConfirmDialog)
         with owner_page.expect_response("**/api/onboarding/keep-demo"):
             owner.click_keep_demo()
             dialog.expect_visible()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import allure
 from playwright.sync_api import Page, expect
@@ -15,13 +16,16 @@ from pages.photos_block import PhotosBlock
 from pages.profile_panel import open_editor_for
 from src.texts import Buttons, ErrMsg, t
 
+if TYPE_CHECKING:
+    from fixtures.page_factory import PageFactory
+
 
 @allure.title("Блок фото отображается в редакторе с кнопкой добавления")
-def test_photos_block_renders_inside_editor(owner_page: Page) -> None:
+def test_photos_block_renders_inside_editor(owner_page: Page, pages: PageFactory) -> None:
     """Photos-block содержит file-input и кнопку добавления."""
     with step("действие: открытие редактора"):
         open_editor_for(owner_page)
-        photos = PhotosBlock(owner_page)
+        photos = pages.create(PhotosBlock)
 
     with step("проверка: кнопка добавления и file-input видны"):
         expect(photos.container, ErrMsg.photo_not_visible).to_be_visible()
@@ -35,11 +39,11 @@ def test_photos_block_renders_inside_editor(owner_page: Page) -> None:
 
 
 @allure.title("Загрузка фото добавляет миниатюру в сетку")
-def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page) -> None:
+def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page, pages: PageFactory) -> None:
     """Upload JPEG через file-input добавляет thumb в grid."""
     with step("подготовка: открытие редактора и подсчёт миниатюр"):
         open_editor_for(owner_page)
-        photos = PhotosBlock(owner_page)
+        photos = pages.create(PhotosBlock)
         initial_thumbs = photos.thumb_count()
 
     with (
@@ -53,11 +57,11 @@ def test_photo_upload_via_file_input_appends_thumb_to_grid(owner_page: Page) -> 
 
 
 @allure.title("Удаление фото убирает миниатюру из сетки")
-def test_photo_remove_button_drops_thumb_from_grid(owner_page: Page) -> None:
+def test_photo_remove_button_drops_thumb_from_grid(owner_page: Page, pages: PageFactory) -> None:
     """Удаление thumb через .photo-remove уменьшает count обратно."""
     with step("подготовка: открыть редактор и загрузить фото"):
         open_editor_for(owner_page)
-        photos = PhotosBlock(owner_page)
+        photos = pages.create(PhotosBlock)
         initial = photos.thumb_count()
 
         with owner_page.expect_response(lambda r: routes.UPLOAD_PHOTO in r.url and r.status == HTTPStatus.OK):
