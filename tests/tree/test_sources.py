@@ -76,7 +76,7 @@ def test_source_record_crud_lifecycle(owner_user: AuthUser, tenant_client: Calla
         api = tenant_client(owner_user)
 
         created = site_api.create_source(api, name=TestData.SOURCE_NAME)
-        sid = created.id
+        sid = should.not_none(created.id, ErrMsg.response_field_wrong)
 
     with step("действие: переименовать источник"):
         patched = api.patch(routes.source(sid), json={"name": TestData.SOURCE_NAME_PATCHED})

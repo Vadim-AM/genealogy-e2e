@@ -42,8 +42,8 @@ def test_enrichment_endpoint_returns_mocked_output(
         final = enrichment_api.poll_enrichment_job(api, started.job_id)
 
     with step("проверка: mock-результат содержит ЦАМО"):
-        should.not_none(final.output, ErrMsg.enrichment_output_none)
-        archive_suggestions = final.output["archive_suggestions"]
+        output = should.not_none(final.output, ErrMsg.enrichment_output_none)
+        archive_suggestions = output["archive_suggestions"]
         should.any_match(
             archive_suggestions,
             lambda a: "ЦАМО" in a["name"],

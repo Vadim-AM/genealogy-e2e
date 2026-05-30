@@ -98,10 +98,10 @@ def test_settings_patch_writes_audit_entry(
         should.greater_or_equal(len(audit.items), 1, ErrMsg.audit_entry_missing)
         latest = audit.items[0]
         should.be_equal(latest.action, "settings_patch", ErrMsg.audit_action_wrong)
-        target_type = latest.model_extra.get("target_type")
+        target_type = (latest.model_extra or {}).get("target_type")
         should.be_equal(target_type, "platform_settings", ErrMsg.audit_action_wrong)
         # Payload содержит changes + before
-        payload = latest.model_extra.get("payload", {})
+        payload = (latest.model_extra or {}).get("payload", {})
         should.be_in("changes", payload, ErrMsg.audit_payload_wrong)
         should.be_equal(payload["changes"]["soft_warn_threshold"], new_value, ErrMsg.audit_payload_wrong)
 
@@ -124,8 +124,7 @@ def test_audit_log_ip_hash_is_hex_not_raw_ip(
 
     with step("проверка: ip_hash — 16-символьный hex, не IPv4"):
         should.have_length(audit.items, 1, ErrMsg.audit_entry_missing)
-        ip_hash = audit.items[0].ip_hash
-        should.not_none(ip_hash, ErrMsg.audit_ip_hash_wrong)
+        ip_hash = should.not_none(audit.items[0].ip_hash, ErrMsg.audit_ip_hash_wrong)
         should.be_true(re.match(r"^[0-9a-f]{16}$", ip_hash), ErrMsg.audit_ip_hash_wrong)
         # Не должно выглядеть как IPv4
         should.be_false(re.match(r"^\d+\.\d+\.\d+\.\d+", ip_hash), ErrMsg.audit_ip_raw)

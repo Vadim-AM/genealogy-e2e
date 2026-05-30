@@ -120,7 +120,7 @@ def scan_file(path: Path, root: Path) -> list[tuple[Path, int, str, str]]:
 
 def collect_targets(root: Path) -> list[Path]:
     scan_dirs = ["tests", "pages", "helpers"]
-    targets = []
+    targets: list[Path] = []
     for d in scan_dirs:
         scan_root = root / d
         if scan_root.exists():

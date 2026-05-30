@@ -57,8 +57,9 @@ def test_admin_waitlist_lifecycle(
         api = tenant_client(superadmin_user)
         r = api.get(routes.ADMIN_WAITLIST)
         items = expect_response(r, label="GET admin/waitlist").status_ok().data
-        sub = next((s for s in items if s["email"] == email), None)
-        should.be_true(sub, ErrMsg.item_not_found)
+        sub = should.not_none(
+            next((s for s in items if s["email"] == email), None), ErrMsg.item_not_found
+        )
 
     with step("действие: помечаем contacted и удаляем подписчика"):
         expect_response(

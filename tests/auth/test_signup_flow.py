@@ -73,7 +73,7 @@ def test_verify_email_auto_logs_in_via_set_cookie(page: Page, base_url: str, ano
         mail = httpx.get(f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": email})
         mail_data = expect_response(mail, label="last-email").status_ok().schema(EmailResponse)
         m = re.search(r"token=([\w\-]+)", mail_data.text_body or "")
-        should.not_none(m, ErrMsg.verify_token_missing)
+        m = should.not_none(m, ErrMsg.verify_token_missing)
         token = m.group(1)
 
     with step("действие: verify-email и проверка auto_login"):
@@ -108,7 +108,7 @@ def test_signup_then_verify_creates_tenant(page: Page, base_url: str, anon_pages
         mail = httpx.get(f"{base_url}{routes.TEST_LAST_EMAIL}", params={"to": email})
         mail_data = expect_response(mail, label="last-email").status_ok().schema(EmailResponse)
         m = re.search(r"token=([\w\-]+)", mail_data.text_body or "")
-        should.not_none(m, ErrMsg.verify_token_missing)
+        m = should.not_none(m, ErrMsg.verify_token_missing)
         token = m.group(1)
 
     with step("действие: верификация email через UI"):

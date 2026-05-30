@@ -63,5 +63,5 @@ def test_health_endpoint_via_browser(page: Page) -> None:
         response = page.goto(routes.HEALTH)
 
     with step("проверка: endpoint доступен и отвечает 200"):
-        should.not_none(response, ErrMsg.page_navigation_failed)
+        response = should.not_none(response, ErrMsg.page_navigation_failed)
         should.be_equal(response.status, HTTPStatus.OK, ErrMsg.health_status_wrong)  # noqa: drift

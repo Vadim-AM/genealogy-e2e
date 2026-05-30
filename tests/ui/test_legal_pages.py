@@ -29,7 +29,7 @@ def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: st
     with step("действие: загрузить юридическую страницу"):
         legal = LegalPage(page, path)
         response = page.goto(path)
-        should.not_none(response, ErrMsg.page_navigation_failed)
+        response = should.not_none(response, ErrMsg.page_navigation_failed)
         should.be_equal(response.status, HTTPStatus.OK, ErrMsg.status_mismatch)
         content_type = (response.headers.get("content-type") or "").lower()
         should.contain(content_type, "text/html", ErrMsg.content_type_not_html)

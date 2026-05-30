@@ -7,6 +7,6 @@ def parent_rel(parent_id: str, child_id: str) -> dict:
 
 
 def person_payload(id: str, name: str, **extra: object) -> dict:
-    base = {"id": id, "name": name, "branch": "paternal", "gender": "m"}
+    base: dict[str, object] = {"id": id, "name": name, "branch": "paternal", "gender": "m"}
     base.update(extra)
     return base

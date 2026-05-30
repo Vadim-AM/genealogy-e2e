@@ -55,7 +55,7 @@ def tablet_owner_page(
 
     failed = getattr(getattr(request.node, "rep_call", None), "failed", False)
     if failed:
-        trace_path = tmp_path / "trace-tablet.zip"
+        trace_path: Path | None = tmp_path / "trace-tablet.zip"
         try:
             ctx.tracing.stop(path=str(trace_path))
         except OSError:

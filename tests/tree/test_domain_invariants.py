@@ -225,7 +225,7 @@ def test_patch_person_huge_notes_is_rejected(
     )
     expect_response(r, label="50KB notes rejected").status(
         HTTPStatus.BAD_REQUEST,
-        HTTPStatus.CONTENT_TOO_LARGE,
+        HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
         HTTPStatus.UNPROCESSABLE_ENTITY,
     )
 
@@ -242,6 +242,6 @@ def test_patch_person_huge_surname_is_rejected(
     )
     expect_response(r, label="5K-char surname rejected").status(
         HTTPStatus.BAD_REQUEST,
-        HTTPStatus.CONTENT_TOO_LARGE,
+        HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
         HTTPStatus.UNPROCESSABLE_ENTITY,
     )
