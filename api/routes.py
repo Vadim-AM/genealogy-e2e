@@ -186,6 +186,11 @@ def tenant_invite_accept(token: str) -> str:
     return f"/api/account/tenant/invites/{token}/accept"
 
 
+def tenant_invite_check(token: str) -> str:
+    """Return path to check a tenant invite's validity (called by the accept page)."""
+    return f"/api/account/tenant/invites/{token}/check"
+
+
 def person(pid: str) -> str:
     """Return path for a specific person."""
     return f"/api/people/{pid}"
