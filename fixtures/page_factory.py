@@ -62,3 +62,13 @@ def pages(owner_page: Page) -> PageFactory:
 def anon_pages(page: Page) -> PageFactory:
     """PageFactory bound to an anonymous (unauthenticated) page."""
     return PageFactory(page)
+
+
+@pytest.fixture
+def make_pages() -> Callable[[Page], PageFactory]:
+    """Return a PageFactory builder for an arbitrary page.
+
+    Used by custom-viewport tests (mobile/tablet) and manual BrowserContexts,
+    which the page-bound `pages`/`anon_pages` fixtures cannot serve.
+    """
+    return PageFactory

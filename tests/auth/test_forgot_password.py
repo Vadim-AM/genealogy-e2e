@@ -53,7 +53,7 @@ def test_forgot_password_full_flow_user_logs_in_with_new_password(
     with step("проверка: старый пароль не работает"):
         page.wait_for_url("**/login")
 
-        login = LoginPage(page)
+        login = anon_pages.create(LoginPage)
         login.expect_visible_form()
         login.login(owner_user.email, owner_user.password)
         login.expect_error()
@@ -61,7 +61,7 @@ def test_forgot_password_full_flow_user_logs_in_with_new_password(
     with step("проверка: вход с новым паролем успешен"):
         login.login(owner_user.email, _NEW_PASSWORD)
         page.wait_for_url("**/")
-        tree = TreePage(page)
+        tree = anon_pages.create(TreePage)
         expect(tree.auth_user_name, ErrMsg.auth_name_wrong).to_have_text(TestData.DEFAULT_FULL_NAME)
 
 

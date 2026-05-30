@@ -18,7 +18,9 @@ from src.texts import ErrMsg
 from test_data.devices.descriptors import DEVICE_DESCRIPTORS
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
+
+    from fixtures.page_factory import PageFactory
 
 
 @pytest.fixture(params=list(DEVICE_DESCRIPTORS), ids=list(DEVICE_DESCRIPTORS))
@@ -54,10 +56,12 @@ def mobile_page(mobile_context: BrowserContext) -> Iterator[Page]:
 
 
 @allure.title("Мобильный: лендинг показывает древо без горизонтального скролла")
-def test_landing_loads_and_shows_demo_tree_on_mobile(mobile_page: Page) -> None:
+def test_landing_loads_and_shows_demo_tree_on_mobile(
+    mobile_page: Page, make_pages: Callable[[Page], PageFactory]
+) -> None:
     """TC-MOBILE-1: лендинг рендерится, treeContainer виден, нет horizontal scroll."""
     with step("действие: загрузить лендинг на мобильном"):
-        tree = TreePage(mobile_page).goto_and_load()
+        tree = make_pages(mobile_page).create(TreePage).goto_and_load()
 
     with step("проверка: treeContainer виден"):
         expect(tree.tree_container, ErrMsg.tree_not_rendered).to_be_visible()
@@ -69,10 +73,10 @@ def test_landing_loads_and_shows_demo_tree_on_mobile(mobile_page: Page) -> None:
 
 
 @allure.title("Мобильный: вкладки Древо и О проекте кликабельны")
-def test_landing_tabs_clickable_on_mobile(mobile_page: Page) -> None:
+def test_landing_tabs_clickable_on_mobile(mobile_page: Page, make_pages: Callable[[Page], PageFactory]) -> None:
     """TC-MOBILE-2: гостевые вкладки (Древо + О проекте) кликаются и."""
     with step("действие: загрузить лендинг"):
-        tree = TreePage(mobile_page).goto_and_load()
+        tree = make_pages(mobile_page).create(TreePage).goto_and_load()
 
     with step("проверка: вкладки видны и кликаются"):
         for tab_name in ("tree", "about"):
@@ -83,10 +87,12 @@ def test_landing_tabs_clickable_on_mobile(mobile_page: Page) -> None:
 
 
 @allure.title("Мобильный: бета-карточка с CTA видна гостю в About")
-def test_about_beta_card_visible_for_guest_on_mobile(mobile_page: Page) -> None:
+def test_about_beta_card_visible_for_guest_on_mobile(
+    mobile_page: Page, make_pages: Callable[[Page], PageFactory]
+) -> None:
     """TC-MOBILE-3 (P1.2.3): на мобайле в About-вкладке гость видит beta-card."""
     with step("действие: открыть About на мобильном"):
-        tree = TreePage(mobile_page).goto_and_load()
+        tree = make_pages(mobile_page).create(TreePage).goto_and_load()
         tree.switch_tab("about")
 
     with step("проверка: бета-карточка с CTA на /wait видна"):
@@ -95,15 +101,13 @@ def test_about_beta_card_visible_for_guest_on_mobile(mobile_page: Page) -> None:
 
 
 @allure.title("Мобильный: форма регистрации заполняется и отправляется")
-def test_signup_form_submittable_on_mobile(mobile_page: Page, base_url: str) -> None:
+def test_signup_form_submittable_on_mobile(mobile_page: Page, make_pages: Callable[[Page], PageFactory]) -> None:
     """TC-MOBILE-4: signup-форма работоспособна с touch — поля заполняются,."""
     with step("подготовка: открыть signup на мобильном"):
-        signup = SignupPage(mobile_page).goto_and_load()
+        signup = make_pages(mobile_page).create(SignupPage).goto_and_load()
 
     with step("действие: заполнить форму валидными данными"):
-        signup.fill_credentials(
-            email=make_email("mobile-smoke"), password=TestConfig.DEFAULT_PASSWORD
-        )
+        signup.fill_credentials(email=make_email("mobile-smoke"), password=TestConfig.DEFAULT_PASSWORD)
         # Wave-9: privacy/cross-border объединены с terms_accepted; форма
         # имеет один `#agreeTerms`.
         signup.agree_terms.check()
@@ -127,10 +131,10 @@ def test_signup_form_submittable_on_mobile(mobile_page: Page, base_url: str) -> 
 
 
 @allure.title("Мобильный: форма вейтлиста на /wait работает на тачскрине")
-def test_wait_form_submittable_on_mobile(mobile_page: Page) -> None:
+def test_wait_form_submittable_on_mobile(mobile_page: Page, make_pages: Callable[[Page], PageFactory]) -> None:
     """TC-MOBILE-5: /wait — основной CTA для guest'ов в бета-режиме."""
     with step("действие: открыть /wait и заполнить форму"):
-        wait = WaitPage(mobile_page).goto_and_load()
+        wait = make_pages(mobile_page).create(WaitPage).goto_and_load()
         expect(wait.email, ErrMsg.input_not_visible).to_be_visible()
         wait.fill_email("waitlist-mobile@e2e.local")
 

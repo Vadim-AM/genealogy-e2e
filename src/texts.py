@@ -623,7 +623,12 @@ class ErrMsg:
 
 
 def t(value: str | dict[str, Any]) -> Any:
-    """Pick the active-locale string (or pass through if not localised)."""
+    """Pick the active-locale string (or pass through if not localised).
+
+    Полиморфный резолвер каталога: возвращает значение по активной локали
+    (str для большинства строк, tuple для Brand.TITLE_FRAGMENTS) — отсюда
+    `-> Any` (сужение через @overload ломается на инвариантности dict).
+    """
     if isinstance(value, dict):
         if LOCALE not in value:
             raise KeyError(
