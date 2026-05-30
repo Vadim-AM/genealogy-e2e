@@ -8,6 +8,7 @@ Pattern:
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Self
 
 from framework.step import step
@@ -54,6 +55,10 @@ class BasePage:
 
     # ── Document-level measurements (shared by ui/responsive tests) ──
 
+    def page_title(self) -> str:
+        """Return the document title."""
+        return self.page.title()
+
     def html_lang(self) -> str:
         """Return the document's <html lang> attribute value."""
         return str(self.page.evaluate("() => document.documentElement.lang"))
@@ -61,7 +66,7 @@ class BasePage:
     def seed_local_storage(self, key: str, value: str) -> Self:
         """Pre-seed a localStorage key via init script (before navigation)."""
         self.page.add_init_script(
-            f"try {{ localStorage.setItem({key!r}, {value!r}); }} catch (e) {{}}"
+            f"try {{ localStorage.setItem({json.dumps(key)}, {json.dumps(value)}); }} catch (e) {{}}"
         )
         return self
 

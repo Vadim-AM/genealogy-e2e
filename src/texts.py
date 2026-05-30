@@ -538,7 +538,6 @@ class ErrMsg:
     server_error_on_injection = "Серверная ошибка при инъекции"
     sql_error_leaked_in_body = "SQL-ошибка утекла в тело ответа"
     sql_injection_changed_row_count = "Число персон изменилось после SQL-инъекции"
-    sql_payload_not_stored_literally = "SQL payload не сохранён как литеральный текст"
     demo_person_missing_after_injection = "Демо-персона исчезла после инъекции"
     timing_leak = "Обнаружена timing-утечка"
     hsts_on_http = "HSTS-заголовок на HTTP (должен быть только HTTPS)"

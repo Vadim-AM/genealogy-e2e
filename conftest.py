@@ -43,7 +43,7 @@ pytest_plugins = (
 
 
 @pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):  # type: ignore[type-arg]
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
     outcome = yield
     report = outcome.get_result()
     setattr(item, f"rep_{report.when}", report)
