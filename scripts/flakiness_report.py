@@ -16,6 +16,7 @@ import sys
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
+from typing import cast
 
 
 def parse_junit_xml(path: Path) -> list[dict[str, str]]:
@@ -70,7 +71,7 @@ def find_flaky(results: list[dict[str, str]], threshold: int = 1) -> list[dict[s
                 "fail_rate": f"{fails / len(statuses):.0%}",
             })
 
-    return sorted(flaky, key=lambda x: x["fails"], reverse=True)
+    return sorted(flaky, key=lambda x: cast("int", x["fails"]), reverse=True)
 
 
 def main(argv: list[str] | None = None) -> int:

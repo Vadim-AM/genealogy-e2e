@@ -322,8 +322,9 @@ def test_clicking_orbit_card_recenters_orbit_to_clicked_person(pages: PageFactor
         tree = pages.navigate_to(TreePage)
         target_card = tree.non_center_orbit_card()
         expect(target_card, ErrMsg.orbit_card_not_visible).to_be_visible()
-        target_pid = tree.orbit_card_person_id(target_card)
-        should.be_true(target_pid, ErrMsg.orbit_card_missing_pid)
+        target_pid = should.not_none(
+            tree.orbit_card_person_id(target_card), ErrMsg.orbit_card_missing_pid
+        )
 
     with step("действие: кликнуть по не-центральной карте"):
         tree.click_orbit_card(target_card)

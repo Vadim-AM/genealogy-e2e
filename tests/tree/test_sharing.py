@@ -49,14 +49,14 @@ def test_owner_shares_card_anon_views_then_revoke_kills_link(
         try:
             page = anon.new_page()
             page.goto(share_url)
-            share = SharePage(page)
-            share.expect_person_visible(TestData.DEFAULT_FULL_NAME.split()[0])
-            share.expect_no_edit_controls()
+            share_page = SharePage(page)
+            share_page.expect_person_visible(TestData.DEFAULT_FULL_NAME.split()[0])
+            share_page.expect_no_edit_controls()
 
             expect_response(api.delete(routes.share(share_id)), label="revoke share").status_ok()
 
             page.goto(share_url)
-            share.expect_error_visible()
+            share_page.expect_error_visible()
         finally:
             anon.close()
 

@@ -111,7 +111,7 @@ def test_step_up_writes_audit_event(
         should.greater_or_equal(len(audit.items), 1, ErrMsg.step_up_audit_missing)
         first = audit.items[0]
         should.be_equal(first.action, "step_up_verified", ErrMsg.audit_action_wrong)
-        payload = first.model_extra.get("payload", {})
+        payload = (first.model_extra or {}).get("payload", {})
         should.be_equal(payload.get("method"), "totp", ErrMsg.step_up_method_wrong)
 
 

@@ -101,7 +101,7 @@ def test_pricing_page_loads_html(page: Page) -> None:
     """TC-N1: GET /pricing.html → 200 + text/html."""
     with step("действие: загрузить /pricing.html"):
         r = page.goto("/pricing.html")
-        should.not_none(r, ErrMsg.page_navigation_failed)
+        r = should.not_none(r, ErrMsg.page_navigation_failed)
 
     with step("проверка: 200 и content-type text/html"):
         should.be_equal(r.status, HTTPStatus.OK, ErrMsg.status_mismatch)
@@ -163,7 +163,7 @@ def test_pricing_researcher_card_is_featured_by_position(
             (i for i, t in enumerate(items) if t["tier_name"] == "researcher"),
             None,
         )
-        should.not_none(researcher_idx, ErrMsg.tier_missing)
+        researcher_idx = should.not_none(researcher_idx, ErrMsg.tier_missing)
 
     with step("действие: загрузить страницу тарифов"):
         pricing = anon_pages.navigate_to(PricingPage)

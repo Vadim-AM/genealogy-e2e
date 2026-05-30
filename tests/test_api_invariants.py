@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import base64
 from http import HTTPStatus
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import allure
 import httpx
@@ -162,7 +162,7 @@ def test_relationship_delete_removes_the_edge(
         api = tenant_client(owner_user)
         before = relationship_api.get_relationships(api)
         should.not_empty(before, ErrMsg.demo_people_missing)
-        rel_id = before[0].id
+        rel_id = cast("str | int", should.not_none(before[0].id, ErrMsg.response_field_wrong))
 
     with step("действие: удалить первую связь"):
         relationship_api.delete_relationship(api, rel_id)
@@ -183,7 +183,8 @@ def test_subscription_current_and_cancel(
         sub = expect_response(r, label="subscription current").status_ok().schema(SubscriptionResponse)
 
     with step("проверка: тариф free, подписка None, cancel отклоняется"):
-        should.be_equal(sub.tenant["tier"], "free", ErrMsg.response_field_wrong)
+        tenant = should.not_none(sub.tenant, ErrMsg.response_field_wrong)
+        should.be_equal(tenant["tier"], "free", ErrMsg.response_field_wrong)
         should.be_none(sub.subscription, ErrMsg.response_field_wrong)
 
         cancelled = api.post(routes.SUBSCRIPTION_CANCEL)

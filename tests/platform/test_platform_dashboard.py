@@ -34,7 +34,7 @@ def test_platform_dashboard_loads_for_superadmin(
 
     with step("проверка: дашборд отвечает 200"):
         response = page.goto("/platform/dashboard")
-        should.not_none(response, ErrMsg.platform_navigation_failed)
+        response = should.not_none(response, ErrMsg.platform_navigation_failed)
         should.be_equal(response.status, HTTPStatus.OK, ErrMsg.status_mismatch)
 
 

@@ -78,8 +78,7 @@ def test_enrichment_cache_and_health_invariants(
 
     with step("действие: polling до завершения job"):
         final = enrichment_api.poll_enrichment_job(api, started.job_id)
-        enrichment_id = final.enrichment_id
-        should.not_none(enrichment_id, ErrMsg.enrichment_id_missing)
+        enrichment_id = should.not_none(final.enrichment_id, ErrMsg.enrichment_id_missing)
 
     with step("проверка: кэш, health, feedback и letters-sent"):
         cached = api.get(routes.enrich_cache(enrichment_id))
