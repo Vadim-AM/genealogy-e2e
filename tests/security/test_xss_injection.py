@@ -114,7 +114,12 @@ def test_site_name_xss_does_not_execute(
     with step("действие: записать XSS-payload в site_name"):
         site_api.patch_site_config(api, site_name=payload)
 
-    with step("проверка: главная рендерит payload как текст, без исполнения"):
+    with step("проверка: payload отрендерен как текст в title, но не исполнился"):
         tree.goto()
         tree.expect_tree_rendered()
         should.be_empty(dialogs, ErrMsg.xss_executed)
+        # Не vacuous: payload реально доходит до рендера (document.title) как
+        # литеральный текст. Если binding переключат на innerHTML без escape —
+        # сработает dialog-детектор; если payload вообще не дойдёт до title —
+        # упадёт этот assert.
+        should.contain(tree.page_title(), payload, ErrMsg.xss_payload_not_stored)
