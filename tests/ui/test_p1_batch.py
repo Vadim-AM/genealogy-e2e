@@ -308,8 +308,8 @@ def test_about_contact_box_shows_placeholder_when_contacts_empty(pages: PageFact
         tree.switch_tab("about")
 
     with step("проверка: контактные данные пусты"):
-        should.be_equal((tree.contact_text.text_content() or "").strip(), "", ErrMsg.contact_text_not_empty)
-        should.be_equal((tree.contact_email.text_content() or "").strip(), "", ErrMsg.contact_text_not_empty)
+        should.be_equal(tree.contact_text_value().strip(), "", ErrMsg.contact_text_not_empty)
+        should.be_equal(tree.contact_email_value().strip(), "", ErrMsg.contact_text_not_empty)
 
     with step("проверка: placeholder контактов виден"):
         expect(tree.contact_box_placeholder, ErrMsg.element_not_visible).to_be_visible()

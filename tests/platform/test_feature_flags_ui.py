@@ -14,37 +14,24 @@ from api import platform_api, routes
 from assertions.base import should
 from framework.response import expect_response
 from framework.step import step
-from pages.feature_flags_page import FeatureFlagsPage
 from src.texts import ErrMsg
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from playwright.sync_api import BrowserContext
-
     from fixtures.users import AuthUser
-
-
-def _open_feature_flags(
-    auth_context_factory: Callable[..., BrowserContext], superadmin_user: AuthUser
-) -> FeatureFlagsPage:
-    """Open the platform dashboard and return a FeatureFlagsPage POM."""
-    ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
-    page = ctx.new_page()
-    ff = FeatureFlagsPage(page)
-    ff.goto()
-    return ff
+    from pages.feature_flags_page import FeatureFlagsPage
 
 
 @allure.title("Флаги: секция Feature Flags видна на дашборде")
 def test_dashboard_has_feature_flags_section(
-    auth_context_factory: Callable[..., BrowserContext], superadmin_user: AuthUser
+    feature_flags: FeatureFlagsPage,
 ) -> None:
     """TC-N6: на /platform/dashboard есть секция Feature Flags."""
     with step("подготовка: открываем дашборд суперадмина"):
-        ff = _open_feature_flags(auth_context_factory, superadmin_user)
-        r = ff.page.goto("/platform/dashboard")
-        should.be_true(r is not None and r.status == HTTPStatus.OK, ErrMsg.platform_navigation_failed)
+        ff = feature_flags
+        r = ff.goto_with_response()
+        should.be_equal(r.status, HTTPStatus.OK, ErrMsg.platform_navigation_failed)
 
     with step("проверка: секция Feature Flags видна"):
         ff.expect_section_visible()
@@ -52,11 +39,11 @@ def test_dashboard_has_feature_flags_section(
 
 @allure.title("Флаги: секция содержит ровно 5 групп с заголовками")
 def test_feature_flags_has_five_groups(
-    auth_context_factory: Callable[..., BrowserContext], superadmin_user: AuthUser
+    feature_flags: FeatureFlagsPage,
 ) -> None:
     """TC-N6: секция содержит 5 групп с заголовками."""
     with step("подготовка: открываем дашборд и ждём секцию"):
-        ff = _open_feature_flags(auth_context_factory, superadmin_user)
+        ff = feature_flags
         ff.expect_section_visible()
 
     with step("проверка: ровно 5 групп с ожидаемыми заголовками"):
@@ -76,11 +63,11 @@ def test_feature_flags_has_five_groups(
 
 @allure.title("Флаги: каждый переключатель имеет tooltip с описанием")
 def test_feature_flags_have_tooltips(
-    auth_context_factory: Callable[..., BrowserContext], superadmin_user: AuthUser
+    feature_flags: FeatureFlagsPage,
 ) -> None:
     """TC-N6: каждый флаг имеет tooltip с описанием (атрибут title)."""
     with step("подготовка: открываем дашборд и ждём секцию"):
-        ff = _open_feature_flags(auth_context_factory, superadmin_user)
+        ff = feature_flags
         ff.expect_section_visible()
 
     with step("проверка: минимум 8 tooltip-элементов с описаниями"):
@@ -93,11 +80,11 @@ def test_feature_flags_have_tooltips(
 
 @allure.title("Флаги: toggle AI-поиска виден с атрибутом data-flag")
 def test_ai_search_toggle_visible(
-    auth_context_factory: Callable[..., BrowserContext], superadmin_user: AuthUser
+    feature_flags: FeatureFlagsPage,
 ) -> None:
     """TC-N6: toggle #ff_enable_ai_search присутствует в группе AI."""
     with step("подготовка: открываем дашборд и ждём секцию"):
-        ff = _open_feature_flags(auth_context_factory, superadmin_user)
+        ff = feature_flags
         ff.expect_section_visible()
 
     with step("проверка: toggle AI-поиска виден и имеет верный data-flag"):
@@ -107,7 +94,7 @@ def test_ai_search_toggle_visible(
 
 @allure.title("Флаги: toggle AI-поиска отражает значение False из БД")
 def test_ai_search_toggle_reflects_db_value_when_off(
-    auth_context_factory: Callable[..., BrowserContext], superadmin_user: AuthUser, uvicorn_server: str
+    feature_flags: FeatureFlagsPage, uvicorn_server: str
 ) -> None:
     """TC-N6: UI toggle отражает значение PlatformSettings.enable_ai_search."""
     with step("подготовка: устанавливаем enable_ai_search=False в БД"):
@@ -117,7 +104,7 @@ def test_ai_search_toggle_reflects_db_value_when_off(
         ).raise_for_status()
 
     with step("действие: открываем дашборд и ждём загрузку настроек"):
-        ff = _open_feature_flags(auth_context_factory, superadmin_user)
+        ff = feature_flags
         expect(ff.ai_search_toggle, ErrMsg.element_not_visible).to_be_visible()
         ff.wait_for_settings_loaded()
 
@@ -127,11 +114,11 @@ def test_ai_search_toggle_reflects_db_value_when_off(
 
 @allure.title("Флаги: клик по toggle добавляет класс .dirty на строку")
 def test_dirty_class_appears_on_toggle_change(
-    auth_context_factory: Callable[..., BrowserContext], superadmin_user: AuthUser
+    feature_flags: FeatureFlagsPage,
 ) -> None:
     """TC-N6: при клике на toggle строка получает класс .dirty."""
     with step("подготовка: открываем дашборд и ждём загрузку настроек"):
-        ff = _open_feature_flags(auth_context_factory, superadmin_user)
+        ff = feature_flags
         expect(ff.ai_search_toggle, ErrMsg.element_not_visible).to_be_visible()
         ff.wait_for_settings_loaded()
 

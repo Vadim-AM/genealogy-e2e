@@ -28,6 +28,10 @@ class InviteAcceptPage(BasePage):
         """Status message element."""
         return self.page.get_by_role("status")
 
+    def message_text(self) -> str:
+        """Return the status message text (empty string if none)."""
+        return self.message.text_content() or ""
+
     @property
     def link(self) -> Locator:
         """no semantic: dynamically populated href"""

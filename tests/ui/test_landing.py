@@ -77,8 +77,8 @@ def test_landing_has_main_tabs(page: Page, anon_pages: PageFactory) -> None:
 def test_landing_no_personal_owner_data(page: Page, anon_pages: PageFactory) -> None:
     """C-LND-3: public landing must not leak owner family names (PII)."""
     with step("действие: загрузить главную"):
-        _ = anon_pages.navigate_to(TreePage)
-        body = page.content()
+        tree = anon_pages.navigate_to(TreePage)
+        body = tree.page_html()
 
     with step("проверка: нет PII владельца в контенте"):
         for needle in PII.OWNER_FAMILY_NAMES:

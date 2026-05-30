@@ -61,7 +61,7 @@ def test_wait_submit_invalid_email_blocks_html5_validity(anon_pages: PageFactory
 
     with step("проверка: HTML5 validity false и result пуст"):
         should.be_false(wait.is_email_valid(), ErrMsg.html5_validity_passed)
-        should.be_equal((wait.result.text_content() or "").strip(), "", ErrMsg.result_text_not_empty)
+        should.be_equal(wait.result_text().strip(), "", ErrMsg.result_text_not_empty)
 
 
 @allure.title("Вейтлист: повторная подписка возвращает already_subscribed")

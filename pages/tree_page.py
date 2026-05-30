@@ -172,6 +172,14 @@ class TreePage(BasePage):
         """no semantic: content container"""
         return self.page.locator('[data-testid="contact-email"]')
 
+    def contact_text_value(self) -> str:
+        """Return the contact-text element's text content (empty if none)."""
+        return self.contact_text.text_content() or ""
+
+    def contact_email_value(self) -> str:
+        """Return the contact-email element's text content (empty if none)."""
+        return self.contact_email.text_content() or ""
+
     @property
     def contact_box_placeholder(self) -> Locator:
         """no semantic: placeholder container"""

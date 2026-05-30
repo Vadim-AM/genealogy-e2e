@@ -104,7 +104,7 @@ def test_owner_opens_own_invite_sees_warning_with_display_name(
     with step("проверка: предупреждение с display_name без slug"):
         expect(invite_page.message, ErrMsg.invite_message_wrong).to_contain_text(t(Invite.OWNER_WARNING))
 
-        msg_text = invite_page.message.text_content() or ""
+        msg_text = invite_page.message_text()
         should.contain(msg_text, TestData.DEFAULT_FULL_NAME, ErrMsg.display_name_not_in_message)
         should.not_contain(msg_text, owner_user.slug, ErrMsg.slug_leaked_in_message)
 
@@ -153,7 +153,7 @@ def test_anonymous_emailed_invite_is_magic_link_auto_accepted(
         expect(invite_page.message, ErrMsg.invite_message_wrong).to_contain_text(t(Invite.ADDED_TO_TREE))
         expect(invite_page.message, ErrMsg.invite_message_wrong).to_contain_text(TestData.DEFAULT_FULL_NAME)
         should.not_contain(
-            invite_page.message.text_content() or "",
+            invite_page.message_text(),
             owner_user.slug,
             ErrMsg.slug_leaked_in_message,
         )

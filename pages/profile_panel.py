@@ -188,6 +188,10 @@ class ProfilePanel:
         # no semantic: data-testid element, no role
         return self.container.locator('[data-testid="profile-dates"]')
 
+    def dates_text(self) -> str:
+        """Return the profile-dates element's text content (empty if none)."""
+        return self.dates.text_content() or ""
+
     @property
     def place(self) -> Locator:
         """Locator for `[data-testid="profile-place"]` inside the profile."""

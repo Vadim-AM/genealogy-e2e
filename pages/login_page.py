@@ -42,6 +42,10 @@ class LoginPage(BasePage):
         """Login error / status text container."""
         return self.page.get_by_role("status")
 
+    def error_text(self) -> str:
+        """Return the login error/status text (empty string if none)."""
+        return self.error_msg.text_content() or ""
+
     @property
     def form(self) -> Locator:
         """no semantic: form element by ID"""

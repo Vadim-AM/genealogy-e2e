@@ -97,11 +97,10 @@ def test_public_tiers_sorted_by_price_ascending(uvicorn_server: str) -> None:
 
 
 @allure.title("Тарифы: страница /pricing.html загружается как HTML")
-def test_pricing_page_loads_html(page: Page) -> None:
+def test_pricing_page_loads_html(anon_pages: PageFactory) -> None:
     """TC-N1: GET /pricing.html → 200 + text/html."""
     with step("действие: загрузить /pricing.html"):
-        r = page.goto("/pricing.html")
-        r = should.not_none(r, ErrMsg.page_navigation_failed)
+        r = anon_pages.create(PricingPage).goto_with_response()
 
     with step("проверка: 200 и content-type text/html"):
         should.be_equal(r.status, HTTPStatus.OK, ErrMsg.status_mismatch)
@@ -138,7 +137,7 @@ def test_pricing_cards_show_rub_symbol(page: Page, anon_pages: PageFactory) -> N
         expect(pricing.cards().first, ErrMsg.pricing_card_not_visible).to_be_visible()
 
     with step("проверка: символ ₽ присутствует"):
-        body_html = page.content()
+        body_html = pricing.page_html()
         should.contain(body_html, "₽", ErrMsg.rub_symbol_missing)
 
 
