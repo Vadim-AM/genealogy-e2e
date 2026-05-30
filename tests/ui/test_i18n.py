@@ -63,9 +63,11 @@ def test_signup_validation_error_detail_in_russian(uvicorn_server: str) -> None:
         #   - Pydantic 422 → `detail: list[{msg, loc, type}]`
         #   - Custom validator → `detail: str` (например "Value error, Пароль …")
         # Принимаем обе формы — критично что текст содержит кириллицу (rule #4).
+        # Нормализуем обе формы detail в единый текст → один assert (rule #2):
         detail = body.get("detail")
-        if isinstance(detail, list):
-            msgs = [item.get("msg", "") for item in detail if isinstance(item, dict)]
-            should.be_true(any(has_cyrillic(m) for m in msgs), ErrMsg.error_not_russian)
-        else:
-            should.be_true(has_cyrillic(str(detail)), ErrMsg.error_not_russian)
+        detail_text = (
+            " ".join(item.get("msg", "") for item in detail if isinstance(item, dict))
+            if isinstance(detail, list)
+            else str(detail)
+        )
+        should.be_true(has_cyrillic(detail_text), ErrMsg.error_not_russian)

@@ -14,14 +14,20 @@ from pages.tree_page import TreePage
 from src.texts import ErrMsg
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from playwright.sync_api import Expect
+
+    from fixtures.page_factory import PageFactory
 
 
 @allure.title("Адаптив 375px: регистрация без горизонтального скролла")
-def test_signup_card_no_horizontal_scroll_on_iphone_se(mobile_page: Page) -> None:
+def test_signup_card_no_horizontal_scroll_on_iphone_se(
+    mobile_page: Page, make_pages: Callable[[Page], PageFactory]
+) -> None:
     """TC-RESPONSIVE-1 (375): signup не вызывает горизонтальный скролл."""
     with step("действие: открыть signup на 375px"):
-        signup = SignupPage(mobile_page).goto_and_load()
+        signup = make_pages(mobile_page).create(SignupPage).goto_and_load()
 
     with step("проверка: нет горизонтального скролла"):
         # Не используем допуски — браузерный layout deterministic; любое
@@ -30,10 +36,12 @@ def test_signup_card_no_horizontal_scroll_on_iphone_se(mobile_page: Page) -> Non
 
 
 @allure.title("Адаптив 375px: иконка показа пароля видна и кликабельна")
-def test_signup_password_eye_toggle_visible_on_iphone_se(mobile_page: Page) -> None:
+def test_signup_password_eye_toggle_visible_on_iphone_se(
+    mobile_page: Page, make_pages: Callable[[Page], PageFactory]
+) -> None:
     """TC-RESPONSIVE-1 (375): #pwToggle (eye SVG) виден справа от поля пароля."""
     with step("действие: открыть signup на 375px"):
-        signup = SignupPage(mobile_page).goto_and_load()
+        signup = make_pages(mobile_page).create(SignupPage).goto_and_load()
 
     with step("проверка: pwToggle виден и достаточного размера"):
         toggle = signup.password_toggle
@@ -48,11 +56,11 @@ def test_signup_password_eye_toggle_visible_on_iphone_se(mobile_page: Page) -> N
 
 @allure.title("Адаптив 375px: чекбокс согласия не выходит за экран")
 def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
-    mobile_page: Page,
+    mobile_page: Page, make_pages: Callable[[Page], PageFactory]
 ) -> None:
     """TC-RESPONSIVE-1 (375): label consent-чекбокса не обрезается."""
     with step("действие: открыть signup на 375px"):
-        signup = SignupPage(mobile_page).goto_and_load()
+        signup = make_pages(mobile_page).create(SignupPage).goto_and_load()
 
     with step("проверка: чекбоксы согласия не выходят за viewport"):
         agree_rows = signup.agree_group
@@ -62,16 +70,16 @@ def test_signup_consent_checkbox_label_does_not_overflow_on_iphone_se(
 
         for i in range(count):
             row = agree_rows.nth(i)
-            should.less_or_equal(
-                signup.element_right_edge(row), 375, ErrMsg.element_overflows_viewport
-            )
+            should.less_or_equal(signup.element_right_edge(row), 375, ErrMsg.element_overflows_viewport)
 
 
 @allure.title("Адаптив 768px: все вкладки видны на iPad portrait")
-def test_all_authed_tabs_visible_on_ipad_portrait(tablet_owner_page: Page, soft_check: Expect) -> None:
+def test_all_authed_tabs_visible_on_ipad_portrait(
+    tablet_owner_page: Page, soft_check: Expect, make_pages: Callable[[Page], PageFactory]
+) -> None:
     """TC-RESPONSIVE-1 (768): все основные tabs видны без обрезаний."""
     with step("действие: загрузить главную на 768px"):
-        tree = TreePage(tablet_owner_page).goto_and_load()
+        tree = make_pages(tablet_owner_page).create(TreePage).goto_and_load()
 
     with step("проверка: все вкладки видны и в пределах viewport"):
         for tab_name in ("tree", "sources", "timeline", "about"):
