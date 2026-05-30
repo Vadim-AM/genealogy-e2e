@@ -34,10 +34,10 @@ def test_owner_clears_demo_relatives(
         should.greater(len(before), 1, ErrMsg.demo_seed_required)
 
     with step("действие: удаление демо-родственников через UI"):
-        _ = pages.navigate_to(OwnerPage)
+        owner = pages.navigate_to(OwnerPage)
         dialog = ConfirmDialog(owner_page)
         with owner_page.expect_response("**/api/onboarding/clear-demo"):
-            owner_page.locator("#clearDemo").click()  # no semantic: custom widget, no ARIA
+            owner.click_clear_demo()
             dialog.expect_visible()
             dialog.confirm()
 
@@ -57,10 +57,10 @@ def test_owner_keeps_demo_as_template(
         should.greater(len(before), 1, ErrMsg.demo_seed_required)
 
     with step("действие: сохранение демо-данных как шаблона"):
-        _ = pages.navigate_to(OwnerPage)
+        owner = pages.navigate_to(OwnerPage)
         dialog = ConfirmDialog(owner_page)
         with owner_page.expect_response("**/api/onboarding/keep-demo"):
-            owner_page.locator("#keepDemo").click()  # no semantic: custom widget, no ARIA
+            owner.click_keep_demo()
             dialog.expect_visible()
             dialog.confirm()
 

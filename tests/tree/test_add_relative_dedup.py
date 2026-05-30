@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     import httpx
+    from playwright.sync_api import Request, Route
 
     from fixtures.users import AuthUser
 
@@ -274,7 +275,7 @@ def test_suggestion_click_does_not_create_new_person(
     with step("действие: кликнуть suggestion и сохранить"):
         posted_people: list[str] = []
 
-        def _on_request(req):
+        def _on_request(req: Request) -> None:
             if req.method == "POST" and routes.PEOPLE in req.url and routes.PEOPLE + "-" not in req.url:
                 posted_people.append(req.url)
 
@@ -346,7 +347,7 @@ def test_suggestion_click_shows_error_on_backend_422(
 
     with step("действие: перехватить 422 и кликнуть suggestion"):
 
-        def _block_with_422(route):
+        def _block_with_422(route: Route) -> None:
             if route.request.method == "POST":
                 route.fulfill(
                     status=422,

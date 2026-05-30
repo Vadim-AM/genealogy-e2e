@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     import httpx
+    from playwright.sync_api import Response
 
     from fixtures.users import AuthUser
 
@@ -62,7 +63,7 @@ def test_link_existing_sibling_creates_only_relationship(
     with step("действие: Save и проверка что POST /people не было"):
         post_people_count = 0
 
-        def _track(response):
+        def _track(response: Response) -> None:
             nonlocal post_people_count
             if response.request.method == "POST" and response.url.endswith(routes.PEOPLE):
                 post_people_count += 1

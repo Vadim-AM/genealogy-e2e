@@ -12,6 +12,8 @@ Usage:
 
 from __future__ import annotations
 
+from typing import Any
+
 from config.settings import settings
 
 LOCALE = settings.locale
@@ -535,6 +537,9 @@ class ErrMsg:
     session_id_leaked = "Session ID утёк"
     server_error_on_injection = "Серверная ошибка при инъекции"
     sql_error_leaked_in_body = "SQL-ошибка утекла в тело ответа"
+    sql_injection_changed_row_count = "Число персон изменилось после SQL-инъекции"
+    sql_payload_not_stored_literally = "SQL payload не сохранён как литеральный текст"
+    demo_person_missing_after_injection = "Демо-персона исчезла после инъекции"
     timing_leak = "Обнаружена timing-утечка"
     hsts_on_http = "HSTS-заголовок на HTTP (должен быть только HTTPS)"
     permissions_policy_wrong = "Permissions-Policy не совпадает"
@@ -605,6 +610,8 @@ class ErrMsg:
     # XSS
     xss_handler_rendered = "XSS event handler отрендерился"
     xss_script_rendered = "XSS script отрендерился"
+    xss_executed = "XSS payload исполнился в браузере (появился JS-диалог)"
+    xss_payload_not_stored = "XSS payload не сохранён как литеральный текст"
 
     # Playwright response
     pw_response_status_wrong = "Статус Playwright-ответа не совпадает"
@@ -616,7 +623,7 @@ class ErrMsg:
 # ─────────────────────────────────────────────────────────────────────────
 
 
-def t(value):
+def t(value: str | dict[str, Any]) -> Any:
     """Pick the active-locale string (or pass through if not localised)."""
     if isinstance(value, dict):
         if LOCALE not in value:

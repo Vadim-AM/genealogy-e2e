@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     import httpx
+    from playwright.sync_api import Route
 
     from fixtures.users import AuthUser
 
@@ -201,7 +202,7 @@ def test_retry_after_error_resets_to_idle(owner_page: Page, owner_user: AuthUser
         owner = OwnerPage(owner_page).goto_import_tab()
 
         # Перехватываем POST /import-gedcom и возвращаем 500
-        def _block_500(route):
+        def _block_500(route: Route) -> None:
             if route.request.method == "POST":
                 route.fulfill(
                     status=HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -285,7 +286,7 @@ def test_backend_400_shows_friendly_error(owner_page: Page, owner_user: AuthUser
     with step("подготовка: перехват POST с ответом 400"):
         owner = OwnerPage(owner_page).goto_import_tab()
 
-        def _block_400(route):
+        def _block_400(route: Route) -> None:
             if route.request.method == "POST":
                 route.fulfill(
                     status=HTTPStatus.BAD_REQUEST,

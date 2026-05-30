@@ -28,7 +28,7 @@ from framework.step import step
 class MfaSettings:
     """Drives the owner's 2FA settings: enable, verify, recovery, disable."""
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         self.page = page
         self._secret: str | None = None
 

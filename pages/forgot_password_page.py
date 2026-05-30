@@ -21,7 +21,7 @@ from .base import BasePage
 class ForgotPasswordPage(BasePage):
     URL = "/account/forgot-password"
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         super().__init__(page)
 
     @property
@@ -80,7 +80,7 @@ class ForgotPasswordPage(BasePage):
 class ResetPasswordPage(BasePage):
     URL = "/account/reset-password"
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         super().__init__(page)
 
     @property

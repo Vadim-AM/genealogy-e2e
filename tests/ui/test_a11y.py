@@ -9,6 +9,7 @@ import allure
 from playwright.sync_api import Page, expect
 
 from assertions.base import should
+from config.constants import make_email
 from framework.step import step
 from pages.signup_page import SignupPage
 from src.texts import ErrMsg
@@ -30,7 +31,7 @@ def test_signup_short_password_sets_aria_invalid(page: Page, anon_pages: PageFac
         signup.remove_password_minlength()
 
     with step("действие: заполнить форму коротким паролем и отправить"):
-        signup.fill_credentials(email="a11y-server@e2e.example.com", password="short")  # < 8 chars — server rejects
+        signup.fill_credentials(email=make_email("a11y-server"), password="short")  # < 8 chars — server rejects
         # Wave-9: privacy/cross-border объединены с terms_accepted.
         signup.agree_terms.check()
 

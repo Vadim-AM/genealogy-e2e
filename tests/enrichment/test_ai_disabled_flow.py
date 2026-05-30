@@ -12,7 +12,6 @@ from playwright.sync_api import Page, expect
 
 from api import routes
 from assertions.base import should
-from fixtures.users import AuthUser
 from framework.response import expect_response
 from framework.step import step
 from pages.tree_page import TreePage
@@ -22,6 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from fixtures.page_factory import PageFactory
+    from fixtures.users import AuthUser
 
 
 @pytest.fixture(autouse=True)

@@ -24,7 +24,7 @@ from test_data.media.jpeg import MIN_JPEG_BYTES
 class PhotosBlock:
     """Drives the photos-block: upload, count, remove thumbnails."""
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         self.page = page
 
     @property

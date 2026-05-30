@@ -21,7 +21,7 @@ class FeatureFlagsPage(BasePage):
 
     URL = "/platform/dashboard"
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         super().__init__(page)
 
     @property

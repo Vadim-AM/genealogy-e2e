@@ -18,7 +18,7 @@ from src.texts import Buttons, t
 class PersonEditor:
     """Editor form for a Person (FIO, dates, places, status, branch, notes)."""
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         self.page = page
 
     # ── Container ─────────────────────────────────────────────────────
@@ -130,7 +130,7 @@ class PersonEditor:
 
     def native_gender_value(self) -> str:
         """Return the current value of the hidden native gender <select>."""
-        return self.native_gender.evaluate("(el) => el.value")
+        return str(self.native_gender.evaluate("(el) => el.value"))
 
     def fill_fio(self, *, surname: str, given: str, patronymic: str = "") -> None:
         """Fill surname, given name, and optionally patronymic."""

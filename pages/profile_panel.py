@@ -43,7 +43,7 @@ def open_editor_for(
 class ProfilePanel:
     """Wraps interactions with the open profile of a person."""
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         self.page = page
 
     # ── Locator properties ──────────────────────────────────────────

@@ -14,7 +14,7 @@ from framework.step import step
 class SharePage:
     """Drives the public share page: inspect person, check errors."""
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         self.page = page
 
     @property

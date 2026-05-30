@@ -16,6 +16,8 @@ from pages.tree_page import TreePage
 from src.texts import PII, Brand, ErrMsg, t
 
 if TYPE_CHECKING:
+    from playwright.sync_api import Response
+
     from fixtures.page_factory import PageFactory
 
 
@@ -42,7 +44,7 @@ def test_landing_no_console_errors(page: Page, anon_pages: PageFactory) -> None:
 
         page.on("pageerror", lambda exc: js_errors.append(str(exc)))
 
-        def _on_response(resp):
+        def _on_response(resp: Response) -> None:
             # 404 covered by static-assets test
             if resp.status >= HTTPStatus.BAD_REQUEST and resp.status != HTTPStatus.NOT_FOUND:
                 url = resp.url
@@ -89,7 +91,7 @@ def test_static_assets_load(page: Page, anon_pages: PageFactory) -> None:
     with step("подготовка: подключить listener на статику"):
         statuses: dict[str, int] = {}
 
-        def _track(response):
+        def _track(response: Response) -> None:
             url = response.url
             if any(seg in url for seg in ("/css/", "/js/", "/assets/", "/fonts/")):
                 statuses[url] = response.status

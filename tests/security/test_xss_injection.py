@@ -1,14 +1,17 @@
-"""XSS injection tests — payloads in person fields must not execute in DOM.
+"""XSS injection tests — payload в полях персоны/сайта не исполняется в DOM.
 
-Backend may either: (a) accept the payload (201) and rely on frontend escaping,
-or (b) reject it at validation (422) — both are safe. The test passes in either case.
+Инвариант (держится независимо от механизма защиты): какой бы XSS-вектор ни
+попытались записать, в браузере не должно произойти исполнения скрипта —
+никаких alert/confirm/prompt. Backend защищается одним из двух способов:
+отклоняет payload валидацией (4xx) ИЛИ принимает и экранирует при рендере;
+оба исхода безопасны, 5xx или реальный JS-диалог — провал. Детектор диалогов
+(`watch_dialogs`) ловит фактическое исполнение для любого payload.
 """
 
 from __future__ import annotations
 
 from http import HTTPStatus
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import allure
 import pytest
@@ -16,6 +19,7 @@ import pytest
 from api import routes, site_api
 from assertions.base import should
 from framework.step import step
+from helpers.tree.tree_api import people_count
 from pages.profile_panel import ProfilePanel
 from pages.tree_page import TreePage
 from src.texts import ErrMsg, TestData
@@ -33,81 +37,84 @@ if TYPE_CHECKING:
 
 @pytest.mark.security
 @pytest.mark.parametrize("payload", XSS_PAYLOADS, ids=lambda p: p[:30])
-@allure.title("XSS: payload в имени персоны не исполняется")
-def test_person_name_xss_is_escaped(
+@allure.title("XSS: payload в имени персоны не исполняется в дереве")
+def test_person_name_xss_does_not_execute(
     owner_page: Page,
     owner_user: AuthUser,
     tenant_client: Callable[[AuthUser], httpx.Client],
     payload: str,
     pages: PageFactory,
 ) -> None:
-    """SEC-INJ-1: XSS в поле name — backend отклоняет (422) или frontend экранирует."""
+    """SEC-INJ-1: XSS-payload в name персоны не исполняется в браузере."""
     api = tenant_client(owner_user)
-    pid = f"xss-{uuid4().hex[:8]}"
 
-    with step("создать персону с XSS-payload в имени"):
-        r = api.post(
-            routes.PEOPLE,
-            json={"id": pid, "name": payload, "branch": "paternal", "gender": "m"},
+    with step("подготовка: запомнить число персон и повесить детектор диалогов"):
+        count_before = people_count(api)
+        tree = pages.create(TreePage)
+        dialogs = tree.watch_dialogs()
+
+    with step("действие: попытаться записать XSS-payload в имя демо-персоны"):
+        r = api.patch(routes.person(TestData.DEMO_PERSON_ID), json={"name": payload})
+        should.less(
+            r.status_code, HTTPStatus.INTERNAL_SERVER_ERROR, ErrMsg.server_error_on_injection
         )
 
-    if r.status_code == HTTPStatus.UNPROCESSABLE_ENTITY:
-        return
-
-    with step("открыть дерево и проверить экранирование"):
-        should.be_equal(r.status_code, HTTPStatus.CREATED, ErrMsg.response_not_ok)
-        _ = pages.navigate_to(TreePage)
-        content = owner_page.content()
-        should.not_contain(content, "<script>alert", ErrMsg.xss_script_rendered)
-        should.not_contain(content, "onerror=alert", ErrMsg.xss_handler_rendered)
-        should.not_contain(content, "onload=alert", ErrMsg.xss_handler_rendered)
+    with step("проверка: дерево не исполняет payload, БД цела"):
+        tree.goto()
+        tree.expect_tree_rendered()
+        should.be_empty(dialogs, ErrMsg.xss_executed)
+        should.be_equal(people_count(api), count_before, ErrMsg.sql_injection_changed_row_count)
 
 
 @pytest.mark.security
 @pytest.mark.parametrize("payload", XSS_PAYLOADS, ids=lambda p: p[:30])
-@allure.title("XSS: payload в summary/notes персоны не исполняется")
-def test_person_notes_xss_is_escaped(
+@allure.title("XSS: payload в summary персоны не исполняется в профиле")
+def test_person_summary_xss_does_not_execute(
     owner_page: Page,
     owner_user: AuthUser,
     tenant_client: Callable[[AuthUser], httpx.Client],
     payload: str,
     pages: PageFactory,
 ) -> None:
-    """SEC-INJ-2: XSS в поле summary — backend отклоняет или frontend экранирует."""
+    """SEC-INJ-2: XSS-payload в summary персоны не исполняется в браузере."""
     api = tenant_client(owner_user)
 
-    with step("обновить summary демо-персоны с XSS-payload"):
+    with step("подготовка: повесить детектор JS-диалогов на страницу"):
+        tree = pages.create(TreePage)
+        dialogs = tree.watch_dialogs()
+
+    with step("действие: попытаться записать XSS-payload в summary демо-персоны"):
         r = api.patch(routes.person(TestData.DEMO_PERSON_ID), json={"summary": payload})
+        should.less(
+            r.status_code, HTTPStatus.INTERNAL_SERVER_ERROR, ErrMsg.server_error_on_injection
+        )
 
-    if r.status_code == HTTPStatus.UNPROCESSABLE_ENTITY:
-        return
-
-    with step("открыть профиль и проверить экранирование"):
-        should.be_true(r.is_success, ErrMsg.response_not_ok)
+    with step("проверка: профиль не исполняет payload"):
         ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
-        content = owner_page.content()
-        should.not_contain(content, "<script>alert", ErrMsg.xss_script_rendered)
-        should.not_contain(content, "onerror=alert", ErrMsg.xss_handler_rendered)
+        should.be_empty(dialogs, ErrMsg.xss_executed)
 
 
 @pytest.mark.security
 @pytest.mark.parametrize("payload", XSS_PAYLOADS, ids=lambda p: p[:30])
-@allure.title("XSS: payload в названии сайта экранируется")
-def test_site_name_xss_is_escaped(
+@allure.title("XSS: payload в названии сайта не исполняется на главной")
+def test_site_name_xss_does_not_execute(
     owner_page: Page,
     owner_user: AuthUser,
     tenant_client: Callable[[AuthUser], httpx.Client],
     payload: str,
     pages: PageFactory,
 ) -> None:
-    """SEC-INJ-3: XSS в site_name не исполняется на главной."""
+    """SEC-INJ-3: XSS в site_name принимается и экранируется — не исполняется на главной."""
     api = tenant_client(owner_user)
 
-    with step("установить site_name с XSS-payload"):
+    with step("подготовка: повесить детектор JS-диалогов на страницу"):
+        tree = pages.create(TreePage)
+        dialogs = tree.watch_dialogs()
+
+    with step("действие: записать XSS-payload в site_name"):
         site_api.patch_site_config(api, site_name=payload)
 
-    with step("открыть главную и проверить экранирование"):
-        _ = pages.navigate_to(TreePage)
-        content = owner_page.content()
-        should.not_contain(content, "<script>alert", ErrMsg.xss_script_rendered)
-        should.not_contain(content, "onerror=alert", ErrMsg.xss_handler_rendered)
+    with step("проверка: главная рендерит payload как текст, без исполнения"):
+        tree.goto()
+        tree.expect_tree_rendered()
+        should.be_empty(dialogs, ErrMsg.xss_executed)

@@ -25,7 +25,7 @@ from framework.step import step
 class SourcesBlock:
     """Drives the sources-block: create+link a source, unlink one."""
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         self.page = page
 
     @property

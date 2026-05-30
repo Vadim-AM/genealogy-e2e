@@ -22,7 +22,7 @@ _IS_OPEN = re.compile(r"\bis-open\b")
 class WaitlistModal:
     """Drives the signup-overflow waitlist modal."""
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         self.page = page
 
     @property

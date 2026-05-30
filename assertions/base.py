@@ -16,10 +16,15 @@
 
 from __future__ import annotations
 
-from http import HTTPStatus
-from typing import Any, Callable, Sized
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sized
+    from http import HTTPStatus
+
+T = TypeVar("T")
 
 
 def _ctx(what: str) -> str:
@@ -60,10 +65,11 @@ class _Should:
             pytest.fail(f"ожидали None, получили {value!r}{_ctx(what)}")
 
     @staticmethod
-    def not_none(value: Any, what: str = "") -> None:
-        """value is not None."""
+    def not_none(value: T | None, what: str = "") -> T:
+        """value is not None; returns it narrowed (non-None) for the type checker."""
         if value is None:
             pytest.fail(f"значение не должно быть None{_ctx(what)}")
+        return value
 
     @staticmethod
     def be_in(item: Any, collection: Any, what: str = "") -> None:
@@ -143,6 +149,12 @@ class _Should:
         """actual < threshold."""
         if not (actual < threshold):
             pytest.fail(f"ожидали < {threshold}, получили {actual}{_ctx(what)}")
+
+    @staticmethod
+    def less_or_equal(actual: Any, threshold: Any, what: str = "") -> None:
+        """actual <= threshold."""
+        if not (actual <= threshold):
+            pytest.fail(f"ожидали <= {threshold}, получили {actual}{_ctx(what)}")
 
     @staticmethod
     def playwright_status(response: Any, expected: int | HTTPStatus, what: str = "") -> None:

@@ -235,7 +235,7 @@ def test_concurrent_creates_in_two_tenants_dont_interfere(
 
     with step("действие: параллельно создать по 5 person в каждом тенанте"):
 
-        def _create_batch(user, label: str) -> None:
+        def _create_batch(user: AuthUser, label: str) -> None:
             api = tenant_client(user)
             for i in range(5):
                 api.post(

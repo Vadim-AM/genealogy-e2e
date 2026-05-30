@@ -9,6 +9,7 @@ import pytest
 from playwright.sync_api import Browser, BrowserContext, Page, expect
 
 from assertions.base import should
+from config.constants import TestConfig, make_email
 from framework.step import step
 from pages.signup_page import SignupPage
 from pages.tree_page import TreePage
@@ -62,11 +63,9 @@ def test_landing_loads_and_shows_demo_tree_on_mobile(mobile_page: Page) -> None:
         expect(tree.tree_container, ErrMsg.tree_not_rendered).to_be_visible()
 
     with step("проверка: нет горизонтального скролла"):
-        # Горизонтальный скролл = мобильный баг. document.body.scrollWidth
-        # должен быть меньше или равен viewport (с tolerance 4px для рендер-багов).
-        sw = mobile_page.evaluate("document.documentElement.scrollWidth")
-        cw = mobile_page.evaluate("document.documentElement.clientWidth")
-        should.less(sw, cw + 5, ErrMsg.horizontal_scroll_detected)
+        # Layout deterministic — никаких допусков (консистентно с
+        # test_responsive.py; tolerance прятал бы реальный overflow-баг).
+        should.be_false(tree.has_horizontal_overflow(), ErrMsg.horizontal_scroll_detected)
 
 
 @allure.title("Мобильный: вкладки Древо и О проекте кликабельны")
@@ -101,9 +100,10 @@ def test_signup_form_submittable_on_mobile(mobile_page: Page, base_url: str) -> 
     with step("подготовка: открыть signup на мобильном"):
         signup = SignupPage(mobile_page).goto_and_load()
 
-    with step("действие: заполнить форму"):
-        email = "mobile-smoke@e2e.local"
-        signup.fill_credentials(email=email, password="Hunter22StrongMobile!")
+    with step("действие: заполнить форму валидными данными"):
+        signup.fill_credentials(
+            email=make_email("mobile-smoke"), password=TestConfig.DEFAULT_PASSWORD
+        )
         # Wave-9: privacy/cross-border объединены с terms_accepted; форма
         # имеет один `#agreeTerms`.
         signup.agree_terms.check()
@@ -112,19 +112,18 @@ def test_signup_form_submittable_on_mobile(mobile_page: Page, base_url: str) -> 
         submit = signup.submit_btn
         expect(submit, ErrMsg.button_not_visible).to_be_visible()
         expect(submit, ErrMsg.button_not_enabled).to_be_enabled()
-        box = submit.bounding_box()
-        should.be_true(box is not None and box["height"] >= 36, ErrMsg.touch_target_too_small)
+        _, height = signup.element_size(submit)
+        should.greater_or_equal(height, 36, ErrMsg.touch_target_too_small)
 
-    with step("действие: отправить форму"):
-        # Отправка (форма скорее всего пройдёт если backend готов, или упадёт
-        # по лимиту — обе ветки валидны для smoke. Главное что нет JS-ошибки).
+    with step("действие: отправить форму на тачскрине"):
         signup.submit()
-        signup.wait_for_page_load()
 
-    with step("проверка: страница не упала после submit"):
-        # msg может содержать success или error — обе валидны;
-        # проверяем что страница не упала (URL/title).
-        expect(mobile_page, ErrMsg.page_title_wrong).to_have_title(__import__("re").compile(r".+"))
+    with step("проверка: signup принят — показано сообщение о верификации"):
+        # Детерминированный исход вместо «success или error — обе валидны»:
+        # валидный email на e2e.example.com + DEFAULT_PASSWORD → backend
+        # принимает signup и отдаёт verification. mobile_smoke в _SERIAL_FILES,
+        # reset снимает rate-limit между тестами.
+        signup.expect_verification_message()
 
 
 @allure.title("Мобильный: форма вейтлиста на /wait работает на тачскрине")

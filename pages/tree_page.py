@@ -30,7 +30,7 @@ class TreePage(BasePage):
     GUEST_TABS = ["tree", "about"]
     AUTHED_TABS = ["tree", "map", "sources", "timeline", "about"]
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         super().__init__(page)
 
     # ── Locator properties ──────────────────────────────────────────
@@ -187,6 +187,11 @@ class TreePage(BasePage):
         """CTA link to /wait inside the beta card."""
         return self.about_beta_card.locator('a[href="/wait"]')
 
+    @property
+    def footer_version(self) -> Locator:
+        """no semantic: version stamp, no ARIA"""
+        return self.page.locator('[data-testid="footer-version"]').first
+
     # ── Сценарные методы (auth state) ─────────────────────────────────
 
     def expect_authed_state(self, display_name: str | None = None) -> None:
@@ -220,11 +225,10 @@ class TreePage(BasePage):
 
     def logout(self) -> None:
         """Клик по «Выйти» с ожиданием POST /logout."""
-        with step("клик «Выйти»"):
-            with self.page.expect_response(
-                lambda r: routes.LOGOUT in r.url and r.request.method == "POST"
-            ):
-                self.logout_btn.click()
+        with step("клик «Выйти»"), self.page.expect_response(
+            lambda r: routes.LOGOUT in r.url and r.request.method == "POST"
+        ):
+            self.logout_btn.click()
 
     # ── Навигация к профилю ──────────────────────────────────────────
 
@@ -359,7 +363,18 @@ class TreePage(BasePage):
 
     def minimap_computed_display(self) -> str:
         """Return the computed CSS display value of the minimap element."""
-        return self.minimap.evaluate("(el) => getComputedStyle(el).display")
+        return str(self.minimap.evaluate("(el) => getComputedStyle(el).display"))
+
+    def lang_switcher_states(self) -> list[tuple[str, str]]:
+        """Return (inner_html, css_display) for each lang-switcher container."""
+        containers = self.page.locator('[data-testid="lang-switcher"]').all()
+        return [
+            (
+                str(c.evaluate("(el) => el.innerHTML.trim()")),
+                str(c.evaluate("(el) => getComputedStyle(el).display")),
+            )
+            for c in containers
+        ]
 
     def goto_hash(self, fragment: str) -> Self:
         """Navigate to a hash route (e.g. /#/p/some-id) and wait for load."""

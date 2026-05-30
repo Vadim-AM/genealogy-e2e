@@ -19,7 +19,7 @@ class OwnerPage(BasePage):
 
     TABS = ["settings", "invites", "export", "subscription", "danger"]
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         super().__init__(page)
 
     # ── Tabs ──────────────────────────────────────────────────────────
@@ -165,6 +165,18 @@ class OwnerPage(BasePage):
         """no semantic: alertDialog ok button"""
         return self.confirm_dialog.locator('[data-act="ok"]')
 
+    # ── Onboarding demo controls ─────────────────────────────────────
+
+    @property
+    def clear_demo_btn(self) -> Locator:
+        """no semantic: custom widget button, no ARIA"""
+        return self.page.locator("#clearDemo")
+
+    @property
+    def keep_demo_btn(self) -> Locator:
+        """no semantic: custom widget button, no ARIA"""
+        return self.page.locator("#keepDemo")
+
     # ── Methods ───────────────────────────────────────────────────────
 
     def tab_locator(self, name: str) -> Locator:
@@ -293,3 +305,13 @@ class OwnerPage(BasePage):
             self.open_tab("export")
             expect(self.import_root).to_have_attribute("data-gedcom-state", "IDLE")
         return self
+
+    def click_clear_demo(self) -> None:
+        """Click the 'clear demo data' control (opens confirm dialog)."""
+        with step("действие: удалить демо-данные"):
+            self.clear_demo_btn.click()
+
+    def click_keep_demo(self) -> None:
+        """Click the 'keep demo as template' control (opens confirm dialog)."""
+        with step("действие: сохранить демо-данные как шаблон"):
+            self.keep_demo_btn.click()

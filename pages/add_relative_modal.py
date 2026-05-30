@@ -21,7 +21,7 @@ class AddRelativeModal:
     cards and dropdown rows.
     """
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         self.page = page
 
     # ── Container / chrome ────────────────────────────────────────────

@@ -22,7 +22,7 @@ from src.texts import Buttons, t
 class ConfirmDialog:
     """Drives the custom confirm-dialog: inspect text, confirm, cancel."""
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         self.page = page
 
     @property
