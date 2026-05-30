@@ -23,28 +23,32 @@ if TYPE_CHECKING:
 
     import httpx
 
+    from fixtures.page_factory import PageFactory
     from fixtures.users import AuthUser
 
 
 @allure.title("AI-обогащение: принятие гипотезы и откат через UI")
 def test_owner_accepts_ai_hypothesis_into_card_then_reverts(
-    owner_page: Page, owner_user: AuthUser, grant_ai_consent: Callable[[AuthUser], None]
+    owner_page: Page,
+    owner_user: AuthUser,
+    grant_ai_consent: Callable[[AuthUser], None],
+    pages: PageFactory,
 ) -> None:
     """Owner принимает AI-гипотезу → chip в карточке → откат → chip исчез."""
     with step("подготовка: consent и открытие профиля"):
         grant_ai_consent(owner_user)
 
         panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
-        TreePage(owner_page).wait_for_auth_resolved()
+        pages.create(TreePage).wait_for_auth_resolved()
 
     with step("действие: запуск enrichment и принятие гипотезы"):
         panel.trigger_enrichment()
 
-        dialog = ConfirmDialog(owner_page)
+        dialog = pages.create(ConfirmDialog)
         dialog.expect_visible()
         dialog.confirm()
 
-        modal = EnrichmentModal(owner_page)
+        modal = pages.create(EnrichmentModal)
         modal.expect_open()
         modal.wait_results()
         modal.accept_first_hypothesis()

@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
     import httpx
 
+    from fixtures.page_factory import PageFactory
     from fixtures.users import AuthUser
 
 
@@ -45,7 +46,10 @@ def test_maiden_name_visible_only_for_female_gender(owner_page: Page) -> None:
 
 @allure.title("Кнопка 'Удалить' открывает диалог подтверждения с предупреждением")
 def test_delete_button_invokes_confirm_dialog(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Confirm dialog упоминает удаление, необратимость и связи."""
     with step("подготовка: открыть редактор non-root персоны"):
@@ -62,7 +66,7 @@ def test_delete_button_invokes_confirm_dialog(
     with step("действие: нажать Удалить и проверить текст диалога"):
         editor.delete()
 
-        dialog = ConfirmDialog(owner_page)
+        dialog = pages.create(ConfirmDialog)
         dialog.expect_visible()
 
         msg = dialog.text()

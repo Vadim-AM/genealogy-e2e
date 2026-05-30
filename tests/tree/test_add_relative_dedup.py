@@ -29,12 +29,16 @@ if TYPE_CHECKING:
     import httpx
     from playwright.sync_api import Request, Route
 
+    from fixtures.page_factory import PageFactory
     from fixtures.users import AuthUser
 
 
 @allure.title("Подсказка родителя для сестры предотвращает дубликат")
 def test_sibling_parent_suggestion_prevents_duplicate(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Привязка отца через suggestion предотвращает дубликат."""
     with step("подготовка: получить demo-родителей и запомнить count"):
@@ -61,7 +65,7 @@ def test_sibling_parent_suggestion_prevents_duplicate(
         panel = ProfilePanel.navigate_to_fresh(owner_page, svetlana["id"])
         panel.click_add_parent()
 
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
 
         modal.expect_suggestion_visible(demo_father_id)
@@ -87,7 +91,10 @@ def test_sibling_parent_suggestion_prevents_duplicate(
 
 @allure.title("Подсказки родителей фильтруются по выбранному полу")
 def test_suggestion_filters_by_gender_for_mother_relationship(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Фильтрация suggestion по полу: f показывает мать, m — отца."""
     with step("подготовка: добавить сиблинга без auto-parent"):
@@ -101,7 +108,7 @@ def test_suggestion_filters_by_gender_for_mother_relationship(
     with step("действие: открыть Светлану и переключать пол"):
         panel = ProfilePanel.navigate_to_fresh(owner_page, svetlana["id"])
         panel.click_add_parent()
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
 
     with step("проверка: gender=f показывает только мать, gender=m только отца"):
@@ -116,7 +123,10 @@ def test_suggestion_filters_by_gender_for_mother_relationship(
 
 @allure.title("Подсказки отсутствуют у персоны без братьев и сестёр")
 def test_no_suggestion_when_no_siblings(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Персона без siblings не получает suggestion — нечего предлагать."""
     with step("подготовка: создать изолированную персону без siblings"):
@@ -138,7 +148,7 @@ def test_no_suggestion_when_no_siblings(
     with step("действие: открыть профиль и нажать + родитель"):
         panel = ProfilePanel.navigate_to_fresh(owner_page, lonely_id)
         panel.click_add_parent()
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
 
     with step("проверка: подсказки отсутствуют"):
@@ -147,7 +157,10 @@ def test_no_suggestion_when_no_siblings(
 
 @allure.title("Подсказки пусты когда у сиблингов нет родителей")
 def test_no_suggestion_when_siblings_have_no_parents(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Два siblings без parents → suggestion пуст при добавлении родителя."""
     with step("подготовка: создать двух сиблингов без родителей"):
@@ -186,7 +199,7 @@ def test_no_suggestion_when_siblings_have_no_parents(
     with step("действие: открыть профиль и нажать + родитель"):
         panel = ProfilePanel.navigate_to_fresh(owner_page, "lone_a")
         panel.click_add_parent()
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
 
     with step("проверка: подсказки отсутствуют"):
@@ -195,7 +208,10 @@ def test_no_suggestion_when_siblings_have_no_parents(
 
 @allure.title("Кнопка '+ родитель' скрыта при достижении лимита в 2 родителя")
 def test_no_suggestion_when_max_parents_already(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Кнопка +parent скрыта при наличии 2 родителей (RELATIVE_LIMITS)."""
     with step("подготовка: проверить наличие двух demo-родителей"):
@@ -210,7 +226,10 @@ def test_no_suggestion_when_max_parents_already(
 
 @allure.title("Игнорирование подсказки создаёт нового человека вручную")
 def test_user_ignores_suggestion_creates_new_person(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Игнорирование suggestion создаёт нового person'а, не мерджит."""
     with step("подготовка: добавить сиблинга без auto-parent"):
@@ -226,7 +245,7 @@ def test_user_ignores_suggestion_creates_new_person(
     with step("действие: игнорировать suggestion и создать нового родителя вручную"):
         panel = ProfilePanel.navigate_to_fresh(owner_page, svetlana["id"])
         panel.click_add_parent()
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
         modal.expect_suggestion_visible(demo_father_id)
 
@@ -254,7 +273,10 @@ def test_user_ignores_suggestion_creates_new_person(
 
 @allure.title("Клик по подсказке привязывает существующего, не создаёт нового")
 def test_suggestion_click_does_not_create_new_person(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Клик suggestion не дёргает POST /api/people — только relationships."""
     with step("подготовка: добавить сиблинга и открыть модалку родителя"):
@@ -268,7 +290,7 @@ def test_suggestion_click_does_not_create_new_person(
 
         panel = ProfilePanel.navigate_to_fresh(owner_page, svetlana["id"])
         panel.click_add_parent()
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
         modal.expect_suggestion_visible(demo_father_id)
 
@@ -294,7 +316,10 @@ def test_suggestion_click_does_not_create_new_person(
 
 @allure.title("Чекбокс 'Те же родители' привязывает обоих родителей к сиблингу")
 def test_existing_sibling_auto_parent_checkbox_still_works(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Чекбокс auto-parent привязывает обоих demo-родителей к новому сиблингу."""
     with step("подготовка: получить demo-родителей"):
@@ -304,7 +329,7 @@ def test_existing_sibling_auto_parent_checkbox_still_works(
     with step("действие: добавить сиблинга с чекбоксом 'Те же родители'"):
         panel = ProfilePanel.navigate_to_fresh(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
 
         expect(modal.share_parents_input, ErrMsg.checkbox_state_wrong).to_be_checked()
@@ -325,7 +350,10 @@ def test_existing_sibling_auto_parent_checkbox_still_works(
 
 @allure.title("Ошибка 422 при привязке подсказки оставляет модалку открытой")
 def test_suggestion_click_shows_error_on_backend_422(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Бэк 422 на suggestion → модалка открыта, error visible, граф не меняется."""
     with step("подготовка: добавить сиблинга и открыть модалку родителя"):
@@ -341,7 +369,7 @@ def test_suggestion_click_shows_error_on_backend_422(
 
         panel = ProfilePanel.navigate_to_fresh(owner_page, svetlana["id"])
         panel.click_add_parent()
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
         modal.expect_suggestion_visible(demo_father_id)
 

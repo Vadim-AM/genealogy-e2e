@@ -19,12 +19,16 @@ if TYPE_CHECKING:
 
     import httpx
 
+    from fixtures.page_factory import PageFactory
     from fixtures.users import AuthUser
 
 
 @allure.title("Добавление брата/сестры через профиль создаёт персону и связь")
 def test_add_sibling_via_profile_creates_person_and_relationship(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Добавить сиблинга через профиль → новая персона в дереве."""
     with step("подготовка: запомнить количество персон в дереве"):
@@ -35,7 +39,7 @@ def test_add_sibling_via_profile_creates_person_and_relationship(
         panel = ProfilePanel.navigate_to(owner_page, TestData.DEMO_PERSON_ID)
         panel.click_add_sibling()
 
-        modal = AddRelativeModal(owner_page)
+        modal = pages.create(AddRelativeModal)
         modal.expect_visible()
 
         with owner_page.expect_response("**/api/people**") as resp_info:

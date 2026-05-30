@@ -23,12 +23,16 @@ if TYPE_CHECKING:
 
     import httpx
 
+    from fixtures.page_factory import PageFactory
     from fixtures.users import AuthUser
 
 
 @allure.title("Владелец привязывает источник к персоне и отвязывает обратно")
 def test_owner_attaches_and_unlinks_a_source(
-    owner_page: Page, owner_user: AuthUser, tenant_client: Callable[[AuthUser], httpx.Client]
+    owner_page: Page,
+    owner_user: AuthUser,
+    tenant_client: Callable[[AuthUser], httpx.Client],
+    pages: PageFactory,
 ) -> None:
     """Привязать источник → виден в UI и API → отвязать → нет."""
     with step("подготовка: открыть редактор персоны"):
@@ -37,8 +41,8 @@ def test_owner_attaches_and_unlinks_a_source(
 
         panel = ProfilePanel.navigate_to(owner_page, pid)
         panel.open_editor()
-        PersonEditor(owner_page).expect_visible()
-        sources = SourcesBlock(owner_page)
+        pages.create(PersonEditor).expect_visible()
+        sources = pages.create(SourcesBlock)
 
     with step("действие: привязать источник"):
         src_name = "Метрическая книга, 1890"
