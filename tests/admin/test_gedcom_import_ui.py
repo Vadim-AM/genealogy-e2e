@@ -61,7 +61,7 @@ def test_round_trip_export_then_import(
 
     with step("проверка: DONE показывает «Пропущено» и count не изменился"):
         # 5. DONE-сводка содержит «Пропущено» — нет реально-новых persons
-        summary_text = owner.import_summary.text_content() or ""
+        summary_text = owner.import_summary_text()
         should.contain(summary_text, t(GedcomImport.SKIPPED_LABEL), ErrMsg.gedcom_skipped_missing)
 
         count_after = people_count(api)
@@ -191,7 +191,7 @@ def test_done_shows_skipped_count_on_reimport(
         owner.expect_import_state("DONE")
 
     with step("проверка: DONE summary содержит «Пропущено»"):
-        summary_text = owner.import_summary.text_content() or ""
+        summary_text = owner.import_summary_text()
         should.contain(summary_text, t(GedcomImport.SKIPPED_LABEL), ErrMsg.gedcom_skipped_missing)
 
 

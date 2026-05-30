@@ -231,13 +231,13 @@ def signup_via_api(uvicorn_server: str) -> Callable[..., AuthUser]:
 @pytest.fixture
 def owner_user(signup_via_api: Callable[..., AuthUser]) -> AuthUser:
     """Create and return a fully verified owner user."""
-    return signup_via_api()  # type: ignore[no-any-return]
+    return signup_via_api()
 
 
 @pytest.fixture
 def superadmin_user(signup_via_api: Callable[..., AuthUser]) -> AuthUser:
     """Create and return a fully verified superadmin user."""
-    return signup_via_api(email=TestConfig.SUPERADMIN_EMAIL)  # type: ignore[no-any-return]
+    return signup_via_api(email=TestConfig.SUPERADMIN_EMAIL)
 
 
 @pytest.fixture

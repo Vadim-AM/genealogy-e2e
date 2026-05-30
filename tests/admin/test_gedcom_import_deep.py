@@ -155,7 +155,7 @@ def test_user_imports_minimal_indi_profile_renders_without_crash(
         if panel.dates.count() > 0:
             # Если элемент есть — он не должен содержать «1970», «1980» или
             # подобных «фантомных» дат от backend defaults.
-            text = (panel.dates.text_content() or "").strip()
+            text = panel.dates_text().strip()
             should.be_false(
                 any(year in text for year in ("1970", "1980", "1990")),
                 ErrMsg.gedcom_phantom_dates,

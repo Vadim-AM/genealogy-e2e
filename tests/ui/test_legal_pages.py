@@ -28,8 +28,7 @@ def test_legal_renders_html_not_raw_markdown(page: Page, base_url: str, path: st
     """TC-BUG-LEGAL-001: privacy/terms must be rendered HTML."""
     with step("действие: загрузить юридическую страницу"):
         legal = LegalPage(page, path)
-        response = page.goto(path)
-        response = should.not_none(response, ErrMsg.page_navigation_failed)
+        response = legal.goto_with_response()
         should.be_equal(response.status, HTTPStatus.OK, ErrMsg.status_mismatch)
         content_type = (response.headers.get("content-type") or "").lower()
         should.contain(content_type, "text/html", ErrMsg.content_type_not_html)

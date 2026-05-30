@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import allure
 import httpx
-from playwright.sync_api import Page, expect
+from playwright.sync_api import expect
 
 from api import routes
 from assertions.base import should
@@ -19,15 +19,14 @@ from src.texts import ErrMsg
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from fixtures.page_factory import PageFactory
     from fixtures.users import AuthUser
 
 
 @allure.title("Edge: переход по несуществующему профилю не ломает UI")
-def test_f5_on_nonexistent_profile_id_does_not_crash(owner_page: Page) -> None:
+def test_f5_on_nonexistent_profile_id_does_not_crash(pages: PageFactory) -> None:
     """TC-EDGE-004: F5 on /#/p/<unknown> shows tree, no JS crash."""
-    tree = TreePage(owner_page)
-    owner_page.goto("/#/p/nonexistent_xyz_123")
-    tree.wait_for_page_load()
+    tree = pages.create(TreePage).goto_hash("#/p/nonexistent_xyz_123")
     expect(tree.tab_tree, ErrMsg.tab_not_visible).to_be_visible()
 
 

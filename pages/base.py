@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Self
 from framework.step import step
 
 if TYPE_CHECKING:
-    from playwright.sync_api import Dialog, Locator, Page
+    from playwright.sync_api import Dialog, Locator, Page, Response
 
 _CS_WRAPPER = '[data-testid="custom-select"]:has(+ select[data-field="{}"])'
 _CS_TRIGGER = '[data-testid="custom-select-trigger"]'
@@ -48,6 +48,15 @@ class BasePage:
             self.page.wait_for_load_state("domcontentloaded")
         return self
 
+    def goto_with_response(self, *, query: str = "") -> Response:
+        """Navigate to the page URL and return the navigation Response."""
+        with step(f"навигация: переход на {self.URL} с ответом"):
+            url = self.URL + (f"?{query}" if query else "")
+            response = self.page.goto(url)
+        if response is None:
+            raise RuntimeError(f"navigation to {url!r} returned no response")
+        return response
+
     def wait_for_page_load(self) -> None:
         """Wait for the DOM content to be loaded."""
         with step("ожидание: загрузка DOM"):
@@ -58,6 +67,10 @@ class BasePage:
     def page_title(self) -> str:
         """Return the document title."""
         return self.page.title()
+
+    def page_html(self) -> str:
+        """Return the full serialized HTML of the page."""
+        return self.page.content()
 
     def html_lang(self) -> str:
         """Return the document's <html lang> attribute value."""

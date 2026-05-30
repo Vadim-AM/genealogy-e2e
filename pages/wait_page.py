@@ -33,6 +33,10 @@ class WaitPage(BasePage):
         """no semantic: generic result div"""
         return self.page.locator("#result")
 
+    def result_text(self) -> str:
+        """Return the result element's text content (empty string if none)."""
+        return self.result.text_content() or ""
+
     @property
     def form(self) -> Locator:
         """no semantic: form container"""

@@ -12,7 +12,7 @@ NB: PR-4 убрала старый ASCII-funnel (`#funnel`) — заменён �
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Any, Self, cast
 
 from playwright.sync_api import Locator, Page, expect
 
@@ -29,6 +29,18 @@ class PlatformDashboardPage(BasePage):
 
     def __init__(self, page: Page) -> None:
         super().__init__(page)
+
+    # ── WebAuthn virtual-authenticator helpers (product JS) ──────
+
+    def register_webauthn(self, label: str) -> dict[str, Any]:
+        """Invoke the page's webauthnRegister(label) JS helper; return its result."""
+        with step(f"действие: webauthnRegister({label!r})"):
+            return cast("dict[str, Any]", self.page.evaluate(f"() => webauthnRegister({label!r})"))
+
+    def authenticate_webauthn(self) -> dict[str, Any]:
+        """Invoke the page's webauthnAuthenticate() JS helper; return its result."""
+        with step("действие: webauthnAuthenticate()"):
+            return cast("dict[str, Any]", self.page.evaluate("() => webauthnAuthenticate()"))
 
     # ── Original metric cards (TC-PA-2 contract) ─────────────────
 

@@ -138,6 +138,10 @@ class OwnerPage(BasePage):
         """no semantic: summary display, no ARIA"""
         return self.import_root.locator("[data-gedcom-summary]")
 
+    def import_summary_text(self) -> str:
+        """Return the import-summary element's text content (empty if none)."""
+        return self.import_summary.text_content() or ""
+
     @property
     def import_error(self) -> Locator:
         """no semantic: error display, no ARIA"""

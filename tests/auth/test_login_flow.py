@@ -76,7 +76,7 @@ def test_login_unknown_email_returns_same_error_as_wrong_password(
         login = anon_pages.navigate_to(LoginPage)
         login.login(owner_user.email, "wrong_pw_2026")
         expect(login.error_msg, ErrMsg.wrong_text_content).to_have_text(_NON_EMPTY, timeout=TIMEOUTS.pw_action_ms)
-        msg_known = login.error_msg.text_content()
+        msg_known = login.error_text()
 
     with step("действие: вход с неизвестным email"):
         login_unknown = anon_pages.navigate_to(LoginPage)
@@ -85,7 +85,7 @@ def test_login_unknown_email_returns_same_error_as_wrong_password(
             login_unknown.error_msg,
             ErrMsg.wrong_text_content,
         ).to_have_text(_NON_EMPTY, timeout=TIMEOUTS.pw_action_ms)
-        msg_unknown = login_unknown.error_msg.text_content()
+        msg_unknown = login_unknown.error_text()
 
     with step("проверка: тексты ошибок идентичны (anti-enumeration)"):
         should.be_equal(msg_known, msg_unknown, ErrMsg.login_error_texts_differ)

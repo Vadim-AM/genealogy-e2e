@@ -4,10 +4,27 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+
+from pages.feature_flags_page import FeatureFlagsPage
+
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from playwright.sync_api import Browser, BrowserContext, Page
 
     from fixtures.users import AuthUser
+
+
+@pytest.fixture
+def feature_flags(
+    auth_context_factory: Callable[..., BrowserContext], superadmin_user: AuthUser
+) -> FeatureFlagsPage:
+    """Open /platform/dashboard as superadmin and return a FeatureFlagsPage POM."""
+    ctx = auth_context_factory(superadmin_user, with_tenant_header=False)
+    ff = FeatureFlagsPage(ctx.new_page())
+    ff.goto()
+    return ff
 
 
 def localhost_url(base_url: str) -> str:

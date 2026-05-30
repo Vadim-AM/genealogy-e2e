@@ -111,7 +111,7 @@ def test_webauthn_full_register_via_ui(
 
         with step("действие: вызываем webauthnRegister через JS"):
             label = "VirtualE2EKey"
-            result = page.evaluate(f"() => webauthnRegister({label!r})")
+            result = dashboard.register_webauthn(label)
             should.be_equal(result.get("status"), "ok", ErrMsg.webauthn_register_failed)
             should.be_equal(result.get("label"), label, ErrMsg.webauthn_label_wrong)
 
@@ -134,10 +134,10 @@ def test_webauthn_register_then_authenticate_via_ui(browser: Browser, superadmin
             dashboard = PlatformDashboardPage(page)
             dashboard.goto_and_load()
             add_virtual_authenticator(page)
-            page.evaluate("() => webauthnRegister('AuthFlowKey')")
+            dashboard.register_webauthn("AuthFlowKey")
 
         with step("действие: аутентификация через WebAuthn"):
-            auth_result = page.evaluate("() => webauthnAuthenticate()")
+            auth_result = dashboard.authenticate_webauthn()
 
         with step("проверка: status=ok и valid_until присутствует"):
             should.be_equal(auth_result.get("status"), "ok", ErrMsg.webauthn_auth_status_wrong)
